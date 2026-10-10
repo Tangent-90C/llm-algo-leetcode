@@ -17,7 +17,9 @@
 | 输出 shape 对，但数值误差大 | dtype、mask、边界和累加路径 | 精度控制、边界 tile、参考实现对齐 | [02 Kernel 语义与访存](./02_kernel_semantics_and_memory.md) |
 | kernel 能运行但明显变慢 | layout、合并访存、tile 和工作集 | memory coalescing、tile、shared memory | [02 Kernel 语义与访存](./02_kernel_semantics_and_memory.md) |
 | fusion 后 kernel 变慢 | register、shared memory、occupancy | 减少写回与资源压力的权衡 | [03 算子融合](./03_fusion_and_kernel_composition.md) |
+| 图改写后没有进入候选 kernel | lowering、算子覆盖与 fallback | legalization、layout、生成路径 | [03 图级优化与融合](./03_fusion_and_kernel_composition.md) |
 | 某张 GPU 快，另一张 GPU 慢 | dtype、shape、编译目标和硬件资源 | Tensor Core、warp、block、stream | [04 CUDA 执行](./04_cuda_execution_and_hardware_constraints.md) |
+| 不同 backend 给出相反结论 | layout、编译缓存与 runtime 假设 | backend 成本模型、冷/热运行 | [05 成本模型与 Profiling](./05_cost_model_and_profiling.md) |
 | autotune 结果不稳定 | shape 分布、warmup、测量口径 | 配置搜索、分桶、缓存和编译成本 | [05 成本模型与 Profiling](./05_cost_model_and_profiling.md) |
 | kernel 变快但模型不变快 | launch、同步、其他算子或输入管线 | 端到端瓶颈不在当前 kernel | [06 Benchmark 与验证](./06_benchmark_and_project_validation.md) |
 
@@ -40,5 +42,5 @@
 
 - 想顺序学习：回到[算子优化专题入口](./intro.md)。
 - 想沿一个 kernel 项目推进：阅读[算子优化问题链](./walkthrough.md)。
-- 想定位系统热点：转到[性能分析](../profiling/intro.md)。
-- 想理解图变换与 lowering：转到[图级优化与编译支撑](./graph_compiler/intro.md)。
+- 想定位系统热点：转到[性能分析](../performance_analysis/intro.md)。
+- 想理解图变换与 lowering：从[03 图级优化、融合与 Kernel 组合](./03_fusion_and_kernel_composition.md)进入，再按需回查 Part01 · 09 与 Part04 的编译实践。

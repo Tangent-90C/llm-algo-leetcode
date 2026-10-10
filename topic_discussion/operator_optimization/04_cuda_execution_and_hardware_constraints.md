@@ -19,6 +19,8 @@
 
 性能取决于硬件架构、SM 资源、内存层级、编译目标、dtype 和输入 shape。FLOPs、源代码长度或单个 kernel 的局部时间都不能单独代表端到端收益。
 
+图级候选进入 backend 后，还会受到算子覆盖、layout 转换、运行时 fallback、launch 粒度与 stream 依赖限制。同一份 graph rewrite 在 CUDA、Triton 或不同 runtime 上可以走不同执行路径，因此 backend 约束应在决定候选时记录，而不是在结果不一致后才补充解释。
+
 ## 累加精度与执行路径
 
 输入 dtype 不等于整个计算过程的 dtype。FP16、BF16 或 FP8 输入可能使用 FP32 累加器；Softmax、Norm 和 Reduction 尤其需要关注累加顺序、scale 和数值稳定性。报告中应分别记录输入 dtype、累加 dtype 和输出 dtype。
@@ -32,7 +34,7 @@
 
 ## 从框架调用到 Kernel
 
-一个算子通常经过 `PyTorch eager → torch.compile / Inductor → Triton 或 CUDA kernel → GPU runtime`。本专题重点观察最后两层的语义和执行代价；图变换、IR、lowering 和自动选择由[图级优化与编译支撑模块](./graph_compiler/intro.md)负责。写出候选 kernel 后，还要确认模型或 Block 是否真的调用了它。
+一个算子通常经过 `PyTorch eager → torch.compile / Inductor → Triton 或 CUDA kernel → GPU runtime`。图变换、IR、lowering 与自动选择属于这条执行链的前半段；写出候选 kernel 后，还要确认模型或 Block 是否真的调用了它。
 
 | 实验层级 | 观察内容 | 适合回答的问题 |
 |:---|:---|:---|
