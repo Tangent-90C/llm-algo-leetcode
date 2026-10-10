@@ -25,6 +25,11 @@ COMPARISON_MODES = {"controlled", "observational"}
 EVIDENCE_LEVELS = {
     "theoretical",
     "cpu_simulation",
+    "controlled_gpu_benchmark",
+    "observational_gpu_benchmark",
+    "matched_quality_benchmark",
+    "aggregate_audit",
+    # Legacy values remain readable so existing result files can still be audited.
     "gpu_smoke",
     "real_benchmark",
     "profiler_trace",

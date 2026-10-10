@@ -14,16 +14,16 @@
 
 ## 本节导读
 
-前面的 RMSNorm、SwiGLU、RoPE 和 GQA 分别处理尺度、非线性、位置和上下文；进入模型结构后，它们需要在同一个 Decoder Layer 中协同工作。理解这个组合顺序，才能读懂现代 decoder-only 模型如何逐层更新 hidden state。
+前面的 RMSNorm、SwiGLU、RoPE 和 GQA 分别处理尺度、非线性、位置和上下文；进入模型结构后，它们需要在同一个解码器层中协同工作。理解这个组合顺序，才能读懂现代仅解码器模型如何逐层更新主状态。
 
-本节把它们组织成最小 LLaMA-3 Decoder Layer：两次 Pre-Norm、两条变换分支和两次残差更新。学习后应能沿着 `x → attention update → MLP update` 追踪每一步的输入、输出与形状，并判断改动某个组件会影响哪条路径。
+本节把它们组织成最小 LLaMA-3 解码器层：两次前置归一化（Pre-Norm）、两条变换分支和两次残差更新。学习后应能沿着“主状态 → 注意力更新 → MLP 更新”追踪每一步的输入、输出与形状，并判断改动某个组件会影响哪条路径。
 
 **关键词：** `LLaMA3`, `Transformer Block`, `Decoder Layer`
 
 ---
 ## 前置阅读
 
-**导语：** 进入本节前，先能指出 RMSNorm、RoPE、GQA 和 SwiGLU 在 Decoder Layer 中分别承担什么作用，再把它们按执行顺序组合起来。
+**导语：** 进入本节前，先能指出 RMSNorm、RoPE、GQA 和 SwiGLU 在解码器层中分别承担什么作用，再把它们按执行顺序组合起来。
 
 - [01. RMSNorm Tutorial | RMSNorm 教程](../02_PyTorch_Algorithms/01_RMSNorm_Tutorial.md)
 - [02. SwiGLU Activation | SwiGLU 激活](../02_PyTorch_Algorithms/02_SwiGLU_Activation.md)
@@ -32,22 +32,22 @@
 
 
 ---
-### Step 1：Decoder Block 的组成、状态流与层堆叠
+### Step 1：解码器块的组成、状态流与层堆叠
 
-Decoder-only 模型先把 token 转成 hidden state，再让多个 Decoder Block 依次更新同一条残差流。单个 Block 包含两类变换：Attention 在 token 之间交换信息，MLP 在每个 token 内重组通道；Norm 控制子层输入尺度，残差连接保留主状态并接收增量更新。
+仅解码器模型先把 token 转成主状态，再让多个解码器块依次更新同一条残差流。单个块包含两类变换：注意力在 token 之间交换信息，MLP 在每个 token 内重组通道；归一化控制子层输入尺度，残差连接保留主状态并接收增量更新。
 
-| 组件 | 读取什么 | 写回什么 | 跨多个 Block 的意义 |
+| 组件 | 读取什么 | 写回什么 | 跨多个块的意义 |
 |---|---|---|---|
-| Pre-Norm | 当前 hidden state | 尺度受控的子层输入 | 防止每层直接接收失控尺度 |
-| Attention | 当前 token 与可见上下文 | 上下文更新量 | 逐层扩大和重组 token 间信息 |
+| 前置归一化 | 当前主状态 | 尺度受控的子层输入 | 防止每层直接接收失控尺度 |
+| 注意力 | 当前 token 与可见上下文 | 上下文更新量 | 逐层扩大和重组 token 间信息 |
 | MLP / SwiGLU | 单个 token 的通道 | 通道更新量 | 增加逐 token 的非线性容量 |
-| Residual stream | Block 输入与两个更新量 | 下一 Block 的主状态 | 为深层网络保留连续的信息与梯度路径 |
+| 残差主干 | 块输入与两个更新量 | 下一块的主状态 | 为深层网络保留连续的信息与梯度路径 |
 
 ![LLaMA3 Decoder Block 与多层残差主干](../public/02_PyTorch_Algorithms/05_llama_block.svg)
 
-### Step 2：两次 Pre-Norm 残差更新
+### Step 2：两次前置归一化残差更新
 
-一个 Block 依次执行两次“归一化 → 子层变换 → 残差相加”。Attention 和 MLP 解决的问题不同，因此不能把两条更新合并成一次无序求和；第二次 Pre-Norm 必须读取已经包含 Attention 更新的状态。
+一个块依次执行两次“归一化 → 子层变换 → 残差相加”。注意力和 MLP 解决的问题不同，因此不能把两条更新合并成一次无序求和；第二次前置归一化必须读取已经包含注意力更新的状态。
 
 $$
 h' = h + \operatorname{Attention}(\operatorname{Norm}_1(h)),\qquad
@@ -56,35 +56,32 @@ $$
 
 | 路径 | 输入状态 | 更新来源 | 需要保持的不变量 |
 |---|---|---|---|
-| Attention 更新 | `h` | token 间上下文 | 输出形状与 `h` 一致 |
+| 注意力更新 | `h` | token 间上下文 | 输出形状与 `h` 一致 |
 | MLP 更新 | `h'` | token 内通道变换 | 必须读取第一次残差后的状态 |
-| Block 输出 | 两次残差后的状态 | 主干与增量共同构成 | 可直接作为下一 Block 输入 |
+| 块输出 | 两次残差后的状态 | 主干与增量共同构成 | 可直接作为下一块输入 |
 
 ![两次 Pre-Norm 残差更新](../public/02_PyTorch_Algorithms/05_prenorm_residual_updates.svg)
 
-### Step 3：组件替换、深度稳定性与 Block 契约
+### Step 3：组件替换如何保持块契约
 
-架构演进经常替换 Attention、Norm 或 MLP，但 Block 外部仍要维持 hidden state 的形状、dtype 和残差接口。局部组件“能运行”不代表堆叠后稳定：深度增加会放大初始化、残差尺度、归一化位置和梯度传播之间的相互作用。
+架构演进经常替换注意力、归一化或 MLP，但块外部仍要维持主状态的形状、数据类型和残差接口。局部组件能够产生同形状输出，只说明接口可连接；深度增加还会放大初始化、残差尺度、归一化位置和梯度传播之间的相互作用。
 
-| 结构改动 | Block 内必须保持 | 堆叠后需要观察 |
+| 结构改动 | 块内必须保持 | 堆叠后需要观察 |
 |---|---|---|
-| MHA → GQA / MLA | Attention 输出仍回到 hidden size | 状态容量、质量和 backend 路径 |
-| Dense MLP → MoE | token 输出仍回到原位置与通道 | 路由集中、overflow 与通信 |
-| LayerNorm → RMSNorm | Norm 输入输出形状不变 | 激活尺度、梯度尺度与收敛 |
+| MHA → GQA / MLA | 注意力输出仍回到隐藏宽度 | 状态容量、质量和执行后端路径 |
+| 稠密 MLP → MoE | token 输出仍回到原位置与通道 | 路由集中、容量溢出与通信 |
+| LayerNorm → RMSNorm | 归一化输入输出形状不变 | 激活尺度、梯度尺度与收敛 |
 | 残差缩放或初始化变化 | 两次更新顺序不变 | 深层激活增长、梯度衰减或爆炸 |
 
-因此本节题目验证一个 Block 的组合顺序和参数梯度；多层稳定性由 60 的专项基准在固定初始化、数据与训练预算下继续验证。
+### Step 4：代码设计与解码器块组装
 
-### Step 4：代码设计与 Decoder Block 组装
+RMSNorm、注意力与 SwiGLU 作为已完成组件保留固定接口。题目区只挖空解码器块新增的组合责任：依次写回两次残差更新，并让多个块顺序更新同一条主状态。
 
-题目区不重复实现 RMSNorm、RoPE 或 GQA：`StructureNormStub` 只记录 Pre-Norm 的调用位置，`AttentionUpdateStub` 只提供同形状的上下文更新。学习者实现真实 SwiGLU，并将 Attention 与 MLP 更新依次写回残差主干。
-
-| TODO | 机制责任 | 题目区提供 | 测试证据 |
+| TODO / 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
 |---|---|---|---|
-| TODO 1 | 定义 SwiGLU 的投影契约 | `LlamaMLP` 类与维度参数 | 三个无 bias 投影的形状正确 |
-| TODO 2 | 完成门控通道更新 | `F.silu` 与输入接口 | 门控路径和输出形状正确 |
-| TODO 3 | 写回 Attention 残差更新 | `norm_1` 与 `attention_update` | MLP 接收第一次更新后的状态 |
-| TODO 4 | 写回 MLP 残差更新 | `norm_2` 与 `mlp` | 输出、调用顺序与梯度连通性正确 |
+| TODO 1 · `LlamaDecoderLayer.forward` | 写回注意力残差更新 | 先前置归一化，再把上下文增量加回主状态 | MLP 接收第一次更新后的状态 |
+| TODO 2 · `LlamaDecoderLayer.forward` | 写回 MLP 残差更新 | 必须读取第一次更新后的状态 | 输出形状、调用顺序与梯度连通性正确 |
+| TODO 3 · `DecoderStack.forward` | 让多个块顺序更新主状态 | 后一层读取前一层输出，不得并行覆盖 | 固定增量按层累积，最终形状不变 |
 
 ```python
 import torch
@@ -128,22 +125,18 @@ class AttentionUpdateStub(nn.Module):
 
 
 class LlamaMLP(nn.Module):
-    """保留真实 SwiGLU 门控计算的最小 MLP。"""
+    """作为固定依赖提供最小 SwiGLU 通道更新。"""
 
     def __init__(self, hidden_size: int, intermediate_size: int):
         super().__init__()
-        # TODO 1：定义 SwiGLU 的三个无 bias 投影。
-        # self.gate_proj = ???  # hidden_size → intermediate_size
-        # self.up_proj = ???    # hidden_size → intermediate_size
-        # self.down_proj = ???  # intermediate_size → hidden_size
-        raise NotImplementedError("请先完成 TODO 1：SwiGLU 投影。")
+        self.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
+        self.up_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
+        self.down_proj = nn.Linear(intermediate_size, hidden_size, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # TODO 2：完成 SwiGLU 门控路径。
-        # gate = ???  # gate projection 的 SiLU 结果
-        # up = ???    # 另一条升维投影
-        # return ???  # 对 gate * up 做 down projection
-        raise NotImplementedError("请先完成 TODO 2：SwiGLU 门控更新。")
+        gate = F.silu(self.gate_proj(x))
+        up = self.up_proj(x)
+        return self.down_proj(gate * up)
 
 
 class LlamaDecoderLayer(nn.Module):
@@ -162,38 +155,47 @@ class LlamaDecoderLayer(nn.Module):
         Args:
             hidden_states: `[batch, seq_len, hidden_size]` 的主状态。
         """
-        # TODO 3：写回 Attention 残差更新。
-        # attention_delta = ???  # norm_1 后的上下文更新
-        # hidden_states = ???    # 将更新加回当前主状态
-        raise NotImplementedError("请先完成 TODO 3：Attention 残差更新。")
+        # ==========================================
+        # TODO 1：写回 Attention 残差更新。
+        # ==========================================
+        # attention_delta = ???  # 归一化后产生的同形状上下文更新
+        # hidden_states = ???     # 原主状态加上上下文更新
+        raise NotImplementedError("请先完成 TODO 1：Attention 残差更新。")
 
-        # TODO 4：写回 MLP 残差更新。
-        # mlp_delta = ???       # 对第一次更新后的状态做 norm_2 与 MLP
-        # hidden_states = ???   # 将通道更新加回主状态
+        # ==========================================
+        # TODO 2：写回 MLP 残差更新。
+        # ==========================================
+        # mlp_delta = ???       # 基于第一次更新后的状态产生通道更新
+        # hidden_states = ???   # 当前主状态加上通道更新
         # return ???
+
+
+class DecoderStack(nn.Module):
+    """让多个 Decoder Block 顺序更新同一条隐藏状态。"""
+
+    def __init__(self, hidden_size: int, intermediate_size: int, num_layers: int):
+        super().__init__()
+        if num_layers <= 0:
+            raise ValueError("num_layers 必须为正整数")
+        self.layers = nn.ModuleList(
+            [LlamaDecoderLayer(hidden_size, intermediate_size) for _ in range(num_layers)]
+        )
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        """按层顺序返回最终隐藏状态。"""
+        # ==========================================
+        # TODO 3：让每层读取上一层的输出。
+        # ==========================================
+        # for layer in ???:
+        #     hidden_states = ???  # 当前层读取上一层输出
+        # return hidden_states
+        raise NotImplementedError("请先完成 TODO 3：Decoder Block 顺序堆叠。")
 
 ```
 
 
 ```python
-# 测试设计：分别验证投影契约、门控路径、两次残差顺序和参数梯度。
-# 每个测试只对应一个机制责任，便于定位未完成或顺序错误的 TODO。
-
-
-def test_swiglu_projection_contract():
-    mlp = LlamaMLP(hidden_size=8, intermediate_size=12)
-    assert mlp.gate_proj.in_features == 8 and mlp.gate_proj.out_features == 12
-    assert mlp.up_proj.in_features == 8 and mlp.up_proj.out_features == 12
-    assert mlp.down_proj.in_features == 12 and mlp.down_proj.out_features == 8
-    assert mlp.gate_proj.bias is None and mlp.up_proj.bias is None and mlp.down_proj.bias is None
-
-
-def test_swiglu_gate_path():
-    torch.manual_seed(0)
-    mlp = LlamaMLP(hidden_size=4, intermediate_size=6)
-    x = torch.randn(2, 3, 4)
-    expected = mlp.down_proj(F.silu(mlp.gate_proj(x)) * mlp.up_proj(x))
-    assert torch.allclose(mlp(x), expected)
+# 测试设计：分别验证两次残差顺序、梯度连通性与多层堆叠。
 
 
 class ConstantUpdate(nn.Module):
@@ -210,6 +212,7 @@ class ConstantUpdate(nn.Module):
 
 
 def test_residual_update_order():
+    """验证 MLP 读取 Attention 更新后的状态，并按顺序累加两次更新。"""
     layer = LlamaDecoderLayer(hidden_size=4, intermediate_size=6)
     layer.norm_1 = nn.Identity()
     layer.attention_update = ConstantUpdate(2.0)
@@ -224,6 +227,7 @@ def test_residual_update_order():
 
 
 def test_block_shape_calls_and_gradients():
+    """验证单个 Block 的形状、组件调用次数和参数梯度。"""
     torch.manual_seed(1)
     layer = LlamaDecoderLayer(hidden_size=8, intermediate_size=12)
     x = torch.randn(2, 3, 8, requires_grad=True)
@@ -234,22 +238,45 @@ def test_block_shape_calls_and_gradients():
     assert all(param.grad is not None for param in layer.parameters())
 
 
+
+class AdditiveBlock(nn.Module):
+    """为层堆叠测试提供可辨识的固定增量。"""
+
+    def __init__(self, value: float):
+        super().__init__()
+        self.value = value
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        return hidden_states + self.value
+
+
+def test_decoder_stack_order():
+    """验证多个 Block 的输出按层传递，而不是并行覆盖。"""
+    stack = DecoderStack(hidden_size=4, intermediate_size=6, num_layers=3)
+    stack.layers = nn.ModuleList([AdditiveBlock(1.0), AdditiveBlock(2.0), AdditiveBlock(3.0)])
+    x = torch.zeros(1, 2, 4)
+    assert torch.allclose(stack(x), torch.full_like(x, 6.0))
+
+
 def run_tests():
-    test_swiglu_projection_contract()
-    test_swiglu_gate_path()
+    """运行 Decoder Block 组装与层堆叠测试。"""
     test_residual_update_order()
     test_block_shape_calls_and_gradients()
-    print("✅ Decoder Block：投影、门控、残差顺序和梯度测试通过")
+    test_decoder_stack_order()
+    print("✅ Decoder Block：残差顺序、梯度连通与层堆叠测试通过")
 
 
 try:
     run_tests()
 except NotImplementedError:
-    print("请先按 TODO 1–4 完成 Block 组装，再运行测试。")
+    print("请先按 TODO 1–3 完成 Block 组装，再运行测试。")
     raise
 
 ```
 
+🛑 **STOP HERE** 🛑
+
+请先完成题目区并通过测试，再继续查看参考代码与解析。
 ## 参考代码与解析
 
 ### 代码
@@ -293,13 +320,13 @@ class LlamaMLP(nn.Module):
 
     def __init__(self, hidden_size: int, intermediate_size: int):
         super().__init__()
-        # TODO 1：定义三个无 bias 投影。
+        # 固定依赖：SwiGLU 的三个无 bias 投影。
         self.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
         self.up_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
         self.down_proj = nn.Linear(intermediate_size, hidden_size, bias=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # TODO 2：先得到 gate / up，再计算 SiLU(gate) * up，最后 down 投影回 hidden_size。
+        # 固定依赖：先计算门控通道更新，再回到 hidden_size。
         gate = F.silu(self.gate_proj(x))
         up = self.up_proj(x)
         return self.down_proj(gate * up)
@@ -321,41 +348,53 @@ class LlamaDecoderLayer(nn.Module):
         Args:
             hidden_states: `[batch, seq_len, hidden_size]` 的主状态。
         """
-        # TODO 3：先计算 Attention 更新，并将其写回原始 hidden_states。
+        # TODO 1：先计算 Attention 更新，并将其写回原始 hidden_states。
         attention_delta = self.attention_update(self.norm_1(hidden_states))
         hidden_states = hidden_states + attention_delta
 
-        # TODO 4：基于第一次更新后的 hidden_states 计算 MLP 更新并写回。
+        # TODO 2：基于第一次更新后的 hidden_states 计算 MLP 更新并写回。
         mlp_delta = self.mlp(self.norm_2(hidden_states))
         hidden_states = hidden_states + mlp_delta
+        return hidden_states
+
+
+class DecoderStack(nn.Module):
+    """让多个 Decoder Block 顺序更新同一条隐藏状态。"""
+
+    def __init__(self, hidden_size: int, intermediate_size: int, num_layers: int):
+        super().__init__()
+        if num_layers <= 0:
+            raise ValueError("num_layers 必须为正整数")
+        self.layers = nn.ModuleList(
+            [LlamaDecoderLayer(hidden_size, intermediate_size) for _ in range(num_layers)]
+        )
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        """按层顺序返回最终隐藏状态。"""
+        # TODO 3：让每层读取上一层的输出。
+        for layer in self.layers:
+            hidden_states = layer(hidden_states)
         return hidden_states
 
 ```
 
 ### 解析
 
-本题依次完成 SwiGLU 投影、门控前向，以及 Attention → MLP 的两次 Pre-Norm 残差更新。答案与题目区使用同一套模块和控制流，只补全四个机制点。
+#### TODO 1：写回注意力残差更新
 
-**TODO 1：定义 SwiGLU 投影**
+- 判断依据：上下文分支读取归一化后的输入，但更新必须加回原始主状态。
+- 实现与证据：生成同形状注意力增量并完成第一次相加；顺序测试记录 MLP 实际看到的输入。
 
-- `gate_proj` 与 `up_proj` 都将 `hidden_size` 映射到 `intermediate_size`；`down_proj` 再映射回 `hidden_size`。
-- 三个投影均不使用 bias，使 MLP 的输入和输出继续与 Block 的残差接口相容。
+#### TODO 2：写回 MLP 残差更新
 
-**TODO 2：完成门控通道更新**
+- 判断依据：第二次前置归一化必须读取已包含注意力更新的中间状态。
+- 实现与证据：生成通道增量并完成第二次相加；测试核对输出形状、调用次数和梯度连通性。
 
-- 先计算 `SiLU(gate_proj(x)) * up_proj(x)`，再通过 `down_proj` 回到 hidden 维。
-- 测试把模块输出与同一公式的直接计算对照，确认门控路径没有被遗漏。
+#### TODO 3：顺序堆叠多个块
 
-**TODO 3：写回 Attention 残差更新**
-
-- `attention_update(norm_1(hidden_states))` 产生同形状更新，再与原始 `hidden_states` 相加。
-- `AttentionUpdateStub` 不实现 causal mask、RoPE、MHA 或 GQA；它只验证更新位置、形状与梯度连通性。
-
-**TODO 4：写回 MLP 残差更新**
-
-- MLP 必须接收第一次更新后的状态 `h`，而不是初始输入 `x`。
-- 顺序测试用两种固定更新验证 `x → h → out`，避免“形状正确但更新顺序错误”。
-### 可选 CPU 延伸：把一个 Block 接到最小语言模型
+- 判断依据：第 $l+1$ 层的输入必须是第 $l$ 层的完整输出。
+- 实现与证据：逐层覆盖当前隐藏状态；固定增量测试检查所有层按顺序累积。
+### 可选 CPU 延伸：把一个块接到最小语言模型
 
 下面的代码把已组装的 Decoder Block 接到 Embedding 与 LM Head，作为 CPU 上的最小数据流检查。它用于观察 `token id → hidden state → logits → loss` 是否连通，不替代真实模型训练或 GPU benchmark。
 
@@ -511,7 +550,7 @@ if __name__ == "__main__":
 
 ## 相关阅读
 
-完成最小 Block 组装后，可先对照真实模型实现，再沿着残差主路径与 MoE 扩展理解哪些组件会被替换、哪些接口保持不变。
+完成最小块组装后，可先对照真实模型实现，再沿着残差主路径与 MoE 扩展理解哪些组件会被替换、哪些接口保持不变。
 
 - [Transformers 中的 LLaMA 模型实现](https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py)
 - [LLaMA 原论文：LLaMA](https://arxiv.org/abs/2302.13971)

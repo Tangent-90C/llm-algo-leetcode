@@ -1,33 +1,62 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 540" role="img" aria-labelledby="title desc">
-  <title id="title">MoE Router 路由主路径</title>
-  <desc id="desc">Token 经过路由器打分、Top-K 选择、专家计算和加权合并，形成稀疏激活路径。</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="title desc">
+  <title id="title">稠密 FFN 与 MoE FFN 的完整执行链对照</title>
+  <desc id="desc">同一批词元在稠密基线中全部进入同一 FFN；在 MoE 路径中，路由专家经过 Top-K 和容量接纳，共享专家保持公共路径，最后加权合并并形成词元更新。</desc>
   <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#fff1f2"/></linearGradient>
-    <style>
-      .title { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 30px; font-weight: 700; fill: #0f172a; }
-      .sub { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 16px; font-weight: 500; fill: #475569; }
-      .label { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 18px; font-weight: 700; fill: #111827; }
-      .small { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 14px; font-weight: 500; fill: #334155; }
-      .box { stroke-width: 3; rx: 18; ry: 18; }
-      .flow { stroke: #475569; stroke-width: 4; fill: none; marker-end: url(#arrow); }
-      .route { stroke: #db2777; stroke-width: 3.5; fill: none; marker-end: url(#arrowPink); }
-    </style>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#475569"/></marker>
-    <marker id="arrowPink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#db2777"/></marker>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+    <style>.title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.subtitle{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.lane{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.head{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.body{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:2.4;rx:14}.flow{stroke:#475569;stroke-width:2.4;fill:none;marker-end:url(#arrow)}</style>
   </defs>
-  <rect width="1600" height="540" fill="url(#bg)"/>
-  <text x="60" y="60" class="title">MoE Router：一个 token 如何选择少数专家</text>
-  <text x="60" y="90" class="sub">路由器控制计算路径；Top-K 让总参数容量变大，但每个 token 只激活少数专家</text>
+  <rect width="1500" height="520" fill="#f8fafc"/>
+  <text x="50" y="46" class="title">稠密 FFN 与 MoE：总参数容量和单词元激活量如何分离</text>
+  <text x="50" y="74" class="subtitle">上方是稠密基线；下方是 MoE 执行链。两条路径从同一输入出发，最终比较实际激活、容量与输出更新。</text>
 
-  <rect x="70" y="270" width="190" height="90" class="box" fill="#fff7ed" stroke="#f59e0b"/><text x="165" y="305" text-anchor="middle" class="label">Token 表示</text><text x="165" y="330" text-anchor="middle" class="small">hidden state</text>
-  <rect x="330" y="270" width="220" height="90" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="440" y="305" text-anchor="middle" class="label">Router 打分</text><text x="440" y="330" text-anchor="middle" class="small">得到每个专家的概率</text>
-  <rect x="620" y="270" width="210" height="90" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="725" y="305" text-anchor="middle" class="label">Top-K 选择</text><text x="725" y="330" text-anchor="middle" class="small">保留少数专家</text>
+  <rect x="245" y="88" width="1010" height="112" rx="18" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+  <rect x="245" y="218" width="1010" height="184" rx="18" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+  <text x="270" y="114" class="lane">稠密 FFN 基线</text>
+  <text x="270" y="244" class="lane">MoE FFN 路径</text>
 
-  <rect x="920" y="160" width="230" height="90" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="1035" y="195" text-anchor="middle" class="label">专家 A</text><text x="1035" y="220" text-anchor="middle" class="small">独立 MLP</text>
-  <rect x="920" y="390" width="230" height="90" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="1035" y="425" text-anchor="middle" class="label">专家 B</text><text x="1035" y="450" text-anchor="middle" class="small">独立 MLP</text>
-  <rect x="1240" y="270" width="230" height="90" class="box" fill="#fff1f2" stroke="#e11d48"/><text x="1355" y="305" text-anchor="middle" class="label">加权合并</text><text x="1355" y="330" text-anchor="middle" class="small">恢复 token 表示</text>
+  <rect x="50" y="187" width="155" height="82" class="box" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="127" y="218" text-anchor="middle" class="head">词元主状态</text>
+  <text x="127" y="245" text-anchor="middle" class="body">同一批输入</text>
 
-  <path d="M260 315 L330 315" class="flow"/><path d="M550 315 L620 315" class="flow"/>
-  <path d="M830 315 C870 315 875 205 920 205" class="route"/><path d="M830 315 C870 315 875 435 920 435" class="route"/>
-  <path d="M1150 205 C1190 205 1200 315 1240 315" class="flow"/><path d="M1150 435 C1190 435 1200 315 1240 315" class="flow"/>
+  <rect x="340" y="118" width="210" height="66" class="box" fill="#e2e8f0" stroke="#64748b"/>
+  <text x="445" y="145" text-anchor="middle" class="head">稠密 FFN</text>
+  <text x="445" y="168" text-anchor="middle" class="body">全部词元使用同一组参数</text>
+  <rect x="1010" y="118" width="190" height="66" class="box" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="1105" y="145" text-anchor="middle" class="head">稠密增量</text>
+  <text x="1105" y="168" text-anchor="middle" class="body">每词元激活全部 FFN</text>
+
+  <rect x="295" y="260" width="180" height="66" class="box" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="385" y="287" text-anchor="middle" class="head">路由器与 Top-K</text>
+  <text x="385" y="310" text-anchor="middle" class="body">产生专家候选与权重</text>
+  <rect x="535" y="260" width="180" height="66" class="box" fill="#fff1f2" stroke="#e11d48"/>
+  <text x="625" y="287" text-anchor="middle" class="head">容量接纳</text>
+  <text x="625" y="310" text-anchor="middle" class="body">区分接纳与溢出</text>
+  <rect x="775" y="260" width="180" height="66" class="box" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text x="865" y="287" text-anchor="middle" class="head">路由专家</text>
+  <text x="865" y="310" text-anchor="middle" class="body">只计算接纳的词元</text>
+  <rect x="775" y="342" width="180" height="52" class="box" fill="#ecfccb" stroke="#65a30d"/>
+  <text x="865" y="365" text-anchor="middle" class="head">共享专家</text>
+  <text x="865" y="385" text-anchor="middle" class="body">公共路径</text>
+  <rect x="1010" y="260" width="190" height="66" class="box" fill="#ecfdf5" stroke="#16a34a"/>
+  <text x="1105" y="287" text-anchor="middle" class="head">加权合并</text>
+  <text x="1105" y="310" text-anchor="middle" class="body">恢复词元顺序</text>
+
+  <rect x="1300" y="165" width="160" height="126" class="box" fill="#fffbeb" stroke="#d97706"/>
+  <text x="1380" y="195" text-anchor="middle" class="head">结构对照</text>
+  <text x="1380" y="222" text-anchor="middle" class="body">总参数容量</text>
+  <text x="1380" y="244" text-anchor="middle" class="body">单词元激活量</text>
+  <text x="1380" y="266" text-anchor="middle" class="body">接纳与溢出</text>
+
+  <path d="M205 208C250 208 270 151 340 151" class="flow"/>
+  <path d="M550 151H1010" class="flow"/>
+  <path d="M205 248C245 248 255 293 295 293" class="flow"/>
+  <path d="M475 293H535" class="flow"/>
+  <path d="M715 293H775" class="flow"/>
+  <path d="M955 293H1010" class="flow"/>
+  <path d="M127 269V368H775" class="flow"/>
+  <path d="M955 368H975C995 368 1010 344 1010 310" class="flow"/>
+  <path d="M1200 151H1255C1275 151 1285 195 1300 202" class="flow"/>
+  <path d="M1200 293H1255C1275 293 1285 270 1300 263" class="flow"/>
+
+  <text x="270" y="444" class="subtitle">共享专家不经过 Top-K；路由专家只有通过容量接纳后才进入真实计算。容量、溢出和合并细节在下一张图展开。</text>
 </svg>

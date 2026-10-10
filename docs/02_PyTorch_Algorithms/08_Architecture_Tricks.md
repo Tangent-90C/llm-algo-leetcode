@@ -14,14 +14,14 @@
 
 ## 本节导读
 
-本节聚焦配置层面的两个局部选择：输入 embedding 与 LM Head 是否共享参数，以及 RMSNorm 的缩放参数如何初始化。它们不改变 Block 的主路径，却会影响参数账本、梯度归属和训练初期的数值行为。
+本节聚焦配置层面的两个局部选择：输入词嵌入与语言模型输出头（LM Head）是否共享参数，以及 RMSNorm 的缩放参数如何初始化。它们不改变解码器块的主路径，却会影响参数账本、梯度归属和训练初期的数值行为。
 
 **关键词：** `Qwen`, `Gemma`, `Tie Embeddings`
 
 ---
 ## 前置阅读
 
-**导语：** 先理解 RMSNorm 在 Block 中的缩放位置，以及 embedding、LM Head 与残差主路径在 Decoder Layer 中各自承担什么角色；随后再把局部配置对应到参数归属和审计字段。
+**导语：** 先理解 RMSNorm 在解码器块中的缩放位置，以及词嵌入、LM Head 与残差主路径在解码器层中各自承担什么角色；随后再把局部配置对应到参数归属和审计字段。
 
 - [01. RMSNorm Tutorial | RMSNorm 教程](../02_PyTorch_Algorithms/01_RMSNorm_Tutorial.md)
 - [05. LLaMA3 Block Tutorial | LLaMA3 Block 教程](../02_PyTorch_Algorithms/05_LLaMA3_Block_Tutorial.md)
@@ -29,55 +29,52 @@
 
 ### Step 1：配置选择如何落在模型结构上
 
-模型配置不仅记录层数和 hidden size，还决定参数由谁持有、残差如何缩放、哪些层使用不同组件，以及 checkpoint 能否按预期加载。读取真实模型时，应把配置声明映射到模块对象、参数账本和状态接口，而不是只摘录一个字段名。
+模型配置不仅记录层数和隐藏宽度，还决定参数由谁持有、残差如何缩放、哪些层使用不同组件，以及检查点能否按预期加载。读取真实模型时，应把配置声明映射到模块对象、参数账本和状态接口，而不是只摘录一个字段名。
 
 | 配置类别 | 代表选择 | 需要核对的实际对象 | 直接后果 |
 |---|---|---|---|
-| 参数归属 | embedding / LM Head 是否共享 | `Parameter` 指针与梯度 | 参数量、更新路径与 checkpoint 语义 |
-| 数值约定 | Norm 类型、`eps`、缩放初始化 | 每个 Block 的 Norm 模块 | 初始尺度与加载兼容性 |
-| 残差与深度 | residual scale、层级 pattern | Block 更新和层索引 | 深层激活与梯度稳定性 |
-| Attention / MLP | KV heads、latent、dense/MoE | 投影、Router 与专家模块 | 状态容量、路由和执行路径 |
+| 参数归属 | 词嵌入 / LM Head 是否共享 | 参数身份与梯度归属 | 参数量、更新路径与检查点语义 |
+| 数值约定 | 归一化类型、`eps`、缩放初始化 | 每个块的归一化模块 | 初始尺度与加载兼容性 |
+| 残差与深度 | 残差缩放、层级模式 | 块更新和层索引 | 深层激活与梯度稳定性 |
+| 注意力 / MLP | KV 头、潜在状态、稠密/MoE | 投影、路由器与专家模块 | 状态容量、路由和执行路径 |
 
 ![架构配置：从声明追踪到模块与系统后果](../public/02_PyTorch_Algorithms/08_architecture_tricks.svg)
 
 ### Step 2：权重绑定的参数账本与梯度路径
 
-Weight tying 让输入 Embedding 和输出 LM Head 共享同一份 $W\in\mathbb{R}^{V\times d}$。输入侧通过 $W$ 查表，输出侧使用同一参数把 hidden state 投影回词表；反向传播会把两条路径的梯度累积到同一个 `Parameter`。数值相同的两份拷贝不等于参数共享。
+权重绑定（weight tying）让输入词嵌入和输出 LM Head 共享同一份 $W\in\mathbb{R}^{V\times d}$。输入侧通过 $W$ 查表，输出侧使用同一参数把主状态投影回词表；反向传播会把两条路径的梯度累积到同一份参数。数值相同的两份拷贝不等于参数共享。
 
-| 检查项 | tied | untied |
+| 检查项 | 绑定（tied） | 不绑定（untied） |
 |---|---|---|
 | 参数存储 | 两个模块指向同一矩阵 | 两个独立矩阵 |
 | 参数账本 | 一份 `V × D` | 两份 `V × D` |
 | 梯度归属 | 两条路径更新同一参数 | 两条路径分别更新 |
-| 代码证据 | 参数与梯度指针一致 | 指针不同 |
+| 身份关系 | 两个位置引用同一份参数 | 两个位置各自持有参数 |
 
 ![Weight tying：参数归属与梯度路径](../public/02_PyTorch_Algorithms/08_parameter_ownership.svg)
 
 ### Step 3：从局部字段到可复查的结构审计
 
-结构审计要回答三件事：配置声称采用什么结构，实际模块是否与声明一致，这个结构会改变哪些参数、状态或执行条件。局部字段只有进入这条证据链后，才能用于比较模型架构。
+结构审计要回答三件事：配置声称采用什么结构，模型实际采用什么结构，这个选择会改变哪些参数、状态或执行条件。局部字段只有进入这条证据链后，才能用于比较模型架构。本节选择权重共享和归一化缩放作为两个可运行例子，其他结构沿用同一审计方法进入对应机制页和项目页。
 
-| 审计对象 | 配置声明 | 实际对象证据 | 结构后果与后续验证 |
+| 审计对象 | 配置声明 | 结构事实 | 结构后果与后续验证 |
 |---|---|---|---|
-| 权重共享 | `tie_word_embeddings` | 参数和梯度指针 | 词表参数账本、加载语义 |
-| Norm 变体 | class、`eps`、初始化 | Block 中的 Norm 模块 | 尺度路径与深层稳定性 |
-| 残差策略 | scale、层模式 | Block 更新公式 | 激活/梯度随深度变化 |
-| Attention 表示 | head、KV head、latent 字段 | Q/K/V 投影与 Cache 接口 | 表示容量、重建和 backend 条件 |
-| Dense / MoE | expert、top-k、shared expert | Router 与专家模块 | 激活容量、overflow 与通信 |
-| 层级混合 | layer type pattern | 每层实际模块类型 | Attention / SSM 等记忆职责分配 |
-
-本节题目选择权重共享和 Gemma 风格 Norm 缩放作为两个可运行例子，再用固定审计函数检查“声明—对象—账本”是否一致；其他结构沿用同一审计方法进入对应机制页和项目页。
+| 权重共享 | 输入与输出是否共享 | 参数身份与梯度归属 | 词表参数账本、加载语义 |
+| 归一化变体 | 类、`eps`、初始化 | 块中的归一化模块 | 尺度路径与深层稳定性 |
+| 残差策略 | 缩放、层模式 | 块更新公式 | 激活/梯度随深度变化 |
+| 注意力表示 | 查询头、KV 头、潜在状态字段 | Q/K/V 投影与缓存接口 | 表示容量、重建和执行后端条件 |
+| 稠密 / MoE | 专家、Top-K、共享专家 | 路由器与专家模块 | 激活容量、容量溢出与通信 |
+| 层级混合 | 层类型排列 | 每层实际模块类型 | 注意力 / SSM 等记忆职责分配 |
 
 ### Step 4：代码设计与结构配置审计
 
-本题将三项结构选择转成可验证的对象：Gemma 风格 RMSNorm 的缩放、embedding 与 LM Head 的共享存储，以及 tied / untied 的词表参数账本。`audit_model_config` 已提供声明与实际对象的一致性检查；学习者完成三个会改变结构语义的机制点。
+本题用小型 RMSNorm、词嵌入和 LM Head 复现配置如何改变真实模块。骨架已提供模块接口、输入检查和配置审计；学习者补全缩放、参数绑定与参数账本。测试分别覆盖初值与数据类型、参数和梯度身份、合法与非法账本，以及配置声明不一致。
 
-| TODO | 代码契约与机制责任 | 关键约束 | 测试证据 |
+| TODO / 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
 |---|---|---|---|
-| TODO 1 | 完成 `1 + weight` 的 RMSNorm 缩放 | 保持输入 dtype；零初始化应保留归一化输出 | 零/非零缩放与 dtype 正确 |
-| TODO 2 | 让 LM Head 与 embedding 共享同一参数 | 两个模块引用同一 `Parameter` | 参数与梯度指针一致，更新同步 |
-| TODO 3 | 计算 tied / untied 的词表参数账本 | embedding 参数为 `V × D`；untied 额外增加一份 | 节省量等于一份 `V × D` 矩阵 |
-| 固定函数 | 比较 config 声明和实际参数关系 | 输出 `consistent / config_mismatch / needs_checkpoint_review` | 声明、指针与账本可共同核对 |
+| TODO 1：应用 Gemma 缩放<br>`GemmaRMSNorm.forward` | 将归一化状态乘以可学习的 `1 + weight` | 输出形状和 dtype 与输入一致；零初始化不改变归一化结果 | `test_gemma_rmsnorm_scale` 覆盖零/非零缩放与 FP16 输出 |
+| TODO 2：绑定共享参数<br>`QwenTieEmbeddings.__init__` | 让 LM Head 与词嵌入引用同一参数 | 两个模块共享同一 `Parameter`，更新与梯度同步 | `test_tied_parameter_identity_and_gradient` 覆盖参数、更新和梯度身份 |
+| TODO 3：计算词表参数账本<br>`summarize_parameter_layout` | 计算绑定与不绑定配置的参数数量 | 词嵌入为 `V × D`；不绑定时 LM Head 额外持有一份 | `test_parameter_layout` 覆盖两种配置与非法维度 |
 
 ```python
 import torch
@@ -86,7 +83,6 @@ import torch.nn as nn
 
 
 ```python
-# --- TODO 1：Gemma 风格的 RMSNorm 缩放 ---
 class GemmaRMSNorm(nn.Module):
     """用 `1 + weight` 作为通道缩放的最小 RMSNorm。"""
 
@@ -101,13 +97,14 @@ class GemmaRMSNorm(nn.Module):
         variance = x_f32.pow(2).mean(-1, keepdim=True)
         x_norm = x_f32 * torch.rsqrt(variance + self.eps)
 
-        # TODO 1：完成 Gemma 的 `1 + weight` 缩放。
-        # output = ???  # 归一化状态乘以通道缩放因子
-        raise NotImplementedError("TODO 1：请实现 Gemma RMSNorm 缩放")
+        # ==========================================
+        # TODO 1：应用 Gemma 缩放
+        # output = ???  # 与 x_norm 同形；应用逐通道 `1 + weight` 后保持有限
+        # ==========================================
+        raise NotImplementedError("TODO 1：请应用 Gemma 缩放")
         return output.type_as(x)
 
 
-# --- TODO 2：Embedding 与 LM Head 的参数共享 ---
 class QwenTieEmbeddings(nn.Module):
     """构造词表 embedding 与 LM Head，并在 TODO 中绑定同一参数。"""
 
@@ -116,9 +113,12 @@ class QwenTieEmbeddings(nn.Module):
         self.embed_tokens = nn.Embedding(vocab_size, hidden_size)
         self.lm_head = nn.Linear(hidden_size, vocab_size, bias=False)
 
-        # TODO 2：让 LM Head 使用 embedding 的同一份 Parameter。
-        # self.lm_head.weight = ???
-        raise NotImplementedError("TODO 2：请绑定 embedding 与 LM Head 权重")
+        # ==========================================
+        # TODO 2：绑定共享参数
+        # shared_weight = ???  # 必须是 embed_tokens 当前持有的 Parameter，而不是数值副本
+        # ==========================================
+        raise NotImplementedError("TODO 2：请绑定共享参数")
+        self.lm_head.weight = shared_weight
 
     def forward_embed(self, input_ids: torch.Tensor) -> torch.Tensor:
         return self.embed_tokens(input_ids)
@@ -127,16 +127,17 @@ class QwenTieEmbeddings(nn.Module):
         return self.lm_head(hidden_states)
 
 
-# --- TODO 3：tied / untied 词表参数账本 ---
 def summarize_parameter_layout(vocab_size: int, hidden_size: int, tied: bool) -> dict:
     """返回 embedding、LM Head、总计与节省的词表参数数量。"""
     if vocab_size <= 0 or hidden_size <= 0:
         raise ValueError("vocab_size 和 hidden_size 必须为正数")
 
-    # TODO 3：计算 tied / untied 的词表参数账本。
-    # embedding_params = ???
-    # lm_head_params = ???
-    raise NotImplementedError("TODO 3：请计算参数归属账本")
+    # ==========================================
+    # TODO 3：计算词表参数账本
+    # embedding_params = ???  # 一份 [vocab_size, hidden_size] 词表矩阵的参数数
+    # lm_head_params = ???  # 绑定时为 0；不绑定时为一份独立词表矩阵
+    # ==========================================
+    raise NotImplementedError("TODO 3：请计算词表参数账本")
     return {
         'embedding_params': embedding_params,
         'lm_head_params': lm_head_params,
@@ -171,6 +172,7 @@ def audit_model_config(model: nn.Module, config: dict) -> dict:
 
 
 def test_gemma_rmsnorm_scale():
+    """验证 Gemma 风格缩放的初值、非零权重和输出数据类型。"""
     hidden_size = 16
     norm = GemmaRMSNorm(hidden_size)
     x = torch.randn(2, 3, hidden_size)
@@ -184,6 +186,7 @@ def test_gemma_rmsnorm_scale():
 
 
 def test_tied_parameter_identity_and_gradient():
+    """验证词嵌入与 LM Head 共享参数存储和梯度。"""
     model = QwenTieEmbeddings(vocab_size=32, hidden_size=8)
     assert model.embed_tokens.weight.data_ptr() == model.lm_head.weight.data_ptr()
 
@@ -200,6 +203,7 @@ def test_tied_parameter_identity_and_gradient():
 
 
 def test_parameter_layout():
+    """验证绑定与不绑定配置的词表参数账本。"""
     tied = summarize_parameter_layout(vocab_size=1000, hidden_size=64, tied=True)
     untied = summarize_parameter_layout(vocab_size=1000, hidden_size=64, tied=False)
     assert tied == {
@@ -219,6 +223,7 @@ def test_parameter_layout():
 
 
 def test_config_audit():
+    """验证配置声明与模块实际共享状态的一致性分类。"""
     model = QwenTieEmbeddings(vocab_size=32, hidden_size=8)
     consistent = audit_model_config(model, {'tie_word_embeddings': True, 'norm_scale_init': 0.0})
     mismatch = audit_model_config(model, {'tie_word_embeddings': False, 'norm_scale_init': 0.0})
@@ -229,6 +234,7 @@ def test_config_audit():
 
 
 def run_architecture_trick_tests():
+    """依次运行三个 TODO 与固定配置审计的机制测试。"""
     test_gemma_rmsnorm_scale()
     test_tied_parameter_identity_and_gradient()
     test_parameter_layout()
@@ -243,13 +249,19 @@ except NotImplementedError:
     raise
 ```
 
+---
+
+🛑 **STOP HERE** 🛑
+
+请先完成题目区并通过测试，再继续查看参考代码与解析。
+
+---
 ## 参考代码与解析
 
 ### 代码
 
 
 ```python
-# --- TODO 1：Gemma 风格的 RMSNorm 缩放 ---
 class GemmaRMSNorm(nn.Module):
     """用 `1 + weight` 作为通道缩放的最小 RMSNorm。"""
 
@@ -264,12 +276,11 @@ class GemmaRMSNorm(nn.Module):
         variance = x_f32.pow(2).mean(-1, keepdim=True)
         x_norm = x_f32 * torch.rsqrt(variance + self.eps)
 
-        # TODO 1：完成 Gemma 的 `1 + weight` 缩放。
+        # TODO 1：应用 Gemma 缩放
         output = x_norm * (1 + self.weight)
         return output.type_as(x)
 
 
-# --- TODO 2：Embedding 与 LM Head 的参数共享 ---
 class QwenTieEmbeddings(nn.Module):
     """构造词表 embedding 与 LM Head，并在 TODO 中绑定同一参数。"""
 
@@ -278,8 +289,9 @@ class QwenTieEmbeddings(nn.Module):
         self.embed_tokens = nn.Embedding(vocab_size, hidden_size)
         self.lm_head = nn.Linear(hidden_size, vocab_size, bias=False)
 
-        # TODO 2：让 LM Head 使用 embedding 的同一份 Parameter。
-        self.lm_head.weight = self.embed_tokens.weight
+        # TODO 2：绑定共享参数
+        shared_weight = self.embed_tokens.weight
+        self.lm_head.weight = shared_weight
 
     def forward_embed(self, input_ids: torch.Tensor) -> torch.Tensor:
         return self.embed_tokens(input_ids)
@@ -288,13 +300,12 @@ class QwenTieEmbeddings(nn.Module):
         return self.lm_head(hidden_states)
 
 
-# --- TODO 3：tied / untied 词表参数账本 ---
 def summarize_parameter_layout(vocab_size: int, hidden_size: int, tied: bool) -> dict:
     """返回 embedding、LM Head、总计与节省的词表参数数量。"""
     if vocab_size <= 0 or hidden_size <= 0:
         raise ValueError("vocab_size 和 hidden_size 必须为正数")
 
-    # TODO 3：计算 tied / untied 的词表参数账本。
+    # TODO 3：计算词表参数账本
     embedding_params = vocab_size * hidden_size
     lm_head_params = 0 if tied else embedding_params
     return {
@@ -326,24 +337,22 @@ def audit_model_config(model: nn.Module, config: dict) -> dict:
 
 ### 解析
 
-本题从通道缩放、参数共享到参数账本，依次验证配置如何落到真实模块对象上。答案与题目区使用同一套类、函数和审计骨架，只补全三个机制点。
-
-**TODO 1：完成 `1 + weight` 缩放**
+#### TODO 1：应用 Gemma 缩放
 
 - 先以 FP32 计算 RMS，再让 `x_norm` 乘以 `1 + weight`，最后恢复输入 dtype。
 - 因此 `weight=0` 时输出就是未额外缩放的 RMS 归一化结果；非零权重才产生逐通道调整。
 
-**TODO 2：绑定 embedding 与 LM Head 参数**
+#### TODO 2：绑定共享参数
 
 - 两个模块必须引用同一 `Parameter`，而不是复制一份数值相同的张量。
 - `data_ptr()` 与梯度指针共同验证存储和反向传播确实共享。
 
-**TODO 3：计算 tied / untied 账本**
+#### TODO 3：计算词表参数账本
 
-- embedding 始终持有一份 `V × D` 词表矩阵；untied 时 LM Head 再增加一份同样大小的矩阵。
-- 因而 tied 方案的 `saved_params` 正好是一份 `V × D`；该数字用于结构审计，不单独代表端到端性能。
+- 词嵌入始终持有一份 `V × D` 词表矩阵；不绑定时 LM Head 再增加一份同样大小的矩阵。
+- 因而绑定方案的 `saved_params` 正好是一份 `V × D`；参数账本测试同时核对两种配置与非法维度。
 
-**固定审计函数：对照声明与实际对象**
+#### 固定审计函数：对照声明与实际对象
 
 - `audit_model_config` 同时返回配置声明、参数指针关系和审计状态。
 - 当配置缺字段时返回 `needs_checkpoint_review`；声明与实际共享关系相反时返回 `config_mismatch`。

@@ -14,49 +14,49 @@
 
 ## 本节导读
 
-上一节的 Router 已经能把 token 分给 Top-K 专家，但训练过程中它可能很快学会“偏科”：大量 token 被送到少数几个专家，其他专家长期拿不到样本。这样 MoE 表面上有很多参数，实际却退化成少数专家过载、其余专家闲置。
+上一节的路由器已经能把 token 分给 Top-K 专家，但训练过程中它可能很快学会“偏科”：大量 token 被送到少数几个专家，其他专家长期拿不到样本。这样 MoE 表面上有很多参数，实际却退化成少数专家过载、其余专家闲置。
 
-负载均衡损失要解决的就是这个问题：在主任务 loss 之外加入一个很小的辅助项，同时约束专家被选中的频率和平均路由概率。本节会实现 MoE auxiliary loss，重点看清 $f_i$ 和 $P_i$ 分别统计什么。完成后，你应该能理解 Router 不只要会选专家，还要被训练目标约束得足够均衡。
+负载均衡机制要把路由集中反馈给路由器：辅助损失通过梯度同时约束平均偏好与实际分配，无辅助路径则根据历史负载调整下一轮选择偏置。本节比较两条反馈路径，并追踪它们与容量溢出、训练质量和路由稳定性的关系。
 
-**关键词：** `MoE`, `Load Balancing`, `Auxiliary Loss`
+**关键词：** `MoE`, `负载均衡`, `辅助损失`
 
 ---
 ## 前置阅读
 
-**导语：** 先理解 Router 如何保留完整概率、选择 Top-K 专家并完成重归一化；随后再从一个 batch 的角度比较“偏好”与“实际派发”。
+**导语：** 先理解路由器如何保留完整概率、选择 Top-K 专家并完成重归一化；随后再从一个批次的角度比较“偏好”与“实际分配”。
 
 - [06. MoE Router | MoE 路由器](../02_PyTorch_Algorithms/06_MoE_Router.md)
-- 可选回看：[13. End-to-End Fine-Tuning Experiment | 端到端微调实验](../02_PyTorch_Algorithms/13_End_to_End_Fine_Tuning_Experiment.md)（需要回看辅助损失如何进入训练总损失时使用）
+- 可选回看：[15. End-to-End Fine-Tuning Experiment | 端到端微调实验](../02_PyTorch_Algorithms/15_End_to_End_Fine_Tuning_Experiment.md)（需要回看辅助损失如何进入训练总损失时使用）
 
 ### Step 1：路由正确还不够——还要避免专家拥塞
 
-Top-k Router 可以为单个 token 选择专家，却不保证一个 batch 或多个训练 step 的 token 会均匀分布。若多数 token 长期集中到少数专家，capacity overflow、排队、跨卡通信和同步长尾都会放大；均衡机制需要把这种系统风险反馈给 Router。
+Top-K 路由器可以为单个 token 选择专家，却不保证一个批次或多个训练更新步中的 token 会均匀分布。若多数 token 长期集中到少数专家，容量溢出、排队、跨卡通信和同步长尾都会放大；均衡机制需要把这种系统风险反馈给路由器。
 
 | 观察层次 | 需要回答的问题 | 对应信号 |
 |---|---|---|
-| 单个 token | 它偏好哪些专家 | 完整概率与 Top-k id |
-| 一个 batch | 偏好和实际派发是否集中 | `P_i`、`f_i`、expert count |
+| 单个 token | 它偏好哪些专家 | 完整概率与 Top-K 专家编号 |
+| 一个批次 | 偏好和实际分配是否集中 | `P_i`、`f_i`、专家计数 |
 | 多个 step | 热点是否持续、是否振荡 | 移动统计、路由偏置变化 |
-| 系统执行 | 哪些专家先触及容量 | capacity、overflow、等待与 payload |
+| 系统执行 | 哪些专家先触及容量 | 专家容量、容量溢出、等待与通信载荷 |
 
 ![MoE 负载均衡：让路由真正可训练](../public/02_PyTorch_Algorithms/07_moe_balance.svg)
 
 ### Step 2：用偏好、派发与容量三类分布观察路由
 
-负载均衡至少需要同时看三类量：`P_i` 是 Router 给专家 $i$ 的平均概率质量，`f_i` 是专家实际被 Top-k 选中的比例，capacity / overflow 则说明执行阶段是否还能接收这些 token。只看其中一项可能掩盖“概率看似均匀、离散选择却集中”或“分配尚可、容量配置仍不足”的问题。
+负载均衡至少需要同时看三类量：`P_i` 是路由器给专家 $i$ 的平均概率质量，`f_i` 是专家实际被 Top-K 选中的比例，专家容量与容量溢出则说明执行阶段是否还能接收这些 token。只看其中一项可能掩盖“概率看似均匀、离散选择却集中”或“分配尚可、容量配置仍不足”的问题。
 
 | 量 | 来源 | 回答的问题 |
 |---|---|---|
-| $P_i$ | 全部专家概率的 token 均值 | Router 的平均偏好是否集中 |
-| $f_i$ | Top-k id 的出现次数 | 实际 dispatch 是否集中 |
-| capacity usage | accepted / capacity | 专家槽位利用是否均衡 |
-| overflow rate | 超容量分配 | 是否需要重路由、丢弃或扩容 |
+| $P_i$ | 全部专家概率的 token 均值 | 路由器的平均偏好是否集中 |
+| $f_i$ | Top-K 专家编号的出现次数 | 实际分配是否集中 |
+| 容量利用率 | 已接纳数量 / 专家容量 | 专家槽位利用是否均衡 |
+| 溢出率 | 超容量分配 | 是否需要重路由、丢弃或扩容 |
 
 ![MoE 路由的偏好、派发与容量信号](../public/02_PyTorch_Algorithms/07_router_distributions.svg)
 
 ### Step 3：辅助损失与无辅助均衡的不同反馈路径
 
-经典辅助损失把平均偏好 $P_i$ 与实际分配 $f_i$ 放入训练目标：偏好和派发同时集中时惩罚增大。它直接影响梯度，因此系数过大可能干扰主任务。另一类无辅助均衡方法不把额外项加入主 loss，而是根据历史负载动态调整专家选择偏置；这减少了损失耦合，但引入了额外状态、更新节奏和稳定性问题。
+经典辅助损失把平均偏好 $P_i$ 与实际分配 $f_i$ 放入训练目标：偏好和派发同时集中时惩罚增大。它直接影响梯度，因此系数过大可能干扰主任务。另一类无辅助均衡方法不把额外项加入主损失，而是根据历史负载动态调整专家选择偏置；这减少了损失耦合，但引入了额外状态、更新节奏和稳定性问题。容量回退只保护当前批次可执行，不能替代长期均衡。
 
 $$
 P_i=\frac{1}{T}\sum_t p_{t,i},\qquad
@@ -66,22 +66,20 @@ $$
 
 | 路径 | 反馈进入哪里 | 优点 | 需要警惕 |
 |---|---|---|---|
-| Auxiliary loss | 训练总损失与梯度 | 机制直接、统计清晰 | 系数影响主任务，均衡不等于语义路由正确 |
-| Auxiliary-loss-free | 路由选择偏置或控制状态 | 不直接改写主任务 loss | 偏置更新可能振荡，仍需监测 overflow 与质量 |
-| Capacity fallback | 执行阶段重路由或丢弃 | 保护单步可执行性 | 不能替代长期路由训练 |
-
-本节题目实现辅助损失这一条基础路径；无辅助均衡和 capacity fallback 作为后续 MoE 项目的候选策略，不在同一个函数中混写。
+| 辅助损失 | 训练总损失与梯度 | 机制直接、统计清晰 | 系数影响主任务，均衡不等于语义路由正确 |
+| 无辅助均衡 | 路由选择偏置或控制状态 | 不直接改写主任务损失 | 偏置更新可能振荡，仍需监测容量溢出与质量 |
+| 容量回退 | 执行阶段重路由或丢弃 | 保护单步可执行性 | 不能替代长期路由训练 |
 
 ### Step 4：代码设计与批次级负载均衡损失
 
-本题接收 Router 的两类输出：完整概率用于计算专家平均偏好 `P_i`，Top-K 索引用于统计实际派发比例 `f_i`，再据此得到辅助损失。题目区固定输入契约；学习者补全三处批次统计机制。
+本题先用完整概率和 Top-K 索引计算 `P_i`、`f_i` 与辅助损失，再用专家计数完成一步无辅助偏置更新。两个函数共享负载统计，但分别作用于训练损失与下一轮路由偏置。
 
-| TODO | 代码契约与机制责任 | 关键约束 | 测试证据 |
+| TODO / 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
 |---|---|---|---|
-| TODO 1 | 汇总每个专家的平均路由概率 `P_i` | 从完整概率沿 token 维取平均 | `P_i` 总和为 1 |
-| TODO 2 | 统计每个专家的实际 token 分配比例 `f_i` | 根据 Top-K 索引计数并按总分配数归一化 | `f_i` 总和为 1；集中路由可识别 |
-| TODO 3 | 计算辅助均衡损失 | 使用相同专家维度的 `P_i` 与 `f_i` | 均匀路由低于集中路由；返回统计可核对 |
-| 固定骨架 | 检查形状、专家数、`top_k` 与索引范围 | `router_probs` 与 `selected_experts` 共享 token 维 | 非法输入被拒绝 |
+| TODO 1 · `compute_load_balancing_loss` | 汇总每个专家的平均路由概率 `P_i` | 从完整概率沿 token 维取平均 | `P_i` 总和为 1 |
+| TODO 2 · `compute_load_balancing_loss` | 统计每个专家的实际分配比例 `f_i` | 按 Top-K 索引计数并按总分配数归一化 | `f_i` 总和为 1；集中路由可识别 |
+| TODO 3 · `compute_load_balancing_loss` | 计算辅助均衡损失 | 使用同一专家维度的 `P_i` 与 `f_i` | 均匀路由低于集中路由 |
+| TODO 4 · `update_router_bias` | 根据负载误差更新专家偏置 | 过载专家降低偏置，欠载专家提高偏置 | 均衡负载不变；更新方向正确 |
 
 ```python
 import torch
@@ -114,20 +112,44 @@ def compute_load_balancing_loss(
     if torch.any((selected_experts < 0) | (selected_experts >= num_experts)):
         raise ValueError('selected_experts 含越界专家索引')
 
+    # ==========================================
     # TODO 1：计算每个专家的平均路由概率 P_i。
+    # ==========================================
     # P_i = ???
     raise NotImplementedError('TODO 1：请汇总完整概率分布')
 
+    # ==========================================
     # TODO 2：计算每个专家的实际分配比例 f_i。
+    # ==========================================
     # expert_mask = ???
     # tokens_per_expert = ???
     # f_i = ???
     raise NotImplementedError('TODO 2：请统计 Top-K 分配比例')
 
+    # ==========================================
     # TODO 3：计算负载均衡辅助损失。
+    # ==========================================
     # aux_loss = ???
     raise NotImplementedError('TODO 3：请计算辅助损失')
     return (aux_loss, P_i, f_i) if return_stats else aux_loss
+
+
+def update_router_bias(
+    expert_counts: torch.Tensor, router_bias: torch.Tensor, step_size: float
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """根据本轮专家负载执行一步无辅助路由偏置更新。"""
+    if expert_counts.ndim != 1 or router_bias.shape != expert_counts.shape:
+        raise ValueError('expert_counts 与 router_bias 必须是一维同形张量')
+    if torch.any(expert_counts < 0) or step_size <= 0:
+        raise ValueError('专家计数不能为负，step_size 必须为正数')
+
+    # ==========================================
+    # TODO 4：计算相对平均负载误差，并沿抵消拥塞的方向更新偏置。
+    # ==========================================
+    # load_error = ???
+    # updated_bias = ???
+    raise NotImplementedError('TODO 4：请完成无辅助偏置反馈')
+    return updated_bias, load_error
 ```
 
 
@@ -137,6 +159,7 @@ def compute_load_balancing_loss(
 
 
 def test_uniform_routing_statistics():
+    """均匀偏好与均匀分配应得到理论基线损失。"""
     num_experts, top_k, num_tokens, alpha = 8, 2, 80, 0.01
     selected = torch.tensor(
         [[(2 * i) % num_experts, (2 * i + 1) % num_experts] for i in range(num_tokens)],
@@ -150,6 +173,7 @@ def test_uniform_routing_statistics():
 
 
 def test_concentrated_routing_has_larger_penalty():
+    """集中到少数专家的路由应产生更大的均衡惩罚。"""
     num_experts, top_k, num_tokens, alpha = 8, 2, 80, 0.01
     selected = torch.tensor([[0, 1]] * num_tokens, dtype=torch.long)
     probs = torch.zeros(num_tokens, num_experts)
@@ -160,6 +184,7 @@ def test_concentrated_routing_has_larger_penalty():
 
 
 def test_preference_and_dispatch_can_differ():
+    """概率偏好均匀时，离散分配仍可能集中。"""
     num_experts, top_k, num_tokens = 8, 2, 40
     probs = torch.full((num_tokens, num_experts), 1 / num_experts)
     selected = torch.tensor([[0, 1]] * num_tokens, dtype=torch.long)
@@ -169,7 +194,20 @@ def test_preference_and_dispatch_can_differ():
     assert torch.allclose(f_i[2:], torch.zeros(num_experts - 2))
 
 
+def test_bias_feedback_moves_away_from_overloaded_experts():
+    """过载专家偏置应降低，欠载专家偏置应提高。"""
+    counts = torch.tensor([8.0, 4.0, 2.0, 2.0])
+    bias = torch.zeros(4)
+    updated, error = update_router_bias(counts, bias, step_size=0.1)
+    assert error[0] > 0 and updated[0] < 0
+    assert error[2] < 0 and updated[2] > 0
+    balanced, balanced_error = update_router_bias(torch.ones(4), bias, step_size=0.1)
+    assert torch.allclose(balanced, bias)
+    assert torch.allclose(balanced_error, torch.zeros(4))
+
+
 def test_load_balance_input_contract():
+    """形状、类型、索引和 Top-K 非法时必须拒绝输入。"""
     probs = torch.full((4, 4), 0.25)
     selected = torch.tensor([[0, 1]] * 4, dtype=torch.long)
     invalid_cases = [
@@ -187,19 +225,25 @@ def test_load_balance_input_contract():
 
 
 def run_load_balance_tests():
+    """运行负载统计、辅助损失和偏置反馈的全部测试。"""
     test_uniform_routing_statistics()
     test_concentrated_routing_has_larger_penalty()
     test_preference_and_dispatch_can_differ()
+    test_bias_feedback_moves_away_from_overloaded_experts()
     test_load_balance_input_contract()
-    print('✅ 负载均衡：均匀、集中、错配与输入契约测试通过')
+    print('✅ 负载均衡：辅助损失、偏置反馈与输入契约测试通过')
 
 
 try:
     run_load_balance_tests()
 except NotImplementedError:
-    print('请先完成 TODO 1–3，再运行测试。')
+    print('请先完成 TODO 1–4，再运行测试。')
     raise
 ```
+
+🛑 **STOP HERE** 🛑
+
+请先独立完成 TODO 1–4 并通过测试，再展开参考代码与解析。
 
 ## 参考代码与解析
 
@@ -230,11 +274,15 @@ def compute_load_balancing_loss(
     if torch.any((selected_experts < 0) | (selected_experts >= num_experts)):
         raise ValueError('selected_experts 含越界专家索引')
 
+    # ==========================================
     # TODO 1：计算每个专家的平均路由概率 P_i。
+    # ==========================================
     # P_i = ???
     P_i = router_probs.mean(dim=0)
 
+    # ==========================================
     # TODO 2：计算每个专家的实际分配比例 f_i。
+    # ==========================================
     # expert_mask = ???
     # tokens_per_expert = ???
     # f_i = ???
@@ -242,55 +290,59 @@ def compute_load_balancing_loss(
     tokens_per_expert = expert_mask.sum(dim=(0, 1)).float()
     f_i = tokens_per_expert / (total_tokens * top_k)
 
+    # ==========================================
     # TODO 3：计算负载均衡辅助损失。
+    # ==========================================
     # aux_loss = ???
     aux_loss = alpha * num_experts * (f_i * P_i).sum()
     return (aux_loss, P_i, f_i) if return_stats else aux_loss
+
+
+def update_router_bias(
+    expert_counts: torch.Tensor, router_bias: torch.Tensor, step_size: float
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """根据本轮专家负载执行一步无辅助路由偏置更新。"""
+    if expert_counts.ndim != 1 or router_bias.shape != expert_counts.shape:
+        raise ValueError('expert_counts 与 router_bias 必须是一维同形张量')
+    if torch.any(expert_counts < 0) or step_size <= 0:
+        raise ValueError('专家计数不能为负，step_size 必须为正数')
+
+    # ==========================================
+    # TODO 4：计算相对平均负载误差，并沿抵消拥塞的方向更新偏置。
+    # ==========================================
+    # load_error = ???
+    # updated_bias = ???
+    mean_load = expert_counts.float().mean()
+    load_error = (expert_counts.float() - mean_load) / mean_load.clamp_min(1.0)
+    updated_bias = router_bias - step_size * load_error.to(router_bias.dtype)
+    return updated_bias, load_error
 ```
 
-### 答案与直觉
+### 解析
 
-- **这一题要解决什么：** 用一个辅助损失把路由从“少数专家过载”拉回到更均匀的分配。
-- **为什么这样做：** `P_i` 看路由器“想分给谁”，`f_i` 看实际“分给了谁”，两者一起乘能同时约束偏好和结果。
-- **带走的直觉：** MoE 的路由不仅要选得对，还要选得均衡，否则专家容量再大也会塌缩。
+#### TODO 1：统计平均路由偏好
 
-**1. TODO 1: 计算 P_i（平均路由概率）**
+- 判断依据：$P_i$ 来自完整概率，所有专家的偏好质量之和应为 1。
+- 实现动作：沿 token 维求均值；`test_uniform_routing_statistics` 检查均匀分布。
 
-- **实现方式**：`P_i = router_probs.mean(dim=0)`。
-- **核心逻辑**：沿 token 维度求均值，保留 Router 对每个专家的完整概率偏好。
-- **归一化**：每个 token 的完整概率和为 1，因此均值后的 $P_i$ 仍满足 $\sum_i P_i=1$。
-- **物理含义**：$P_i$ 表示专家 $i$ 在所有 token 上获得的平均概率质量，而非只统计已 dispatch 的权重。
+#### TODO 2：统计实际专家分配
 
-**2. TODO 2: 计算 f_i（分配次数比例）**
+- 判断依据：$f_i$ 按 `tokens × top_k` 次选择归一化，不能用概率质量替代。
+- 实现动作：把专家索引转为计数后归一化；`test_preference_and_dispatch_can_differ` 验证偏好与分配可以不同。
 
-- **实现方式**：
-  ```python
-  expert_mask = F.one_hot(selected_experts, num_classes=num_experts)
-  tokens_per_expert = expert_mask.sum(dim=(0, 1)).float()
-  f_i = tokens_per_expert / (total_tokens * top_k)
-  ```
-- **核心逻辑**：`F.one_hot` 将专家索引转换为 one-hot 编码，形状为 `[batch_size_x_seq_len, top_k, num_experts]`。
-- **统计方法**：沿前两个维度求和，统计每个专家被选中的总次数。
-- **归一化**：除以总的选择次数得到比例。
-- **物理含义**：$f_i$ 表示专家 $i$ 实际分到的 **分配次数占比**（总分配次数 = `total_tokens * top_k`）。它统计的是“选中次数”的占比，而非“Token 个数”的占比，因此代码中使用 `total_tokens * top_k` 作为归一化分母。
+#### TODO 3：计算辅助均衡损失
 
-**3. TODO 3: 计算辅助损失**
+- 判断依据：均匀偏好与均匀分配的基线为 $\alpha$，集中路由应获得更大惩罚。
+- 实现动作：对同一专家维的 $P_i f_i$ 求和并乘尺度；两个路由测试检查基线和集中情况。
 
-- **实现方式**：`aux_loss = alpha * num_experts * (f_i * P_i).sum()`
-- **数学公式**：$L_{aux} = \alpha \cdot E \sum_{i=1}^E f_i \cdot P_i$
-- **最小值分析**：根据均值不等式，当 $f_i = P_i = 1/E$ 时（完全均匀），损失最小。在当前统一定义下，完全均匀时理论最小值为 $\alpha$。
-- **优化目标**：优化器为了降低这个 Loss，会强制将 Token 均匀分配给所有专家，防止路由崩塌。
+#### TODO 4：更新无辅助路由偏置
 
-**工程要点**
-
-- **Top-K 兼容性**：代码支持任意 K 值，通过 `total_tokens` 归一化 $P_i$、通过 `total_tokens * top_k` 归一化 $f_i$，确保比例计算正确。
-- **数值稳定性**：使用 `scatter_add_` 而非循环累加，提升计算效率和数值稳定性。
-- **超参数调优**：$\alpha$ 通常设为 0.01，过大会影响主任务性能，过小则无法有效平衡负载。
-- **与主损失结合**：在实际训练中，将 `aux_loss` 加到 CrossEntropy Loss 上：`total_loss = ce_loss + aux_loss`。
+- 判断依据：过载专家偏置下降，欠载专家偏置上升，均衡负载不变化。
+- 实现动作：以平均负载归一化误差并沿反方向更新；`test_bias_feedback_moves_away_from_overloaded_experts` 检查方向。
 
 ## 相关阅读
 
-负载均衡将 Router 的统计量连接到专家并行中的容量与通信问题；下列材料分别用于核对公式、真实模型和项目级证据。
+负载均衡将路由器的统计量连接到专家并行中的容量与通信问题；下列材料分别用于核对公式、真实模型和项目级证据。
 
 - [Switch Transformers 原论文](https://arxiv.org/abs/2101.03961)
 - [Mixtral 模型实现说明](https://huggingface.co/docs/transformers/main/en/model_doc/mixtral)
