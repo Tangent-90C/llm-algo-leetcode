@@ -1,67 +1,79 @@
 # 08. Distributed Inference and Parallelism | 分布式推理与并行扩展
 
-## 页面目标
+## 学习问题
 
-当单实例无法同时满足容量、延迟或吞吐目标时，学习如何判断是否需要扩展，以及如何比较并行方式、通信代价和部署收益。本节把 Part 02 的通信机制、并行选型和 79–81 项目串成一条证据链，最后把结果交给 06 做统一决策。
+当单实例无法同时满足容量、延迟或吞吐目标时，需要判断瓶颈来自请求容量、模型容量、单请求计算还是通信等待，再比较请求副本、模型内部并行和组合方案。完成本节后，应能说明每种切分解决什么问题、引入什么通信与故障域，以及需要哪些真实多卡证据。
 
-## 为什么需要分布式推理
+## 核心机制
 
-分布式不是“GPU 数量越多越好”。先建立单实例 baseline，再确认瓶颈来自模型容量、请求容量、计算吞吐还是通信等待；只有增加并行度能够改善目标指标，并且通信与负载不均的代价可控时，扩展方案才值得保留。
+### 为什么需要分布式推理
+
+分布式不是“GPU 数量越多越好”。先建立单实例基线，再确认瓶颈来自模型容量、请求容量、计算吞吐还是通信等待；只有增加并行度能够改善目标指标，并且通信与负载不均的代价可控时，扩展方案才值得保留。
 
 | 触发信号 | 可能原因 | 先补什么证据 |
 |:---|:---|:---|
-| 单卡装不下模型或 KV 状态 | 模型、Cache 或 batch 超出容量 | 峰值显存、Cache 使用量、模型状态账本 |
+| 单卡装不下模型或 KV 状态 | 模型、缓存或批量超出容量 | 峰值显存、缓存使用量、模型状态账本 |
 | 单卡吞吐不足 | 计算、访存或请求容量受限 | kernel/阶段时间、吞吐、队列等待 |
 | 增加 GPU 后收益很小 | 通信暴露、同步或负载不均 | 通信时间、暴露时间、空转和扩展效率 |
-| MoE workload 扩展异常 | token dispatch、All-to-All 或专家不均衡 | expert load、通信字节数、热点专家 |
+| MoE 工作负载扩展异常 | 词元分发、All-to-All 或专家不均衡 | 专家负载、通信字节数、热点专家 |
 
-## 通信观测与热点缓解
+### 通信观测与热点缓解
 
-先回答“通信发生在哪里”，再回答“能否把它移出关键路径”。通信时间、等待时间和计算重叠必须分开记录；只看端到端吞吐，无法判断收益来自并行计算还是 workload 变化。
+先回答“通信发生在哪里”，再回答“能否把它移出关键路径”。通信时间、等待时间和计算重叠必须分开记录；只看端到端吞吐，无法判断收益来自并行计算还是工作负载变化。
 
 | 学习阶段 | 需要回答的问题 | 机制入口 | 形成的判断 |
 |:---|:---|:---|:---|
-| 通信观测 | 通信时间、等待和计算重叠分别是多少？ | [46 NCCL 通信 Profiling](../../02_PyTorch_Algorithms/46_Communication_Profiling_with_NCCL.ipynb) | 区分带宽受限、同步受限和负载不均 |
+| 通信观测 | 通信时间、等待和计算重叠分别是多少？ | [47 NCCL 通信 Profiling](../../02_PyTorch_Algorithms/47_Communication_Profiling_with_NCCL.ipynb) | 区分带宽受限、同步受限和负载不均 |
 | 热点缓解 | 哪些通信暴露在关键路径，应该如何减少或隐藏？ | [48 通信热点与缓解](../../02_PyTorch_Algorithms/48_Communication_Hotspots_and_Mitigation.ipynb) | 形成 overlap、批次、拓扑或调度假设 |
-| 并行选型 | 当前模型和互联条件适合哪种切分？ | [49 并行策略选型](../../02_PyTorch_Algorithms/49_Parallelism_Strategy_Selection.ipynb) | 明确 DP、TP、PP、EP 的适用条件与代价 |
-| MoE 分支 | token dispatch 和 All-to-All 是否成为主导成本？ | [47 MoE 专家并行](../../02_PyTorch_Algorithms/47_MoE_Expert_Parallel.ipynb) | 只在 MoE workload 下进入专家并行比较 |
+| 并行选型 | 当前模型、请求和互联条件适合哪种切分？ | [49 并行策略选型](../../02_PyTorch_Algorithms/49_Parallelism_Strategy_Selection.ipynb) | 明确 Replica、PP、TP、CP、EP 的适用条件与代价 |
+| MoE 分支 | 词元分发和 All-to-All 是否成为主导成本？ | [46 MoE 专家并行](../../02_PyTorch_Algorithms/46_MoE_Expert_Parallel.ipynb) | 只在 MoE 工作负载下进入专家并行比较 |
 
-## 并行策略与通信代价
+### 并行策略与通信代价
 
 | 策略 | 切分对象 | 主要通信 | 适合先问的问题 |
 |:---|:---|:---|:---|
-| DP | 请求或数据副本 | 梯度或状态同步；推理侧主要是请求分发 | 单副本是否已经无法满足容量？ |
-| TP | 层内权重或激活 | All-Reduce、All-Gather 或 Reduce-Scatter | 互联带宽能否承受高频同步？ |
-| PP | 模型层级 | stage 间激活传递 | pipeline 气泡和负载是否可接受？ |
-| EP | MoE 专家 | token dispatch / All-to-All | 专家负载和通信是否均衡？ |
+| [Replica](../../02_PyTorch_Algorithms/PAR-REPLICA_Serving_Replica_Routing.ipynb) | 请求 | 请求路由、状态同步和故障转移 | 单副本吞吐或可用性是否不足？ |
+| [PP](../../02_PyTorch_Algorithms/28_Pipeline_Parallelism_MicroBatch.ipynb) | 模型层级 | 阶段间激活传递 | 流水线气泡和阶段负载是否可接受？ |
+| [TP](../../02_PyTorch_Algorithms/29_Tensor_Parallelism_Sim.ipynb) | 层内权重或激活 | All-Reduce、All-Gather 或 Reduce-Scatter | 互联带宽能否承受高频同步？ |
+| [CP](../../02_PyTorch_Algorithms/PAR-CONTEXT_Context_and_Sequence_Parallelism.ipynb) | 序列或上下文 | Ring Attention 类通信、All-Gather 或 Reduce-Scatter | 长上下文容量收益能否覆盖通信代价？ |
+| [EP](../../02_PyTorch_Algorithms/46_MoE_Expert_Parallel.ipynb) | MoE 专家 | 词元分发、汇合与 All-to-All | 专家负载和通信是否均衡？ |
 
-选择顺序应是：先确认能否装下，再确认通信链路，再估计同步频率与 payload，最后比较扩展后的吞吐、P95/P99、峰值显存和成本。CPU 模拟可以验证切分和决策逻辑，但不能替代真实多卡通信结果。
+先用同一模型和请求工作负载建立单卡基线，再根据首要约束选择分支。副本解决请求容量和故障隔离；模型内部并行解决单实例容量、单请求计算或上下文切分。两者组合时，必须分别记录副本路由和模型内部通信，不能用总吞吐掩盖其中一层的等待。
 
-## 项目验证与证据链
+| 首要约束 | 优先分支 | 进入条件 | 不应据此宣称 |
+|:---|:---|:---|:---|
+| 模型单卡可装入，但并发或可用性不足 | 服务副本 | 单副本基线稳定，瓶颈主要来自队列或请求容量 | 单请求延迟一定下降 |
+| 模型或单请求状态单卡装不下 | TP / PP | 切分后每卡容量可接受，互联能够承担同步或阶段传输 | GPU 数量增加即可线性加速 |
+| 长上下文状态或注意力工作集单卡受限 | CP | 上下文切分收益大于环形通信和同步代价 | 普通短请求同样受益 |
+| MoE 专家容量、分发或热点限制扩展 | EP | 模型包含 MoE，后端支持专家切分和 All-to-All | 稠密模型可以复用同一结论 |
+| 单个多卡实例仍无法覆盖请求量 | Replica + 模型内部并行 | 单实例并行配置先稳定，再增加副本与路由层 | 两层扩展可以共用一个效率数字 |
 
-分布式项目至少保留单实例 baseline、GPU 数量、并行策略、通信字节数、通信时间、暴露通信时间、空转或负载不均、端到端吞吐、P95/P99、峰值显存和质量。79–81 的分工是递进的：先测并行扩展，再验证 MoE 专家并行，最后收束为分布式推理决策。
+CPU 模拟只能验证切分公式、容量账本、路由策略和恢复状态机。通信时间、暴露通信、扩展效率、尾延迟和故障恢复必须在真实多进程或多 GPU 环境中测量；当前多卡验证暂缓，不使用单卡实验替代。
 
-| 项目 | 主要问题 | 最小证据 |
-|:---|:---|:---|
-| [79 分布式并行基准](../../02_PyTorch_Algorithms/79_Distributed_Parallel_Benchmark.ipynb) | GPU 数量和并行策略是否带来可解释的扩展收益？ | 单实例对照、通信、扩展效率、P95/P99 |
-| [80 MoE 专家并行](../../02_PyTorch_Algorithms/80_MoE_Expert_Parallel_Benchmark.ipynb) | token dispatch 和专家负载是否成为瓶颈？ | expert load、All-to-All、空转、吞吐 |
-| [81 分布式推理验证](../../02_PyTorch_Algorithms/81_Distributed_Inference_Project.ipynb) | 方案是否值得迁移到真实推理部署？ | workload、通信、质量、成本和决策 |
+### 可靠性与恢复条件
 
-项目报告应保留配置与环境、请求级结果、服务级指标和 trace/profile。汇总表只能保存结论，不能替代原始结果；`communication_ms`、`exposed_comm_ms`、`idle_gap_ms` 和 `overlap_ratio` 应与总 elapsed 分开记录。
+并行扩展会扩大故障影响范围。请求副本可以把新请求转移到健康实例，但正在生成的请求是否能够恢复，还取决于会话状态、KV 状态和输出进度是否可重建；模型内部并行中的任一参与设备失效，通常会使整个并行组停止。先用 [Part 01 · 28 故障容错与检查点](../../01_Hardware_Math_and_Systems/28_Fault_Tolerance_and_Checkpointing.ipynb)建立故障域、恢复点和状态一致性，再把恢复时间纳入 SLO 判断。
 
-## 与 Task4 和 Task6 的边界
+| 失败位置 | 需要保留的状态 | 可选动作 | 验证证据 |
+|:---|:---|:---|:---|
+| 请求副本失效 | 请求身份、输入、输出进度和路由状态 | 重试、转移或失败返回 | 完成率、重复输出、恢复时间 |
+| 模型内部并行成员失效 | 并行组、模型分片、通信状态和请求进度 | 重建并行组或回退到备用实例 | 重建时间、失败请求数、容量变化 |
+| PD 池或链路失效 | KV 所有权、交接进度和回退条件 | 同池重算、重新路由或拒绝 | 恢复时间、额外计算、P99 |
+| 容量持续不足 | 队列、缓存水位和服务等级 | 限流、降级或扩容 | 拒绝率、超时率、扩容时间 |
 
-Task4 的 `handoff` 关注单次 Serving 路径上的局部状态交接、请求尾延迟和池利用率；本节 Task6 关注跨 GPU / 跨实例通信、集合通信、并行扩展和部署成本。两者都可以记录通信时间，但优化对象和决策尺度不同。
+### 端到端证据
 
-完成本节后，再回到 [06 端到端基准与决策](./06_benchmark_and_decision.md)，用统一 workload 判断方案应当 `accept / tune / reject`。
+分布式实验至少保留单实例基线、GPU 数量、并行策略、通信字节数、通信时间、暴露通信时间、空转或负载不均、端到端吞吐、P95/P99、峰值显存和质量。配置与环境、请求级结果、服务级指标和执行轨迹应同时保留；汇总表不能替代原始结果。`communication_ms`、`exposed_comm_ms`、`idle_gap_ms` 和 `overlap_ratio` 应与总耗时分开记录。
 
-## 判断框架
+局部 KV 交接关注单次服务路径上的状态传输、请求尾延迟和池利用率；分布式并行关注跨 GPU 或跨实例通信、集合通信、扩展效率和故障恢复。两者都记录通信时间，但验证对象不同。
+
+## 选择条件与验证证据
 
 | 现象 | 优先判断 | 下一步 |
 |:---|:---|:---|
 | 单卡装不下 | 容量或模型切分问题 | 先看显存账本，再评估 TP/PP |
 | 多卡吞吐没有线性提升 | 通信暴露或负载不均 | 查看通信时间、空转和 overlap |
 | MoE 扩展明显变慢 | All-to-All 或专家热点 | 进入 EP 与负载均衡分析 |
-| 吞吐提升但 P99 变差 | 通信或排队进入关键路径 | 回到 Serving 和统一 benchmark |
+| 吞吐提升但 P99 变差 | 通信或排队进入关键路径 | 回到服务基准做同口径比较 |
 
 相关阅读：论文 [Megatron-LM](https://arxiv.org/abs/2104.04473)、[DistServe](https://arxiv.org/abs/2401.09670)；开源实现 [NCCL](https://github.com/NVIDIA/nccl)、[vLLM distributed serving](https://docs.vllm.ai/en/latest/serving/distributed_serving.html)。
