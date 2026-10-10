@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">性能优化知识地图</title>
+  <desc id="desc">性能证据先定位约束，再映射到训练、推理或关键路径对象；候选动作改变对象后，通过单候选准入和组合复测形成决策。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+    <style>.bg{fill:#f8fafc}.box{stroke-width:2.5}.blue{fill:#dbeafe;stroke:#2563eb}.green{fill:#dcfce7;stroke:#16a34a}.amber{fill:#fef3c7;stroke:#d97706}.violet{fill:#f3e8ff;stroke:#9333ea}.line{fill:none;stroke:#475569;stroke-width:3.5;marker-end:url(#arrow)}.stem{fill:none;stroke:#94a3b8;stroke-width:3}.title{font:700 28px sans-serif;fill:#0f172a}.head{font:700 18px sans-serif;fill:#172033}.body{font:14px sans-serif;fill:#475569}.label{font:700 14px sans-serif;fill:#2563eb}</style>
+  </defs>
+  <rect class="bg" width="1200" height="620" rx="24"/>
+  <text x="600" y="48" text-anchor="middle" class="title">证据定位约束，候选改变对象，复测形成决策</text>
+
+  <text x="48" y="103" class="label">约束证据</text>
+  <rect class="box blue" x="150" y="75" width="220" height="85" rx="15"/><text x="260" y="110" text-anchor="middle" class="head">时间与回归</text><text x="260" y="138" text-anchor="middle" class="body">阶段计时 · 配对分布</text>
+  <rect class="box blue" x="405" y="75" width="220" height="85" rx="15"/><text x="515" y="110" text-anchor="middle" class="head">资源上界</text><text x="515" y="138" text-anchor="middle" class="body">计算 · 带宽 · 容量</text>
+  <rect class="box blue" x="660" y="75" width="220" height="85" rx="15"/><text x="770" y="110" text-anchor="middle" class="head">对象驻留</text><text x="770" y="138" text-anchor="middle" class="body">生命周期 · 峰值重叠</text>
+  <rect class="box blue" x="915" y="75" width="220" height="85" rx="15"/><text x="1025" y="110" text-anchor="middle" class="head">依赖与等待</text><text x="1025" y="138" text-anchor="middle" class="body">执行轨迹 · 暴露时间</text>
+
+  <path class="stem" d="M260 160V195H1025"/><path class="stem" d="M515 160V195"/><path class="stem" d="M770 160V195"/><path class="stem" d="M1025 160V195"/>
+  <path class="line" d="M290 195V223"/><path class="line" d="M600 195V223"/><path class="line" d="M910 195V223"/>
+  <text x="48" y="255" class="label">优化对象</text>
+  <rect class="box green" x="165" y="235" width="250" height="90" rx="15"/><text x="290" y="272" text-anchor="middle" class="head">训练状态与输入</text><text x="290" y="301" text-anchor="middle" class="body">激活 · 梯度 · 优化器 · 数据</text>
+  <rect class="box green" x="475" y="235" width="250" height="90" rx="15"/><text x="600" y="272" text-anchor="middle" class="head">推理请求与状态</text><text x="600" y="301" text-anchor="middle" class="body">KV · 批量 · 并发 · 队列</text>
+  <rect class="box green" x="785" y="235" width="250" height="90" rx="15"/><text x="910" y="272" text-anchor="middle" class="head">计算、通信与 I/O</text><text x="910" y="301" text-anchor="middle" class="body">计算内核 · 集合通信 · 交接</text>
+
+  <path class="line" d="M290 325V363"/><path class="line" d="M600 325V363"/><path class="line" d="M910 325V363"/>
+  <text x="48" y="395" class="label">候选动作</text>
+  <rect class="box amber" x="165" y="375" width="250" height="90" rx="15"/><text x="290" y="411" text-anchor="middle" class="head">重算、搬运与分片</text><text x="290" y="440" text-anchor="middle" class="body">减少驻留，增加时间或通信</text>
+  <rect class="box amber" x="475" y="375" width="250" height="90" rx="15"/><text x="600" y="411" text-anchor="middle" class="head">表示、缓存与调度</text><text x="600" y="440" text-anchor="middle" class="body">改变容量、复用和服务延迟</text>
+  <rect class="box amber" x="785" y="375" width="250" height="90" rx="15"/><text x="910" y="411" text-anchor="middle" class="head">融合、重叠与布局</text><text x="910" y="440" text-anchor="middle" class="body">改变读写、同步和关键路径</text>
+
+  <path class="line" d="M290 465V485H445V500"/><path class="line" d="M600 465V480H500V500"/><path class="line" d="M910 465V485H555V500"/>
+  <text x="48" y="535" class="label">决策证据</text>
+  <rect class="box violet" x="350" y="510" width="300" height="85" rx="15"/><text x="500" y="545" text-anchor="middle" class="head">单候选准入</text><text x="500" y="573" text-anchor="middle" class="body">质量 · 回归 · 容量 · 成本</text>
+  <rect class="box violet" x="800" y="510" width="320" height="85" rx="15"/><text x="960" y="545" text-anchor="middle" class="head">组合复测与回退</text><text x="960" y="573" text-anchor="middle" class="body">边际收益 · 新约束 · 回退目标</text>
+  <path class="line" d="M650 552H790"/>
+</svg>

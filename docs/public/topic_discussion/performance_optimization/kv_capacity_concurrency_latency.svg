@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+  <title id="title">KV 容量、并发与服务延迟关系</title>
+  <desc id="desc">请求分布决定状态需求，KV 表示与物理管理共同形成可用容量，容量约束影响准入与并发，最终反映为服务指标。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+    <style>.bg{fill:#f8fafc}.box{stroke-width:2.5}.blue{fill:#dbeafe;stroke:#2563eb}.green{fill:#dcfce7;stroke:#16a34a}.amber{fill:#fef3c7;stroke:#d97706}.violet{fill:#f3e8ff;stroke:#9333ea}.line{fill:none;stroke:#475569;stroke-width:3.5;marker-end:url(#arrow)}.title{font:700 26px sans-serif;fill:#0f172a}.head{font:700 17px sans-serif;fill:#172033}.body{font:14px sans-serif;fill:#475569}</style>
+  </defs>
+  <rect class="bg" width="1200" height="650" rx="24"/>
+  <text x="600" y="48" text-anchor="middle" class="title">请求规模通过 KV 状态传导到容量与服务指标</text>
+
+  <rect class="box blue" x="25" y="245" width="205" height="110" rx="16"/>
+  <text x="127" y="278" text-anchor="middle" class="head">请求分布</text><text x="127" y="309" text-anchor="middle" class="body">长度 · 并发 · 到达率</text><text x="127" y="334" text-anchor="middle" class="body">共享前缀 · 完成时间</text>
+  <rect class="box green" x="260" y="245" width="205" height="110" rx="16"/>
+  <text x="362" y="278" text-anchor="middle" class="head">KV 表示成本</text><text x="362" y="309" text-anchor="middle" class="body">层数 / 头数 · 数据类型</text><text x="362" y="334" text-anchor="middle" class="body">压缩 · 每 Token 字节</text>
+  <rect class="box amber" x="495" y="245" width="205" height="110" rx="16"/>
+  <text x="597" y="278" text-anchor="middle" class="head">物理管理</text><text x="597" y="309" text-anchor="middle" class="body">分页 · 利用率 · 碎片</text><text x="597" y="334" text-anchor="middle" class="body">复用 · 驱逐 · 回收</text>
+  <rect class="box blue" x="730" y="245" width="205" height="110" rx="16"/>
+  <text x="832" y="278" text-anchor="middle" class="head">容量与准入</text><text x="832" y="309" text-anchor="middle" class="body">活跃状态 · 批量 / 并发</text><text x="832" y="334" text-anchor="middle" class="body">排队 · 抢占 · 拒绝</text>
+  <rect class="box violet" x="965" y="245" width="210" height="110" rx="16"/>
+  <text x="1070" y="278" text-anchor="middle" class="head">服务证据</text><text x="1070" y="309" text-anchor="middle" class="body">峰值 · 吞吐 · TTFT / TPOT</text><text x="1070" y="334" text-anchor="middle" class="body">P99 · 命中 · 驱逐 · 质量</text>
+
+  <path class="line" d="M230 300H250"/><path class="line" d="M465 300H485"/><path class="line" d="M700 300H720"/><path class="line" d="M935 300H955"/>
+</svg>

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">后训练工作负载的资源路径</title>
+  <desc id="desc">全参数监督微调、参数高效微调和偏好或强化学习具有不同的数据、驻留状态和交付证据，必须分开建立性能账本。</desc>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><style>.bg{fill:#f8fafc}.group{fill:#fff;stroke:#cbd5e1;stroke-width:2.5}.box{stroke-width:2.5}.blue{fill:#dbeafe;stroke:#2563eb}.green{fill:#dcfce7;stroke:#16a34a}.amber{fill:#fef3c7;stroke:#d97706}.line{fill:none;stroke:#475569;stroke-width:3.5;marker-end:url(#arrow)}.title{font:700 26px sans-serif;fill:#0f172a}.groupTitle{font:700 18px sans-serif;fill:#172033}.head{font:700 16px sans-serif;fill:#172033}.body{font:14px sans-serif;fill:#475569}</style></defs>
+  <rect class="bg" width="1200" height="620" rx="24"/>
+  <text x="600" y="48" text-anchor="middle" class="title">先区分训练形态，再比较资源与质量代价</text>
+
+  <rect class="group" x="35" y="82" width="350" height="500" rx="18"/><text x="210" y="118" text-anchor="middle" class="groupTitle">全参数监督微调</text>
+  <rect class="box blue" x="70" y="150" width="280" height="90" rx="14"/><text x="210" y="184" text-anchor="middle" class="head">监督数据与有效 Token</text><text x="210" y="213" text-anchor="middle" class="body">模板 · 标签掩码 · 长度与拼接</text>
+  <path class="line" d="M210 240V270"/>
+  <rect class="box blue" x="70" y="280" width="280" height="90" rx="14"/><text x="210" y="314" text-anchor="middle" class="head">完整训练状态</text><text x="210" y="343" text-anchor="middle" class="body">参数 · 梯度 · 优化器 · 激活</text>
+  <path class="line" d="M210 370V400"/>
+  <rect class="box blue" x="70" y="410" width="280" height="105" rx="14"/><text x="210" y="446" text-anchor="middle" class="head">检查点与独立评测</text><text x="210" y="475" text-anchor="middle" class="body">恢复能力 · 单步吞吐</text><text x="210" y="499" text-anchor="middle" class="body">任务质量与遗忘检查</text>
+
+  <rect class="group" x="425" y="82" width="350" height="500" rx="18"/><text x="600" y="118" text-anchor="middle" class="groupTitle">LoRA / QLoRA</text>
+  <rect class="box green" x="460" y="150" width="280" height="90" rx="14"/><text x="600" y="184" text-anchor="middle" class="head">冻结或量化基座</text><text x="600" y="213" text-anchor="middle" class="body">目标模块 · 反量化执行路径</text>
+  <path class="line" d="M600 240V270"/>
+  <rect class="box green" x="460" y="280" width="280" height="90" rx="14"/><text x="600" y="314" text-anchor="middle" class="head">适配器训练状态</text><text x="600" y="343" text-anchor="middle" class="body">秩 · 缩放 · 可训练参数 · 优化器</text>
+  <path class="line" d="M600 370V400"/>
+  <rect class="box green" x="460" y="410" width="280" height="105" rx="14"/><text x="600" y="446" text-anchor="middle" class="head">适配器交付与评测</text><text x="600" y="475" text-anchor="middle" class="body">保存 · 加载 · 合并 / 拆分</text><text x="600" y="499" text-anchor="middle" class="body">容量、速度与任务质量</text>
+
+  <rect class="group" x="815" y="82" width="350" height="500" rx="18"/><text x="990" y="118" text-anchor="middle" class="groupTitle">偏好优化与强化学习</text>
+  <rect class="box amber" x="850" y="150" width="280" height="90" rx="14"/><text x="990" y="184" text-anchor="middle" class="head">反馈与验证信号</text><text x="990" y="213" text-anchor="middle" class="body">偏好对 · 奖励模型 · 规则验证器</text>
+  <path class="line" d="M990 240V270"/>
+  <rect class="box amber" x="850" y="280" width="280" height="90" rx="14"/><text x="990" y="314" text-anchor="middle" class="head">模型与样本状态</text><text x="990" y="343" text-anchor="middle" class="body">策略 / 参考 / 价值 · 离线对 / 在线轨迹</text>
+  <path class="line" d="M990 370V400"/>
+  <rect class="box amber" x="850" y="410" width="280" height="105" rx="14"/><text x="990" y="446" text-anchor="middle" class="head">策略版本与采用证据</text><text x="990" y="475" text-anchor="middle" class="body">采样—更新比例 · 有效样本</text><text x="990" y="499" text-anchor="middle" class="body">质量、安全、成本与回退</text>
+</svg>
