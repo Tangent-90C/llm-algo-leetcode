@@ -126,10 +126,10 @@ export default defineConfig({
             text: '横切支撑专题',
             collapsed: true,
             items: [
-              { text: '量化与压缩', link: '/topic_discussion/quantization/intro' },
-              { text: '通信与并行', link: '/topic_discussion/communication_parallel/intro' },
-              { text: 'Profiling', link: '/topic_discussion/profiling/intro' },
-              { text: '后训练与对齐', link: '/topic_discussion/post_training_alignment/intro' }
+              { text: '量化与压缩', link: '/topic_discussion/quantization_compression/intro' },
+              { text: '通信与并行', link: '/topic_discussion/communication_parallelism/intro' },
+              { text: '性能分析', link: '/topic_discussion/performance_analysis/intro' },
+              { text: '后训练优化', link: '/topic_discussion/post_training_optimization/intro' }
             ]
           },
           {
@@ -137,7 +137,7 @@ export default defineConfig({
             collapsed: true,
             items: [
               { text: '反向传播与训练机制', link: '/topic_discussion/backpropagation_training_mechanism/intro' },
-              { text: '大模型架构', link: '/topic_discussion/model_architecture/intro' },
+              { text: '大模型架构演进', link: '/topic_discussion/llm_architecture_evolution/intro' },
               { text: '编译与图优化', link: '/topic_discussion/compiler_graph_optimization/intro' }
             ]
           }
@@ -210,7 +210,7 @@ export default defineConfig({
         items: [
           { text: '部分导读', link: '/01_Hardware_Math_and_Systems/intro' },
           {
-            text: '1A 数值基础与算力估算',
+            text: '1A 数值与规模',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/01_Hardware_Math_and_Systems/1A' },
@@ -221,7 +221,7 @@ export default defineConfig({
             ]
           },
           {
-            text: '1B 单卡硬件与访存优化',
+            text: '1B 单设备执行、内存与访存',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/01_Hardware_Math_and_Systems/1B' },
@@ -237,7 +237,7 @@ export default defineConfig({
             ]
           },
           {
-            text: '1C 多卡通信与显存共享',
+            text: '1C 通信、并行与容错',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/01_Hardware_Math_and_Systems/1C' },
@@ -250,7 +250,7 @@ export default defineConfig({
             ]
           },
           {
-            text: '1D 异构调度与算子编程',
+            text: '1D 执行模型、异步调度与算子映射',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/01_Hardware_Math_and_Systems/1D' },
@@ -260,21 +260,29 @@ export default defineConfig({
               { text: '16. Warp / Block / Shared Memory', link: '/01_Hardware_Math_and_Systems/16_Warp_Block_SharedMemory_Basics' },
               { text: '17. CUDA Stream 与异步', link: '/01_Hardware_Math_and_Systems/17_CUDA_Stream_and_Asynchrony' },
               { text: '18. Triton 块模型', link: '/01_Hardware_Math_and_Systems/18_Triton_Block_Model' },
-              { text: '19. 算子融合导论', link: '/01_Hardware_Math_and_Systems/19_Operator_Fusion_Introduction' },
-              { text: '29. CUDA Stream 高级调度', link: '/01_Hardware_Math_and_Systems/29_CUDA_Stream_Advanced_Scheduling' },
-              { text: '30. 动态 Shape 处理', link: '/01_Hardware_Math_and_Systems/30_Dynamic_Shape_Handling' },
-              { text: '31. GPU 虚拟化与 MIG', link: '/01_Hardware_Math_and_Systems/31_GPU_Virtualization_and_MIG' }
+              { text: '29. CUDA Stream 高级调度', link: '/01_Hardware_Math_and_Systems/29_CUDA_Stream_Advanced_Scheduling' }
             ]
           },
           {
-            text: '1E 编译优化与硬件生态',
+            text: '1E 编译与后端',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/01_Hardware_Math_and_Systems/1E' },
               { text: '09. AI 编译器与图优化', link: '/01_Hardware_Math_and_Systems/09_AI_Compilers_and_Graph_Optimization' },
+              { text: '19. 算子融合导论', link: '/01_Hardware_Math_and_Systems/19_Operator_Fusion_Introduction' },
+              { text: '30. 动态 Shape 处理', link: '/01_Hardware_Math_and_Systems/30_Dynamic_Shape_Handling' },
+              { text: '32. TVM / MLIR 深度实践', link: '/01_Hardware_Math_and_Systems/32_TVM_MLIR_Deep_Practice' }
+            ]
+          },
+          {
+            text: '1F 硬件适配与系统约束',
+            collapsed: true,
+            items: [
+              { text: '组内导读', link: '/01_Hardware_Math_and_Systems/1F' },
               { text: '10. 国产 AI 芯片概览', link: '/01_Hardware_Math_and_Systems/10_Domestic_AI_Chips_Overview' },
-              { text: '32. TVM / MLIR 深度实践', link: '/01_Hardware_Math_and_Systems/32_TVM_MLIR_Deep_Practice' },
-              { text: '33. TCO 与成本模型', link: '/01_Hardware_Math_and_Systems/33_TCO_and_Cost_Model' }
+              { text: '31. GPU 虚拟化与 MIG', link: '/01_Hardware_Math_and_Systems/31_GPU_Virtualization_and_MIG' },
+              { text: '33. TCO 与成本模型', link: '/01_Hardware_Math_and_Systems/33_TCO_and_Cost_Model' },
+              { text: '34. 异构加速器与运行时约束', link: '/01_Hardware_Math_and_Systems/34_Heterogeneous_Accelerators_and_Runtime_Constraints' }
             ]
           }
         ]
@@ -284,7 +292,7 @@ export default defineConfig({
         items: [
           { text: '部分导读', link: '/02_PyTorch_Algorithms/intro' },
           {
-            text: '2.1 基础算子',
+            text: '2.1 Decoder 组件与注意力',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/02_PyTorch_Algorithms/2_1' },
@@ -303,17 +311,21 @@ export default defineConfig({
               { text: '05. LLaMA3 Block 教程', link: '/02_PyTorch_Algorithms/05_LLaMA3_Block_Tutorial' },
               { text: '06. MoE 路由器', link: '/02_PyTorch_Algorithms/06_MoE_Router' },
               { text: '07. MoE 负载均衡损失', link: '/02_PyTorch_Algorithms/07_MoE_Load_Balancing_Loss' },
-              { text: '08. 架构技巧', link: '/02_PyTorch_Algorithms/08_Architecture_Tricks' }
+              { text: '08. 架构技巧', link: '/02_PyTorch_Algorithms/08_Architecture_Tricks' },
+              { text: '44. 局部、滑动窗口与稀疏注意力', link: '/02_PyTorch_Algorithms/44_Local_Sliding_and_Sparse_Attention' },
+              { text: '45. 线性注意力与递推状态', link: '/02_PyTorch_Algorithms/45_Linear_Attention_and_Recurrent_State' },
+              { text: 'ARCH-MLA. MLA 与紧凑 KV 表示', link: '/02_PyTorch_Algorithms/ARCH-MLA_Multihead_Latent_Attention' },
+              { text: 'ARCH-HYBRID. Attention、SSM 与混合记忆', link: '/02_PyTorch_Algorithms/ARCH-HYBRID-MEMORY_Attention_SSM_Hybrid' }
             ]
           },
           {
-            text: '2.3 微调与训练技术',
+            text: '2.3 监督微调与训练控制',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/02_PyTorch_Algorithms/2_3' },
               { text: '09. 监督微调训练循环', link: '/02_PyTorch_Algorithms/09_SFT_Training_Loop' },
               { text: '10. LoRA 教程', link: '/02_PyTorch_Algorithms/10_LoRA_Tutorial' },
-              { text: '11. WSD 余弦学习率调度器', link: '/02_PyTorch_Algorithms/11_LR_Schedulers_WSD_Cosine' },
+              { text: '11. 优化器更新与学习率调度', link: '/02_PyTorch_Algorithms/11_Optimizer_Updates_and_Learning_Rate_Scheduling' },
               { text: '12. 梯度累积', link: '/02_PyTorch_Algorithms/12_Gradient_Accumulation' },
               { text: '13. 端到端微调实验', link: '/02_PyTorch_Algorithms/13_End_to_End_Fine_Tuning_Experiment' },
               { text: '30. 长上下文微调', link: '/02_PyTorch_Algorithms/30_Long_Context_Fine_Tuning' },
@@ -323,34 +335,33 @@ export default defineConfig({
             ]
           },
           {
-            text: '2.4 对齐技术',
+            text: '2.4 偏好优化与对齐',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/02_PyTorch_Algorithms/2_4' },
               { text: '14. RLHF 与 PPO 显存占用与流转', link: '/02_PyTorch_Algorithms/14_RLHF_PPO_Memory' },
+              { text: 'Reward Model、Value 与 Advantage', link: '/02_PyTorch_Algorithms/PT-REWARD-SIGNAL_Reward_Model_Value_and_Advantage' },
               { text: '15. 直接偏好优化损失教程', link: '/02_PyTorch_Algorithms/15_DPO_Loss_Tutorial' },
               { text: '16. 群体相对策略优化损失教程', link: '/02_PyTorch_Algorithms/16_GRPO_Loss_Tutorial' },
               { text: '50. 偏好数据与对齐评测', link: '/02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation' },
-              { text: '51. 在线 DPO', link: '/02_PyTorch_Algorithms/51_Online_DPO' },
-              { text: '52. 对齐冲突与阈值', link: '/02_PyTorch_Algorithms/52_Alignment_Conflicts_and_Thresholds' }
+              { text: '51. 在线 DPO', link: '/02_PyTorch_Algorithms/51_Online_DPO' }
             ]
           },
           {
-            text: '2.5 反向传播与显存优化',
+            text: '2.5 反向传播与训练内存',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/02_PyTorch_Algorithms/2_5' },
-              { text: '17. 自动微分基础', link: '/02_PyTorch_Algorithms/17_Autograd_Basics' },
-              { text: '18. 激活与损失反向', link: '/02_PyTorch_Algorithms/18_Activation_and_Loss_Backward' },
-              { text: '19. 激活检查点与激活卸载', link: '/02_PyTorch_Algorithms/19_Activation_Checkpointing_and_Activation_Offload' },
+              { text: '17. 激活与损失反向', link: '/02_PyTorch_Algorithms/17_Activation_and_Loss_Backward' },
+              { text: '18. Attention 反向传播', link: '/02_PyTorch_Algorithms/18_Attention_Backward_and_Custom_Autograd' },
+              { text: '混合精度反向传播', link: '/02_PyTorch_Algorithms/TRAIN-MIXED-PRECISION-BACKWARD_Mixed_Precision_Backward' },
+              { text: '19. 激活检查点', link: '/02_PyTorch_Algorithms/19_Activation_Checkpointing' },
               { text: '42. 激活卸载', link: '/02_PyTorch_Algorithms/42_Activation_Offload' },
-              { text: '43. 统一内存管理', link: '/02_PyTorch_Algorithms/43_Unified_Memory_Management' },
-              { text: '44. 自动调优框架', link: '/02_PyTorch_Algorithms/44_Auto_Tuning_Framework' },
-              { text: '45. 显存裁剪规划', link: '/02_PyTorch_Algorithms/45_Memory_Cut_Planning' }
+              { text: '43. 统一训练内存账本', link: '/02_PyTorch_Algorithms/43_Unified_Training_Memory_Ledger' }
             ]
           },
           {
-            text: '2.6 推理加速与缓存',
+            text: '2.6 推理执行基础',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/02_PyTorch_Algorithms/2_6' },
@@ -360,33 +371,38 @@ export default defineConfig({
             ]
           },
           {
-            text: '2.7 高级推理与压缩',
+            text: '2.7 推理策略与服务调度',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/02_PyTorch_Algorithms/2_7' },
               { text: '23. 投机解码', link: '/02_PyTorch_Algorithms/23_Speculative_Decoding' },
-              { text: '24. SGLang 基数注意力', link: '/02_PyTorch_Algorithms/24_SGLang_RadixAttention' },
-              { text: '34. Prefix Caching 与 Chunked Prefill', link: '/02_PyTorch_Algorithms/34_Prefix_Caching_and_Chunked_Prefill' },
+              { text: '24. Prefix Cache 匹配与复用', link: '/02_PyTorch_Algorithms/24_Prefix_Cache_Matching_and_Reuse' },
+              { text: '34. SGLang 基数注意力', link: '/02_PyTorch_Algorithms/34_SGLang_RadixAttention' },
               { text: '35. Multi-Token Decoding', link: '/02_PyTorch_Algorithms/35_Multi_Token_Decoding' },
               { text: '36. Decode Scheduling', link: '/02_PyTorch_Algorithms/36_Decode_Scheduling' },
-              { text: '37. KV Cache Scheduling', link: '/02_PyTorch_Algorithms/37_KV_Cache_Scheduling' },
-              { text: '38. Prefill-Decode Disaggregation', link: '/02_PyTorch_Algorithms/38_Prefill_Decode_Disaggregation' },
-              { text: '39. 推理分层与回退策略', link: '/02_PyTorch_Algorithms/39_Inference_Fallback_and_Tiers' }
+              { text: '37. KV Cache Lifecycle and Capacity Control', link: '/02_PyTorch_Algorithms/37_KV_Cache_Lifecycle_and_Capacity_Control' },
+              { text: 'Continuous Batching', link: '/02_PyTorch_Algorithms/INF-CONTINUOUS-BATCHING_Continuous_Batching' },
+              { text: 'Serving Overlap and State Handoff', link: '/02_PyTorch_Algorithms/INF-SERVING-OVERLAP_Serving_Overlap_and_State_Handoff' },
+              { text: '38. Prefill/Decode 调度', link: '/02_PyTorch_Algorithms/38_Prefill_Decode_Scheduling' },
+              { text: '39. 异构 PD 与服务分层', link: '/02_PyTorch_Algorithms/39_Hetero_PD_and_Serving_Tiers' }
             ]
           },
           {
-            text: '2.8 模型压缩与量化',
+            text: '2.8 量化与低比特适配',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/02_PyTorch_Algorithms/2_8' },
               { text: '25. W8A16 量化', link: '/02_PyTorch_Algorithms/25_Quantization_W8A16' },
               { text: '26. QLoRA 与 4-bit 量化', link: '/02_PyTorch_Algorithms/26_QLoRA_and_4bit_Quantization' },
               { text: '40. GPTQ 与 AWQ 权重量化', link: '/02_PyTorch_Algorithms/40_GPTQ_and_AWQ_Weight_Quantization' },
-              { text: '41. FP8 与 KV Cache 量化', link: '/02_PyTorch_Algorithms/41_FP8_and_KV_Cache_Quantization' }
+              { text: '41. FP8 与 KV Cache 量化', link: '/02_PyTorch_Algorithms/41_FP8_and_KV_Cache_Quantization' },
+              { text: '52. 量化校准与误差控制', link: '/02_PyTorch_Algorithms/52_Quantization_Calibration_and_Error' },
+              { text: '53. 激活量化与 SmoothQuant', link: '/02_PyTorch_Algorithms/53_Activation_Quantization_and_SmoothQuant' },
+              { text: '54. KV Cache 量化策略', link: '/02_PyTorch_Algorithms/54_KV_Cache_Quantization_Strategies' }
             ]
           },
           {
-            text: '2.9 分布式并行策略',
+            text: '2.9 通信与并行',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/02_PyTorch_Algorithms/2_9' },
@@ -400,11 +416,11 @@ export default defineConfig({
             ]
           },
           {
-            text: '2.10 项目实战',
+            text: '2.10 项目验证与工程收口',
             collapsed: true,
             items: [
               { text: '组内导读', link: '/02_PyTorch_Algorithms/2_10' },
-              { text: '60. LoRA 微调项目', link: '/02_PyTorch_Algorithms/60_LoRA_Fine_Tuning_Project' },
+              { text: '60. Decoder Block 稳定性基准', link: '/02_PyTorch_Algorithms/60_Decoder_Block_Stability_Benchmark' },
               { text: '61. 架构验证项目', link: '/02_PyTorch_Algorithms/61_Model_Architecture_Exploration' },
               { text: '62. 指令微调项目', link: '/02_PyTorch_Algorithms/62_Instruction_Fine_Tuning_Project' },
               { text: '63. LoRA 变体对比', link: '/02_PyTorch_Algorithms/63_LoRA_Variants_Benchmark' },
@@ -415,13 +431,19 @@ export default defineConfig({
               { text: '68. 推测解码基准', link: '/02_PyTorch_Algorithms/68_Speculative_Decoding_Benchmark' },
               { text: '69. 前缀缓存基准', link: '/02_PyTorch_Algorithms/69_Prefix_Caching_Benchmark' },
               { text: '70. 推理服务调度基准', link: '/02_PyTorch_Algorithms/70_Serving_Scheduler_Benchmark' },
+              { text: '71. MLA 与 KV Cache 结构基准', link: '/02_PyTorch_Algorithms/71_MLA_KV_Cache_Architecture_Benchmark' },
+              { text: '72. 单卡推理部署与 Backend 对比', link: '/02_PyTorch_Algorithms/72_Multi_Model_Deployment_Comparison' },
               { text: '73. 训练性能分析', link: '/02_PyTorch_Algorithms/73_Training_Performance_Analysis' },
               { text: '74. Profiling 驱动端到端优化', link: '/02_PyTorch_Algorithms/74_Profiling_Driven_End_to_End_Optimization' },
               { text: '75. 显存预算压缩项目', link: '/02_PyTorch_Algorithms/75_Memory_Budget_Compression_Project' },
               { text: '76. Activation / Checkpoint / Offload 对比项目', link: '/02_PyTorch_Algorithms/76_Activation_Checkpoint_Offload_Benchmark' },
+              { text: '77. 长序列记忆架构基准', link: '/02_PyTorch_Algorithms/77_Long_Sequence_Memory_Architecture_Benchmark' },
+              { text: '78. Attention 访问模式基准', link: '/02_PyTorch_Algorithms/78_Attention_Access_Pattern_Benchmark' },
               { text: '79. 分布式并行基准', link: '/02_PyTorch_Algorithms/79_Distributed_Parallel_Benchmark' },
               { text: '80. MoE 专家并行 benchmark', link: '/02_PyTorch_Algorithms/80_MoE_Expert_Parallel_Benchmark' },
               { text: '81. 分布式推理逻辑验证', link: '/02_PyTorch_Algorithms/81_Distributed_Inference_Project' },
+              { text: '82. 量化产物评估项目', link: '/02_PyTorch_Algorithms/82_Quantization_Artifact_Evaluation_Project' },
+              { text: '83. 量化 Serving Profile 基准', link: '/02_PyTorch_Algorithms/83_Quantized_Serving_Profile_Benchmark' },
               { text: '84. DPO 偏好优化项目', link: '/02_PyTorch_Algorithms/84_DPO_Preference_Project' },
               { text: '85. GRPO 组内对齐项目', link: '/02_PyTorch_Algorithms/85_GRPO_Groupwise_Alignment_Project' },
               { text: '86. DPO 在线基准', link: '/02_PyTorch_Algorithms/86_DPO_Online_Benchmark' }
