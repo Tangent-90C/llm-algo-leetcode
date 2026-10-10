@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="650" viewBox="0 0 1440 650" role="img" aria-labelledby="title desc">
-  <title id="title">投机解码与 Multi-Token 解码的关系</title>
-  <desc id="desc">经典 draft target、多 Token、多候选以及 DFlash 和 DSpark 采用不同候选产生方式，但共享目标模型验证、接受或回退和下一轮推进的闭环；本图展开 Multi-Token 分支的一轮状态流。</desc>
+  <title id="title">原生 MTP 与投机解码机制链</title>
+  <desc id="desc">经典 draft target、原生 MTP、EAGLE 以及 DFlash 和 DSpark 采用不同候选产生方式，但共享目标模型验证、接受或回退和下一轮推进的闭环；本图展开原生 MTP 分支的一轮状态流。</desc>
   <style>text{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;fill:#172033}.title{font-size:30px;font-weight:700}.sub{font-size:16px;fill:#475569}.group{font-size:18px;font-weight:700;fill:#334155}.label{font-size:17px;font-weight:700}.small{font-size:13px;fill:#475569}.panel{stroke-width:2;rx:20;ry:20}.node{stroke-width:2;rx:14;ry:14}.line{stroke:#52606d;stroke-width:3;stroke-linecap:round;fill:none}.branch{stroke:#94a3b8;stroke-width:3;stroke-linecap:round;fill:none}.feedback{stroke:#7c8da6;stroke-width:3;stroke-dasharray:8 7;stroke-linecap:round;fill:none}.green{stroke:#5b9b70;stroke-width:3;stroke-linecap:round;fill:none}.red{stroke:#c56b6b;stroke-width:3;stroke-linecap:round;fill:none}</style>
   <rect width="1440" height="650" fill="#f8fafc"/>
-  <text x="58" y="55" class="title">投机解码与 Multi-Token 解码</text>
+  <text x="58" y="55" class="title">原生 MTP 与投机解码机制链</text>
   <text x="58" y="86" class="sub">不同候选产生方式，共享验证与下一轮推进闭环</text>
 
   <rect x="180" y="95" width="1080" height="140" class="node" fill="#e0f2fe" stroke="#38bdf8"/>
@@ -12,7 +12,7 @@
   <rect x="200" y="168" width="180" height="46" class="node" fill="#ffffff" stroke="#64748b"/>
   <text x="290" y="197" text-anchor="middle" class="small">经典 draft / target</text>
   <rect x="450" y="168" width="180" height="46" class="node" fill="#fef3c7" stroke="#d97706"/>
-  <text x="540" y="197" text-anchor="middle" class="small">本节：Multi-Token</text>
+  <text x="540" y="197" text-anchor="middle" class="small">本节：原生 MTP</text>
   <rect x="700" y="168" width="180" height="46" class="node" fill="#f0fdf4" stroke="#65a30d"/>
   <text x="790" y="190" text-anchor="middle" class="small">DFlash</text>
   <text x="790" y="207" text-anchor="middle" class="small">block 级候选</text>
