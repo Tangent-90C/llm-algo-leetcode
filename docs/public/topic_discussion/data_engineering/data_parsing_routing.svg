@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">数据采集、解析与路由</title><desc id="desc">异构数据源经内容检测和解析路由后，输出包含来源、结构和错误状态的统一数据对象。</desc>
+  <style>.bg{fill:#f8fafc}.box{stroke-width:2;rx:16}.blue{fill:#eff6ff;stroke:#60a5fa}.green{fill:#ecfdf5;stroke:#34d399}.orange{fill:#fff7ed;stroke:#fb923c}.slate{fill:#f1f5f9;stroke:#94a3b8}.line{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#a)}.title{font:700 24px sans-serif;fill:#0f172a}.h{font:700 18px sans-serif;fill:#0f172a}.s{font:14px sans-serif;fill:#475569}.tag{font:700 13px sans-serif;fill:#2563eb}</style>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L10 3L0 6z" fill="#64748b"/></marker></defs>
+  <rect class="bg" width="1200" height="500" rx="20"/><text x="55" y="55" class="title">解析链：按内容检测和路由，保留来源与失败信息</text>
+  <rect class="box blue" x="60" y="125" width="210" height="110"/><text x="85" y="163" class="h">异构来源</text><text x="85" y="192" class="s">PDF · HTML · Markdown</text><text x="85" y="216" class="s">API · image / audio</text>
+  <rect class="box green" x="340" y="125" width="210" height="110"/><text x="365" y="163" class="h">内容检测</text><text x="365" y="192" class="s">type · encoding · language</text><text x="365" y="216" class="s">size · extractability</text>
+  <rect class="box orange" x="620" y="125" width="210" height="110"/><text x="645" y="163" class="h">解析路由</text><text x="645" y="192" class="s">text / table / OCR</text><text x="645" y="216" class="s">parser · fallback</text>
+  <rect class="box slate" x="900" y="125" width="210" height="110"/><text x="925" y="163" class="h">统一结构化对象</text><text x="925" y="192" class="s">text · structure · metadata</text><text x="925" y="216" class="s">status · error · lineage</text>
+  <path class="line" d="M270 180H340"/><path class="line" d="M550 180H620"/><path class="line" d="M830 180H900"/>
+  <rect class="box slate" x="300" y="335" width="600" height="80"/><text x="330" y="368" class="h">来源与处理契约</text><text x="330" y="394" class="s">source id · content type · parser version · route · parse status · retry / review</text>
+  <path class="line" d="M1005 235V335H900"/>
+</svg>
