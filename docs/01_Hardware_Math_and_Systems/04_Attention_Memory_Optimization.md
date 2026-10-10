@@ -14,9 +14,8 @@
 
 ## 本节导读
 
-生成式推理每生成一个 token，都要访问前面 token 的 Key / Value。序列变长时，KV Cache 会同时带来容量和带宽压力；而 MQA、GQA 通过减少 KV 头数改变缓存规模，但不会自动解决缓存分配、复用和服务调度问题。
-本节沿着“注意力结构 → KV Cache 成本 → 运行时组织”展开：先用公式和小张量理解 MHA 的缓存增长，再比较 MQA / GQA 如何改变 KV 头数，最后区分结构压缩与缓存管理对系统成本的不同影响。完成后，你应能根据层数、序列长度、并发和 KV 头数估算缓存规模，并解释不同优化作用在哪一类成本上。
-学完本节后，你可以从 KV Cache 的组成、增长方式和共享方式出发，判断一个优化是在减少缓存表示，还是在改善缓存组织与复用。
+Attention 的显存压力来自三类对象：长期保存的 KV 表示、计算过程中产生的临时工作集，以及服务运行时的缓存组织。它们分别对应减少 KV 头数或压缩表示、避免物化大规模中间结果、按页分配与回收缓存。
+本节先计算 MHA 的 KV 成本，再比较 MQA、GQA 与 MLA 如何改变表示规模，最后用 PagedAttention 区分“存得更少”和“放得更紧凑”。后续章节分别展开 KV 容量账本、FlashAttention 工作集和真实缓存管理机制。
 
 **关键词：** `MHA`, `MQA`, `GQA`
 
@@ -26,11 +25,11 @@
 ---
 
 ## 前置阅读
-**导语：** 先回顾 GPU 内存层级和 MHA/GQA 的基本结构，再理解 KV Cache 如何随层数、序列长度和并发增长，以及架构变体与运行时组织分别改变了什么。
+**导语：** 先回顾数据表示、GPU 内存层级和缩放点积注意力，再比较三类显存杠杆。
 
 - [Part 01 · 01 数据类型与精度](./01_Data_Types_and_Precision.md)
 - [Part 01 · 03 GPU 架构与显存](./03_GPU_Architecture_and_Memory.md)
-- [Part 02 · 04 Attention（MHA / GQA）](../02_PyTorch_Algorithms/04_Attention_MHA_GQA.md)
+- [Part 00 · 16 Attention Mechanism Intro | 注意力机制导论](../00_Prerequisites/16_Attention_Mechanism_Intro.md)
   
 ---
 ## Q1：自回归生成中，标准多头注意力（MHA）的 KV Cache 如何形成显存与带宽压力？
@@ -236,17 +235,9 @@ assert 0 < utilization <= 1
 ---
 
 ## 相关阅读
-本节可以从注意力原理继续接到真实模型实现、FlashAttention、PagedAttention 和推理性能分析。
-- [Attention Is All You Need](https://arxiv.org/abs/1706.03762)：回到 MHA 的原始结构和缩放点积注意力。
-- [FlashAttention](https://arxiv.org/abs/2205.14135)：理解 IO-aware 分块如何降低 Attention 的显存访问。
-- [vLLM PagedAttention](https://arxiv.org/abs/2309.06180)：了解 KV Cache 分页管理如何进入真实推理服务。
-- [22. vLLM PagedAttention](../02_PyTorch_Algorithms/22_vLLM_PagedAttention.md)：观察 block 分配与分页寻址的机制模拟。
-- [24. SGLang RadixAttention](../02_PyTorch_Algorithms/24_SGLang_RadixAttention.md)：观察 Radix Tree 如何组织共享前缀。
-- [34. Prefix Cache Matching and Reuse](../02_PyTorch_Algorithms/34_Prefix_Cache_Matching_and_Reuse.md)：连接共享前缀匹配与复用；分块预填充见 38。
-- [37. KV Cache Scheduling](../02_PyTorch_Algorithms/37_KV_Cache_Scheduling.md)：继续学习多请求缓存调度。
+本节之后分别进入 KV 容量、Attention 工作集和头数表示机制。
 - [Part 01 · 11 KV Cache 与显存增长](./11_KV_Cache_and_Memory_Growth.md)
 - [Part 01 · 14 FlashAttention 显存模型](./14_FlashAttention_Memory_Model.md)
-- [09. Triton PagedAttention | KV Cache 间接寻址](../03_Triton_Kernels/09_Triton_PagedAttention.md)
-- [08. Triton Flash Attention | 真正的 Flash Attention 前向算子](../03_Triton_Kernels/08_Triton_Flash_Attention.md)
+- [Part 02 · 04 Attention（MHA / MQA / GQA）](../02_PyTorch_Algorithms/04_Attention_MHA_GQA.md)
 
 ---

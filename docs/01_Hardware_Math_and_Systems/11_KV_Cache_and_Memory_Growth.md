@@ -14,9 +14,7 @@
 
 ## 本节导读
 
-本节用缓存公式解释长上下文和并发带来的显存增长，再区分缓存表示规模与缓存组织方式。先计算单条请求的 KV Cache 状态账本，再把结果用于分析分页、复用和调度中的容量约束。
-
-在理解 Attention 如何产生和保存 Key、Value 后，本节把这些状态放进具体 workload，重点判断 KV Cache 会增长到多大、显存预算是否足够，以及下一步应改变表示还是改变组织方式。
+本节把 Attention 产生的 Key、Value 放进具体 workload：先计算单请求和并发请求的 KV 状态账本，再比较头数、序列长度和数据类型如何改变容量，最后判断应优化缓存表示、物理组织还是前缀复用。
 
 
 **关键词：** `KV cache`, `sequence length`, `memory growth`
@@ -30,7 +28,6 @@
 **导语：** 先掌握数据类型、Attention 状态和显存账本，再计算序列长度与并发增加后 KV Cache 如何变化。
 - [Part 01 · 01 数据类型与精度](./01_Data_Types_and_Precision.md)
 - [Part 01 · 04 Attention 与显存优化](./04_Attention_Memory_Optimization.md)
-- [Part 01 · 06 显存计算与 ZeRO](./06_VRAM_Calculation_and_ZeRO.md)
 ---
 ## Q1：为什么 KV cache 会随着上下文长度增长？
 
@@ -198,9 +195,7 @@ else:
 
 本节可以从 KV Cache 公式回到 Attention 的头数设计，再继续进入分页管理、前缀复用和请求调度。
 
-- [04. Attention（MHA / GQA）](../02_PyTorch_Algorithms/04_Attention_MHA_GQA.md)
-- [KV Cache 与 PagedAttention 论文](https://arxiv.org/abs/2309.06180)
 - [22. vLLM 与 PagedAttention](../02_PyTorch_Algorithms/22_vLLM_PagedAttention.md)
-- [24. SGLang 与 RadixAttention](../02_PyTorch_Algorithms/24_SGLang_RadixAttention.md)
-- [34. Prefix Cache 匹配与复用](../02_PyTorch_Algorithms/34_Prefix_Cache_Matching_and_Reuse.md)
+- [24. Prefix Cache 匹配与复用](../02_PyTorch_Algorithms/24_Prefix_Cache_Matching_and_Reuse.md)
+- [34. SGLang 与 RadixAttention](../02_PyTorch_Algorithms/34_SGLang_RadixAttention.md)
 ---

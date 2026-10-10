@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="650" viewBox="0 0 1280 650" role="img" aria-labelledby="title desc">
-  <title id="title">1B 单卡硬件与访存</title>
+  <title id="title">1B 单设备执行、内存与访存</title>
   <desc id="desc">从 GPU 执行单元和内存层级出发，观察模型工作集如何获得数据，并判断计算、带宽或容量瓶颈。</desc>
   <defs><marker id="a1b" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#64748b"/></marker><style>
     text{font-family:Arial,'Microsoft YaHei',sans-serif;fill:#172033}.title{font-size:28px;font-weight:700}.sub{font-size:15px;fill:#475569}.group{font-size:19px;font-weight:700}.head{font-size:17px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#475569}.panel{stroke:#94a3b8;stroke-width:2;rx:16}.item{stroke:#cbd5e1;stroke-width:1.5;rx:10}.flow{stroke:#64748b;stroke-width:2.5;fill:none;marker-end:url(#a1b)}.inner{stroke:#94a3b8;stroke-width:2;fill:none;marker-end:url(#a1b)}
   </style></defs>
   <rect width="1280" height="650" fill="#f8fafc"/>
-  <text x="640" y="42" text-anchor="middle" class="title">1B 单卡硬件与访存：计算如何获得数据</text>
+  <text x="640" y="42" text-anchor="middle" class="title">1B 单设备执行、内存与访存：计算如何获得数据</text>
   <text x="640" y="70" text-anchor="middle" class="sub">执行单元、内存层级和模型工作集共同决定数据供给与瓶颈位置</text>
 
   <rect x="40" y="145" width="245" height="380" fill="#e0f2fe" class="panel"/><text x="162" y="180" text-anchor="middle" class="group">执行单元</text>
