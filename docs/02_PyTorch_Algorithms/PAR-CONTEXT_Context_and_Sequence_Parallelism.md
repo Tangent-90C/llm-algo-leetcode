@@ -28,7 +28,7 @@ Tensor Parallelism 沿 Head 或特征维拆分单层计算；当上下文继续�
 
 - [04. Attention MHA/GQA | Attention：MHA 与 GQA](./04_Attention_MHA_GQA.md)
 - [29. Tensor Parallelism Sim | Tensor 并行模拟](./29_Tensor_Parallelism_Sim.md)
-- [46. Communication Profiling with NCCL | NCCL 通信剖析](./46_Communication_Profiling_with_NCCL.md)
+- [47. Communication Profiling with NCCL | NCCL 通信剖析](./47_Communication_Profiling_with_NCCL.md)
 
 ---
 ### Step 1：从长上下文压力定位序列切分
@@ -69,12 +69,12 @@ CP 的容量收益来自序列状态分片，代价来自远端 K/V 访问。若
 
 测试区分别覆盖分片完整性、与 dense Attention 的数值等价、大幅值输入的稳定性，以及通信轮数和 payload 的增长规律。
 
-| 任务与目的 | 已知条件 | 完成标准 | 测试验证 |
+| TODO / 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
 |---|---|---|---|
-| TODO 1：连续切分序列。保证 token 不重不漏 | `tensor`、`cp_size`、序列维 | 返回等长且有序的分片；不可整除时失败 | 拼接恢复与异常输入 |
-| TODO 2：计算局部 Softmax 统计。避免提前局部归一化 | `scores`、`v_shard` | 返回局部最大值、指数和与加权和 | 形状与大幅值稳定性 |
-| TODO 3：在线合并分片统计。恢复全局 Attention | 累计统计与局部统计 | 先对齐最大值，再合并分母与加权和 | 与 dense Attention 数值等价 |
-| TODO 4：建立 Ring 通信账本。解释 CP 的代价 | 序列长度、hidden size、dtype、`cp_size` | 输出本地长度、轮数、每轮与总 payload | `cp_size=1` 与规模增长 |
+| TODO 1 · `split_sequence_contiguous` | 连续切分序列并保证 token 不重不漏 | 序列长度可整除，返回等长有序分片 | 拼接恢复与异常输入 |
+| TODO 2 · `local_softmax_statistics` | 计算局部 Softmax 的最大值、分母与加权和 | 不把局部归一化结果当作最终输出 | 形状与大幅值稳定性 |
+| TODO 3 · `merge_softmax_statistics` | 在线合并跨分片统计 | 两侧统计先缩放到同一 `merged_max` | 与 dense Attention 数值等价 |
+| TODO 4 · `estimate_ring_kv_communication` | 建立 Ring K/V 通信账本 | 区分每轮 payload、轮数和单 rank 累计量 | `cp_size=1` 与规模增长 |
 
 
 ```python
@@ -102,9 +102,9 @@ def split_sequence_contiguous(tensor: torch.Tensor, cp_size: int) -> List[torch.
 
 def local_softmax_statistics(scores: torch.Tensor, value_shard: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """计算一个 K/V 分片的稳定 Softmax 统计，不在分片内提前输出最终归一化结果。"""
-    # TODO 2（局部统计）：沿 key 维计算 local_max、local_denominator 和 local_numerator。
+    # TODO 2（局部统计）：沿 key 维计算稳定 Softmax 的最大值、分母与加权和。
     # local_max = ???
-    # local_exp = ???
+    local_exp = torch.exp(scores - local_max)
     # local_denominator = ???
     # local_numerator = ???
     raise NotImplementedError
@@ -120,13 +120,13 @@ def merge_softmax_statistics(
     running_max, running_denominator, running_numerator = running
     local_max, local_denominator, local_numerator = local
 
-    # TODO 3（在线合并）：先得到 merged_max，再缩放两侧统计并相加。
-    # merged_max = ???
+    merged_max = torch.maximum(running_max, local_max)
+    # TODO 3（在线合并）：把两侧统计缩放到同一个 merged_max 基准。
     # running_scale = ???
     # local_scale = ???
-    # merged_denominator = ???
-    # merged_numerator = ???
-    raise NotImplementedError
+    merged_denominator = running_denominator * running_scale + local_denominator * local_scale
+    merged_numerator = running_numerator * running_scale + local_numerator * local_scale
+    return merged_max, merged_denominator, merged_numerator
 
 
 def context_parallel_attention_sim(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, cp_size: int) -> torch.Tensor:
@@ -149,9 +149,9 @@ def estimate_ring_kv_communication(sequence_length: int, hidden_size: int, dtype
     if sequence_length % cp_size != 0:
         raise ValueError('序列长度必须能被 cp_size 整除')
 
-    # TODO 4（通信账本）：K 与 V 各占一份本地序列状态；单卡不需要远端轮转。
-    # local_sequence_length = ???
-    # rounds = ???
+    local_sequence_length = sequence_length // cp_size
+    rounds = cp_size - 1
+    # TODO 4（通信账本）：计算每轮 K/V payload 和单 rank 的累计交换量。
     # payload_per_round_bytes = ???
     # total_payload_per_rank_bytes = ???
     raise NotImplementedError
@@ -325,21 +325,27 @@ CPU 实验验证分块 Softmax 与通信账本；本实验让每个 rank 保存�
 | --- | --- | --- |
 | 验证分片、在线 Softmax 和理论 payload | 验证全局 K/V 交换、输出一致性和暴露交换时间 | 专用 Ring kernel、长上下文模型质量和生产吞吐 |
 
-#### 5.1 固定上下文切分 workload
+#### 5.1 环境与固定 workload
 
+安装与双卡预检见[通信与并行实验 Quickstart](../topic_discussion/communication_parallelism/quickstart.md)。本单元固定全局序列长度、Head 布局与重复协议。
 
 ```python
-# 默认关闭；真实 Context Parallel 机制复测至少需要两张 CUDA GPU。
-RUN_GPU_EXPERIMENT = False
+from tools.project_runtime import resolve_project_root
+
+PROJECT_ROOT = resolve_project_root()
+RUN_MODE = 'dry_run'  # 默认 dry_run；双卡 Profile 预检通过后改为 real_gpu。
+RUN_LABEL = 'default'  # 默认 default；正式复测改为唯一标签并保留历史 JSON。
+ENVIRONMENT_PROFILE = 'PAR-CUDA-MECHANISM'  # K/V 交换使用的双卡机制环境。
+WORKLOAD_ID = 'par-context-kv-exchange'  # 局部 Query 与全局 K/V 交换实验。
 WORLD_SIZE = 2  # 序列分片数和 NCCL rank 数。
 SEQ_LEN = 2048  # 全局上下文长度，必须能被 WORLD_SIZE 整除。
 NUM_HEADS = 8  # 每个 rank 使用相同的 Query Head 数。
 HEAD_DIM = 64  # 单个 Attention Head 的维度。
-DTYPE = 'bfloat16'
-WARMUP = 3
-REPEATS = 10
-RESULT_PATH = 'benchmarks/results/par_context_attention.json'
-print({'run': RUN_GPU_EXPERIMENT, 'world_size': WORLD_SIZE, 'seq_len': SEQ_LEN, 'heads': NUM_HEADS, 'head_dim': HEAD_DIM, 'result': RESULT_PATH})
+DTYPE = 'bfloat16'  # Attention 与通信张量的数据类型。
+WARMUP = 3  # 预热轮数，不进入统计。
+REPEATS = 10  # 正式重复轮数。
+RESULT_PATH = str(PROJECT_ROOT / f'benchmarks/results/par_context_attention_{RUN_LABEL}.json')  # 标签隔离历史结果。
+print({'run_mode': RUN_MODE, 'profile': ENVIRONMENT_PROFILE, 'world_size': WORLD_SIZE, 'seq_len': SEQ_LEN, 'heads': NUM_HEADS, 'head_dim': HEAD_DIM, 'result': RESULT_PATH})
 
 ```
 
@@ -347,23 +353,34 @@ print({'run': RUN_GPU_EXPERIMENT, 'world_size': WORLD_SIZE, 'seq_len': SEQ_LEN, 
 
 
 ```python
-if RUN_GPU_EXPERIMENT:
+if RUN_MODE == 'real_gpu':
     import subprocess
     command = [
         'torchrun', '--standalone', '--nproc_per_node', str(WORLD_SIZE),
-        'tools/run_parallel_mechanism_benchmark.py', '--mode', 'cp_attention',
+        str(PROJECT_ROOT / 'tools/run_parallel_mechanism_benchmark.py'), '--mode', 'cp_attention',
         '--seq-len', str(SEQ_LEN), '--num-heads', str(NUM_HEADS), '--head-dim', str(HEAD_DIM),
         '--dtype', DTYPE, '--warmup', str(WARMUP), '--repeats', str(REPEATS),
+        '--run-label', RUN_LABEL, '--workload-id', WORKLOAD_ID,
         '--output', RESULT_PATH,
     ]
     subprocess.run(command, check=True)
 else:
-    print('多 GPU Context Parallel 实验默认关闭。')
+    print('dry_run：完成配置检查后，将 RUN_MODE 改为 real_gpu 再执行 5.2。')
 
 ```
 
-#### 5.3 读取交换与状态证据
+#### 5.3 读取结果
 
+#### 5.4 解释证据并形成决策
+
+先确认局部 Query 使用交换后的全局 K/V 得到正确输出，再比较本地状态字节、交换字节和暴露交换时间。当前实现使用 All-Gather 验证数据依赖，不把结果写成专用 Ring Attention 计算内核证据。
+
+| 观察项 | 读取字段 | 当前结果 | 解释与动作 |
+| --- | --- | --- | --- |
+| 正确性 | `max_abs_error`、`failure` | 运行后填写 | 失败时检查序列分片与 K/V 拼接顺序 |
+| 容量 | `local_kv_bytes_per_rank`、`replicated_kv_bytes_per_rank` | 运行后填写 | 确认序列切分带来的本地状态收益 |
+| 通信 | `kv_exchange_bytes_per_rank`、`exposed_exchange_ms_proxy` | 运行后填写 | 判断上下文增长后交换代价是否可接受 |
+| 证据出口 | `evidence_level`、`decision` | 运行后填写 | 专用 Ring 计算内核和模型质量留到项目复测 |
 
 ```python
 import json

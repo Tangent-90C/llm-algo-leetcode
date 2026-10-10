@@ -75,12 +75,11 @@ Round-Robin 不读取运行状态，适合作为低成本 baseline；Queue-Aware
 
 测试区覆盖 Round-Robin 顺序、Queue-Aware 的最早可用选择、局部性 slack、时间线不变量和三种策略的统一 workload 对照。
 
-| 任务与目的 | 已知条件 | 完成标准 | 测试验证 |
+| TODO / 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
 |---|---|---|---|
-| TODO 1：选择副本。平衡队列与状态局部性 | 请求、各副本 `available_at`、缓存、会话归属、slack | 返回 replica 与可解释路由原因；局部性等待不得超过 slack | 三类策略与 fallback |
-| TODO 2：推进请求时间线。形成可复核执行记录 | arrival、service、cache speedup、选中副本 | `start ≥ arrival`，同副本请求不重叠，完成后更新缓存与会话 | 时间线、命中与状态更新 |
-| TODO 3：汇总服务指标。避免只看平均值 | 完整 records、replica 数 | 输出 queue wait、P95/P99、吞吐、命中率与负载偏斜 | 空输入与已知分布 |
-| TODO 4：比较路由策略。保持 workload 一致 | 同一请求流与副本数 | 返回按 P95、吞吐排序的策略结果，不修改原请求 | baseline / candidate 对照 |
+| TODO 1 · `select_replica` | 应用局部性等待门槛 | 只保留等待不超过 `shortest + slack` 的候选 | 三类策略与 fallback |
+| TODO 2 · `simulate_replica_routing` | 推进请求与副本时间线 | 计算开始、命中、有效服务时间并更新状态 | 时间线、命中与状态更新 |
+| TODO 3 · `summarize_replica_service` | 计算服务指标 | 统一观测窗口并保留空输入口径 | P95、吞吐与负载偏斜 |
 
 
 ```python
@@ -105,11 +104,28 @@ def select_replica(
     if not replicas:
         raise ValueError('至少需要一个副本')
 
-    # TODO 1（副本选择）：
-    # round_robin 按索引轮转；queue_aware 选择预计等待最短的副本；
-    # locality_aware 依次检查 session 和 prefix，但候选等待不能超过最短等待 + slack。
-    # selected_replica = ???
-    # route_reason = ???
+    if strategy == 'round_robin':
+        return round_robin_index % len(replicas), 'round_robin'
+
+    arrival_ms = float(request['arrival_ms'])
+    waits = [max(0.0, replica['available_at_ms'] - arrival_ms) for replica in replicas]
+    queue_choice = min(range(len(replicas)), key=lambda index: (waits[index], index))
+    if strategy == 'queue_aware':
+        return queue_choice, 'shortest_queue'
+
+    locality_candidates: List[Tuple[int, str]] = []
+    session_id = request.get('session_id')
+    if session_id in session_owner:
+        locality_candidates.append((session_owner[session_id], 'sticky_session'))
+    prefix_key = request.get('prefix_key')
+    locality_candidates.extend(sorted(
+        ((index, 'prefix_locality') for index, replica in enumerate(replicas)
+         if prefix_key is not None and prefix_key in replica['cached_prefixes']),
+        key=lambda item: (waits[item[0]], item[0]),
+    ))
+    # TODO 1（局部性门槛）：保留等待不超过最短队列 + slack 的候选，并按 session、prefix 顺序选择。
+    # eligible_candidates = ???
+    # selected_replica, route_reason = ???
     raise NotImplementedError
 
 
@@ -130,9 +146,30 @@ def simulate_replica_routing(
     session_owner: Dict[str, int] = {}
     records: List[Dict[str, Any]] = []
 
-    # TODO 2（时间线推进）：逐个选择副本，计算 start / finish / queue_wait，更新状态并保存记录。
-    # 注意：cache_hit 由执行前的缓存状态决定；命中只缩短 service，不改变原请求。
-    raise NotImplementedError
+    ordered_requests = sorted(requests, key=lambda request: (request['arrival_ms'], request['request_id']))
+    for request_index, request in enumerate(ordered_requests):
+        replica_id, route_reason = select_replica(
+            request, replicas, strategy, request_index, session_owner, locality_slack_ms
+        )
+        replica = replicas[replica_id]
+        arrival_ms = float(request['arrival_ms'])
+        # TODO 2（时间线推进）：计算开始时间、缓存命中和有效服务时间。
+        # start_ms = ???
+        # cache_hit = ???
+        # effective_service_ms = ???
+        finish_ms = start_ms + effective_service_ms
+        records.append({
+            **request, 'replica_id': replica_id, 'route_reason': route_reason,
+            'cache_hit': cache_hit, 'start_ms': start_ms, 'finish_ms': finish_ms,
+            'queue_wait_ms': start_ms - arrival_ms, 'effective_service_ms': effective_service_ms,
+        })
+        replica['available_at_ms'] = finish_ms
+        replica['request_count'] += 1
+        if request.get('prefix_key') is not None:
+            replica['cached_prefixes'].add(request['prefix_key'])
+        if request.get('session_id') is not None:
+            session_owner[request['session_id']] = replica_id
+    return records
 
 
 def summarize_replica_service(records: List[Dict[str, Any]], num_replicas: int) -> Dict[str, Any]:
@@ -142,18 +179,47 @@ def summarize_replica_service(records: List[Dict[str, Any]], num_replicas: int) 
                 'p99_queue_wait_ms': 0.0, 'throughput_requests_per_s': 0.0,
                 'cache_hit_rate': 0.0, 'load_skew_ratio': 0.0}
 
-    # TODO 3（指标汇总）：使用 nearest-rank 分位数，并按观测窗口计算吞吐。
-    # waits = ???
-    # counts = ???
-    # metrics = ???
-    raise NotImplementedError
+    waits = sorted(float(record['queue_wait_ms']) for record in records)
+    counts = [0] * num_replicas
+    for record in records:
+        counts[record['replica_id']] += 1
+    window_ms = max(record['finish_ms'] for record in records) - min(record['arrival_ms'] for record in records)
+    mean_count = len(records) / num_replicas
+
+    def nearest_rank(quantile: float) -> float:
+        index = max(0, math.ceil(quantile * len(waits)) - 1)
+        return waits[index]
+
+    # TODO 3（服务指标）：计算 P95、吞吐与副本负载偏斜。
+    # p95_queue_wait_ms = ???
+    # throughput_requests_per_s = ???
+    # load_skew_ratio = ???
+    return {
+        'request_count': len(records),
+        'mean_queue_wait_ms': sum(waits) / len(waits),
+        'p95_queue_wait_ms': p95_queue_wait_ms,
+        'p99_queue_wait_ms': nearest_rank(0.99),
+        'throughput_requests_per_s': throughput_requests_per_s,
+        'cache_hit_rate': sum(bool(record['cache_hit']) for record in records) / len(records),
+        'load_skew_ratio': load_skew_ratio,
+    }
 
 
 def compare_replica_strategies(requests: List[Dict[str, Any]], num_replicas: int, locality_slack_ms: float = 5.0) -> List[Dict[str, Any]]:
     """在同一请求流上比较三种路由策略，并按 P95 后按吞吐排序。"""
-    # TODO 4（策略对照）：分别运行三种策略，保留 strategy 与 metrics，不得修改 requests。
-    # comparisons = ???
-    raise NotImplementedError
+    comparisons = []
+    for strategy in ('round_robin', 'queue_aware', 'locality_aware'):
+        records = simulate_replica_routing(
+            deepcopy(requests), num_replicas, strategy, locality_slack_ms=locality_slack_ms
+        )
+        comparisons.append({
+            'strategy': strategy,
+            'metrics': summarize_replica_service(records, num_replicas),
+        })
+    return sorted(
+        comparisons,
+        key=lambda item: (item['metrics']['p95_queue_wait_ms'], -item['metrics']['throughput_requests_per_s']),
+    )
 ```
 
 
@@ -360,7 +426,7 @@ def compare_replica_strategies(requests, num_replicas, locality_slack_ms=5.0):
 - P95 / P99 揭示少量长等待请求，Cache Hit Rate 与负载偏斜解释这些等待可能来自哪里。
 - 吞吐必须使用统一观测窗口，不能把不同请求流的结果直接比较。
 
-**TODO 4：策略对照**
+**策略对照骨架**
 
 - 三种策略必须复用相同请求流和副本数；排序先看尾延迟，再用吞吐打破并列。
 - CPU 模拟只验证路由和时间线机制；真实副本的模型执行、KV 占用和网络代价由分布式推理项目验证。
@@ -373,19 +439,25 @@ CPU 模拟能够解释队列和局部性；本实验把同一组不均匀请求�
 | --- | --- | --- |
 | 验证到达、排队、缓存与路由规则 | 验证不均匀 GPU workload 下的负载分配和 makespan | 模型 KV 命中、网络入口、真实 backend 调度和在线尾延迟 |
 
-#### 5.1 固定副本与请求 workload
+#### 5.1 环境与固定 workload
 
+安装与双卡预检见[通信与并行实验 Quickstart](../topic_discussion/communication_parallelism/quickstart.md)。本单元固定请求成本序列和每个成本单位的计算量，只比较副本分配策略。
 
 ```python
-# 默认关闭；每个 torchrun rank 代表一个独立 GPU 副本。
-RUN_GPU_EXPERIMENT = False
+from tools.project_runtime import resolve_project_root
+
+PROJECT_ROOT = resolve_project_root()
+RUN_MODE = 'dry_run'  # 默认 dry_run；双卡 Profile 预检通过后改为 real_gpu。
+RUN_LABEL = 'default'  # 默认 default；正式复测改为唯一标签并保留历史 JSON。
+ENVIRONMENT_PROFILE = 'PAR-CUDA-MECHANISM'  # 独立 GPU 副本的机制环境。
+WORKLOAD_ID = 'par-replica-load-routing'  # 固定不均匀请求成本的副本分配实验。
 WORLD_SIZE = 2  # 副本数量；当前固定成本序列针对两卡对照。
 COMPUTE_DIM = 768  # 每个成本单位执行一次方阵乘法。
-DTYPE = 'bfloat16'
-WARMUP = 2
-REPEATS = 5
-RESULT_PATH = 'benchmarks/results/par_replica_routing.json'
-print({'run': RUN_GPU_EXPERIMENT, 'replicas': WORLD_SIZE, 'compute_dim': COMPUTE_DIM, 'result': RESULT_PATH})
+DTYPE = 'bfloat16'  # 每个成本单位所用矩阵计算的数据类型。
+WARMUP = 2  # 预热轮数，不进入统计。
+REPEATS = 5  # 正式重复轮数。
+RESULT_PATH = str(PROJECT_ROOT / f'benchmarks/results/par_replica_routing_{RUN_LABEL}.json')  # 标签隔离历史结果。
+print({'run_mode': RUN_MODE, 'profile': ENVIRONMENT_PROFILE, 'replicas': WORLD_SIZE, 'compute_dim': COMPUTE_DIM, 'result': RESULT_PATH})
 
 ```
 
@@ -393,22 +465,33 @@ print({'run': RUN_GPU_EXPERIMENT, 'replicas': WORLD_SIZE, 'compute_dim': COMPUTE
 
 
 ```python
-if RUN_GPU_EXPERIMENT:
+if RUN_MODE == 'real_gpu':
     import subprocess
     command = [
         'torchrun', '--standalone', '--nproc_per_node', str(WORLD_SIZE),
-        'tools/run_parallel_mechanism_benchmark.py', '--mode', 'replica_routing',
+        str(PROJECT_ROOT / 'tools/run_parallel_mechanism_benchmark.py'), '--mode', 'replica_routing',
         '--compute-dim', str(COMPUTE_DIM), '--dtype', DTYPE,
-        '--warmup', str(WARMUP), '--repeats', str(REPEATS), '--output', RESULT_PATH,
+        '--warmup', str(WARMUP), '--repeats', str(REPEATS),
+        '--run-label', RUN_LABEL, '--workload-id', WORKLOAD_ID, '--output', RESULT_PATH,
     ]
     subprocess.run(command, check=True)
 else:
-    print('多 GPU Replica 实验默认关闭。')
+    print('dry_run：完成配置检查后，将 RUN_MODE 改为 real_gpu 再执行 5.2。')
 
 ```
 
-#### 5.3 读取负载与 makespan 证据
+#### 5.3 读取结果
 
+#### 5.4 解释证据并形成决策
+
+round-robin 与 least-loaded 使用同一请求成本序列和 GPU 计算。比较最大 rank 完成时间、每 rank 工作量和吞吐代理，可以验证负载分配机制；真实模型的 KV 命中、网络入口和在线 P99 仍需在 vLLM / SGLang 项目中复测。
+
+| 观察项 | 读取字段 | 当前结果 | 解释与动作 |
+| --- | --- | --- | --- |
+| 运行状态 | `failure`、`environment_profile` | 运行后填写 | 失败时不比较路由策略 |
+| 负载分布 | `request_cost_units_per_rank`、`rank_elapsed_ms` | 运行后填写 | 判断路由是否降低最慢副本压力 |
+| 完成时间与容量 | `max_rank_makespan_ms`、`throughput_requests_per_s_proxy` | 运行后填写 | 判断均衡收益是否稳定 |
+| 证据出口 | `evidence_level`、`decision` | 运行后填写 | 机制通过后进入真实 Serving 项目 |
 
 ```python
 import json

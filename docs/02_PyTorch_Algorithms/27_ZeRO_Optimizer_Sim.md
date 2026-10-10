@@ -50,11 +50,13 @@ Data Parallel 中，每张卡都保存完整参数、梯度和优化器状态；
 
 因此，切分越深入，单卡状态越少，但参数收集与释放越频繁；这也是 ZeRO-3 对链路和调度更敏感的原因。
 
+![ZeRO 一次更新中的状态生命周期](../public/02_PyTorch_Algorithms/27_zero_stages.svg)
+
 ### Step 3：用显存账本选择 ZeRO 阶段
 
 下面用同一份 FP16 + Adam 账本比较四种状态布局。选择不只看“节省多少显存”：当参数本身放不下时才需要 ZeRO-3；若只是不想复制 Adam 状态，ZeRO-1 往往拥有更低的通信复杂度。
 
-以模型参数量 $\Phi$ 为单位，参数占 $2\Phi$ bytes、梯度占 $2\Phi$ bytes、Adam 优化器状态占 $12\Phi$ bytes。此处把 ZeRO-1/2/3 的状态账本和通信代价放在同一张表中，避免与解析区重复。
+以模型参数量 $\Phi$ 为单位，参数占 $2\Phi$ bytes、梯度占 $2\Phi$ bytes、Adam 优化器状态占 $12\Phi$ bytes。当 $N=8$ 时，ZeRO-1 只把优化器状态部分降为 $1/8$；ZeRO-3 的单卡状态最低，但更依赖高速互联和稳定的按层参数聚合。Step 4 会把这张账本落到可检查的参数 owner 布局。
 
 | 策略 | 分片对象 | 单卡状态（近似） | 主要通信 | 适用信号 |
 |---|---|---:|---|---|
@@ -62,10 +64,6 @@ Data Parallel 中，每张卡都保存完整参数、梯度和优化器状态；
 | ZeRO-1 | 优化器状态 | $2\Phi + 2\Phi + 12\Phi/N$ | 局部梯度分发与参数同步 | 优化器状态主导显存 |
 | ZeRO-2 | 优化器状态 + 梯度 | $2\Phi + 14\Phi/N$ | 梯度 Reduce-Scatter | 梯度也成为压力 |
 | ZeRO-3 | 优化器状态 + 梯度 + 参数 | $16\Phi/N$ | 按层 All-Gather，通信更频繁 | 参数本身已经放不下 |
-
-当 $N=8$ 时，ZeRO-1 只把优化器状态部分降为 $1/8$；ZeRO-3 的单卡状态最低，但更依赖高速互联和稳定的按层参数聚合。Step 4 会把这张账本落到可检查的参数 owner 布局。
-
-![ZeRO 分阶段：省下的状态对应新增的通信](../public/02_PyTorch_Algorithms/27_zero_stages.svg)
 
 ### Step 4：CPU 实现——比较 ZeRO 分片布局与局部更新
 
@@ -119,14 +117,17 @@ def build_zero_stage_layout(num_params, num_ranks, stage):
     }
 
     # ==========================================
-    # TODO 1：按 ZeRO 阶段返回三类训练状态的 owner。
-    # 变量提示（每个变量各占一行）：
-    # parameter_owner = replicated 或 sharded
-    # gradient_owner = replicated 或 sharded
-    # optimizer_owner = replicated 或 sharded
-    # return {'parameters': ..., 'gradients': ..., 'optimizer_states': ...}
+    # TODO 1（阶段状态归属）：决定三类状态在当前 ZeRO 阶段复制还是分片。
+    # parameter_owner = ???  # 当前阶段的参数 owner 布局。
+    # gradient_owner = ???  # 当前阶段的梯度 owner 布局。
+    # optimizer_owner = ???  # 当前阶段的优化器状态 owner 布局。
     # ==========================================
-    pass
+    raise NotImplementedError
+    return {
+        'parameters': parameter_owner,
+        'gradients': gradient_owner,
+        'optimizer_states': optimizer_owner,
+    }
 
 class ZeRO1_Optimizer_Sim:
     """
@@ -146,27 +147,24 @@ class ZeRO1_Optimizer_Sim:
         params_per_rank = len(self.params) // self.num_gpus
 
         # ==========================================
-        # TODO 2：按 rank 建立 ZeRO-1 参数 owner
-        # 变量提示（每个变量各占一行）：
-        # rank = ...
-        # start = rank * params_per_rank
-        # end = start + params_per_rank
-        # self.gpu_partitions[rank] = self.params[start:end]
-        # ==========================================
         self.gpu_partitions = {}
         for rank in range(self.num_gpus):
-            pass
+            # ==========================================
+            # TODO 2（参数 owner）：取出当前 rank 连续负责的参数切片。
+            # local_params = ???  # 长度为 params_per_rank，且各 rank 之间不重叠。
+            # ==========================================
+            raise NotImplementedError
+            self.gpu_partitions[rank] = local_params
 
         # ==========================================
-        # TODO 3：只为 owner 参数创建优化器状态
-        # 变量提示（每个变量各占一行）：
-        # rank = ...
-        # local_params = self.gpu_partitions[rank]
-        # self.optimizer_states[rank] = {id(p): torch.zeros_like(p.data) for p in local_params}
-        # ==========================================
         self.optimizer_states = {}
-        for rank in range(self.num_gpus):
-            pass
+        for rank, local_params in self.gpu_partitions.items():
+            # ==========================================
+            # TODO 3（局部状态）：只为当前 rank 的 owner 参数创建零状态。
+            # local_states = ???  # 键为参数对象 id，值与对应参数形状一致。
+            # ==========================================
+            raise NotImplementedError
+            self.optimizer_states[rank] = local_states
 
         
     def step(self, gradients_from_all_gpus: dict):
@@ -175,13 +173,6 @@ class ZeRO1_Optimizer_Sim:
         结构：{rank: [该 rank 负责参数的梯度]}。
         """
         # ==========================================
-        # TODO 4：完成 ZeRO-1 的局部状态与参数更新
-        # 变量提示（每个变量各占一行）：
-        # state = states[id(param)]
-        # updated_state = state + grad
-        # states[id(param)] = updated_state
-        # param.data = param.data - self.lr * updated_state
-        # ==========================================
         for rank in range(self.num_gpus):
             params = self.gpu_partitions[rank]
             grads = gradients_from_all_gpus[rank]
@@ -189,7 +180,15 @@ class ZeRO1_Optimizer_Sim:
             if len(params) != len(grads):
                 raise ValueError('局部梯度数量必须与该 rank 的参数数量一致')
             for param, grad in zip(params, grads):
-                pass
+                state = states[id(param)]
+                # ==========================================
+                # TODO 4（局部更新）：更新 owner 状态与对应参数。
+                # updated_state = ???  # 合并当前状态与同步后的局部梯度。
+                # updated_parameter = ???  # 使用 lr 和新状态得到更新后参数。
+                # ==========================================
+                raise NotImplementedError
+                states[id(param)] = updated_state
+                param.data = updated_parameter
             
     def zero_grad(self):
         for p in self.params:
@@ -223,63 +222,6 @@ def test_zero_stage_shards_cover_each_state_once():
         assert sorted(owned) == list(range(8))
         assert len(owned) == len(set(owned))
 
-def test_zero1_sim():
-    """验证 ZeRO-1 的状态分片、局部更新和参数可见性。"""
-    try:
-        torch.manual_seed(42)
-        model = SimpleModel(dim=4)
-        optimizer = ZeRO1_Optimizer_Sim(model.parameters(), lr=0.1, num_gpus=2)
-        
-        # 保存初始权重用于对比
-        initial_w1 = model.fc1.weight.data.clone()
-        initial_w2 = model.fc2.weight.data.clone()
-        
-        # 模拟同步后分发给各 rank 的局部梯度。
-        # 假设 fc1 是 GPU 0 负责，fc2 是 GPU 1 负责
-        simulated_reduce_scatter_grads = {
-            0: [torch.ones_like(model.fc1.weight)],  # GPU 0 收到 fc1 的梯度
-            1: [torch.full_like(model.fc2.weight, 2.0)] # GPU 1 收到 fc2 的梯度
-        }
-        
-        # 验证优化器状态切分 (ZeRO-1 的核心显存节约)
-        assert len(optimizer.optimizer_states[0]) == 1, "GPU 0 应该只维护 fc1 的状态"
-        assert len(optimizer.optimizer_states[1]) == 1, "GPU 1 应该只维护 fc2 的状态"
-        
-        # 执行更新
-        optimizer.step(simulated_reduce_scatter_grads)
-        
-        # 共享 Python 引用让测试可读取所有更新后的参数；这不模拟真实 All-Gather。
-        diff_w1 = initial_w1 - model.fc1.weight.data
-        diff_w2 = initial_w2 - model.fc2.weight.data
-        
-        # 预期：momentum 从 0 变成 1，w1 减去 lr * 1 = 0.1
-        # 预期：momentum 从 0 变成 2，w2 减去 lr * 2 = 0.2
-        assert torch.allclose(diff_w1, torch.full_like(diff_w1, 0.1)), "GPU 0 负责的权重更新错误！"
-        assert torch.allclose(diff_w2, torch.full_like(diff_w2, 0.2)), "GPU 1 负责的权重更新错误！"
-        
-        print("✅ ZeRO-1 优化器状态切分与更新逻辑测试通过！")
-        
-    except NotImplementedError:
-        print("请先完成 TODO 代码！")
-        raise
-    except (AttributeError, NameError, TypeError, ValueError, AssertionError, RuntimeError) as e:
-        if isinstance(e, AttributeError):
-            print("代码未完成，无法找到必要的属性")
-        elif isinstance(e, NameError):
-            print("代码可能未完成，导致了变量未定义")
-        elif isinstance(e, TypeError):
-            print("代码可能未完成，导致了类型错误")
-        elif isinstance(e, ValueError):
-            print("代码可能未完成，导致了张量维度错误")
-        elif isinstance(e, AssertionError):
-            print("代码可能未完成，导致了断言失败")
-        else:
-            print("代码可能未完成，导致了运行时错误")
-        raise NotImplementedError("请先完成 TODO 代码！") from e
-    except Exception as e:
-        print(f"❌ 测试失败: {e}")
-        raise
-
 def test_zero1_partition_state():
     """每个 rank 只持有自己负责参数的优化器状态。"""
     model = SimpleModel(dim=4)
@@ -304,12 +246,25 @@ def test_zero1_parameter_visibility():
     owned = [id(param) for params in optimizer.gpu_partitions.values() for param in params]
     assert len(owned) == len(set(owned)) == len(list(model.parameters()))
 
+def test_zero1_gradient_count_contract():
+    """局部梯度数量必须与当前 rank 的 owner 参数数量一致。"""
+    model = SimpleModel(dim=4)
+    optimizer = ZeRO1_Optimizer_Sim(model.parameters(), num_gpus=2)
+    invalid_grads = {0: [], 1: [torch.ones_like(model.fc2.weight)]}
+    try:
+        optimizer.step(invalid_grads)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('梯度数量不匹配时应抛出 ValueError')
+
 test_zero_stage_state_ownership()
 test_zero_stage_shards_cover_each_state_once()
 test_zero1_partition_state()
 test_zero1_local_update_value()
 test_zero1_parameter_visibility()
-test_zero1_sim()
+test_zero1_gradient_count_contract()
+
 ```
 
 ---
@@ -350,7 +305,7 @@ def build_zero_stage_layout(num_params, num_ranks, stage):
         for rank in range(num_ranks)
     }
 
-    # TODO 1：ZeRO 每增加一个阶段，就多切分一类训练状态。
+    # TODO 1（阶段状态归属）：ZeRO 每增加一个阶段，就多切分一类训练状态。
     parameter_owner = sharded if stage == 'zero3' else replicated
     gradient_owner = sharded if stage in {'zero2', 'zero3'} else replicated
     optimizer_owner = sharded if stage in {'zero1', 'zero2', 'zero3'} else replicated
@@ -375,33 +330,38 @@ class ZeRO1_Optimizer_Sim:
             raise ValueError('num_gpus 必须为正，且参数对象数量必须能被它整除')
         params_per_rank = len(self.params) // self.num_gpus
 
-        # TODO 2：按 rank 建立 ZeRO-1 参数 owner。
         self.gpu_partitions = {}
         for rank in range(self.num_gpus):
             start = rank * params_per_rank
             end = start + params_per_rank
-            self.gpu_partitions[rank] = self.params[start:end]
+            # TODO 2（参数 owner）：取出当前 rank 连续负责的参数切片。
+            local_params = self.params[start:end]
+            self.gpu_partitions[rank] = local_params
         
-        # TODO 3：只为 owner 参数初始化优化器状态。
         self.optimizer_states = {}
         for rank, local_params in self.gpu_partitions.items():
-            self.optimizer_states[rank] = {id(p): torch.zeros_like(p.data) for p in local_params}
+            # TODO 3（局部状态）：只为 owner 参数初始化优化器状态。
+            local_states = {id(param): torch.zeros_like(param.data) for param in local_params}
+            self.optimizer_states[rank] = local_states
         
     def step(self, gradients_from_all_gpus: dict):
         """
         gradients_from_all_gpus 是同步后的局部梯度。
         """
-        # TODO 4：每个 rank 只更新自己负责的参数。
         for rank in range(self.num_gpus):
             params = self.gpu_partitions[rank]
             grads = gradients_from_all_gpus[rank]
             states = self.optimizer_states[rank]
+            if len(params) != len(grads):
+                raise ValueError('局部梯度数量必须与该 rank 的参数数量一致')
             
             for param, grad in zip(params, grads):
                 state = states[id(param)]
+                # TODO 4（局部更新）：每个 rank 只更新自己负责的状态与参数。
                 updated_state = state + grad  # 教学用累积状态，不等同于 Adam。
+                updated_parameter = param.data - self.lr * updated_state
                 states[id(param)] = updated_state
-                param.data = param.data - self.lr * updated_state
+                param.data = updated_parameter
                 
     def zero_grad(self):
         for p in self.params:
@@ -434,7 +394,7 @@ class ZeRO1_Optimizer_Sim:
 
 #### 5.1 环境与固定 workload
 
-至少使用两张 GPU；以下配置使 DDP 与各 ZeRO 阶段使用同一训练口径。
+安装与双卡预检见通信专题 Quickstart。以下配置使 DDP 与各 ZeRO 阶段使用同一训练口径。
 
 | 类别 | 固定并记录的字段 | 用途 |
 | --- | --- | --- |
@@ -444,21 +404,22 @@ class ZeRO1_Optimizer_Sim:
 | 输出 | `RESULT_DIR`、每 stage 的 JSON、默认关闭开关 | 保留复测与 failure |
 
 ```python
-# 5.1：默认关闭；先固定所有 ZeRO 阶段共用的模型、数据与训练口径。
-RUN_GPU_EXPERIMENT = False
-WORLD_SIZE = 2
-MODEL_KIND = 'synthetic_transformer_mlp'
-MODEL_WIDTH = 1024
-MODEL_LAYERS = 4
-DTYPE = 'bf16'
-GLOBAL_BATCH_SIZE = 4
-MICRO_BATCH_SIZE = 1
-SEQ_LEN = 512
-WARMUP = 2
-REPEATS = 5
-RESULT_DIR = 'benchmarks/results/27_zero'
+RUN_MODE = 'dry_run'  # 默认 dry_run；双卡 Profile 预检通过后改为 real_gpu。
+RUN_LABEL = 'default'  # 默认 default；正式复测改为唯一标签并保留历史 JSON。
+ENVIRONMENT_PROFILE = 'PAR-CUDA-MECHANISM'  # DeepSpeed 与 NCCL 使用的独立多卡环境。
+WORLD_SIZE = 2  # DDP 与 ZeRO 候选使用相同 rank 数。
+MODEL_KIND = 'synthetic_transformer_mlp'  # 固定 Transformer-shaped 合成模型，隔离状态分片变量。
+MODEL_WIDTH = 1024  # 隐藏维度；增大会同时提高状态和计算成本。
+MODEL_LAYERS = 4  # 层数；所有候选保持一致。
+DTYPE = 'bf16'  # 参数与计算数据类型。
+GLOBAL_BATCH_SIZE = 4  # 所有 rank 合计的有效 batch。
+MICRO_BATCH_SIZE = 1  # 每 rank 单次前向 batch。
+SEQ_LEN = 512  # 每个样本的 Token 长度。
+WARMUP = 2  # 预热步数，不进入统计。
+REPEATS = 5  # 正式训练步数，用于比较峰值和最慢 rank 时间。
+RESULT_DIR = f'benchmarks/results/27_zero/{RUN_LABEL}'  # 运行标签隔离历史结果。
 STRATEGIES = ['ddp', 'zero1', 'zero2', 'zero3']
-print({'run': RUN_GPU_EXPERIMENT, 'strategies': STRATEGIES, 'world_size': WORLD_SIZE, 'model': MODEL_KIND, 'dtype': DTYPE, 'result_dir': RESULT_DIR})
+print({'run_mode': RUN_MODE, 'profile': ENVIRONMENT_PROFILE, 'strategies': STRATEGIES, 'world_size': WORLD_SIZE, 'model': MODEL_KIND, 'dtype': DTYPE, 'result_dir': RESULT_DIR})
 
 ```
 
@@ -468,7 +429,7 @@ print({'run': RUN_GPU_EXPERIMENT, 'strategies': STRATEGIES, 'world_size': WORLD_
 
 ```python
 # 5.2：依次运行真实 DeepSpeed stage；默认关闭。
-if RUN_GPU_EXPERIMENT:
+if RUN_MODE == 'real_gpu':
     import subprocess
     from pathlib import Path
     Path(RESULT_DIR).mkdir(parents=True, exist_ok=True)
@@ -483,13 +444,13 @@ if RUN_GPU_EXPERIMENT:
         ]
         subprocess.run(command, check=False)  # stage failure 会写入各自 JSON。
 else:
-    print('GPU benchmark 默认关闭。')
+    print('dry_run：完成配置检查后，将 RUN_MODE 改为 real_gpu 再执行 5.2。')
 
 ```
 
-#### 5.3 读取结果、解释指标与形成决策
+#### 5.3 读取结果
 
-读取四个 stage 的真实 JSON，先确认 workload、hardware、metrics、evidence_level、failure 和 decision 齐全；再结合每 rank 峰值显存、最慢 rank 的 step time、吞吐代理和所用 GPU 数，选择下一轮 ZeRO 策略。
+读取四个 stage 的真实 JSON，检查 workload、hardware、metrics、evidence_level、failure 和 decision 是否齐全。字段解释和策略选择集中放在 5.4。
 
 ```python
 # 5.3：汇总各 stage 的真实结果；没有 JSON 时不输出性能结论。
@@ -510,12 +471,16 @@ print(results if results else f'尚无真实 ZeRO 结果：{RESULT_DIR}')
 
 ```
 
-| 读取项 | 判断与下一步 |
-| --- | --- |
-| 运行状态 | `failure` 非空时记录失败原因，不比较性能指标 |
-| 可比口径 | `workload / hardware` 必须与对照一致，否则重新运行 |
-| 核心指标 | 比较每 rank 峰值显存、最慢 rank `step_time` 与吞吐代理 |
-| 结论 | 用 `evidence_level / decision` 标明证据强度和下一轮 ZeRO 策略 |
+#### 5.4 解释证据并形成决策
+
+ZeRO 阶段越高，常驻状态通常越少，但参数收集、梯度归约和临时 buffer 可能增加。先排除失败和不可比结果，再同时检查显存收益与最慢 rank step time；不能只按理论状态除法选择阶段。
+
+| 观察项 | 读取字段 | 当前结果 | 解释与动作 |
+| --- | --- | --- | --- |
+| 运行与可比性 | `failure`、`workload`、`hardware` | 运行后填写 | 不可比时重新运行，不比较指标 |
+| 状态与峰值 | 每 rank 状态字节、峰值显存 | 运行后填写 | 确认分片是否转化为实际容量收益 |
+| 时间代价 | 最慢 rank step time、吞吐代理 | 运行后填写 | 判断通信与临时聚合是否吞掉收益 |
+| 策略结论 | `evidence_level`、`decision` | 运行后填写 | 在满足容量目标的候选中选择时间代价最低者 |
 ## 相关阅读
 
 ZeRO 的核心是训练状态分片；读完本节后，可以再用论文、DeepSpeed 实现和并行策略页面核对通信与显存取舍。

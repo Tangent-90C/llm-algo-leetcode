@@ -81,7 +81,7 @@ $\text{Bubble Ratio} = \frac{p \times (m + p - 1) - m \times p}{p \times (m + p 
 
 | 任务与目的 | 已知条件 | 完成标准 | 测试验证 |
 | --- | --- | --- | --- |
-| TODO 1：构造灌入—排空时间轴。看清 micro-batch 如何逐 stage 推进。 | `p`、`m`、时间步 `t`、`micro_idx = t - stage` | 每个 `(stage, micro_batch)` 恰好出现一次，且位于 `t = stage + micro_batch` | 时间轴长度、坐标范围、推进顺序与覆盖次数 |
+| TODO 1：构造灌入—排空时间轴。看清 micro-batch 如何逐 stage 推进。 | `p`、`m`、时间步和 stage 索引 | 每个 `(stage, micro_batch)` 恰好出现一次，并保持对角线式推进 | 时间轴长度、坐标范围、推进顺序与覆盖次数 |
 | TODO 2：计算 bubble。把空闲看成未被活跃事件占用的槽位。 | `timeline`、`active_slots`、`total_slots` | bubble 在 0–1 内；增加 micro-batch 不应放大理想流水线的 bubble | 槽位守恒与 micro-batch 对照 |
 | TODO 3：选择前反向事件。比较 fill-drain 与 1F1B 的调度优先级。 | `ready_forward`、`ready_backward`、`policy`、`completed` | 每 stage 每步最多一个事件；所有事件满足前反向依赖 | 依赖顺序、事件唯一性与策略差异 |
 | TODO 4：统计 activation 生命周期。解释为什么调度会影响训练显存。 | 前向 / 反向完成集合、`peak_live_activations` | activation 从前向完成后存活，到对应反向完成后释放 | 峰值 activation 与 fill-drain / 1F1B 对照 |
@@ -111,18 +111,16 @@ def build_pipeline_timeline(p: int, m: int) -> list[list[tuple[int, int]]]:
     total_steps = p + m - 1
     timeline = []
     # ==========================================
-    # TODO 1：构造 Pipeline 的时间轴
-    # 变量提示（每个变量各占一行）：
-    # t = ...
-    # stage = ...
-    # micro_idx = t - stage
-    # 若 0 <= micro_idx < m：active.append((stage, micro_idx))
+    # TODO 1（前向推进）：确定当前 stage 在时间步 t 对应的 micro-batch。
+    # micro_idx = ???  # 当前 stage 候选处理的 micro-batch 编号。
+    # is_active = ???  # 候选编号是否落在有效 micro-batch 范围内。
     # ==========================================
     for t in range(total_steps):
         active = []
         for stage in range(p):
-            micro_idx = t - stage
-            pass
+            raise NotImplementedError
+            if is_active:
+                active.append((stage, micro_idx))
         timeline.append(active)
     return timeline
 
@@ -143,18 +141,30 @@ def compute_bubble_ratio(p: int, m: int) -> float:
     """
     # 输入契约由 build_pipeline_timeline 统一检查。
     # ==========================================
-    # TODO 2：基于时间轴统计活跃槽位，并计算 Bubble Ratio
-    # 变量提示（每个变量各占一行）：
-    # timeline = build_pipeline_timeline(p, m)
-    # active_slots = sum(len(step) for step in timeline)
-    # total_slots = len(timeline) * p
-    # return 1 - active_slots / total_slots
+    # TODO 2（气泡率）：比较已占用槽位与时间轴的全部可用槽位。
+    # active_slots = ???  # 时间轴中实际执行计算的 stage 槽位数。
+    # total_slots = ???  # 全部 stage 在所有时间步可提供的槽位数。
+    # bubble_ratio = ???  # 未被计算占用的槽位比例。
     # ==========================================
     timeline = build_pipeline_timeline(p, m)
-    active_slots = sum(len(step) for step in timeline)
-    total_slots = len(timeline) * p
-    # TODO 2：返回未被活跃计算占用的槽位比例。
-    pass
+    raise NotImplementedError
+    return bubble_ratio
+
+
+def select_pipeline_event(policy, forward_remaining, ready_forward, ready_backward):
+    """从当前 stage 已就绪的事件中选择至多一个事件。"""
+    # ==========================================
+    # TODO 3（事件优先级）：按调度策略选择当前 stage 的下一项工作。
+    # ==========================================
+    if policy == 'fill_drain':
+        # candidates = ???  # 根据前向阶段是否结束选择一种已就绪事件。
+        raise NotImplementedError
+    else:
+        # candidates = ???  # 优先释放 activation，同时保留前向回退。
+        raise NotImplementedError
+    # selected_event = ???  # 第一个候选事件；没有候选时为 None。
+    raise NotImplementedError
+    return selected_event
 
 
 def build_training_schedule(p: int, m: int, policy: str) -> list[list[tuple[str, int, int]]]:
@@ -186,15 +196,11 @@ def build_training_schedule(p: int, m: int, policy: str) -> list[list[tuple[str,
                 and ('F', stage, micro) in completed
                 and (stage == p - 1 or ('B', stage + 1, micro) in completed)
             ]
-            # ==========================================
-            # TODO 3：选择当前 stage 在此时间步执行的事件。
-            # 变量提示（每个变量各占一行）：
-            # candidates = ready_forward（fill_drain 的前向阶段）
-            # candidates = ready_backward（fill_drain 的反向阶段）
-            # candidates = ready_backward or ready_forward（1f1b）
-            # if candidates: step_events.append(candidates[0])
-            # ==========================================
-            pass
+            selected_event = select_pipeline_event(
+                policy, forward_remaining, ready_forward, ready_backward
+            )
+            if selected_event is not None:
+                step_events.append(selected_event)
         if not step_events:
             raise RuntimeError('调度没有可执行事件，前反向依赖可能错误')
         completed.update(step_events)
@@ -211,16 +217,19 @@ def summarize_pipeline_schedule(p: int, m: int, policy: str) -> dict:
     active_slots = 0
 
     # ==========================================
-    # TODO 4：沿时间线统计活跃槽位与尚未反向释放的 activation。
-    # 变量提示（每个变量各占一行）：
-    # active_slots += len(step_events)
-    # completed_forward.add((stage, micro))
-    # completed_backward.add((stage, micro))
-    # live = sum((stage, micro) in completed_forward and (stage, micro) not in completed_backward for micro in range(m))
-    # peak_live_activations[stage] = max(peak_live_activations[stage], live)
+    # TODO 4（activation 生命周期）：统计前向已产生但反向尚未释放的状态。
     # ==========================================
     for step_events in timeline:
-        pass
+        # active_slots = ???  # 加上当前时间步实际执行的事件数。
+        raise NotImplementedError
+        for direction, stage, micro in step_events:
+            # completed_events = ???  # 按事件方向选择对应的完成集合。
+            raise NotImplementedError
+            completed_events.add((stage, micro))
+        for stage in range(p):
+            # live_count = ???  # 已完成前向但尚未完成反向的 micro-batch 数。
+            raise NotImplementedError
+            peak_live_activations[stage] = max(peak_live_activations[stage], live_count)
 
     total_slots = len(timeline) * p
     return {
@@ -379,7 +388,8 @@ def build_pipeline_timeline(p: int, m: int) -> list[list[tuple[int, int]]]:
         active = []
         for stage in range(p):
             micro_idx = t - stage
-            if 0 <= micro_idx < m:
+            is_active = 0 <= micro_idx < m
+            if is_active:
                 active.append((stage, micro_idx))
         timeline.append(active)
     return timeline
@@ -392,8 +402,19 @@ def compute_bubble_ratio(p: int, m: int) -> float:
     timeline = build_pipeline_timeline(p, m)
     active_slots = sum(len(step) for step in timeline)
     total_slots = len(timeline) * p
-    bubble = 1 - active_slots / total_slots
-    return bubble
+    bubble_ratio = 1 - active_slots / total_slots
+    return bubble_ratio
+
+
+def select_pipeline_event(policy, forward_remaining, ready_forward, ready_backward):
+    """按 fill-drain 或简化 1F1B 优先级选择一个已就绪事件。"""
+    # TODO 3：fill-drain 分阶段执行；1F1B 优先释放已就绪的 activation。
+    if policy == 'fill_drain':
+        candidates = ready_forward if forward_remaining else ready_backward
+    else:
+        candidates = ready_backward or ready_forward
+    selected_event = candidates[0] if candidates else None
+    return selected_event
 
 
 def build_training_schedule(p: int, m: int, policy: str) -> list[list[tuple[str, int, int]]]:
@@ -420,13 +441,11 @@ def build_training_schedule(p: int, m: int, policy: str) -> list[list[tuple[str,
                 and ('F', stage, micro) in completed
                 and (stage == p - 1 or ('B', stage + 1, micro) in completed)
             ]
-            # TODO 3：fill-drain 分阶段执行；1F1B 优先释放已就绪的 activation。
-            if policy == 'fill_drain':
-                candidates = ready_forward if forward_remaining else ready_backward
-            else:
-                candidates = ready_backward or ready_forward
-            if candidates:
-                step_events.append(candidates[0])
+            selected_event = select_pipeline_event(
+                policy, forward_remaining, ready_forward, ready_backward
+            )
+            if selected_event is not None:
+                step_events.append(selected_event)
         if not step_events:
             raise RuntimeError('调度没有可执行事件，前反向依赖可能错误')
         completed.update(step_events)
@@ -446,16 +465,14 @@ def summarize_pipeline_schedule(p: int, m: int, policy: str) -> dict:
     for step_events in timeline:
         active_slots += len(step_events)
         for direction, stage, micro in step_events:
-            if direction == 'F':
-                completed_forward.add((stage, micro))
-            else:
-                completed_backward.add((stage, micro))
+            completed_events = completed_forward if direction == 'F' else completed_backward
+            completed_events.add((stage, micro))
         for stage in range(p):
-            live = sum(
+            live_count = sum(
                 (stage, micro) in completed_forward and (stage, micro) not in completed_backward
                 for micro in range(m)
             )
-            peak_live_activations[stage] = max(peak_live_activations[stage], live)
+            peak_live_activations[stage] = max(peak_live_activations[stage], live_count)
 
     total_slots = len(timeline) * p
     return {
@@ -498,7 +515,7 @@ def summarize_pipeline_schedule(p: int, m: int, policy: str) -> dict:
 
 #### 5.1 环境与固定 workload
 
-两 stage 对照需要两张可见 GPU。先用下表核对必须固定的条件，再在下方配置 cell 中集中设置；表格是运行前检查单，实际环境与参数会写入各 run 的 JSON，不需要手填。
+安装与双卡预检见通信专题 Quickstart。单 stage 与两 stage 使用相同模型、micro-batch 和累计 micro-batch，只改变 stage 划分。
 
 | 类别 | 固定并记录的字段 | 用途 |
 | --- | --- | --- |
@@ -508,25 +525,23 @@ def summarize_pipeline_schedule(p: int, m: int, policy: str) -> dict:
 | 输出 | `RESULT_DIR`、每个 run 的 JSON、默认关闭开关 | 保留复测与 failure |
 
 ```python
-# 5.1：默认关闭；两组对照仅改变 pipeline stage 数。
-RUN_GPU_EXPERIMENT = False
-# 合成模型规模：用于制造可重复的 stage 计算负载。
-MODEL_WIDTH = 1024
-MODEL_LAYERS = 8
-# workload：保持每张卡的 micro-batch 与累计 micro-batch 不变。
-MICRO_BATCH = 1
-MICRO_BATCHES = 4
-SEQ_LEN = 256
-DTYPE = 'bf16'
-# 计时：warmup 排除首次初始化，repeats 提供重复样本。
-WARMUP = 2
-REPEATS = 5
-RESULT_DIR = 'benchmarks/results/28_pipeline'
+RUN_MODE = 'dry_run'  # 默认 dry_run；双卡 Profile 预检通过后改为 real_gpu。
+RUN_LABEL = 'default'  # 默认 default；正式复测改为唯一标签并保留历史 JSON。
+ENVIRONMENT_PROFILE = 'PAR-CUDA-MECHANISM'  # DeepSpeed Pipeline 使用的独立环境。
+MODEL_WIDTH = 1024  # 合成 Transformer stage 的隐藏维度。
+MODEL_LAYERS = 8  # 总层数，必须能按候选 stage 数切分。
+MICRO_BATCH = 1  # 每次进入 Pipeline 的样本数。
+MICRO_BATCHES = 4  # 一个训练步内依次进入的 micro-batch 数。
+SEQ_LEN = 256  # 每个样本的 Token 长度。
+DTYPE = 'bf16'  # 参数与计算数据类型。
+WARMUP = 2  # 预热步数，不进入统计。
+REPEATS = 5  # 正式训练步数。
+RESULT_DIR = f'benchmarks/results/28_pipeline/{RUN_LABEL}'  # 标签隔离历史结果。
 PIPELINE_RUNS = [
     {'name': 'single_stage_baseline', 'world_size': 1, 'pipeline_stages': 1},
     {'name': 'two_stage_pipeline', 'world_size': 2, 'pipeline_stages': 2},
 ]
-print({'run': RUN_GPU_EXPERIMENT, 'model_width': MODEL_WIDTH, 'layers': MODEL_LAYERS, 'micro_batch': MICRO_BATCH, 'micro_batches': MICRO_BATCHES, 'runs': PIPELINE_RUNS})
+print({'run_mode': RUN_MODE, 'profile': ENVIRONMENT_PROFILE, 'model_width': MODEL_WIDTH, 'layers': MODEL_LAYERS, 'micro_batch': MICRO_BATCH, 'micro_batches': MICRO_BATCHES, 'runs': PIPELINE_RUNS})
 
 ```
 
@@ -535,11 +550,11 @@ print({'run': RUN_GPU_EXPERIMENT, 'model_width': MODEL_WIDTH, 'layers': MODEL_LA
 使用 `tools/run_pipeline_benchmark.py` 为每种 stage 划分单独保存 JSON。脚本使用 DeepSpeed `PipelineModule` 和 CUDA/NCCL；缺少环境时结果 JSON 会保留 failure，方便区分未执行与不可用。
 
 ```python
-# 5.2：运行真实 DeepSpeed Pipeline benchmark；默认关闭。
+# 5.2：运行真实 DeepSpeed Pipeline benchmark。
 from pathlib import Path
 import subprocess
 
-if RUN_GPU_EXPERIMENT:
+if RUN_MODE == 'real_gpu':
     Path(RESULT_DIR).mkdir(parents=True, exist_ok=True)
     for run in PIPELINE_RUNS:
         result_path = Path(RESULT_DIR) / f"{run['name']}.json"
@@ -556,13 +571,13 @@ if RUN_GPU_EXPERIMENT:
         print(' '.join(command))
         subprocess.run(command, check=False)  # failure 也应保留在对应 JSON。
 else:
-    print('GPU benchmark 默认关闭。')
+    print('dry_run：完成配置检查后，将 RUN_MODE 改为 real_gpu 再执行 5.2。')
 
 ```
 
-#### 5.3 读取结果、解释指标与形成决策
+#### 5.3 读取结果
 
-下方代码读取每个 run 保存的 JSON。先确认结果可比，再看显存、最慢 rank 时间和吞吐代理；代码后的表格说明每类字段如何用于下一步判断，不需要手填。
+读取每个 run 保存的 JSON 并检查公共证据字段。指标解释和下一步决策集中放在 5.4。
 
 ```python
 # 5.3：读取每组真实 benchmark JSON，并验证统一证据字段。
@@ -583,12 +598,16 @@ for run in PIPELINE_RUNS:
 
 ```
 
-| 读取项 | 判断与下一步 |
-| --- | --- |
-| 运行状态 | `failure` 非空时记录失败原因，不比较性能指标 |
-| 可比口径 | `workload / hardware` 必须与对照一致，否则重新运行 |
-| 核心指标 | 比较每 rank 峰值显存、最慢 rank `step_time` 与吞吐代理；同时记录所用 GPU 数 |
-| 结论 | 用 `evidence_level / decision` 判断下一轮是否调整 stage 切分或 micro-batch |
+#### 5.4 解释证据并形成决策
+
+单 stage 与两 stage 使用的 GPU 数不同，因此本节首先验证容量、stage 时间和 Pipeline 执行机制，不直接把总吞吐差异写成扩展效率。两 stage 仍有明显 bubble 时，应先调整 stage 平衡或 micro-batch 数。
+
+| 观察项 | 读取字段 | 当前结果 | 解释与动作 |
+| --- | --- | --- | --- |
+| 运行与可比性 | `failure`、模型形状、micro-batch、dtype | 运行后填写 | 输入不一致时重新运行 |
+| 容量 | 每 rank 峰值显存、world size | 运行后填写 | 确认切层是否解决单卡容量约束 |
+| 调度 | 最慢 stage / rank 时间、bubble 或吞吐代理 | 运行后填写 | 判断 stage 不均衡与 micro-batch 是否需要调整 |
+| 证据出口 | `evidence_level`、`decision` | 运行后填写 | 机制通过后再进入同 GPU 预算的组合并行项目 |
 ## 相关阅读
 
 流水线并行可以继续从 GPipe 和 Megatron-LM 的实现进入真实训练调度，再和 ZeRO、Tensor Parallelism 对照。
