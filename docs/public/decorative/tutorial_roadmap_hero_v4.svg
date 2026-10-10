@@ -1,55 +1,223 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1672" height="941" viewBox="0 0 1672 941" role="img" aria-labelledby="title desc">
-  <title id="title">大模型算法与系统教程</title>
-  <desc id="desc">大模型算法与系统教程的四条主学习路线：推理优化、显存优化、算子优化和后训练优化。</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1672" height="900" viewBox="0 0 1672 900" role="img" aria-labelledby="title desc">
+  <title id="title">大模型算法与系统教程学习地图</title>
+  <desc id="desc">顶部展示 Part 00 到 Part 05 的学习阶段，中部按对象层次展示大模型架构演进、后训练优化、推理优化、性能优化和算子优化五条主路线，底部展示基础、横向与领域专题。</desc>
   <defs>
-    <linearGradient id="shade" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#071126" stop-opacity="0.96"/>
-      <stop offset="0.58" stop-color="#071126" stop-opacity="0.76"/>
-      <stop offset="1" stop-color="#071126" stop-opacity="0"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071426"/>
+      <stop offset="0.55" stop-color="#0b1f39"/>
+      <stop offset="1" stop-color="#102847"/>
     </linearGradient>
-    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="5" stdDeviation="8" flood-color="#020617" flood-opacity="0.42"/>
+    <linearGradient id="routeBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16345a"/>
+      <stop offset="1" stop-color="#102947"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#020617" flood-opacity="0.35"/>
     </filter>
+    <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M36 0H0V36" fill="none" stroke="#93c5fd" stroke-opacity="0.055" stroke-width="1"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#7dd3fc"/>
+    </marker>
     <style>
-      .title { font: 700 42px "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; fill: #f8fafc; letter-spacing: 1px; }
-      .subtitle { font: 500 20px "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; fill: #bfdbfe; }
-      .part { font: 600 14px "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; fill: #dbeafe; }
-      .route { font: 700 23px "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; fill: #ffffff; }
-      .route-en { font: 500 12px "Inter", "Arial", sans-serif; fill: #dbeafe; letter-spacing: 0.7px; }
+      .cn { font-family: "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; }
+      .en { font-family: Inter, Arial, sans-serif; }
+      .title { font-size: 38px; font-weight: 750; fill: #f8fafc; letter-spacing: 1px; }
+      .subtitle { font-size: 16px; font-weight: 500; fill: #bae6fd; }
+      .section { font-size: 15px; font-weight: 700; fill: #7dd3fc; letter-spacing: 1.2px; }
+      .partNo { font-size: 13px; font-weight: 700; fill: #93c5fd; }
+      .partName { font-size: 17px; font-weight: 700; fill: #f8fafc; }
+      .partDesc { font-size: 12px; font-weight: 500; fill: #cbd5e1; }
+      .routeName { font-size: 22px; font-weight: 750; fill: #f8fafc; }
+      .routeDesc { font-size: 14px; font-weight: 500; fill: #cbd5e1; }
+      .groupName { font-size: 18px; font-weight: 750; fill: #f8fafc; }
+      .groupEn { font-size: 11px; font-weight: 600; fill: #94a3b8; letter-spacing: 0.7px; }
+      .chip { font-size: 15px; font-weight: 650; fill: #e2e8f0; }
+      .chipEn { font-size: 10px; font-weight: 500; fill: #94a3b8; }
+      .note { font-size: 13px; font-weight: 500; fill: #94a3b8; }
     </style>
   </defs>
 
-  <image href="./tutorial_roadmap_hero_bg_v2.png" xlink:href="./tutorial_roadmap_hero_bg_v2.png" x="0" y="0" width="1672" height="941" preserveAspectRatio="xMidYMid slice"/>
-  <rect x="0" y="0" width="900" height="941" fill="url(#shade)"/>
+  <rect width="1672" height="941" fill="url(#bg)"/>
+  <rect width="1672" height="941" fill="url(#grid)"/>
+  <circle cx="1510" cy="84" r="250" fill="#2563eb" opacity="0.07"/>
+  <circle cx="120" cy="850" r="240" fill="#14b8a6" opacity="0.06"/>
 
-  <text x="82" y="126" class="title">llm-algo-leetcode</text>
-  <text x="84" y="164" class="subtitle">大模型算法与系统教程</text>
-  <text x="84" y="204" class="subtitle">从算法机制，到硬件执行与系统优化</text>
+  <text x="70" y="66" class="cn title">llm-algo-leetcode · 大模型算法与系统教程</text>
+  <text x="70" y="96" class="cn subtitle">从机制理解与可运行实验出发，经由五条主路线走向底层实现、项目交付与架构决策</text>
 
-  <g opacity="0.9">
-    <rect x="86" y="280" width="300" height="48" rx="18" fill="#172554" stroke="#60a5fa" stroke-width="1.5"/>
-    <text x="236" y="310" text-anchor="middle" class="part">Part 00 · 基础计算</text>
-    <rect x="86" y="348" width="300" height="48" rx="18" fill="#172554" stroke="#38bdf8" stroke-width="1.5"/>
-    <text x="236" y="378" text-anchor="middle" class="part">Part 01 · 硬件与系统</text>
-    <rect x="86" y="416" width="300" height="48" rx="18" fill="#24104f" stroke="#c084fc" stroke-width="3"/>
-    <text x="236" y="446" text-anchor="middle" class="part">Part 02 · 机制与项目</text>
-    <rect x="86" y="484" width="300" height="48" rx="18" fill="#422006" stroke="#fbbf24" stroke-width="1.5"/>
-    <text x="236" y="514" text-anchor="middle" class="part">Part 03 / 04 · 底层实现</text>
-    <path d="M236 328 L236 348 M236 396 L236 416 M236 464 L236 484" stroke="#93c5fd" stroke-width="2" stroke-dasharray="5 7"/>
+  <text x="70" y="137" class="cn section">学习阶段 · PARTS</text>
+  <g filter="url(#shadow)">
+    <g transform="translate(70 155)">
+      <rect width="240" height="112" rx="16" fill="#102b4b" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="18" y="28" class="en partNo">PART 00</text>
+      <text x="18" y="57" class="cn partName">前置知识与环境</text>
+      <text x="18" y="86" class="cn partDesc">Python · PyTorch · 环境与调试</text>
+    </g>
+    <g transform="translate(332 155)">
+      <rect width="240" height="112" rx="16" fill="#102b4b" stroke="#38bdf8" stroke-width="1.5"/>
+      <text x="18" y="28" class="en partNo">PART 01</text>
+      <text x="18" y="57" class="cn partName">硬件、数学与系统</text>
+      <text x="18" y="86" class="cn partDesc">数值 · 硬件 · 访存 · 通信</text>
+    </g>
+    <g transform="translate(594 155)">
+      <rect width="240" height="112" rx="16" fill="#1f2855" stroke="#a78bfa" stroke-width="2.5"/>
+      <text x="18" y="28" class="en partNo">PART 02</text>
+      <text x="18" y="57" class="cn partName">PyTorch 机制与项目</text>
+      <text x="18" y="86" class="cn partDesc">机制实现 · 实验 · 项目证据</text>
+    </g>
+    <g transform="translate(856 155)">
+      <rect width="240" height="112" rx="16" fill="#2f281a" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="18" y="28" class="en partNo">PART 03</text>
+      <text x="18" y="57" class="cn partName">Triton 算子开发</text>
+      <text x="18" y="86" class="cn partDesc">Kernel · 融合 · Autotune</text>
+    </g>
+    <g transform="translate(1118 155)">
+      <rect width="240" height="112" rx="16" fill="#34221d" stroke="#fb923c" stroke-width="1.5"/>
+      <text x="18" y="28" class="en partNo">PART 04</text>
+      <text x="18" y="57" class="cn partName">CUDA 与系统优化</text>
+      <text x="18" y="86" class="cn partDesc">CUDA · 并发 · 通信 · 系统优化</text>
+    </g>
+    <g transform="translate(1380 155)">
+      <rect width="222" height="112" rx="16" fill="#332044" stroke="#e879f9" stroke-width="2"/>
+      <text x="18" y="28" class="en partNo">PART 05</text>
+      <text x="18" y="57" class="cn partName">综合项目与决策</text>
+      <text x="18" y="86" class="cn partDesc">项目 · 选型 · 成本与决策</text>
+    </g>
+  </g>
+  <g fill="none" stroke="#7dd3fc" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M310 211H332"/>
+    <path d="M572 211H594"/>
+    <path d="M834 211H856"/>
+    <path d="M1096 211H1118"/>
+    <path d="M1358 211H1380"/>
   </g>
 
-  <g filter="url(#soft)">
-    <rect x="858" y="704" width="176" height="92" rx="22" fill="#2563eb" fill-opacity="0.94" stroke="#93c5fd" stroke-width="2"/>
-    <text x="946" y="744" text-anchor="middle" class="route">推理优化</text>
-    <text x="946" y="768" text-anchor="middle" class="route-en">Inference Optimization</text>
-    <rect x="1048" y="704" width="176" height="92" rx="22" fill="#16a34a" fill-opacity="0.94" stroke="#86efac" stroke-width="2"/>
-    <text x="1136" y="744" text-anchor="middle" class="route">显存优化</text>
-    <text x="1136" y="768" text-anchor="middle" class="route-en">Memory Optimization</text>
-    <rect x="1238" y="704" width="176" height="92" rx="22" fill="#d97706" fill-opacity="0.96" stroke="#fde68a" stroke-width="2"/>
-    <text x="1326" y="744" text-anchor="middle" class="route">算子优化</text>
-    <text x="1326" y="768" text-anchor="middle" class="route-en">Operator Optimization</text>
-    <rect x="1428" y="704" width="190" height="92" rx="22" fill="#7c3aed" fill-opacity="0.96" stroke="#d8b4fe" stroke-width="2"/>
-    <text x="1523" y="744" text-anchor="middle" class="route">后训练优化</text>
-    <text x="1523" y="768" text-anchor="middle" class="route-en">Post-Training Optimization</text>
+  <text x="1602" y="294" text-anchor="end" class="cn note">Part 00 / 01 按需回补 · Part 02 机制实验 · Part 03 / 04 底层下探 · Part 05 项目与决策收口</text>
+  <text x="70" y="330" class="cn section">五条主学习路线 · CORE ROUTES</text>
+  <text x="1602" y="330" text-anchor="end" class="cn note">按目标选择路线，横向顺序表示对象层次</text>
+  <g fill="none" stroke="#7dd3fc" stroke-width="2">
+    <path d="M714 267V344" marker-end="url(#arrow)"/>
+    <path d="M218 344H1472" stroke-opacity="0.72"/>
+    <path d="M218 344V360" marker-end="url(#arrow)"/>
+    <path d="M536 344V360" marker-end="url(#arrow)"/>
+    <path d="M854 344V360" marker-end="url(#arrow)"/>
+    <path d="M1172 344V360" marker-end="url(#arrow)"/>
+    <path d="M1472 344V360" marker-end="url(#arrow)"/>
   </g>
+
+  <g filter="url(#shadow)">
+    <g transform="translate(70 360)">
+      <rect width="296" height="132" rx="18" fill="url(#routeBg)" stroke="#f472b6" stroke-width="2"/>
+      <rect width="7" height="132" rx="3.5" fill="#ec4899"/>
+      <text x="24" y="42" class="cn routeName">大模型架构演进</text>
+      <text x="24" y="70" class="en routeDesc">LLM Architecture Evolution</text>
+      <text x="24" y="103" class="cn routeDesc">Block · Attention · MoE · 混合架构</text>
+    </g>
+    <g transform="translate(388 360)">
+      <rect width="296" height="132" rx="18" fill="url(#routeBg)" stroke="#c084fc" stroke-width="2"/>
+      <rect width="7" height="132" rx="3.5" fill="#a855f7"/>
+      <text x="24" y="42" class="cn routeName">后训练优化</text>
+      <text x="24" y="70" class="en routeDesc">Post-Training Optimization</text>
+      <text x="24" y="103" class="cn routeDesc">SFT · 偏好优化 · RL · 评测</text>
+    </g>
+    <g transform="translate(706 360)">
+      <rect width="296" height="132" rx="18" fill="url(#routeBg)" stroke="#60a5fa" stroke-width="2"/>
+      <rect width="7" height="132" rx="3.5" fill="#3b82f6"/>
+      <text x="24" y="42" class="cn routeName">推理优化</text>
+      <text x="24" y="70" class="en routeDesc">Inference Optimization</text>
+      <text x="24" y="103" class="cn routeDesc">请求 · KV Cache · 调度 · Serving</text>
+    </g>
+    <g transform="translate(1024 360)">
+      <rect width="296" height="132" rx="18" fill="url(#routeBg)" stroke="#34d399" stroke-width="2"/>
+      <rect width="7" height="132" rx="3.5" fill="#10b981"/>
+      <text x="24" y="42" class="cn routeName">性能优化</text>
+      <text x="24" y="70" class="en routeDesc">Performance Optimization</text>
+      <text x="24" y="103" class="cn routeDesc">测量 · 归因 · 策略 · 端到端决策</text>
+    </g>
+    <g transform="translate(1342 360)">
+      <rect width="260" height="132" rx="18" fill="url(#routeBg)" stroke="#fbbf24" stroke-width="2"/>
+      <rect width="7" height="132" rx="3.5" fill="#f59e0b"/>
+      <text x="24" y="42" class="cn routeName">算子优化</text>
+      <text x="24" y="70" class="en routeDesc">Operator Optimization</text>
+      <text x="24" y="103" class="cn routeDesc">融合 · Kernel · 访存 · 后端</text>
+    </g>
+  </g>
+
+  <g fill="none" stroke="#7dd3fc" stroke-width="2" stroke-dasharray="5 6" stroke-opacity="0.78">
+    <path d="M290 605V550"/>
+    <path d="M892 605V550"/>
+    <path d="M1438 605V550"/>
+    <path d="M218 550H1472"/>
+    <path d="M218 550V492" marker-end="url(#arrow)"/>
+    <path d="M536 550V492" marker-end="url(#arrow)"/>
+    <path d="M854 550V492" marker-end="url(#arrow)"/>
+    <path d="M1172 550V492" marker-end="url(#arrow)"/>
+    <path d="M1472 550V492" marker-end="url(#arrow)"/>
+  </g>
+  <rect x="700" y="535" width="128" height="30" rx="15" fill="#0b1f39" stroke="#7dd3fc" stroke-opacity="0.28"/>
+  <text x="764" y="555" text-anchor="middle" class="cn note">按问题回补</text>
+
+  <text x="70" y="582" class="cn section">支撑专题 · SUPPORTING TOPICS</text>
+  <g filter="url(#shadow)">
+    <g transform="translate(70 605)">
+      <rect width="440" height="244" rx="20" fill="#0d243e" stroke="#38bdf8" stroke-opacity="0.75"/>
+      <text x="24" y="38" class="cn groupName">基础支撑</text>
+      <text x="24" y="58" class="en groupEn">FOUNDATION</text>
+      <g transform="translate(24 82)">
+        <rect width="392" height="62" rx="13" fill="#132f4f"/>
+        <text x="18" y="27" class="cn chip">反向传播与训练机制</text>
+        <text x="18" y="46" class="en chipEn">BACKPROPAGATION AND TRAINING MECHANICS</text>
+      </g>
+      <g transform="translate(24 158)">
+        <rect width="392" height="62" rx="13" fill="#132f4f"/>
+        <text x="18" y="27" class="cn chip">性能分析</text>
+        <text x="18" y="46" class="en chipEn">PERFORMANCE ANALYSIS</text>
+      </g>
+    </g>
+
+    <g transform="translate(532 605)">
+      <rect width="720" height="244" rx="20" fill="#0d243e" stroke="#34d399" stroke-opacity="0.75"/>
+      <text x="24" y="38" class="cn groupName">横向工程专题</text>
+      <text x="24" y="58" class="en groupEn">CROSS-CUTTING TOPICS</text>
+      <g transform="translate(24 82)">
+        <rect width="324" height="62" rx="13" fill="#122f42"/>
+        <text x="18" y="27" class="cn chip">量化与压缩</text>
+        <text x="18" y="46" class="en chipEn">QUANTIZATION AND COMPRESSION</text>
+      </g>
+      <g transform="translate(372 82)">
+        <rect width="324" height="62" rx="13" fill="#122f42"/>
+        <text x="18" y="27" class="cn chip">通信与并行</text>
+        <text x="18" y="46" class="en chipEn">COMMUNICATION AND PARALLELISM</text>
+      </g>
+      <g transform="translate(24 158)">
+        <rect width="324" height="62" rx="13" fill="#122f42"/>
+        <text x="18" y="27" class="cn chip">数据工程</text>
+        <text x="18" y="46" class="en chipEn">DATA ENGINEERING</text>
+      </g>
+      <g transform="translate(372 158)">
+        <rect width="324" height="62" rx="13" fill="#122f42"/>
+        <text x="18" y="27" class="cn chip">部署与异构系统</text>
+        <text x="18" y="46" class="en chipEn">DEPLOYMENT AND HETEROGENEOUS SYSTEMS</text>
+      </g>
+    </g>
+
+    <g transform="translate(1274 605)">
+      <rect width="328" height="244" rx="20" fill="#0d243e" stroke="#f472b6" stroke-opacity="0.75"/>
+      <text x="24" y="38" class="cn groupName">领域专题</text>
+      <text x="24" y="58" class="en groupEn">DOMAIN TOPICS</text>
+      <g transform="translate(24 82)">
+        <rect width="280" height="62" rx="13" fill="#30203d"/>
+        <text x="18" y="27" class="cn chip">Agent 基础设施</text>
+        <text x="18" y="46" class="en chipEn">AGENT INFRASTRUCTURE</text>
+      </g>
+      <g transform="translate(24 158)">
+        <rect width="280" height="62" rx="13" fill="#30203d"/>
+        <text x="18" y="27" class="cn chip">多模态与视觉推理</text>
+        <text x="18" y="46" class="en chipEn">MULTIMODAL AND VISION INFERENCE</text>
+      </g>
+    </g>
+  </g>
+
 </svg>
