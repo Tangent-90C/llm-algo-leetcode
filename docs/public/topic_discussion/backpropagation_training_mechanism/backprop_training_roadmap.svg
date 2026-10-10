@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="460" viewBox="0 0 1200 460" role="img" aria-labelledby="title desc">
+  <title id="title">反向传播与训练机制学习路线</title>
+  <desc id="desc">从训练闭环、计算图和局部反向，进入有效更新、状态生命周期、状态策略与证据验证的七步路线。</desc>
+  <style>
+    .bg{fill:#f8fafc}.line{stroke:#64748b;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+    .card{fill:#fff;stroke:#cbd5e1;stroke-width:2}.core{fill:#eff6ff;stroke:#60a5fa}.strategy{fill:#fff7ed;stroke:#fb923c}.evidence{fill:#ecfdf5;stroke:#34d399}
+    .n{font:700 17px sans-serif;fill:#0f172a}.s{font:14px sans-serif;fill:#475569}.tag{font:700 13px sans-serif;fill:#2563eb}
+  </style>
+  <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6z" fill="#64748b"/></marker></defs>
+  <rect class="bg" width="1200" height="460" rx="20"/>
+  <text x="50" y="52" class="n" font-size="24">训练机制：先保证梯度与更新正确，再比较状态策略和性能证据</text>
+
+  <path class="line" d="M260 170H320"/><path class="line" d="M540 170H600"/><path class="line" d="M820 170H880"/>
+  <path class="line" d="M995 230V262H300V292"/>
+  <path class="line" d="M415 352H490"/><path class="line" d="M710 352H790"/>
+
+  <g><rect class="card core" x="40" y="95" width="220" height="135" rx="16"/><text x="60" y="126" class="tag">TASK 0</text><text x="60" y="157" class="n">训练闭环与梯度信号</text><text x="60" y="185" class="s">初始化 → 前向传播 → 损失</text><text x="60" y="208" class="s">→ 反向传播 → 参数更新</text></g>
+  <g><rect class="card core" x="320" y="95" width="220" height="135" rx="16"/><text x="340" y="126" class="tag">TASK 1</text><text x="340" y="157" class="n">计算图与梯度边界</text><text x="340" y="185" class="s">VJP、分支汇合</text><text x="340" y="208" class="s">detach() / no_grad()</text></g>
+  <g><rect class="card core" x="600" y="95" width="220" height="135" rx="16"/><text x="620" y="126" class="tag">TASK 2</text><text x="620" y="157" class="n">Transformer 局部反向</text><text x="620" y="185" class="s">激活 / 损失 / Attention</text><text x="620" y="208" class="s">与反向保存张量</text></g>
+  <g><rect class="card core" x="880" y="95" width="230" height="135" rx="16"/><text x="900" y="126" class="tag">TASK 3</text><text x="900" y="157" class="n">监督与有效更新</text><text x="900" y="185" class="s">损失分母 / 梯度累积</text><text x="900" y="208" class="s">优化器 / 调度器更新步</text></g>
+
+  <g><rect class="card core" x="185" y="292" width="230" height="120" rx="16"/><text x="205" y="323" class="tag">TASK 4</text><text x="205" y="354" class="n">状态生命周期与峰值</text><text x="205" y="382" class="s">产生、驻留、消费、释放</text></g>
+  <g><rect class="card strategy" x="490" y="292" width="220" height="120" rx="16"/><text x="510" y="323" class="tag">TASK 5</text><text x="510" y="354" class="n">重算与搬运策略</text><text x="510" y="382" class="s">激活检查点 / 卸载</text></g>
+  <g><rect class="card evidence" x="790" y="292" width="330" height="120" rx="16"/><text x="810" y="323" class="tag">TASK 6</text><text x="810" y="354" class="n">正确性、数值稳定与性能证据</text><text x="810" y="382" class="s">梯度 / 质量 / 显存 / 时间</text></g>
+</svg>

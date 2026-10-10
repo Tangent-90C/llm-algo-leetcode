@@ -1,65 +1,65 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="760" viewBox="0 0 1280 760">
   <rect width="1280" height="760" fill="#f6f2e8"/>
 
-  <text x="60" y="54" font-family="Georgia, serif" font-size="30" fill="#2b2b2b">Naive Attention Backward vs FlashAttention Backward</text>
-  <text x="60" y="84" font-family="Georgia, serif" font-size="16" fill="#5a5348">What gets saved, what gets recomputed, and where fusion reduces IO</text>
+  <text x="60" y="54" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="30" fill="#2b2b2b">直接实现与 FlashAttention 风格反向传播</text>
+  <text x="60" y="84" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#5a5348">比较保存状态、局部重算以及融合减少 I/O 的位置</text>
 
   <rect x="60" y="120" width="520" height="560" rx="24" fill="#fff8ef" stroke="#8a6f4a" stroke-width="2"/>
-  <text x="90" y="164" font-family="Arial, sans-serif" font-size="28" fill="#5c4320">Naive Backward</text>
-  <text x="90" y="194" font-family="Arial, sans-serif" font-size="15" fill="#6a5a44">Formula-first implementation, more intermediate materialization</text>
+  <text x="90" y="164" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="28" fill="#5c4320">直接反向实现</text>
+  <text x="90" y="194" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="15" fill="#6a5a44">按公式展开，物化较多中间状态</text>
 
   <rect x="100" y="230" width="200" height="64" rx="14" fill="#e7d6b8" stroke="#8a6f4a" stroke-width="2"/>
-  <text x="132" y="270" font-family="Arial, sans-serif" font-size="24" fill="#513b1d">Saved Tensors</text>
-  <text x="110" y="322" font-family="Arial, sans-serif" font-size="16" fill="#5d564b">Q, K, V</text>
-  <text x="110" y="346" font-family="Arial, sans-serif" font-size="16" fill="#5d564b">scores S = QKᵀ</text>
-  <text x="110" y="370" font-family="Arial, sans-serif" font-size="16" fill="#5d564b">probabilities P = softmax(S)</text>
-  <text x="110" y="394" font-family="Arial, sans-serif" font-size="16" fill="#5d564b">mask / scale side state</text>
+  <text x="132" y="270" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="24" fill="#513b1d">反向保存张量</text>
+  <text x="110" y="322" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#5d564b">Q、K、V</text>
+  <text x="110" y="346" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#5d564b">分数 S = QKᵀ</text>
+  <text x="110" y="370" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#5d564b">概率 P = softmax(S)</text>
+  <text x="110" y="394" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#5d564b">掩码与缩放状态</text>
 
   <rect x="330" y="230" width="200" height="64" rx="14" fill="#f1e6d2" stroke="#8a6f4a" stroke-width="2"/>
-  <text x="387" y="270" font-family="Arial, sans-serif" font-size="24" fill="#513b1d">Backward Path</text>
+  <text x="387" y="270" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="24" fill="#513b1d">反向路径</text>
   <text x="344" y="322" font-family="Arial, sans-serif" font-size="16" fill="#5d564b">dO → dV</text>
   <text x="344" y="346" font-family="Arial, sans-serif" font-size="16" fill="#5d564b">dP → dS</text>
   <text x="344" y="370" font-family="Arial, sans-serif" font-size="16" fill="#5d564b">dQ / dK</text>
-  <text x="344" y="394" font-family="Arial, sans-serif" font-size="16" fill="#5d564b">often split across kernels</text>
+  <text x="344" y="394" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#5d564b">通常拆分到多个内核</text>
 
   <line x1="300" y1="262" x2="330" y2="262" stroke="#8a6f4a" stroke-width="3" marker-end="url(#arrow)"/>
 
   <rect x="100" y="452" width="430" height="162" rx="18" fill="#fdf2dd" stroke="#8a6f4a" stroke-width="2"/>
-  <text x="126" y="487" font-family="Arial, sans-serif" font-size="24" fill="#513b1d">Typical IO Cost</text>
-  <text x="126" y="521" font-family="Arial, sans-serif" font-size="17" fill="#5d564b">1. Materialize full S / P or large intermediates</text>
-  <text x="126" y="548" font-family="Arial, sans-serif" font-size="17" fill="#5d564b">2. Write them out to global memory</text>
-  <text x="126" y="575" font-family="Arial, sans-serif" font-size="17" fill="#5d564b">3. Read them back in later kernels</text>
-  <text x="126" y="602" font-family="Arial, sans-serif" font-size="17" fill="#5d564b">4. Higher saved_tensors residency, higher memory traffic</text>
+  <text x="126" y="487" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="24" fill="#513b1d">典型 I/O 代价</text>
+  <text x="126" y="521" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="17" fill="#5d564b">1. 物化完整 S / P 或较大中间状态</text>
+  <text x="126" y="548" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="17" fill="#5d564b">2. 将中间状态写入全局内存</text>
+  <text x="126" y="575" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="17" fill="#5d564b">3. 后续内核再次读取</text>
+  <text x="126" y="602" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="17" fill="#5d564b">4. 状态驻留和内存流量较高</text>
 
   <rect x="700" y="120" width="520" height="560" rx="24" fill="#eef8f2" stroke="#437659" stroke-width="2"/>
-  <text x="730" y="164" font-family="Arial, sans-serif" font-size="28" fill="#224933">FlashAttention-style Backward</text>
-  <text x="730" y="194" font-family="Arial, sans-serif" font-size="15" fill="#4e6558">IO-aware implementation, tile-wise recompute, fused work partitioning</text>
+  <text x="730" y="164" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="28" fill="#224933">FlashAttention 风格反向实现</text>
+  <text x="730" y="194" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="15" fill="#4e6558">I/O 感知、分块重算与融合工作划分</text>
 
   <rect x="740" y="230" width="200" height="64" rx="14" fill="#cfe7d8" stroke="#437659" stroke-width="2"/>
-  <text x="783" y="270" font-family="Arial, sans-serif" font-size="24" fill="#224933">Saved Tensors</text>
+  <text x="783" y="270" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="24" fill="#224933">反向保存张量</text>
   <text x="752" y="322" font-family="Arial, sans-serif" font-size="16" fill="#4a5d54">Q, K, V</text>
-  <text x="752" y="346" font-family="Arial, sans-serif" font-size="16" fill="#4a5d54">tile-wise softmax stats</text>
-  <text x="752" y="370" font-family="Arial, sans-serif" font-size="16" fill="#4a5d54">minimal normalization state</text>
-  <text x="752" y="394" font-family="Arial, sans-serif" font-size="16" fill="#4a5d54">avoid full S / P residency</text>
+  <text x="752" y="346" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#4a5d54">分块 Softmax 统计量</text>
+  <text x="752" y="370" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#4a5d54">最小归一化状态</text>
+  <text x="752" y="394" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#4a5d54">避免完整 S / P 驻留</text>
 
   <rect x="970" y="230" width="200" height="64" rx="14" fill="#def0e5" stroke="#437659" stroke-width="2"/>
-  <text x="1019" y="270" font-family="Arial, sans-serif" font-size="24" fill="#224933">Backward Path</text>
-  <text x="984" y="322" font-family="Arial, sans-serif" font-size="16" fill="#4a5d54">recompute tile scores</text>
-  <text x="984" y="346" font-family="Arial, sans-serif" font-size="16" fill="#4a5d54">rebuild local softmax pieces</text>
-  <text x="984" y="370" font-family="Arial, sans-serif" font-size="16" fill="#4a5d54">fused dP / dS / dQK work</text>
-  <text x="984" y="394" font-family="Arial, sans-serif" font-size="16" fill="#4a5d54">less global writeback</text>
+  <text x="1019" y="270" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="24" fill="#224933">反向路径</text>
+  <text x="984" y="322" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#4a5d54">重算分块分数</text>
+  <text x="984" y="346" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#4a5d54">重建局部 Softmax</text>
+  <text x="984" y="370" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#4a5d54">融合 dP / dS / dQK</text>
+  <text x="984" y="394" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="16" fill="#4a5d54">减少全局写回</text>
 
   <line x1="940" y1="262" x2="970" y2="262" stroke="#437659" stroke-width="3" marker-end="url(#arrow2)"/>
 
   <rect x="740" y="452" width="430" height="162" rx="18" fill="#edf8f0" stroke="#437659" stroke-width="2"/>
-  <text x="766" y="487" font-family="Arial, sans-serif" font-size="24" fill="#224933">Typical IO Strategy</text>
-  <text x="766" y="521" font-family="Arial, sans-serif" font-size="17" fill="#4a5d54">1. Save small normalization / tile state</text>
-  <text x="766" y="548" font-family="Arial, sans-serif" font-size="17" fill="#4a5d54">2. Recompute local scores when backward needs them</text>
-  <text x="766" y="575" font-family="Arial, sans-serif" font-size="17" fill="#4a5d54">3. Fuse more work before writing global results</text>
-  <text x="766" y="602" font-family="Arial, sans-serif" font-size="17" fill="#4a5d54">4. Trade compute for lower residency and lower IO</text>
+  <text x="766" y="487" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="24" fill="#224933">典型 I/O 策略</text>
+  <text x="766" y="521" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="17" fill="#4a5d54">1. 保存较小的归一化与分块状态</text>
+  <text x="766" y="548" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="17" fill="#4a5d54">2. 反向传播需要时重算局部分数</text>
+  <text x="766" y="575" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="17" fill="#4a5d54">3. 写回全局结果前融合更多工作</text>
+  <text x="766" y="602" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="17" fill="#4a5d54">4. 用额外计算换取更低驻留和 I/O</text>
 
   <rect x="410" y="690" width="460" height="44" rx="14" fill="#e9dfcf" stroke="#7b6a51" stroke-width="1.5"/>
-  <text x="438" y="718" font-family="Arial, sans-serif" font-size="18" fill="#4e4439">Key distinction: same gradient math, different saved state and execution path</text>
+  <text x="438" y="718" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="18" fill="#4e4439">关键区别：梯度数学相同，保存状态和执行路径不同</text>
 
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
