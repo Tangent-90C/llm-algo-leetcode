@@ -1,83 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900">
-<defs>
-  <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#486581"/></marker>
-</defs>
-<style>
-  .title{font:700 30px sans-serif;fill:#17324d}.sub{font:16px sans-serif;fill:#526581}
-  .head{font:700 18px sans-serif;fill:#17324d}.body{font:15px sans-serif;fill:#334e68}.small{font:14px sans-serif;fill:#486581}
-  .card{stroke-width:2;rx:16}.flow{stroke:#486581;stroke-width:2.3;fill:none;marker-end:url(#arrow)}
-  .feedback{stroke:#8a6d3b;stroke-width:2;fill:none;stroke-dasharray:8 6;marker-end:url(#arrow)}
-</style>
-<rect width="1400" height="900" fill="#fbfcfe"/>
-<text x="700" y="48" text-anchor="middle" class="title">量化与压缩机制路线：公共机制连接训练、推理与性能</text>
-<text x="700" y="78" text-anchor="middle" class="sub">先建立表示、校准与误差口径，再验证产物能否进入真实执行路径，最后按目标 workload 作决策。</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="990" viewBox="0 0 1400 990" role="img" aria-labelledby="title desc">
+  <title id="title">量化与压缩 Task0–6 学习路线</title>
+  <desc id="desc">公共表示与校准机制分流到训练和推理，再分别经过产物或执行门槛，形成工作负载决策与性能归因。</desc>
+  <defs><style>.title{font:700 30px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.sub{font:16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.head{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.body{font:15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334e68}.small{font:14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.common{fill:#e6f0ff;stroke:#729dcc;stroke-width:2}.train{fill:#fff4d6;stroke:#d9a52f;stroke-width:2}.infer{fill:#e8f5ee;stroke:#62a980;stroke-width:2}.gate{fill:#f3edff;stroke:#8b72b0;stroke-width:2}.decision{fill:#edf3f8;stroke:#7691aa;stroke-width:2}.flow{stroke:#486581;stroke-width:2.5;fill:none}.trainFlow{stroke:#b88519;stroke-width:2.5;fill:none}.inferFlow{stroke:#3f8d66;stroke-width:2.5;fill:none}.cross{stroke:#8b72b0;stroke-width:2.2;fill:none;stroke-dasharray:8 6}</style>
+  <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#486581"/></marker>
+  <marker id="trainArrow" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#b88519"/></marker>
+  <marker id="inferArrow" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#3f8d66"/></marker>
+  <marker id="crossArrow" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#8b72b0"/></marker></defs>
+  <rect width="1400" height="990" fill="#fbfcfe"/>
+  <text x="700" y="48" text-anchor="middle" class="title">量化与压缩路线：公共机制分流到训练与推理决策</text>
+  <text x="700" y="78" text-anchor="middle" class="sub">Task0–2 建立共同口径，Task3/4 分支实践，Task5/6 分别验证资产、执行与目标工作负载</text>
 
-<rect x="475" y="108" width="450" height="88" class="card" fill="#e6f0ff" stroke="#8fb3d8"/>
-<text x="700" y="142" text-anchor="middle" class="head">对象与数值表示</text>
-<text x="700" y="171" text-anchor="middle" class="body">权重 · 激活 · 训练状态 · KV Cache</text>
+  <rect x="70" y="125" width="340" height="105" rx="17" class="common"/>
+  <text x="240" y="160" text-anchor="middle" class="head">Task0 · 量化对象与生命周期</text><text x="240" y="190" text-anchor="middle" class="body">权重 · 激活 · 训练状态 · KV Cache</text><text x="240" y="214" text-anchor="middle" class="small">先定位容量、带宽或质量约束</text>
+  <rect x="530" y="125" width="340" height="105" rx="17" class="common"/>
+  <text x="700" y="160" text-anchor="middle" class="head">Task1 · 表示、参数与粒度</text><text x="700" y="190" text-anchor="middle" class="body">位宽 · 缩放因子 · 零点</text><text x="700" y="214" text-anchor="middle" class="small">逐张量 · 逐通道 · 逐组</text>
+  <rect x="990" y="125" width="340" height="105" rx="17" class="common"/>
+  <text x="1160" y="160" text-anchor="middle" class="head">Task2 · 校准、裁剪与误差</text><text x="1160" y="190" text-anchor="middle" class="body">范围候选 · 独立验证 · 敏感度</text><text x="1160" y="214" text-anchor="middle" class="small">冻结量化参数和质量门槛</text>
+  <path d="M410 177H530" class="flow" marker-end="url(#arrow)"/><path d="M870 177H990" class="flow" marker-end="url(#arrow)"/>
 
-<rect x="65" y="270" width="280" height="112" class="card" fill="#fff4d6" stroke="#e0b34f"/>
-<text x="205" y="306" text-anchor="middle" class="head">校准与统计</text>
-<text x="205" y="336" text-anchor="middle" class="body">范围 · 分布 · 异常值</text>
-<text x="205" y="363" text-anchor="middle" class="small">校准集与评测集隔离</text>
+  <rect x="130" y="330" width="470" height="125" rx="18" class="train"/>
+  <text x="365" y="366" text-anchor="middle" class="head">Task3 · 低比特训练与误差适配</text><text x="365" y="398" text-anchor="middle" class="body">QLoRA：冻结低比特底座，更新适配器</text><text x="365" y="426" text-anchor="middle" class="body">QAT：在训练中适配伪量化误差</text>
+  <rect x="800" y="330" width="470" height="125" rx="18" class="infer"/>
+  <text x="1035" y="366" text-anchor="middle" class="head">Task4 · 推理量化与位宽分配</text><text x="1035" y="398" text-anchor="middle" class="body">权重 · 激活 · FP8 计算 · KV 状态</text><text x="1035" y="426" text-anchor="middle" class="body">PTQ · SmoothQuant · 混合位宽</text>
+  <path d="M1110 230V280H365V330" class="trainFlow" marker-end="url(#trainArrow)"/>
+  <path d="M1210 230V294H1035V330" class="inferFlow" marker-end="url(#inferArrow)"/>
 
-<rect x="395" y="270" width="280" height="112" class="card" fill="#f3edff" stroke="#9b8ac4"/>
-<text x="535" y="306" text-anchor="middle" class="head">参数与粒度</text>
-<text x="535" y="336" text-anchor="middle" class="body">scale · zero point</text>
-<text x="535" y="363" text-anchor="middle" class="small">tensor · channel · group</text>
+  <rect x="130" y="545" width="470" height="125" rx="18" class="gate"/>
+  <text x="365" y="581" text-anchor="middle" class="head">Task5 · 训练资产准入</text><text x="365" y="613" text-anchor="middle" class="body">适配器 / 合并模型 · 清单 · 哈希</text><text x="365" y="641" text-anchor="middle" class="body">保存—加载往返 · 恢复训练</text>
+  <rect x="800" y="545" width="470" height="125" rx="18" class="gate"/>
+  <text x="1035" y="581" text-anchor="middle" class="head">Task5 · 推理执行准入</text><text x="1035" y="613" text-anchor="middle" class="body">量化产物 · 加载器 · 执行后端</text><text x="1035" y="641" text-anchor="middle" class="body">计算内核命中 · 静默回退检测</text>
+  <path d="M365 455V545" class="trainFlow" marker-end="url(#trainArrow)"/><path d="M1035 455V545" class="inferFlow" marker-end="url(#inferArrow)"/>
 
-<rect x="725" y="270" width="280" height="112" class="card" fill="#e8f5ee" stroke="#76b893"/>
-<text x="865" y="306" text-anchor="middle" class="head">量化与反量化</text>
-<text x="865" y="336" text-anchor="middle" class="body">clamp · round · encode</text>
-<text x="865" y="363" text-anchor="middle" class="small">累加精度与高精度回退</text>
+  <rect x="130" y="760" width="470" height="120" rx="18" class="train"/>
+  <text x="365" y="797" text-anchor="middle" class="head">Task6 · 训练工作负载决策</text><text x="365" y="829" text-anchor="middle" class="body">质量 · 收敛 · 峰值显存 · 训练吞吐</text><text x="365" y="855" text-anchor="middle" class="small">固定数据、更新步数与训练状态</text>
+  <rect x="800" y="760" width="470" height="120" rx="18" class="infer"/>
+  <text x="1035" y="797" text-anchor="middle" class="head">Task6 · 推理工作负载决策</text><text x="1035" y="829" text-anchor="middle" class="body">质量 · 容量 · TTFT / TPOT · 吞吐</text><text x="1035" y="855" text-anchor="middle" class="small">固定请求、并发、硬件与执行后端</text>
+  <path d="M365 670V760" class="trainFlow" marker-end="url(#trainArrow)"/><path d="M1035 670V760" class="inferFlow" marker-end="url(#inferArrow)"/>
 
-<rect x="1055" y="270" width="280" height="112" class="card" fill="#fce8e6" stroke="#d98b87"/>
-<text x="1195" y="306" text-anchor="middle" class="head">误差与质量</text>
-<text x="1195" y="336" text-anchor="middle" class="body">局部误差 · 敏感度</text>
-<text x="1195" y="363" text-anchor="middle" class="small">任务质量与稳定性</text>
-
-<path d="M700 196 V232 H205 V270" class="flow"/>
-<path d="M700 232 H535 V270" class="flow"/>
-<path d="M700 232 H865 V270" class="flow"/>
-<path d="M700 232 H1195 V270" class="flow"/>
-<path d="M1195 382 V420 H205 V382" class="feedback"/>
-<text x="700" y="441" text-anchor="middle" class="small">误差超出门槛时，返回校准、粒度或方法重新选择</text>
-
-<rect x="135" y="490" width="300" height="112" class="card" fill="#fffaf0" stroke="#c49a3a"/>
-<text x="285" y="526" text-anchor="middle" class="head">量化 Artifact</text>
-<text x="285" y="556" text-anchor="middle" class="body">权重 · scale · 配置 · manifest</text>
-<text x="285" y="583" text-anchor="middle" class="small">产物完整性与版本可追溯</text>
-
-<rect x="550" y="490" width="300" height="112" class="card" fill="#f2fbf5" stroke="#76b893"/>
-<text x="700" y="526" text-anchor="middle" class="head">Loader 与 Backend</text>
-<text x="700" y="556" text-anchor="middle" class="body">格式识别 · dtype 支持 · fallback</text>
-<text x="700" y="583" text-anchor="middle" class="small">能加载不等于低精度执行</text>
-
-<rect x="965" y="490" width="300" height="112" class="card" fill="#edf3f8" stroke="#829ab1"/>
-<text x="1115" y="526" text-anchor="middle" class="head">Kernel 与执行证据</text>
-<text x="1115" y="556" text-anchor="middle" class="body">低精度 kernel · 累加 · 带宽</text>
-<text x="1115" y="583" text-anchor="middle" class="small">确认关键路径没有浮点回退</text>
-
-<path d="M865 382 V450 H285 V490" class="flow"/>
-<path d="M285 602 V636 H700 V602" class="flow"/>
-<path d="M850 546 H965" class="flow"/>
-
-<rect x="80" y="710" width="360" height="125" class="card" fill="#fff4d6" stroke="#e0b34f"/>
-<text x="260" y="748" text-anchor="middle" class="head">训练出口</text>
-<text x="260" y="779" text-anchor="middle" class="body">收敛 · 稳定性 · 峰值显存</text>
-<text x="260" y="807" text-anchor="middle" class="small">训练吞吐 · adapter / merged model</text>
-
-<rect x="520" y="710" width="360" height="125" class="card" fill="#e8f5ee" stroke="#76b893"/>
-<text x="700" y="748" text-anchor="middle" class="head">推理出口</text>
-<text x="700" y="779" text-anchor="middle" class="body">质量 · 容量 · TTFT / TPOT</text>
-<text x="700" y="807" text-anchor="middle" class="small">吞吐 · 并发 · 尾延迟</text>
-
-<rect x="960" y="710" width="360" height="125" class="card" fill="#e6f0ff" stroke="#8fb3d8"/>
-<text x="1140" y="748" text-anchor="middle" class="head">性能出口</text>
-<text x="1140" y="779" text-anchor="middle" class="body">容量 · 带宽 · 计算关键路径</text>
-<text x="1140" y="807" text-anchor="middle" class="small">收益归因 · 回归 · accept / tune / reject</text>
-
-<path d="M1115 602 V665 H260 V710" class="flow"/>
-<path d="M1115 665 H700 V710" class="flow"/>
-<path d="M1115 602 V710" class="flow"/>
+  <rect x="555" y="910" width="290" height="48" rx="14" class="decision"/>
+  <text x="700" y="940" text-anchor="middle" class="head">跨分支性能归因与回归</text>
+  <path d="M365 880V934H555" class="cross" marker-end="url(#crossArrow)"/><path d="M1035 880V934H845" class="cross" marker-end="url(#crossArrow)"/>
 </svg>
