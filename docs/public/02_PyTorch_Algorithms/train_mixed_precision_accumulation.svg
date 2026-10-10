@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="390" viewBox="0 0 1120 390">
+  <rect width="1120" height="390" rx="24" fill="#f7f9fc"/>
+  <text x="560" y="42" text-anchor="middle" font-size="24" font-weight="700" fill="#172033">梯度累积中的缩放与更新边界</text>
+  <text x="560" y="70" text-anchor="middle" font-size="15" fill="#526079">每个微批次参与 backward；unscale、clip 与 step 只发生在有效更新边界</text>
+  <g font-family="sans-serif" font-size="15" text-anchor="middle">
+    <rect x="55" y="120" width="190" height="76" rx="14" fill="#dceafe" stroke="#4f7fc9" stroke-width="2"/>
+    <text x="150" y="150" fill="#172033">Micro-batch 1</text><text x="150" y="174" fill="#526079">scale(loss / K) → backward</text>
+    <rect x="285" y="120" width="190" height="76" rx="14" fill="#dceafe" stroke="#4f7fc9" stroke-width="2"/>
+    <text x="380" y="150" fill="#172033">Micro-batch 2</text><text x="380" y="174" fill="#526079">scale(loss / K) → backward</text>
+    <rect x="515" y="120" width="190" height="76" rx="14" fill="#dceafe" stroke="#4f7fc9" stroke-width="2"/>
+    <text x="610" y="150" fill="#172033">Micro-batch K</text><text x="610" y="174" fill="#526079">scale(loss / K) → backward</text>
+    <rect x="760" y="108" width="300" height="100" rx="16" fill="#e8e1fb" stroke="#7658bb" stroke-width="2"/>
+    <text x="910" y="137" fill="#172033">有效更新边界</text>
+    <text x="910" y="162" fill="#526079">unscale → finite check → clip</text>
+    <text x="910" y="185" fill="#526079">step / skip → scaler.update</text>
+    <rect x="280" y="270" width="560" height="66" rx="14" fill="#fff1d8" stroke="#c98b2f" stroke-width="2"/>
+    <text x="560" y="298" fill="#172033">关键不变量：裁剪和更新读取的是 K 个微批次累积后的真实梯度</text>
+    <text x="560" y="321" fill="#526079">不能在仍为 scaled gradient 时裁剪，也不能每个微批次都调用 optimizer.step</text>
+  </g>
+  <g stroke="#66758d" stroke-width="2.4" fill="none" marker-end="url(#arrow)">
+    <path d="M245 158H278"/><path d="M475 158H508"/><path d="M705 158H753"/><path d="M910 208V258H560V263"/>
+  </g>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#66758d"/></marker></defs>
+</svg>

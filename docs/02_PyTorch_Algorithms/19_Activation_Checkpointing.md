@@ -17,7 +17,7 @@
 
 训练大模型时，参数只是显存账本的一部分；随着训练规模和上下文长度变化，计算过程中产生的中间状态也会形成资源压力。本节从“反向传播需要哪些中间状态”这个问题出发，带你观察直接保存与重算分别改变了什么代价。
 
-本节将沿着一次训练的前向—反向链路，比较“直接保存 activation”和“保存边界、反向重算”两条路径。你会用输出、梯度与重算次数判断实现是否正确，再在 Step 5 中观察显存—时间交换；统一汇总各类训练状态的账本留到 43 节。
+本节沿着一次训练的前向—反向链路，比较“直接保存激活值”和“保存边界、反向重算”两条路径。学习重点是判断哪些状态仍需保存、哪些计算会被重放，以及检查点粒度如何共同改变容量与计算代价。
 
 **关键词：** `activation checkpointing`, `recompute`
 
@@ -25,8 +25,8 @@
 
 **导语：** 阅读本节前，先确认你能说清一次训练中前向、loss 与 backward 的关系，以及 activation 为什么会在反向阶段被使用；随后再把“保存 activation”的需要转化为“保存边界、按需重算”的实现问题。
 
-- [18. Activation and Loss Backward | 激活与损失反向](../02_PyTorch_Algorithms/18_Activation_and_Loss_Backward.md)：理解 activation 如何参与 loss 的反向传播。
-- [P0: 13. Simple Neural Network Training | 简单神经网络训练循环](../00_Prerequisites/13_Simple_Neural_Network_Training.md)：若训练循环还不熟悉，先回顾前向、loss、backward 与参数更新的顺序。
+- [09. Activation and Loss Backward | 激活与损失反向](../02_PyTorch_Algorithms/09_Activation_and_Loss_Backward.md)：理解 activation 如何参与 loss 的反向传播。
+- [P0: 12. PyTorch Data Interface and Training Lifecycle | 数据接口与训练生命周期](../00_Prerequisites/12_PyTorch_Minimal_Training_Interface.md)：若训练循环还不熟悉，先回顾前向、loss、backward 与参数更新的顺序。
 ---
 
 ### Step 1: Checkpoint 如何改变训练激活的处理路径
@@ -72,11 +72,11 @@ checkpoint 为一段前向计算建立重算边界：前向阶段保留边界输
 
 现在把前面的重算机制落实为三步：先为单个 Block 建立 checkpoint 路径，再规划连续 Block 的 segment 边界，最后将该边界计划用于分段 checkpoint。题目区只要求补全这三处机制；闭包绑定、普通前向 baseline 和循环骨架已提供。
 
-| 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
+| TODO / 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
 | --- | --- | --- | --- |
-| `run_with_checkpointing` | TODO 1：为当前 Block 应用 checkpoint | 输入为当前 `x`；使用 `use_reentrant=False` | 输出、输入梯度与参数梯度一致；反向阶段的 Block 调用次数增加 |
-| `build_checkpoint_segments` | TODO 2：生成 segment 边界 | `[start, end)` 连续、不重叠、覆盖尾段；非法粒度报错 | 尾段、空序列、`segment_size=1` 与非法输入 |
-| `run_with_segment_checkpointing` | TODO 3：对当前 segment 应用 checkpoint | 使用已绑定的 `segment_forward`；更新当前 `x` | 分段路径与 baseline 一致；`segment_size=1` 等价于逐 Block 路径 |
+| TODO 1 · `run_with_checkpointing` | 为当前 Block 应用 checkpoint | 输入为当前 `x`；使用 `use_reentrant=False` | 输出、输入梯度与参数梯度一致；反向阶段的 Block 调用次数增加 |
+| TODO 2 · `build_checkpoint_segments` | 生成 segment 边界 | `[start, end)` 连续、不重叠、覆盖尾段；非法粒度报错 | 尾段、空序列、`segment_size=1` 与非法输入 |
+| TODO 3 · `run_with_segment_checkpointing` | 对当前 segment 应用 checkpoint | 使用已绑定的 `segment_forward`；更新当前 `x` | 分段路径与 baseline 一致；`segment_size=1` 等价于逐 Block 路径 |
 
 
 
@@ -137,9 +137,12 @@ def run_with_checkpointing(blocks: nn.ModuleList, x: torch.Tensor) -> torch.Tens
         使用 use_reentrant=False；区段内部 activation 会在反向阶段按需重算。
     """
     for block in blocks:
-        # TODO 1：让当前 Block 通过 checkpoint 执行，并将新的隐藏状态写回 x。
-        # 输入隐藏状态：x；被包装函数：block；必须使用 use_reentrant=False。
-        # x = ???
+        # ==========================================
+        # TODO 1：建立逐 Block 重算边界
+        # 作用：通过 checkpoint 执行当前 block，并把结果写回隐藏状态。
+        # 注意：使用 use_reentrant=False，输入仍为当前 x。
+        # x = ???  # 当前 Block 的 checkpoint 输出
+        # ==========================================
         raise NotImplementedError("TODO 1：请用 checkpoint 更新 x")
     return x
 
@@ -160,9 +163,11 @@ def build_checkpoint_segments(num_blocks: int, segment_size: int) -> list[tuple[
     if segment_size <= 0:
         raise ValueError("segment_size must be positive")
 
-    # TODO 2：生成覆盖 [0, num_blocks) 的半开区间。
-    # ranges 中的区间必须连续、不重叠，并覆盖尾段。
-    # ranges = ???
+    # ==========================================
+    # TODO 2：生成连续的 checkpoint 区段
+    # 作用：用半开区间覆盖 [0, num_blocks)，并保留不足 segment_size 的尾段。
+    # ranges = ???  # 连续且不重叠的 (start, end) 列表
+    # ==========================================
     raise NotImplementedError("TODO 2：请生成 ranges")
     return ranges
 
@@ -197,9 +202,12 @@ def run_with_segment_checkpointing(
             return run_without_checkpointing(blocks, hidden)
 
 
-        # TODO 3：对当前 segment 的前向函数应用 checkpoint，并更新 x。
-        # 输入隐藏状态：x；被包装函数：segment_forward；必须使用 use_reentrant=False。
-        # x = ???
+        # ==========================================
+        # TODO 3：建立分段重算边界
+        # 作用：通过 checkpoint 执行已绑定的 segment_forward，并更新隐藏状态。
+        # 注意：使用 use_reentrant=False，避免改变本节的反向语义。
+        # x = ???  # 当前 segment 的 checkpoint 输出
+        # ==========================================
         raise NotImplementedError("TODO 3：请对 segment_forward 应用 checkpoint")
     return x
 
@@ -277,6 +285,7 @@ def _assert_segment_plan(num_layers):
         raise AssertionError("非法 segment 参数应被拒绝")
 
 def test_activation_checkpointing_mechanism():
+    """验证区段计划、数值一致性、参数梯度与反向重算。"""
     torch.manual_seed(42)
     dim = 128
     num_layers = 5  # 特意让最后一个 segment 不完整
@@ -465,223 +474,257 @@ def run_with_segment_checkpointing(
 
 ### 解析
 
-本题依次实现单 Block checkpoint、segment 边界计划和分段 checkpoint。答案代码保留与题目区相同的控制流，只补全每处机制决策。
-
-**TODO 1：逐 Block checkpoint**
+#### TODO 1：逐 Block checkpoint
 
 - 使用 `checkpoint(block, x, use_reentrant=False)` 更新当前隐藏状态。
 - 它为单个模型 Block 建立重算边界，减少区段内部部分 activation 的长期驻留。
 
-**TODO 2：生成 segment 边界**
+#### TODO 2：生成 segment 边界
 
 - 使用连续的半开区间 `[start, end)` 覆盖完整 Block 序列。
 - 末段不足 `segment_size` 时仍保留；空序列返回空计划。
 
-**TODO 3：分段 checkpoint**
+#### TODO 3：分段 checkpoint
 
 - 用 `blocks=segment` 绑定当前区段，再对 `segment_forward` 调用 checkpoint。
 - 这样反向重算的是当前连续 Block 区段，而不是循环结束后的最后一个区段。
-### Step 5：可选 GPU 复测——Checkpoint 单策略显存—时间对照
+### Step 5：可选 GPU 实验——Checkpoint 显存—时间对照
 
-#### 5.1 环境检查与实验配置
+CPU 题目确认保存、重算和分段边界；GPU 实验进一步比较普通路径与逐 Block checkpoint 的输出、梯度、峰值显存和训练 step 时间。
 
-在本地或 Colab 的仓库根目录依次运行本节前面的 imports、答案区和本配置单元。配置会优先使用当前工作目录；若当前目录不是教程仓库，则尝试 Colab 的 `/content/llm-algo-leetcode`。本轮只确定运行位置和比较口径，结果保存将在后续单元补充。
-
-普通路径与逐 Block checkpoint 使用同一组初始权重、输入、dtype 和重复次数。总显存不一定按 activation 的减少比例下降，因为参数、梯度和 optimizer state 仍在训练账本中；改变 `segment_size` 时也应保持其余条件不变，比较粒度带来的显存—时间交换，而不从层数直接推导固定节省比例。
-
-| 比较设置 | 固定条件与记录指标 | 如何解释结果 |
+| 学习问题 | CPU 已确认 | GPU 要确认与后续使用 |
 | --- | --- | --- |
-| 普通路径 vs 逐 Block checkpoint | 固定模型、dtype、batch、序列长度、层数与重复次数；记录 `max_memory_allocated`、`max_memory_reserved`、step time、输出与输入梯度 | activation 占比越高，峰值变化越可能明显；backward 重算通常会增加时间；输出和梯度必须保持一致 |
-| `segment_size` 粒度扩展 | 每次只改 `segment_size`，其余条件不变；记录同一组显存、时间与正确性指标 | 比较不同粒度的显存—时间交换，不把层数或区段数直接换算为固定节省比例 |
-| 运行位置与结果目录 | `REPO_ROOT` 指向教程根目录；`RESULTS_DIR` 预留给本节 JSON 结果 | Colab 可设置 `LLM_ALGO_REPO_DIR` 覆盖默认路径 |
+| 激活检查点能否用可接受的重算时间降低真实训练峰值 | checkpoint 边界、分段计划和反向重算语义 | 输出/梯度是否一致，以及当前 shape 下的显存收益和时间代价；结果可进入组合策略复测 |
+
+#### 5.1 环境与固定工作负载
+
+本实验使用 `TRAIN-CUDA-MECHANISM`。首次运行先完成[专题 Quickstart](../topic_discussion/backpropagation_training_mechanism/quickstart.md#train-cuda-mechanism-quickstart)，已有环境需先通过同名 Profile 预检。本页下载固定的 Qwen2.5-0.5B checkpoint，以固定文本构造训练批次，不下载外部数据集。
+
+| 配置层 | 本节固定口径 | 修改规则 |
+| --- | --- | --- |
+| 运行环境 | 单张 CUDA GPU；`TRAIN-CUDA-MECHANISM` | Profile 预检未返回 `status=ok` 时停止实验 |
+| 资源档位 | 建议至少 8 GiB；RTX 5070 Ti 上 baseline 峰值约 4.22 GiB | baseline 与 checkpoint 都必须成功；显存不足时依次减小序列长度和 batch，并使用新标签 |
+| 工作负载 | `Qwen/Qwen2.5-0.5B`；batch 2；序列长度 512 | 改变模型、commit、长度或重复次数后使用新的运行标签 |
+| 配对变量 | 普通训练图 → Transformers 原生 gradient checkpointing | 共用 checkpoint、Token、dtype、损失和随机种子 |
+| 测量方法 | loss/全局梯度范数差异；step median/P95；allocated/reserved 峰值 | 先过正确性门槛，再解释容量—时间交换 |
+| 结果资产 | `benchmarks/results/train_activation_checkpointing/<semantic_id>_<run_label>.json` | 正式复测使用唯一标签并保留旧结果 |
 
 
 ```python
-# GPU 配置：先理解每个字段，再按可用显存调整 workload。
-import copy
-import os
-from pathlib import Path
-
-def resolve_tutorial_root() -> Path:
-    """解析本地或 Colab 中的教程根目录，不创建目录也不下载依赖。"""
-    configured = os.environ.get("LLM_ALGO_REPO_DIR")
-    candidates = [Path(configured).expanduser()] if configured else []
-    candidates.extend([Path.cwd(), Path("/content/llm-algo-leetcode")])
-    for candidate in candidates:
-        if (candidate / "02_PyTorch_Algorithms").is_dir():
-            return candidate
-    raise RuntimeError(
-        "未找到教程根目录；请在仓库根目录运行，或设置 LLM_ALGO_REPO_DIR。"
-    )
-
-REPO_ROOT = resolve_tutorial_root()
-RESULTS_DIR = REPO_ROOT / "benchmarks" / "results" / "19_activation_checkpointing"
-
+RUN_MODE = "dry_run"  # 默认值 dry_run：只核对配置；改为 real_gpu 执行真实 GPU 矩阵。
+RUN_LABEL = "default"  # 默认值 default；正式复测改为唯一标签，已验证结果使用 b2s512_default2。
+PROFILE_ID = "TRAIN-CUDA-MECHANISM"  # 默认环境 Profile；本节不支持与其他专题环境混装。
+SEMANTIC_ID = "TRAIN-CHECKPOINT"  # 默认稳定机制 ID；结果聚合与跨页引用均使用该值。
+MODEL_ID = "Qwen/Qwen2.5-0.5B"  # 默认真实模型；四节共用同一 checkpoint。
+MODEL_REVISION = "main"  # 默认请求主分支；5.2 会解析并记录不可变 commit。
+LOCAL_FILES_ONLY = False  # 默认值 False：允许首次下载；确认相同 commit 已缓存后可改为 True。
 GPU_CONFIG = {
-    # 存储与计算精度；若硬件或 PyTorch 不支持 bf16，可先使用 fp16 或 fp32。
-    "dtype": "fp16",
-    # 单次训练 step 的样本数；增大它通常会提高 activation 压力。
-    "batch_size": 2,
-    # 每个样本的 token 数；增大它会同时扩大 activation 与计算量。
-    "seq_len": 1024,
-    # 隐藏维度；决定单个 Block 中线性层和 activation 的宽度。
-    "dim": 1024,
-    # 本示例中连续简化 Block 的数量；影响 checkpoint 的重算长度。
-    "num_layers": 12,
-    # 预热次数不纳入统计；重复次数用于减少单次测量波动。
-    "warmup": 3,
-    "repeats": 5,
+    "dtype": "bfloat16", # 默认值 bfloat16；降低直接 FP16 反向的溢出风险。
+    "batch_size": 2,      # 本轮值 2；与序列 512 共同放大 activation 压力。
+    "seq_len": 512,       # 本轮值 512 Token；用于验证容量收益是否越过门槛。
+    "warmup": 1,          # 默认值 1；不计入统计的预热轮数。
+    "repeats": 20,        # 默认值 20；用于稳定比较 median 与 P95。
+    "min_memory_reduction_mb": 32.0,  # 至少减少 32 MB，排除 allocator 微小波动。
+    "min_memory_reduction_ratio": 0.01, # 至少降低 1%，才视为可用容量收益。
+    "seed": 42,           # 默认值 42；固定模型初始化与输入。
+    "prompts": ["Explain why activation checkpointing trades compute for memory."],  # 固定训练文本。
 }
-GPU_RUN_LABEL = "baseline_vs_checkpoint"  # 仅用于结果文件名；详细 workload 写入 JSON。
+RESULTS_RELATIVE_DIR = "benchmarks/results/train_activation_checkpointing"  # 默认结果目录；正式结果按 RUN_LABEL 分文件保存。
 
-if not torch.cuda.is_available():
-    raise RuntimeError("未检测到可用 CUDA GPU；请跳过本可选实验或改在支持 CUDA 的环境运行。")
-
-DEVICE = torch.device("cuda")
-DTYPE = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}[GPU_CONFIG["dtype"]]
-try:
-    torch.empty(1, device=DEVICE, dtype=DTYPE)
-except RuntimeError as error:
-    raise RuntimeError("当前 PyTorch/CUDA 构建无法在此 GPU 上运行；请检查驱动与 PyTorch CUDA 兼容性。") from error
-
-torch.manual_seed(42)
-torch.cuda.manual_seed_all(42)
-print(f"GPU: {torch.cuda.get_device_name(DEVICE)} | dtype={GPU_CONFIG['dtype']}")
-print(f"教程根目录: {REPO_ROOT}")
-print(f"结果目录（后续写入）: {RESULTS_DIR}")
 ```
 
-#### 5.2 执行对照并保存证据
+#### 5.2 执行并保存 JSON
 
-运行下方单元会比较普通路径与逐 Block checkpoint，先检查输出和输入梯度，再将环境、配置和汇总指标保存为带时间戳的 JSON。每次运行生成独立文件，不覆盖历史复测。
+运行下方单元会从同一 Qwen checkpoint 分别加载普通路径与 Transformers 原生 gradient checkpointing 路径，先检查 loss 和全局梯度范数，再将模型 commit、配置与资源指标保存为结果 JSON。
 
 
 ```python
-# 在固定 workload 下测量普通路径与 checkpoint 路径。
-def _run_gpu_step(blocks, runner, input_template):
-    for parameter in blocks.parameters():
-        parameter.grad = None
-    x = input_template.detach().clone().requires_grad_(True)
-    torch.cuda.synchronize(DEVICE)
-    torch.cuda.reset_peak_memory_stats(DEVICE)
-    start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-    start.record()
-    output = runner(blocks, x)
-    output.float().square().mean().backward()
-    end.record()
-    torch.cuda.synchronize(DEVICE)
-    return {
-        "output": output.detach(),
-        "input_grad": x.grad.detach(),
-        "step_ms": start.elapsed_time(end),
-        "peak_allocated_mb": torch.cuda.max_memory_allocated(DEVICE) / 2**20,
-        "peak_reserved_mb": torch.cuda.max_memory_reserved(DEVICE) / 2**20,
-    }
-
-def _measure_gpu_path(label, runner, template_blocks, input_template):
-    blocks = copy.deepcopy(template_blocks)
-    for _ in range(GPU_CONFIG["warmup"]):
-        _run_gpu_step(blocks, runner, input_template)
-    samples = [_run_gpu_step(blocks, runner, input_template) for _ in range(GPU_CONFIG["repeats"])]
-    last = samples[-1]
-    return {
-        "label": label,
-        "step_ms": sum(sample["step_ms"] for sample in samples) / len(samples),
-        "peak_allocated_mb": max(sample["peak_allocated_mb"] for sample in samples),
-        "peak_reserved_mb": max(sample["peak_reserved_mb"] for sample in samples),
-        "output": last["output"],
-        "input_grad": last["input_grad"],
-    }
-
-template_blocks = nn.ModuleList([SimpleTransformerBlock(GPU_CONFIG["dim"]) for _ in range(GPU_CONFIG["num_layers"])]).to(DEVICE, dtype=DTYPE)
-input_template = torch.randn(
-    GPU_CONFIG["batch_size"], GPU_CONFIG["seq_len"], GPU_CONFIG["dim"], device=DEVICE, dtype=DTYPE
+from pathlib import Path
+import gc
+import json
+import torch
+from tools.project_runtime import resolve_project_root
+from tools.training_mechanism_runtime import (
+    cuda_hardware_snapshot, gradient_l2_norm, load_causal_lm, median_and_p95, move_batch, prepare_causal_lm_batch,
 )
 
-GPU_RESULTS = {
-    "普通路径": _measure_gpu_path("普通路径", run_without_checkpointing, template_blocks, input_template),
-    "逐 Block checkpoint": _measure_gpu_path("逐 Block checkpoint", run_with_checkpointing, template_blocks, input_template),
-}
+REPO_ROOT = resolve_project_root()
+RESULTS_DIR = REPO_ROOT / RESULTS_RELATIVE_DIR
 
-baseline, checkpoint_result = GPU_RESULTS["普通路径"], GPU_RESULTS["逐 Block checkpoint"]
-output_max_abs_diff = (baseline["output"] - checkpoint_result["output"]).abs().max().item()
-input_grad_max_abs_diff = (baseline["input_grad"] - checkpoint_result["input_grad"]).abs().max().item()
-assert torch.allclose(baseline["output"], checkpoint_result["output"], atol=5e-3, rtol=5e-3)
-assert torch.allclose(baseline["input_grad"], checkpoint_result["input_grad"], atol=5e-3, rtol=5e-3)
-
-for result in GPU_RESULTS.values():
-    print(
-        f"{result['label']}: step={result['step_ms']:.2f} ms, "
-        f"allocated={result['peak_allocated_mb']:.1f} MB, reserved={result['peak_reserved_mb']:.1f} MB"
+if RUN_MODE == "real_gpu":
+    if not torch.cuda.is_available():
+        raise RuntimeError('需要 CUDA GPU；无 GPU 时保持 RUN_MODE="dry_run"。')
+    DEVICE = torch.device("cuda")
+    dtype_map = {"float16": torch.float16, "bfloat16": torch.bfloat16, "float32": torch.float32}
+    DTYPE = dtype_map[GPU_CONFIG["dtype"]]
+    if DTYPE == torch.bfloat16 and not torch.cuda.is_bf16_supported():
+        raise RuntimeError("当前 GPU 不支持 BF16；请改用 float16 或 float32。")
+    torch.manual_seed(GPU_CONFIG["seed"])
+    torch.cuda.manual_seed_all(GPU_CONFIG["seed"])
+    prepared = prepare_causal_lm_batch(
+        MODEL_ID, MODEL_REVISION, GPU_CONFIG["prompts"], GPU_CONFIG["batch_size"], GPU_CONFIG["seq_len"],
+        local_files_only=LOCAL_FILES_ONLY,
     )
-print(
-    f"checkpoint - baseline: allocated={checkpoint_result['peak_allocated_mb'] - baseline['peak_allocated_mb']:.1f} MB, "
-    f"step={checkpoint_result['step_ms'] - baseline['step_ms']:.2f} ms"
-)
+    resolved_commit = prepared.pop("resolved_model_commit")
+    resolution_source = prepared.pop("revision_resolution_source")
+    tokenizer_class = prepared.pop("tokenizer_class")
 
-from datetime import datetime, timezone
-import json
+    def _run_gpu_step(model, batch):
+        model.zero_grad(set_to_none=True)
+        torch.cuda.synchronize(DEVICE)
+        torch.cuda.reset_peak_memory_stats(DEVICE)
+        start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        start.record()
+        loss = model(**batch).loss
+        loss.backward()
+        end.record()
+        torch.cuda.synchronize(DEVICE)
+        peak_allocated_mb = torch.cuda.max_memory_allocated(DEVICE) / 2**20
+        peak_reserved_mb = torch.cuda.max_memory_reserved(DEVICE) / 2**20
+        gradient_norm = gradient_l2_norm(model.parameters())
+        return {
+            "loss": float(loss.detach()),
+            "gradient_l2_norm": gradient_norm,
+            "gradient_is_finite": bool(torch.isfinite(torch.tensor(gradient_norm)).item()),
+            "step_ms": start.elapsed_time(end),
+            "peak_allocated_mb": peak_allocated_mb,
+            "peak_reserved_mb": peak_reserved_mb,
+        }
 
-def _checkpoint_metrics(result):
-    return {key: round(float(result[key]), 4) for key in ("step_ms", "peak_allocated_mb", "peak_reserved_mb")}
+    def _measure_gpu_path(label, use_checkpoint):
+        model = load_causal_lm(
+            MODEL_ID, resolved_commit, DEVICE, parameter_dtype=DTYPE, local_files_only=LOCAL_FILES_ONLY,
+        )
+        if use_checkpoint:
+            model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        else:
+            model.gradient_checkpointing_disable()
+        model.train()
+        batch = move_batch(prepared, DEVICE)
+        for _ in range(GPU_CONFIG["warmup"]):
+            _run_gpu_step(model, batch)
+        samples = [_run_gpu_step(model, batch) for _ in range(GPU_CONFIG["repeats"])]
+        last = samples[-1]
+        median_ms, p95_ms = median_and_p95([sample["step_ms"] for sample in samples])
+        result = {
+            "label": label,
+            "step_median_ms": median_ms,
+            "step_p95_ms": p95_ms,
+            "peak_allocated_mb": max(sample["peak_allocated_mb"] for sample in samples),
+            "peak_reserved_mb": max(sample["peak_reserved_mb"] for sample in samples),
+            "loss": last["loss"],
+            "gradient_l2_norm": last["gradient_l2_norm"],
+            "gradient_is_finite": last["gradient_is_finite"],
+            "checkpoint_enabled": bool(model.is_gradient_checkpointing),
+        }
+        del model, batch
+        gc.collect(); torch.cuda.empty_cache()
+        return result
 
-run_timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-GPU_RESULT_RECORD = {
-    "schema_version": 1,
-    "experiment": "activation_checkpointing",
-    "created_at_utc": run_timestamp,
-    "environment": {
-        "gpu": torch.cuda.get_device_name(DEVICE),
-        "torch": torch.__version__,
-        "cuda": torch.version.cuda,
-    },
-    "config": GPU_CONFIG,
-    "paths": {
-        "baseline": _checkpoint_metrics(baseline),
-        "candidate": _checkpoint_metrics(checkpoint_result),
-    },
-    "correctness": {
-        "output_max_abs_diff": output_max_abs_diff,
-        "input_grad_max_abs_diff": input_grad_max_abs_diff,
-    },
-}
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-RESULT_PATH = RESULTS_DIR / f"gpu_{GPU_RUN_LABEL}_{run_timestamp}.json"
-RESULT_PATH.write_text(json.dumps(GPU_RESULT_RECORD, ensure_ascii=False, indent=2), encoding="utf-8")
-print(f"已保存 GPU 结果: {RESULT_PATH}")
+    GPU_RESULTS = {
+        "普通路径": _measure_gpu_path("普通路径", use_checkpoint=False),
+        "原生 checkpoint": _measure_gpu_path("原生 checkpoint", use_checkpoint=True),
+    }
+
+    baseline, checkpoint_result = GPU_RESULTS["普通路径"], GPU_RESULTS["原生 checkpoint"]
+    loss_abs_diff = abs(baseline["loss"] - checkpoint_result["loss"])
+    gradient_norm_abs_diff = abs(baseline["gradient_l2_norm"] - checkpoint_result["gradient_l2_norm"])
+
+    for result in GPU_RESULTS.values():
+        print(
+            f"{result['label']}: median={result['step_median_ms']:.2f} ms, p95={result['step_p95_ms']:.2f} ms, "
+            f"allocated={result['peak_allocated_mb']:.1f} MB, reserved={result['peak_reserved_mb']:.1f} MB"
+        )
+    print(
+        f"checkpoint - baseline: allocated={checkpoint_result['peak_allocated_mb'] - baseline['peak_allocated_mb']:.1f} MB, "
+        f"median={checkpoint_result['step_median_ms'] - baseline['step_median_ms']:.2f} ms"
+    )
+
+    def _checkpoint_metrics(result):
+        float_keys = ("step_median_ms", "step_p95_ms", "peak_allocated_mb", "peak_reserved_mb", "loss", "gradient_l2_norm")
+        metrics = {key: round(float(result[key]), 6) for key in float_keys}
+        metrics["gradient_is_finite"] = result["gradient_is_finite"]
+        metrics["checkpoint_enabled"] = result["checkpoint_enabled"]
+        return metrics
+
+    memory_reduction_mb = baseline["peak_allocated_mb"] - checkpoint_result["peak_allocated_mb"]
+    memory_reduction_ratio = memory_reduction_mb / max(baseline["peak_allocated_mb"], 1e-12)
+    resource_gate_passed = (
+        memory_reduction_mb >= GPU_CONFIG["min_memory_reduction_mb"]
+        and memory_reduction_ratio >= GPU_CONFIG["min_memory_reduction_ratio"]
+    )
+    gradient_norm_relative_diff = gradient_norm_abs_diff / max(abs(baseline["gradient_l2_norm"]), 1e-12)
+    correctness_passed = (
+        baseline["gradient_is_finite"]
+        and checkpoint_result["gradient_is_finite"]
+        and loss_abs_diff <= 5e-3
+        and gradient_norm_relative_diff <= 1e-3
+    )
+    record = {
+        "schema_version": "training-mechanism-gpu/v4",
+        "semantic_id": SEMANTIC_ID,
+        "profile_id": PROFILE_ID,
+        "run_label": RUN_LABEL,
+        "model": {"id": MODEL_ID, "requested_revision": MODEL_REVISION, "resolved_commit": resolved_commit, "resolution_source": resolution_source, "tokenizer_class": tokenizer_class},
+        "workload": GPU_CONFIG,
+        "hardware": cuda_hardware_snapshot(),
+        "metrics": {"baseline": _checkpoint_metrics(baseline), "candidate": _checkpoint_metrics(checkpoint_result)},
+        "correctness": {"loss_abs_diff": loss_abs_diff, "gradient_norm_abs_diff": gradient_norm_abs_diff, "gradient_norm_relative_diff": gradient_norm_relative_diff, "passed": correctness_passed},
+        "resource_gate": {"memory_reduction_mb": memory_reduction_mb, "memory_reduction_ratio": memory_reduction_ratio, "passed": resource_gate_passed},
+        "failure": None,
+        "evidence_level": "real_model_mechanism_benchmark",
+        "decision": "accept" if resource_gate_passed and correctness_passed else ("tune" if correctness_passed else "reject"),
+    }
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    RESULT_PATH = RESULTS_DIR / f"{SEMANTIC_ID.lower()}_{RUN_LABEL}.json"
+    RESULT_PATH.write_text(json.dumps(record, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
+    print(f"结果已保存：{RESULT_PATH}")
+else:
+    print('GPU 实验默认关闭；完成 Profile 预检后设置 RUN_MODE="real_gpu"。')
+
 ```
 
-#### 5.3 读取结果并解释对照
+#### 5.3 读取结果
 
-下方单元读取刚保存的结果；如果当前会话没有 `RESULT_PATH`，则读取结果目录中最新的一次复测。先确认数值差异在容差内，再查看 checkpoint 相对普通路径的峰值显存和 step time 变化。
+读取同一 `RUN_LABEL` 的稳定结果文件；本单元不重新执行模型。先核对证据等级和数值一致性，再比较 checkpoint 的峰值显存与训练 step 时间。
 
 
 ```python
-import json
+if RUN_MODE == "real_gpu":
+    result_path = RESULTS_DIR / f"{SEMANTIC_ID.lower()}_{RUN_LABEL}.json"
+    if not Path(result_path).is_file():
+        raise FileNotFoundError(f"未找到结果，请先运行 5.2：{result_path}")
+    record = json.loads(Path(result_path).read_text(encoding="utf-8"))
+    baseline_metrics = record["metrics"]["baseline"]
+    candidate_metrics = record["metrics"]["candidate"]
+    print(f"baseline: median={baseline_metrics['step_median_ms']:.2f} ms, p95={baseline_metrics['step_p95_ms']:.2f} ms, {baseline_metrics['peak_allocated_mb']:.1f} MB")
+    print(f"checkpoint: median={candidate_metrics['step_median_ms']:.2f} ms, p95={candidate_metrics['step_p95_ms']:.2f} ms, {candidate_metrics['peak_allocated_mb']:.1f} MB")
+    print(f"correctness={record['correctness']} | resource_gate={record['resource_gate']}")
+    print(f"decision={record['decision']} | evidence={record['evidence_level']}")
+else:
+    print("dry_run：没有读取 GPU 结果。")
 
-result_path = globals().get("RESULT_PATH")
-if result_path is None:
-    candidates = sorted(RESULTS_DIR.glob("gpu_*.json"))
-    if not candidates:
-        raise FileNotFoundError(f"未找到 GPU 结果，请先运行 5.2：{RESULTS_DIR}")
-    result_path = candidates[-1]
-record = json.loads(Path(result_path).read_text(encoding="utf-8"))
-baseline_metrics = record["paths"]["baseline"]
-candidate_metrics = record["paths"]["candidate"]
-memory_delta = candidate_metrics["peak_allocated_mb"] - baseline_metrics["peak_allocated_mb"]
-time_delta = candidate_metrics["step_ms"] - baseline_metrics["step_ms"]
-print(f"结果文件: {result_path}")
-print(f"环境: {record['environment']['gpu']} | torch={record['environment']['torch']} | CUDA={record['environment']['cuda']}")
-print(f"数值差异: output={record['correctness']['output_max_abs_diff']:.3e}, input_grad={record['correctness']['input_grad_max_abs_diff']:.3e}")
-print(f"checkpoint - baseline: peak allocated={memory_delta:.2f} MB, step={time_delta:.2f} ms")
-print("解读：先以数值一致性为前提；再结合峰值显存下降与额外 step time 判断当前 workload 下的交换是否值得。")
 ```
+
+#### 5.4 解释证据与决策
+
+`b2s512_default2` 已在 RTX 5070 Ti Laptop GPU 上完成配对复测。普通路径与原生 checkpoint 的 loss、全局梯度范数完全一致；候选峰值 allocated 从 4221.73 MB 降至 2799.57 MB，越过 32 MB 与 1% 的双重资源门槛。
+
+Checkpoint 将 median step 时间从 139.56 ms 增至 166.42 ms，代价约 19.2%，但换得约 33.7% 的 allocated 峰值下降，因此本工作负载判定为 `accept`。该结论只说明容量—时间交换成立，不代表 checkpoint 会提升训练吞吐。
+
+| 观察项 | 读取字段 | 当前结果 | 解释与动作 |
+| --- | --- | --- | --- |
+| 运行与口径 | `failure`、`profile_id`、`workload` | 无失败；Qwen2.5-0.5B，batch 2 × 512，BF16 | 改变模型、shape、dtype 或随机种子后使用新标签 |
+| 机制与路径 | baseline / candidate、原生 checkpoint 状态 | 普通路径 → 原生 gradient checkpointing | 候选确实启用逐 Block 重算路径 |
+| 正确性 | `loss_abs_diff`、`gradient_norm_relative_diff` | 均为 0，检查通过 | 当前确定性工作负载下未观察到语义漂移 |
+| 资源与性能 | allocated 峰值、step median/P95 | 峰值 −33.7%；median +19.2%；P95 +12.4% | 容量收益显著，代价是反向重算时间 |
+| 证据与决策 | `evidence_level`、`decision` | `real_model_mechanism_benchmark`；`accept` | 可进入 checkpoint / offload 组合项目复测 |
 
 ## 相关阅读
 
 Checkpoint 的核心思想是用重算换取更少 activation 驻留。机制、单策略复测与多策略决策可按下面顺序延伸。
 
-- [P0: 20. Profiling and Memory Ledger | 性能分析与显存账本](../00_Prerequisites/20_Profiling_and_Memory_Ledger.md)：将参数、梯度、optimizer state 与 activation 放入同一训练显存账本。
+- [P0: 18. Memory Profiling and Optimization | 显存分析与优化](../00_Prerequisites/18_Memory_Profiling_and_Optimization.md)：将参数、梯度、optimizer state 与 activation 放入同一训练显存账本。
 - [Training Deep Nets with Sublinear Memory Cost 原论文](https://arxiv.org/abs/1604.06174)
 - [PyTorch `torch.utils.checkpoint` 官方文档](https://pytorch.org/docs/stable/checkpoint.html)
 - [42. 激活卸载](../02_PyTorch_Algorithms/42_Activation_Offload.md)：理解将 activation 移出设备的另一条策略。

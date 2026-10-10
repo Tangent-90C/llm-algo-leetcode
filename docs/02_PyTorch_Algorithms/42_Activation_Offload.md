@@ -27,7 +27,7 @@
 
 **导语：** 阅读本节前，先确认你能说清 activation 为什么会在反向阶段被使用，以及 checkpoint 如何以重算减少 activation 驻留；本节将在同一训练链路中把代价从额外计算改为设备间搬运。
 
-- [18. Activation and Loss Backward | 激活与损失反向](./18_Activation_and_Loss_Backward.md)：理解 activation 如何参与反向传播。
+- [09. Activation and Loss Backward | 激活与损失反向](./09_Activation_and_Loss_Backward.md)：理解 activation 如何参与反向传播。
 - [19. Activation Checkpointing | 激活检查点](./19_Activation_Checkpointing.md)：对照另一条“以重算换驻留”的激活策略。
 - [Part 01 · 03. GPU 物理架构与内存层级](../01_Hardware_Math_and_Systems/03_GPU_Architecture_and_Memory.md)：回顾 GPU 与 host 之间的数据路径和带宽层级。
 
@@ -78,17 +78,13 @@ Step 2 将一份已给出的 offload 计划翻译为容量账本与传输账本�
 
 ### Step 4：实现 Offload 预算计划并验证
 
-题目区将前面的决策链落实为四步：先根据预算筛选可搬运 activation，再计算单程与往返的理论传输时间，然后给出 offload 策略，最后与 checkpoint 的教学成本模型做同条件比较。`reuse_delay_layers` 越大表示越适合优先评估搬出，`bandwidth_gbps` 按 GiB/s 的理论有效带宽解释。
+题目区提供激活块、候选排序和 checkpoint 对照骨架。学习者完成实际搬出量、理论往返时间和 offload 策略三个机制；测试分别覆盖容量预算、单位换算、非法带宽以及 `accept / tune / reject`。
 
-本节 CPU 代码只验证容量、带宽和阈值决策的机制关系。例如总 activation 为 736 MiB、GPU 预算为 384 MiB 时，计划需要搬出 352 MiB；真实设备间 copy、同步和重叠将在 Step 5 的 GPU workload 中观察。
-
-| 实现对象 | 输入与职责 | 输出 | 验证重点 |
+| TODO / 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
 |---|---|---|---|
-| `ActivationChunkSpec` | 激活块大小、复用距离、是否可搬运 | 激活块描述 | 元数据合法且名称唯一 |
-| `summarize_activation_offload` | 按预算选择搬出对象并汇总容量 | 保留量、搬运量、压力与节省比例 | 预算可行性、候选顺序与尾部压力 |
-| `estimate_round_trip_transfer_ms` | 用搬运量和带宽估算往返时间 | 理论时间（ms） | 单位换算、零值与非法带宽 |
-| `recommend_offload_policy` | 根据预算、收益与代价阈值判断 | `accept / tune / reject` | 先判断可行性，再判断收益 |
-| `compare_offload_vs_checkpointing` | 在同一教学成本口径下比较两条路线 | 两个 score 与 `preferred` | 零时间与比较方向 |
+| TODO 1 · `summarize_activation_offload` | 计算预算下实际搬出的 activation 字节数 | 搬出量来自总驻留量与保留量之差 | 预算可行性、候选顺序与尾部压力 |
+| TODO 2 · `estimate_round_trip_transfer_ms` | 将搬运字节和带宽换算为往返时间 | 统一 GiB/s 与 ms，拒绝非法带宽 | 零值、单位换算与异常输入 |
+| TODO 3 · `recommend_offload_policy` | 联合容量收益与搬运代价形成策略 | 先判断预算可行性，再区分采用、调优和拒绝 | 三类决策及阈值边界 |
 
 ```python
 from dataclasses import dataclass
@@ -96,9 +92,6 @@ from dataclasses import dataclass
 
 
 ```python
-# 任务目标：在 CPU 账本中完成 activation offload 的容量—传输—决策链；不执行真实设备间 copy。
-# 骨架已给出候选排序；请按“容量汇总 → 往返传输 → 策略判断 → checkpoint 对照”完成 TODO 1–4。
-
 @dataclass
 class ActivationChunkSpec:
     """描述一个用于预算模拟的激活块。
@@ -180,19 +173,16 @@ def summarize_activation_offload(chunks, gpu_budget_bytes, bandwidth_gbps=12.0):
     kept_names = [c.name for c in normalized if c.name not in offloaded_names]
 
     # ==========================================
-    # TODO 1: 汇总 offload 结果和显存/带宽指标
-    # 作用：把上面的对象选择转换成可比较的容量和时间指标。
-    # 输入：total_bytes、kept_bytes、gpu_budget_bytes、bandwidth_gbps。
-    # 顺序：先算 offloaded_bytes，再按 GiB/s 估算单程 transfer_ms，最后计算 pressure_ratio / saved_ratio。
-    # 要求：overflow_bytes > 0 时 feasible 为 False；total_bytes 为 0 时比例取 0。
-    # offloaded_bytes = ???  # 本次从 GPU 移走的 activation 字节数
-    # transfer_ms = ???      # 单程理论传输时间，单位 ms
-    # pressure_ratio = ???  # 原始 activation 总量 / GPU 预算
-    # saved_ratio = ???     # 已搬出 activation / 原始 activation 总量
+    # TODO 1：计算实际搬出量
+    # 作用：用搬出前后的 GPU 驻留量得到本次计划转移的字节数。
+    # offloaded_bytes = ???  # total_bytes 与 kept_bytes 的差
     # ==========================================
     overflow_bytes = max(kept_bytes - gpu_budget_bytes, 0)
     feasible = overflow_bytes == 0
-    raise NotImplementedError("TODO 1：请汇总 offload 容量与单程传输指标")
+    raise NotImplementedError("TODO 1：请计算 offloaded_bytes")
+    transfer_ms = offloaded_bytes / (bandwidth_gbps * (1024 ** 3)) * 1000 if offloaded_bytes else 0.0
+    pressure_ratio = total_bytes / gpu_budget_bytes
+    saved_ratio = offloaded_bytes / total_bytes if total_bytes else 0.0
 
     return ActivationOffloadSummary(
         total_bytes=total_bytes,
@@ -281,16 +271,10 @@ def compare_offload_vs_checkpointing(offload_summary: ActivationOffloadSummary, 
     """
     if checkpoint_saved_bytes < 0 or checkpoint_extra_ms < 0:
         raise ValueError("checkpoint values must be non-negative")
-    # ==========================================
-    # TODO 4: 完成 offload 与 checkpointing 的性价比比较
-    # 作用：用一个教学 score 比较两条“用代价换显存”的路线。
-    # 输入：两条路线各自的理论节省字节数和额外时间；单位分别为 byte、ms。
-    # 计算：score = 理论节省字节数 / 理论额外时间；用 max(..., 1e-6) 处理零时间，返回分数更大的路线。
-    # 注意：该 score 只用于当前模拟配置的排序，不等于真实吞吐或端到端收益。
-    # ==========================================
-    # offload_score = ???
-    # checkpoint_score = ???
-    # preferred = ???
+    # 对照函数已完整给出：它只统一两条路线的教学成本口径。
+    offload_score = offload_summary.offloaded_bytes / max(offload_summary.transfer_ms, 1e-6)
+    checkpoint_score = checkpoint_saved_bytes / max(checkpoint_extra_ms, 1e-6)
+    preferred = "offload" if offload_score >= checkpoint_score else "checkpointing"
     return {
         "offload_score": round(offload_score, 3),
         "checkpoint_score": round(checkpoint_score, 3),
@@ -301,11 +285,11 @@ def compare_offload_vs_checkpointing(offload_summary: ActivationOffloadSummary, 
 
 ### 测试
 
-运行下方 CPU 机制测试，检查 offload 候选选择、预算与传输账本、策略判断和 checkpoint 对照是否一致。Step 5 再记录真实 GPU 的设备间搬运与显存—时间证据。
+运行下方 CPU 机制测试，检查 offload 候选选择、预算与传输账本、策略判断和 checkpoint 对照是否一致。
 
 ```python
 # 测试设计：以同一组 activation 元数据验证四段机制链。
-# TODO 1 容量账本 → TODO 2 往返时间 → TODO 3 策略分支 → TODO 4 checkpoint 对照。
+# TODO 1 容量变化 → TODO 2 往返时间 → TODO 3 策略分支；最后检查完整给出的 checkpoint 对照。
 
 
 def build_activation_fixture():
@@ -402,7 +386,7 @@ def test_offload_policy(chunks, summary, blocked):
 
 
 def test_offload_vs_checkpointing(summary):
-    """TODO 4：验证同一教学成本口径下的路线比较。"""
+    """验证完整给出的对照函数采用同一教学成本口径。"""
     better_offload = compare_offload_vs_checkpointing(
         summary, checkpoint_saved_bytes=300 * 1024 * 1024, checkpoint_extra_ms=80.0
     )
@@ -422,7 +406,7 @@ def test_offload_vs_checkpointing(summary):
 
 
 def run_activation_offload_tests():
-    """按 TODO 顺序运行四组机制测试。"""
+    """按机制顺序运行容量、传输、策略和路线对照测试。"""
     try:
         chunks = build_activation_fixture()
         summary, blocked = test_offload_ledger(chunks)
@@ -523,13 +507,10 @@ def summarize_activation_offload(chunks, gpu_budget_bytes, bandwidth_gbps=12.0):
     kept_names = [c.name for c in normalized if c.name not in offloaded_names]
 
     # ==========================================
-    # TODO 1: 汇总 offload 结果和显存/带宽指标
-    # 作用：把对象选择转换成可比较的容量和时间指标。
-    # 计算顺序：offloaded_bytes → transfer_ms → pressure_ratio / saved_ratio。
-    # ==========================================
+    # TODO 1（容量变化）：计算选择前后减少的 GPU 驻留字节。
     overflow_bytes = max(kept_bytes - gpu_budget_bytes, 0)
     feasible = overflow_bytes == 0
-    # TODO 1：汇总搬运字节、单程理论时间、预算压力与节省比例。
+    # TODO 1：计算实际搬出的 activation 字节数。
     offloaded_bytes = total_bytes - kept_bytes
     transfer_ms = offloaded_bytes / (bandwidth_gbps * (1024 ** 3)) * 1000 if offloaded_bytes else 0.0
     pressure_ratio = total_bytes / gpu_budget_bytes
@@ -622,12 +603,8 @@ def compare_offload_vs_checkpointing(offload_summary: ActivationOffloadSummary, 
     """
     if checkpoint_saved_bytes < 0 or checkpoint_extra_ms < 0:
         raise ValueError("checkpoint values must be non-negative")
-    # ==========================================
-    # TODO 4: 完成 offload 与 checkpointing 的性价比比较
-    # 计算：比较两条路线的“理论节省字节数 / 理论额外时间” score。
-    # 注意：该 score 仅用于当前模拟配置排序，不等于真实吞吐或端到端收益。
-    # ==========================================
-    # TODO 4：在同一教学口径下计算两条路线的 score 并选择更高者。
+    # 完整对照：比较两条路线的“理论节省字节数 / 理论额外时间” score。
+    # 该 score 仅用于当前模拟配置排序，不等于真实吞吐或端到端收益。
     offload_score = offload_summary.offloaded_bytes / max(offload_summary.transfer_ms, 1e-6)
     checkpoint_score = checkpoint_saved_bytes / max(checkpoint_extra_ms, 1e-6)
     preferred = "offload" if offload_score >= checkpoint_score else "checkpointing"
@@ -640,246 +617,293 @@ def compare_offload_vs_checkpointing(offload_summary: ActivationOffloadSummary, 
 
 ### 解析
 
-**TODO 1：汇总容量与单程传输指标**
+#### TODO 1：计算实际搬出量
 
 - 用 `total_bytes - kept_bytes` 得到本次计划搬出的 activation 字节数。
-- 再按假设带宽计算单程 `transfer_ms`，并给出预算压力和节省比例；这些均是 CPU 账本结果。
+- 单程 `transfer_ms`、预算压力和节省比例由骨架统一计算，学习者只负责选择结果对应的容量变化。
 
-**TODO 2：估算往返搬运时间**
+#### TODO 2：估算往返搬运时间
 
 - 单程时间由字节数除以 GiB/s 带宽得到，搬出与搬回各发生一次，因此往返时间约为单程的两倍。
 - 这里不包含 pinned memory、异步 copy、传输重叠或同步调度。
 
-**TODO 3：形成预算策略**
+#### TODO 3：形成预算策略
 
 - 先拒绝没有搬出 activation 或仍超预算的计划，再用节省比例与理论传输时间区分 `accept`、`tune` 与 `reject`。
 
-**TODO 4：与 checkpoint 做教学比较**
+#### Checkpoint 对照：统一成本口径
 
-- 两条路线均使用“理论节省字节数 / 理论额外时间”的最小 score 排序。
-- score 只服务于当前模拟配置的比较，不替代 Step 5 的 GPU 证据或端到端吞吐结论。
-### Step 5：可选 GPU 复测——Activation Offload 单策略显存—时间对照
+- 两条路线均使用“理论节省字节数 / 理论额外时间”的分数排序。
+- 该分数用于比较当前配置下的容量—时间交换，不单独决定最终采用策略。
+### Step 5：可选 GPU 实验——Activation Offload 显存—时间对照
 
-#### 5.1 环境检查与实验配置
+CPU 题目确认容量账本、传输时间和策略门槛；GPU 实验进一步比较 activation 驻留与 saved-tensor hook 搬运路径的梯度、峰值显存、传输量和训练 step 时间。
 
-在本地或 Colab 的仓库根目录依次运行本节前面的 imports、答案区和本配置单元。配置会优先使用当前工作目录；若当前目录不是教程仓库，则尝试 Colab 的 `/content/llm-algo-leetcode`。本轮只确定运行位置和比较口径，结果保存将在后续单元补充。
-
-下方实验固定模型规模与输入 workload，对比 activation 全部驻留 GPU 与通过 autograd saved-tensor hook 移到 CPU 后再取回两条路径。hook 记录的是本次被 Autograd 保存并搬运的 tensor 字节数；它是可观察的数据搬运实现，不等于生产训练框架的完整 offload 调度。
-
-| 比较设置 | 固定条件与记录指标 | 如何解读 |
+| 学习问题 | CPU 已确认 | GPU 要确认与后续使用 |
 | --- | --- | --- |
-| GPU 驻留 vs CPU offload | 固定模型、dtype、batch、序列长度、层数、warmup 与 repeats；记录 peak GPU memory、step time、D2H/H2D 字节数、输出与输入梯度 | offload 路径应保持数值与梯度一致；显存下降是否值得额外搬运时间需结合 workload 判断 |
-| Hook 证据边界 | pack/unpack hook 搬运 Autograd 保存的 tensor | 记录的是该教学 hook 的真实搬运量，可能包含实现保存的其他状态 | 不将该结果直接外推为 DeepSpeed、FSDP 或生产运行时的吞吐结论 |
-| 运行位置与结果目录 | `REPO_ROOT` 指向教程根目录；`RESULTS_DIR` 预留给本节 JSON 结果 | Colab 可设置 `LLM_ALGO_REPO_DIR` 覆盖默认路径 |
+| 激活卸载能否用可接受的搬运时间降低真实 GPU 峰值 | 可卸载容量、理论往返时间和策略门槛 | 保存状态是否真实发生 D2H/H2D、输出/梯度是否一致，以及容量收益是否覆盖同步搬运代价；结果可进入组合策略复测 |
+
+#### 5.1 环境与固定工作负载
+
+本实验使用 `TRAIN-CUDA-MECHANISM`。首次运行先完成[专题 Quickstart](../topic_discussion/backpropagation_training_mechanism/quickstart.md#train-cuda-mechanism-quickstart)，已有环境需先通过同名 Profile 预检。本页下载固定的 Qwen2.5-0.5B checkpoint，以固定文本构造训练批次，不下载外部数据集。
+
+| 配置层 | 本节固定口径 | 修改规则 |
+| --- | --- | --- |
+| 运行环境 | 单张 CUDA GPU；`TRAIN-CUDA-MECHANISM`；CPU 可接收卸载张量 | Profile 预检未返回 `status=ok` 时停止实验 |
+| 资源档位 | 建议至少 8 GiB GPU 与 16 GiB 主机内存 | resident 与 offload 都必须成功；显存或内存不足时依次减小序列长度和 batch，并使用新标签 |
+| 工作负载 | `Qwen/Qwen2.5-0.5B`；batch 2；序列长度 512 | 改变模型、commit、长度或重复次数后使用新的运行标签 |
+| 配对变量 | GPU 驻留 → 非参数反向保存张量同步卸载到 CPU | 共用模型状态、输入、dtype、损失和随机种子 |
+| 测量方法 | loss/全局梯度范数差异；D2H/H2D；step median/P95；峰值显存 | 先过正确性门槛，再解释容量与搬运代价 |
+| 结果资产 | `benchmarks/results/train_activation_offload/<semantic_id>_<run_label>.json` | 正式复测使用唯一标签并保留旧结果 |
 
 
 ```python
-# GPU 配置：按显存容量调整 workload；本 cell 不属于 CPU 题目区或答案测试。
-import copy
-import os
-from pathlib import Path
-import torch
-import torch.nn as nn
-
-def resolve_tutorial_root() -> Path:
-    """解析本地或 Colab 中的教程根目录，不创建目录也不下载依赖。"""
-    configured = os.environ.get("LLM_ALGO_REPO_DIR")
-    candidates = [Path(configured).expanduser()] if configured else []
-    candidates.extend([Path.cwd(), Path("/content/llm-algo-leetcode")])
-    for candidate in candidates:
-        if (candidate / "02_PyTorch_Algorithms").is_dir():
-            return candidate
-    raise RuntimeError(
-        "未找到教程根目录；请在仓库根目录运行，或设置 LLM_ALGO_REPO_DIR。"
-    )
-
-REPO_ROOT = resolve_tutorial_root()
-RESULTS_DIR = REPO_ROOT / "benchmarks" / "results" / "42_activation_offload"
-
+RUN_MODE = "dry_run"  # 默认值 dry_run：只核对配置；改为 real_gpu 执行真实 GPU 矩阵。
+RUN_LABEL = "default"  # 默认值 default；正式复测改为唯一标签，已验证结果使用 b2s512_default1。
+PROFILE_ID = "TRAIN-CUDA-MECHANISM"  # 默认环境 Profile；本节不支持与其他专题环境混装。
+SEMANTIC_ID = "TRAIN-OFFLOAD"  # 默认稳定机制 ID；结果聚合与跨页引用均使用该值。
+MODEL_ID = "Qwen/Qwen2.5-0.5B"  # 默认真实模型；四节共用同一 checkpoint。
+MODEL_REVISION = "main"  # 默认请求主分支；5.2 会解析并记录不可变 commit。
+LOCAL_FILES_ONLY = False  # 默认值 False：允许首次下载；确认相同 commit 已缓存后可改为 True。
 GPU_CONFIG = {
-    # 存储与计算精度；不支持 bf16 时可选择 fp16 或 fp32。
-    "dtype": "fp16",
-    # 单次训练 step 的样本数与 token 数；两者共同影响 activation 压力。
-    "batch_size": 2,
-    "seq_len": 512,
-    # 简化 Block 的隐藏宽度与堆叠层数；层数也影响反向保存的状态数量。
-    "dim": 512,
-    "num_layers": 8,
-    # 预热不计入统计；repeats 用于降低单次测量波动。
-    "warmup": 2,
-    "repeats": 5,
+    "dtype": "bfloat16", # 默认值 bfloat16；降低直接 FP16 反向的溢出风险。
+    "batch_size": 2,      # 默认值 2；与序列 512 共同放大保存状态压力。
+    "seq_len": 512,       # 默认值 512 Token；用于观察同步卸载的容量—时间交换。
+    "warmup": 1,          # 默认值 1；不计入统计的预热轮数。
+    "repeats": 20,        # 默认值 20；用于稳定比较 median 与 P95。
+    "min_memory_reduction_mb": 32.0,  # 至少减少 32 MB，排除 allocator 微小波动。
+    "min_memory_reduction_ratio": 0.01, # 至少降低 1%，才视为可用容量收益。
+    "max_median_time_ratio": 2.0,       # 候选 median 不超过基线 2 倍，才通过性能门槛。
+    "seed": 42,           # 默认值 42；固定模型初始化与输入。
+    "prompts": ["Explain activation offload between GPU and CPU."],  # 固定训练文本。
 }
-GPU_RUN_LABEL = "resident_vs_offload"  # 仅用于结果文件名；详细 workload 写入 JSON。
-
-if not torch.cuda.is_available():
-    raise RuntimeError("未检测到可用 CUDA GPU；请跳过本可选实验或改在支持 CUDA 的环境运行。")
-DEVICE = torch.device("cuda")
-DTYPE = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}[GPU_CONFIG["dtype"]]
-try:
-    torch.empty(1, device=DEVICE, dtype=DTYPE)
-except RuntimeError as error:
-    raise RuntimeError("当前 PyTorch/CUDA 构建无法在此 GPU 上运行；请检查驱动与 PyTorch CUDA 兼容性。") from error
-torch.manual_seed(42)
-torch.cuda.manual_seed_all(42)
-print(f"GPU: {torch.cuda.get_device_name(DEVICE)} | dtype={GPU_CONFIG['dtype']}")
-print(f"教程根目录: {REPO_ROOT}")
-print(f"结果目录（后续写入）: {RESULTS_DIR}")
+RESULTS_RELATIVE_DIR = "benchmarks/results/train_activation_offload"  # 默认结果目录；正式结果按 RUN_LABEL 分文件保存。
 
 ```
 
-#### 5.2 执行对照并保存证据
+#### 5.2 执行并保存 JSON
 
-运行下方单元会比较 GPU 驻留与 CPU offload，先检查输出和输入梯度，再将环境、配置、双向搬运量和汇总指标保存为带时间戳的 JSON。每次运行生成独立文件，不覆盖历史复测。
+运行下方单元会从同一 Qwen checkpoint 分别加载 GPU 驻留与 CPU offload 路径。参数存储保持在 GPU，候选只搬运其余反向保存张量；loss、全局梯度范数、搬运张量数、双向字节量和资源指标写入同一结果 JSON。
 
 
 ```python
-class TinyOffloadBlock(nn.Module):
-    """产生可由 Autograd 保存的中间状态，用于 offload 单策略复测。"""
-    def __init__(self, dim):
-        super().__init__()
-        self.ffn = nn.Sequential(nn.LayerNorm(dim), nn.Linear(dim, dim * 4), nn.GELU(), nn.Linear(dim * 4, dim))
-
-    def forward(self, x):
-        return x + self.ffn(x)
-
-class SavedTensorTransferCounter:
-    """将 Autograd 保存的 tensor 移至 CPU，并记录双向搬运字节数。
-
-    这是教学 hook：同步 copy 便于观察字节与时间，不代表生产 offload 调度。
-    """
-    def __init__(self):
-        self.d2h_bytes = 0
-        self.h2d_bytes = 0
-
-    def pack(self, tensor):
-        bytes_ = tensor.numel() * tensor.element_size()
-        self.d2h_bytes += bytes_
-        return tensor.detach().to("cpu", non_blocking=False), tensor.device, bytes_
-
-    def unpack(self, packed):
-        cpu_tensor, device, bytes_ = packed
-        self.h2d_bytes += bytes_
-        return cpu_tensor.to(device, non_blocking=False)
-
-def _run_offload_gpu_step(template_blocks, input_template, use_offload):
-    blocks = copy.deepcopy(template_blocks)
-    for parameter in blocks.parameters():
-        parameter.grad = None
-    x = input_template.detach().clone().requires_grad_(True)
-    counter = SavedTensorTransferCounter()
-    torch.cuda.synchronize(DEVICE)
-    torch.cuda.reset_peak_memory_stats(DEVICE)
-    start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-    start.record()
-    if use_offload:
-        with torch.autograd.graph.saved_tensors_hooks(counter.pack, counter.unpack):
-            output = blocks(x)
-            output.float().square().mean().backward()
-    else:
-        output = blocks(x)
-        output.float().square().mean().backward()
-    end.record()
-    torch.cuda.synchronize(DEVICE)
-    return {
-        "output": output.detach(),
-        "input_grad": x.grad.detach(),
-        "step_ms": start.elapsed_time(end),
-        "peak_allocated_mb": torch.cuda.max_memory_allocated(DEVICE) / 2**20,
-        "peak_reserved_mb": torch.cuda.max_memory_reserved(DEVICE) / 2**20,
-        "d2h_mb": counter.d2h_bytes / 2**20,
-        "h2d_mb": counter.h2d_bytes / 2**20,
-    }
-
-def _measure_offload_gpu_path(label, template_blocks, input_template, use_offload):
-    for _ in range(GPU_CONFIG["warmup"]):
-        _run_offload_gpu_step(template_blocks, input_template, use_offload)
-    samples = [_run_offload_gpu_step(template_blocks, input_template, use_offload) for _ in range(GPU_CONFIG["repeats"])]
-    last = samples[-1]
-    return {
-        "label": label,
-        "step_ms": sum(item["step_ms"] for item in samples) / len(samples),
-        "peak_allocated_mb": max(item["peak_allocated_mb"] for item in samples),
-        "peak_reserved_mb": max(item["peak_reserved_mb"] for item in samples),
-        "d2h_mb": max(item["d2h_mb"] for item in samples),
-        "h2d_mb": max(item["h2d_mb"] for item in samples),
-        "output": last["output"],
-        "input_grad": last["input_grad"],
-    }
-
-template_blocks = nn.Sequential(*[TinyOffloadBlock(GPU_CONFIG["dim"]) for _ in range(GPU_CONFIG["num_layers"])]).to(DEVICE, dtype=DTYPE)
-input_template = torch.randn(GPU_CONFIG["batch_size"], GPU_CONFIG["seq_len"], GPU_CONFIG["dim"], device=DEVICE, dtype=DTYPE)
-GPU_RESULTS = {
-    "GPU 驻留": _measure_offload_gpu_path("GPU 驻留", template_blocks, input_template, use_offload=False),
-    "CPU offload": _measure_offload_gpu_path("CPU offload", template_blocks, input_template, use_offload=True),
-}
-baseline, offload = GPU_RESULTS["GPU 驻留"], GPU_RESULTS["CPU offload"]
-output_max_abs_diff = (baseline["output"] - offload["output"]).abs().max().item()
-input_grad_max_abs_diff = (baseline["input_grad"] - offload["input_grad"]).abs().max().item()
-assert torch.allclose(baseline["output"], offload["output"], atol=5e-3, rtol=5e-3)
-assert torch.allclose(baseline["input_grad"], offload["input_grad"], atol=5e-3, rtol=5e-3)
-for result in GPU_RESULTS.values():
-    print(f"{result['label']}: step={result['step_ms']:.2f} ms, allocated={result['peak_allocated_mb']:.1f} MB, reserved={result['peak_reserved_mb']:.1f} MB, D2H={result['d2h_mb']:.1f} MB, H2D={result['h2d_mb']:.1f} MB")
-
-from datetime import datetime, timezone
+from pathlib import Path
+import gc
 import json
+import torch
+from tools.project_runtime import resolve_project_root
+from tools.training_mechanism_runtime import (
+    cuda_hardware_snapshot, gradient_l2_norm, load_causal_lm, median_and_p95, move_batch, prepare_causal_lm_batch,
+)
 
-def _offload_metrics(result):
-    keys = ("step_ms", "peak_allocated_mb", "peak_reserved_mb", "d2h_mb", "h2d_mb")
-    return {key: round(float(result[key]), 4) for key in keys}
+REPO_ROOT = resolve_project_root()
+RESULTS_DIR = REPO_ROOT / RESULTS_RELATIVE_DIR
 
-run_timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-GPU_RESULT_RECORD = {
-    "schema_version": 1,
-    "experiment": "activation_offload",
-    "created_at_utc": run_timestamp,
-    "environment": {
-        "gpu": torch.cuda.get_device_name(DEVICE),
-        "torch": torch.__version__,
-        "cuda": torch.version.cuda,
-    },
-    "config": GPU_CONFIG,
-    "paths": {
-        "baseline": _offload_metrics(baseline),
-        "candidate": _offload_metrics(offload),
-    },
-    "correctness": {
-        "output_max_abs_diff": output_max_abs_diff,
-        "input_grad_max_abs_diff": input_grad_max_abs_diff,
-    },
-}
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-RESULT_PATH = RESULTS_DIR / f"gpu_{GPU_RUN_LABEL}_{run_timestamp}.json"
-RESULT_PATH.write_text(json.dumps(GPU_RESULT_RECORD, ensure_ascii=False, indent=2), encoding="utf-8")
-print(f"已保存 GPU 结果: {RESULT_PATH}")
+if RUN_MODE == "real_gpu":
+    if not torch.cuda.is_available():
+        raise RuntimeError('需要 CUDA GPU；无 GPU 时保持 RUN_MODE="dry_run"。')
+    DEVICE = torch.device("cuda")
+    dtype_map = {"float16": torch.float16, "bfloat16": torch.bfloat16, "float32": torch.float32}
+    DTYPE = dtype_map[GPU_CONFIG["dtype"]]
+    if DTYPE == torch.bfloat16 and not torch.cuda.is_bf16_supported():
+        raise RuntimeError("当前 GPU 不支持 BF16；请改用 float16 或 float32。")
+    torch.manual_seed(GPU_CONFIG["seed"])
+    torch.cuda.manual_seed_all(GPU_CONFIG["seed"])
+    prepared = prepare_causal_lm_batch(
+        MODEL_ID, MODEL_REVISION, GPU_CONFIG["prompts"], GPU_CONFIG["batch_size"], GPU_CONFIG["seq_len"],
+        local_files_only=LOCAL_FILES_ONLY,
+    )
+    resolved_commit = prepared.pop("resolved_model_commit")
+    resolution_source = prepared.pop("revision_resolution_source")
+    tokenizer_class = prepared.pop("tokenizer_class")
+    class SavedTensorTransferCounter:
+        """搬运非参数的反向保存张量，并记录双向字节数。
+
+        这是教学 hook：同步 copy 便于观察字节与时间，不代表生产 offload 调度。
+        """
+        def __init__(self, parameter_storage_ptrs):
+            self.parameter_storage_ptrs = set(parameter_storage_ptrs)
+            self.d2h_bytes = 0
+            self.h2d_bytes = 0
+            self.offloaded_tensors = 0
+
+        def pack(self, tensor):
+            storage_ptr = tensor.untyped_storage().data_ptr()
+            if not tensor.is_cuda or tensor.is_leaf or storage_ptr in self.parameter_storage_ptrs:
+                return ('resident', tensor, tensor.device, 0)
+            bytes_ = tensor.numel() * tensor.element_size()
+            self.d2h_bytes += bytes_
+            self.offloaded_tensors += 1
+            return ('offloaded', tensor.detach().to("cpu", non_blocking=False), tensor.device, bytes_)
+
+        def unpack(self, packed):
+            placement, saved_tensor, device, bytes_ = packed
+            if placement == 'resident':
+                return saved_tensor
+            self.h2d_bytes += bytes_
+            return saved_tensor.to(device, non_blocking=False)
+
+    def _run_offload_gpu_step(model, batch, use_offload):
+        model.zero_grad(set_to_none=True)
+        parameter_storage_ptrs = {parameter.untyped_storage().data_ptr() for parameter in model.parameters()}
+        counter = SavedTensorTransferCounter(parameter_storage_ptrs)
+        torch.cuda.synchronize(DEVICE)
+        torch.cuda.reset_peak_memory_stats(DEVICE)
+        start, end = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+        start.record()
+        if use_offload:
+            with torch.autograd.graph.saved_tensors_hooks(counter.pack, counter.unpack):
+                loss = model(**batch).loss
+                loss.backward()
+        else:
+            loss = model(**batch).loss
+            loss.backward()
+        end.record()
+        torch.cuda.synchronize(DEVICE)
+        peak_allocated_mb = torch.cuda.max_memory_allocated(DEVICE) / 2**20
+        peak_reserved_mb = torch.cuda.max_memory_reserved(DEVICE) / 2**20
+        gradient_norm = gradient_l2_norm(model.parameters())
+        return {
+            "loss": float(loss.detach()),
+            "gradient_l2_norm": gradient_norm,
+            "gradient_is_finite": bool(torch.isfinite(torch.tensor(gradient_norm)).item()),
+            "step_ms": start.elapsed_time(end),
+            "peak_allocated_mb": peak_allocated_mb,
+            "peak_reserved_mb": peak_reserved_mb,
+            "d2h_mb": counter.d2h_bytes / 2**20,
+            "h2d_mb": counter.h2d_bytes / 2**20,
+            "offloaded_tensors": counter.offloaded_tensors,
+        }
+
+    def _measure_offload_gpu_path(label, use_offload):
+        model = load_causal_lm(
+            MODEL_ID, resolved_commit, DEVICE, parameter_dtype=DTYPE, local_files_only=LOCAL_FILES_ONLY,
+        )
+        model.train()
+        batch = move_batch(prepared, DEVICE)
+        for _ in range(GPU_CONFIG["warmup"]):
+            _run_offload_gpu_step(model, batch, use_offload)
+        samples = [_run_offload_gpu_step(model, batch, use_offload) for _ in range(GPU_CONFIG["repeats"])]
+        last = samples[-1]
+        median_ms, p95_ms = median_and_p95([item["step_ms"] for item in samples])
+        result = {
+            "label": label,
+            "step_median_ms": median_ms,
+            "step_p95_ms": p95_ms,
+            "peak_allocated_mb": max(item["peak_allocated_mb"] for item in samples),
+            "peak_reserved_mb": max(item["peak_reserved_mb"] for item in samples),
+            "d2h_mb": max(item["d2h_mb"] for item in samples),
+            "h2d_mb": max(item["h2d_mb"] for item in samples),
+            "offloaded_tensors": max(item["offloaded_tensors"] for item in samples),
+            "loss": last["loss"],
+            "gradient_l2_norm": last["gradient_l2_norm"],
+            "gradient_is_finite": last["gradient_is_finite"],
+        }
+        del model, batch
+        gc.collect(); torch.cuda.empty_cache()
+        return result
+
+    GPU_RESULTS = {
+        "GPU 驻留": _measure_offload_gpu_path("GPU 驻留", use_offload=False),
+        "CPU offload": _measure_offload_gpu_path("CPU offload", use_offload=True),
+    }
+    baseline, offload = GPU_RESULTS["GPU 驻留"], GPU_RESULTS["CPU offload"]
+    loss_abs_diff = abs(baseline["loss"] - offload["loss"])
+    gradient_norm_abs_diff = abs(baseline["gradient_l2_norm"] - offload["gradient_l2_norm"])
+    for result in GPU_RESULTS.values():
+        print(f"{result['label']}: median={result['step_median_ms']:.2f} ms, p95={result['step_p95_ms']:.2f} ms, allocated={result['peak_allocated_mb']:.1f} MB, reserved={result['peak_reserved_mb']:.1f} MB, D2H={result['d2h_mb']:.1f} MB, H2D={result['h2d_mb']:.1f} MB, tensors={result['offloaded_tensors']}")
+
+    def _offload_metrics(result):
+        keys = ("step_median_ms", "step_p95_ms", "peak_allocated_mb", "peak_reserved_mb", "d2h_mb", "h2d_mb")
+        metrics = {key: round(float(result[key]), 4) for key in keys}
+        metrics["offloaded_tensors"] = int(result["offloaded_tensors"])
+        metrics["loss"] = round(float(result["loss"]), 6)
+        metrics["gradient_l2_norm"] = round(float(result["gradient_l2_norm"]), 6)
+        metrics["gradient_is_finite"] = result["gradient_is_finite"]
+        return metrics
+
+    memory_reduction_mb = baseline["peak_allocated_mb"] - offload["peak_allocated_mb"]
+    memory_reduction_ratio = memory_reduction_mb / max(baseline["peak_allocated_mb"], 1e-12)
+    resource_gate_passed = (
+        memory_reduction_mb >= GPU_CONFIG["min_memory_reduction_mb"]
+        and memory_reduction_ratio >= GPU_CONFIG["min_memory_reduction_ratio"]
+    )
+    gradient_norm_relative_diff = gradient_norm_abs_diff / max(abs(baseline["gradient_l2_norm"]), 1e-12)
+    correctness_passed = (
+        baseline["gradient_is_finite"]
+        and offload["gradient_is_finite"]
+        and loss_abs_diff <= 5e-3
+        and gradient_norm_relative_diff <= 1e-3
+    )
+    transfer_gate_passed = (
+        offload["offloaded_tensors"] > 0
+        and offload["d2h_mb"] > 0
+        and offload["h2d_mb"] > 0
+    )
+    median_time_ratio = offload["step_median_ms"] / max(baseline["step_median_ms"], 1e-12)
+    performance_gate_passed = median_time_ratio <= GPU_CONFIG["max_median_time_ratio"]
+    record = {
+        "schema_version": "training-mechanism-gpu/v4",
+        "semantic_id": SEMANTIC_ID,
+        "profile_id": PROFILE_ID,
+        "run_label": RUN_LABEL,
+        "model": {"id": MODEL_ID, "requested_revision": MODEL_REVISION, "resolved_commit": resolved_commit, "resolution_source": resolution_source, "tokenizer_class": tokenizer_class},
+        "workload": GPU_CONFIG,
+        "hardware": cuda_hardware_snapshot(),
+        "metrics": {"baseline": _offload_metrics(baseline), "candidate": _offload_metrics(offload)},
+        "correctness": {"loss_abs_diff": loss_abs_diff, "gradient_norm_abs_diff": gradient_norm_abs_diff, "gradient_norm_relative_diff": gradient_norm_relative_diff, "passed": correctness_passed},
+        "transfer_gate": {"offloaded_tensors": offload["offloaded_tensors"], "d2h_mb": offload["d2h_mb"], "h2d_mb": offload["h2d_mb"], "passed": transfer_gate_passed},
+        "resource_gate": {"memory_reduction_mb": memory_reduction_mb, "memory_reduction_ratio": memory_reduction_ratio, "passed": resource_gate_passed},
+        "performance_gate": {"median_time_ratio": median_time_ratio, "max_median_time_ratio": GPU_CONFIG["max_median_time_ratio"], "passed": performance_gate_passed},
+        "failure": None,
+        "evidence_level": "real_model_mechanism_benchmark",
+        "decision": "accept" if correctness_passed and transfer_gate_passed and resource_gate_passed and performance_gate_passed else ("tune" if correctness_passed and transfer_gate_passed else "reject"),
+    }
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    RESULT_PATH = RESULTS_DIR / f"{SEMANTIC_ID.lower()}_{RUN_LABEL}.json"
+    RESULT_PATH.write_text(json.dumps(record, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
+    print(f"结果已保存：{RESULT_PATH}")
+else:
+    print('GPU 实验默认关闭；完成 Profile 预检后设置 RUN_MODE="real_gpu"。')
 
 ```
 
-#### 5.3 读取结果并解释对照
+#### 5.3 读取结果
 
-下方单元读取刚保存的结果；如果当前会话没有 `RESULT_PATH`，则读取结果目录中最新的一次复测。先确认数值差异在容差内，再比较显存、step time 与 D2H/H2D 搬运量。
+读取同一 `RUN_LABEL` 的稳定结果文件；本单元不重新执行模型。先核对证据等级和数值一致性，再比较显存、step time 与 D2H/H2D 搬运量。
 
 
 ```python
-import json
-
-result_path = globals().get("RESULT_PATH")
-if result_path is None:
-    candidates = sorted(RESULTS_DIR.glob("gpu_*.json"))
-    if not candidates:
-        raise FileNotFoundError(f"未找到 GPU 结果，请先运行 5.2：{RESULTS_DIR}")
-    result_path = candidates[-1]
-record = json.loads(Path(result_path).read_text(encoding="utf-8"))
-baseline_metrics = record["paths"]["baseline"]
-candidate_metrics = record["paths"]["candidate"]
-memory_delta = candidate_metrics["peak_allocated_mb"] - baseline_metrics["peak_allocated_mb"]
-time_delta = candidate_metrics["step_ms"] - baseline_metrics["step_ms"]
-print(f"结果文件: {result_path}")
-print(f"环境: {record['environment']['gpu']} | torch={record['environment']['torch']} | CUDA={record['environment']['cuda']}")
-print(f"数值差异: output={record['correctness']['output_max_abs_diff']:.3e}, input_grad={record['correctness']['input_grad_max_abs_diff']:.3e}")
-print(f"CPU offload - GPU 驻留: peak allocated={memory_delta:.2f} MB, step={time_delta:.2f} ms, D2H={candidate_metrics['d2h_mb']:.2f} MB, H2D={candidate_metrics['h2d_mb']:.2f} MB")
-print("解读：先以数值一致性为前提；再结合显存变化、双向搬运量与额外 step time 判断当前 workload 下的交换是否值得。")
+if RUN_MODE == "real_gpu":
+    result_path = RESULTS_DIR / f"{SEMANTIC_ID.lower()}_{RUN_LABEL}.json"
+    if not Path(result_path).is_file():
+        raise FileNotFoundError(f"未找到结果，请先运行 5.2：{result_path}")
+    record = json.loads(Path(result_path).read_text(encoding="utf-8"))
+    baseline_metrics = record["metrics"]["baseline"]
+    candidate_metrics = record["metrics"]["candidate"]
+    print(f"resident: median={baseline_metrics['step_median_ms']:.2f} ms, p95={baseline_metrics['step_p95_ms']:.2f} ms, {baseline_metrics['peak_allocated_mb']:.1f} MB")
+    print(f"offload: median={candidate_metrics['step_median_ms']:.2f} ms, p95={candidate_metrics['step_p95_ms']:.2f} ms, {candidate_metrics['peak_allocated_mb']:.1f} MB, D2H={candidate_metrics['d2h_mb']:.1f} MB, H2D={candidate_metrics['h2d_mb']:.1f} MB")
+    print(f"correctness={record['correctness']} | transfer_gate={record['transfer_gate']} | resource_gate={record['resource_gate']}")
+    print(f"performance_gate={record['performance_gate']}")
+    print(f"decision={record['decision']} | evidence={record['evidence_level']}")
+else:
+    print("dry_run：没有读取 GPU 结果。")
 
 ```
+
+#### 5.4 解释证据与决策
+
+`b2s512_default1` 已在 RTX 5070 Ti Laptop GPU 上完成配对复测。GPU 驻留与同步 CPU offload 的 loss、全局梯度范数完全一致；候选搬运 584 个保存张量，D2H 与 H2D 各约 2949.9 MB，allocated 峰值从 4222.1 MB 降至 2775.6 MB。
+
+同步卸载把 median step 时间从 154.0 ms 增至 904.3 ms，约为基线 5.87 倍，未通过 2 倍性能门槛。因此本工作负载判定为 `tune`：容量机制成立，但需要筛选卸载对象、pinned memory、异步 copy 与计算重叠后再复测。
+
+| 观察项 | 读取字段 | 当前结果 | 解释与动作 |
+| --- | --- | --- | --- |
+| 运行与口径 | `failure`、`profile_id`、`workload` | 无失败；Qwen2.5-0.5B，batch 2 × 512，BF16 | 改变模型、shape、dtype 或链路后使用新标签 |
+| 机制与路径 | `offloaded_tensors`、`d2h_mb`、`h2d_mb` | 584；2949.9 / 2949.9 MB | 保存状态确实完成同步往返搬运 |
+| 正确性 | loss、全局梯度范数 | 差异均为 0，检查通过 | 当前确定性工作负载下未观察到语义漂移 |
+| 资源与性能 | allocated 峰值、step median/P95 | 峰值 −34.3%；median 5.87×；P95 6.01× | 容量收益显著，但同步搬运暴露时间过高 |
+| 证据与决策 | 三道机制 gate、性能 gate、`decision` | 机制 gate 通过；性能 gate 失败；`tune` | 优先优化搬运与重叠，再进入组合项目复测 |
 
 ## 相关阅读
 
