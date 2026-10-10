@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1660 720" role="img" aria-labelledby="title desc">
+  <title id="title">RLHF PPO memory flow</title>
+  <desc id="desc">Shows the actor, reference model, reward model, critic, rollout, advantage, and PPO update flow with memory pressure.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#fefce8"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 30px "Inter", "Noto Sans SC", sans-serif; fill: #0f172a; }
+      .sub { font: 500 16px "Inter", "Noto Sans SC", sans-serif; fill: #475569; }
+      .label { font: 700 18px "Inter", "Noto Sans SC", sans-serif; fill: #111827; }
+      .small { font: 500 14px "Inter", "Noto Sans SC", sans-serif; fill: #334155; }
+      .box { fill: #ffffff; stroke-width: 3; rx: 18; ry: 18; }
+      .arrow { stroke: #475569; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .faint { stroke: #94a3b8; stroke-width: 3; fill: none; stroke-dasharray: 8 6; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1660" height="720" fill="url(#bg)"/>
+  <text x="64" y="66" class="title">RLHF / PPO: flow graph and memory ledger</text>
+  <text x="64" y="96" class="sub">PPO is heavy because actor, reference, reward, critic, rollout state, and advantage all coexist in one update.</text>
+
+  <rect x="80" y="160" width="180" height="90" class="box" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="170" y="195" text-anchor="middle" class="label">Prompt</text>
+  <text x="170" y="220" text-anchor="middle" class="small">input / context</text>
+
+  <rect x="310" y="160" width="200" height="90" class="box" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="410" y="195" text-anchor="middle" class="label">Actor rollout</text>
+  <text x="410" y="220" text-anchor="middle" class="small">sample responses</text>
+
+  <rect x="560" y="160" width="220" height="90" class="box" fill="#ecfccb" stroke="#65a30d"/>
+  <text x="670" y="195" text-anchor="middle" class="label">Reward model</text>
+  <text x="670" y="220" text-anchor="middle" class="small">score responses</text>
+
+  <rect x="840" y="160" width="220" height="90" class="box" fill="#f5f3ff" stroke="#8b5cf6"/>
+  <text x="950" y="195" text-anchor="middle" class="label">Critic</text>
+  <text x="950" y="220" text-anchor="middle" class="small">value baseline</text>
+
+  <rect x="1120" y="160" width="220" height="90" class="box" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="1230" y="195" text-anchor="middle" class="label">Advantage</text>
+  <text x="1230" y="220" text-anchor="middle" class="small">reward - value</text>
+
+  <rect x="1400" y="160" width="190" height="90" class="box" fill="#fdf2f8" stroke="#db2777"/>
+  <text x="1495" y="195" text-anchor="middle" class="label">PPO update</text>
+  <text x="1495" y="220" text-anchor="middle" class="small">clipped actor loss</text>
+
+  <path d="M 260 205 L 310 205" class="arrow"/>
+  <path d="M 510 205 L 560 205" class="arrow"/>
+  <path d="M 780 205 L 840 205" class="arrow"/>
+  <path d="M 1060 205 L 1120 205" class="arrow"/>
+  <path d="M 1340 205 L 1400 205" class="arrow"/>
+
+  <path d="M 670 250 C 670 330 410 330 410 250" class="faint"/>
+  <path d="M 950 250 C 950 330 670 330 670 250" class="faint"/>
+  <path d="M 1230 250 C 1230 330 950 330 950 250" class="faint"/>
+
+  <rect x="90" y="330" width="1480" height="130" class="box" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="120" y="368" class="label">Memory ledger: what stays alive during one PPO step</text>
+  <text x="120" y="406" class="small">Actor keeps trainable activations; reference and reward still add forward memory; critic and rollout state stay alive until the PPO update completes.</text>
+  <text x="120" y="436" class="small">The memory cost is structural: several model paths and several intermediate states coexist in one optimization step.</text>
+
+  <rect x="90" y="520" width="1480" height="110" class="box" fill="#fffef2" stroke="#e2e8f0"/>
+  <text x="120" y="558" class="label">Read it in one line</text>
+  <text x="120" y="592" class="small">SFT mainly trains one model with one loss, while PPO keeps several model paths and rollout bookkeeping alive at the same time, so memory pressure rises structurally.</text>
+</svg>

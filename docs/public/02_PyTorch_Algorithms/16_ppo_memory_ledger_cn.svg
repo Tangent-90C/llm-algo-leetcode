@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="title desc">
+  <title id="title">PPO 单步状态生命周期</title><desc id="desc">Rollout、评分、优势计算和更新阶段保留不同对象，峰值来自生命周期重叠。</desc>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><style>.h{font:700 24px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.s{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.l{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.b{font:500 12px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:2.5;rx:13}.f{stroke:#475569;stroke-width:3;fill:none;marker-end:url(#a)}.life{stroke-width:10;stroke-linecap:round}</style></defs>
+  <rect width="1500" height="470" fill="#f8fafc"/><g transform="translate(78.5 0) scale(1.119047619)"><rect width="1200" height="420" fill="#f8fafc"/><text x="38" y="42" class="h">PPO 状态账本：峰值来自生命周期重叠</text><text x="38" y="67" class="s">分阶段卸载减少同时驻留量，但会增加模型搬运与等待。</text>
+  <rect x="40" y="90" width="245" height="66" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="162" y="116" text-anchor="middle" class="l">1 · 轨迹采样</text><text x="162" y="139" text-anchor="middle" class="b">策略模型 · KV · 回答 · 采样概率</text>
+  <rect x="330" y="90" width="245" height="66" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="452" y="116" text-anchor="middle" class="l">2 · 评分</text><text x="452" y="139" text-anchor="middle" class="b">参考 · 奖励 · 价值模型</text>
+  <rect x="620" y="90" width="245" height="66" class="box" fill="#fff1f2" stroke="#e11d48"/><text x="742" y="116" text-anchor="middle" class="l">3 · 优势计算</text><text x="742" y="139" text-anchor="middle" class="b">奖励 · 价值 · 有效范围</text>
+  <rect x="910" y="90" width="250" height="66" class="box" fill="#ede9fe" stroke="#6d28d9"/><text x="1035" y="116" text-anchor="middle" class="l">4 · 策略更新</text><text x="1035" y="139" text-anchor="middle" class="b">激活 · 梯度 · 优化器</text>
+  <path d="M285 123H330" class="f"/><path d="M575 123H620" class="f"/><path d="M865 123H910" class="f"/>
+  <text x="40" y="205" class="l">状态生命周期</text>
+  <text x="40" y="245" class="b">回答 / 有效范围</text><line x1="225" y1="240" x2="1125" y2="240" class="life" stroke="#3b82f6"/>
+  <text x="40" y="285" class="b">采样 / 参考对数概率</text><line x1="225" y1="280" x2="1035" y2="280" class="life" stroke="#6366f1"/>
+  <text x="40" y="325" class="b">奖励 / 价值 / 优势</text><line x1="455" y1="320" x2="1035" y2="320" class="life" stroke="#65a30d"/>
+  <text x="40" y="365" class="b">策略模型训练状态</text><line x1="935" y1="360" x2="1125" y2="360" class="life" stroke="#6d28d9"/>
+  <text x="40" y="402" class="s">峰值检查：模型驻留、token 记录与反向状态是否在同一阶段重叠</text>
+  </g>
+</svg>
