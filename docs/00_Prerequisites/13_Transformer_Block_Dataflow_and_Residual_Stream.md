@@ -10,7 +10,11 @@
 > [![Open In Studio](https://img.shields.io/badge/Open%20In-ModelScope-blueviolet?logo=alibabacloud)](https://modelscope.cn/my/mynotebook) *(国内推荐：魔搭社区免费实例)*
 
 
-Transformer Block 接收 `[batch, sequence, hidden]` 形式的 hidden state，并通过 Attention 与 MLP 两次更新 residual stream。理解 shape 守恒、残差更新和 Norm 放置后，激活函数、归一化与 Attention 才能回到同一条 Block 数据流中。
+## 本节导读
+
+Transformer Block 在统一隐藏维度上交替执行注意力与 MLP 更新，并通过残差通路把状态传给下一层。组件各自正确，并不代表组合后的数据流和统计位置正确。
+
+完成本节后，你应能追踪一个 Block 的两次残差更新，比较归一化位置，并检查多层堆叠是否保持形状与状态推进。
 
 **关键词：** `hidden state`, `residual stream`, `Pre-Norm`, `Block stack`
 
@@ -20,13 +24,6 @@ Transformer Block 接收 `[batch, sequence, hidden]` 形式的 hidden state，�
 **导语：** 模型对象和训练生命周期说明了 Block 如何被调用与更新；本页进一步观察 Block 内部如何保持 hidden state 契约。
 - [12. PyTorch Data Interface and Training Lifecycle | PyTorch 数据接口与训练生命周期](./12_PyTorch_Minimal_Training_Interface.md)
 - [0D 组页](./0D.md)
-
-## 相关阅读
-**导语：** Block 总览之后，可以分别深入非线性、统计路径和 token 信息聚合，并在 Part 02 中实现完整 LLaMA Block。
-- [14. Activation Functions | 激活函数](./14_Activation_Functions.md)
-- [15. Normalization Techniques | 归一化技术](./15_Normalization_Techniques.md)
-- [16. Attention Mechanism Intro | Attention 机制导论](./16_Attention_Mechanism_Intro.md)
-- [Part 02 · 05 LLaMA3 Block Tutorial](../02_PyTorch_Algorithms/05_LLaMA3_Block_Tutorial.md)
 
 ## Q1：为什么 Block 的输入输出通常保持同一 hidden shape？
 
@@ -61,7 +58,7 @@ print('residual shape：', tuple(updated_states.shape))
 
 ```python
 assert updated_states.shape == hidden_states.shape
-assert torch.allclose(updated_states - hidden_states, branch_update)
+torch.testing.assert_close(updated_states, hidden_states + branch_update)
 try:
     residual_update(hidden_states, torch.randn(2, 4, 4))
 except ValueError as error:
@@ -192,3 +189,11 @@ assert len(stack.blocks) == 3
 print('✅ Block stack 与 residual state 推进通过')
 
 ```
+
+## 相关阅读
+
+Block 总览之后，可以分别深入非线性、统计路径和 token 信息聚合。
+
+- [14. Activation Functions | 激活函数](./14_Activation_Functions.md)
+- [15. Normalization Techniques | 归一化技术](./15_Normalization_Techniques.md)
+- [16. Attention Mechanism Intro | Attention 机制导论](./16_Attention_Mechanism_Intro.md)
