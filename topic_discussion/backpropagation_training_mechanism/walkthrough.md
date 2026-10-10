@@ -1,37 +1,57 @@
 # 反向传播与训练机制深入阅读
 
-假设你接手的是一条新的训练链路：forward 能跑，loss 也有数，但你解释不清梯度到底怎么回去，为什么某些张量必须保留，为什么加了 checkpointing 以后显存下来了、训练节奏却变了。
+这条阅读路径从一次训练更新出发，逐步回答三个问题：梯度为什么这样传播，训练状态为什么需要驻留，以及候选策略怎样证明既正确又有效。
 
-这条线最重要的是按暴露顺序判断：先看梯度路径，再看保存点，再看显存和训练节奏怎样一起被 backward 改写。
+## 1. 从训练闭环进入计算图
 
-对应专题正文：[01 反向传播总览与计算图](./01_backpropagation_and_graph.md)。先建立梯度路径和保存边界。
+先阅读 [01 训练闭环与计算图](./01_training_loop_and_computation_graph.md)。把输入、参数、前向传播、损失、反向传播和优化器更新放进同一张依赖图，并标出激活、反向保存张量和参数梯度在何处产生。
 
-## 第一段：先把计算图看清
+如果参数初始化、Module 状态或训练/验证边界还不清楚，先回看 Part00 · 09 和 Part00 · 12。
 
-故事通常从最基础的问题开始：forward 看起来没问题，但一到 backward 就只剩 API 名字。第一步要先把计算图和梯度路径画清，知道梯度沿什么链路回传，哪些节点只是算子，哪些节点会决定后面必须保存什么状态。
+## 2. 从全局依赖进入局部反向
 
-这一步对应 [01 反向传播总览与计算图](./01_backpropagation_and_graph.md)。
+继续阅读 [02 自动求导与 Transformer 反向传播](./02_autograd_and_transformer_backward.md)。先理解叶子张量、`grad_fn`、VJP 和计算图边界，再观察激活、损失、Attention 与残差路径如何形成局部梯度。
 
-## 第二段：再把 autograd 和 attention backward 对上
+这一阶段要区分四个对象：参数 `.grad`、中间张量梯度、公式所需状态和实现实际保存状态。FlashAttention、融合或重算改变的是保存与执行路径，不改变梯度定义。
 
-一旦进入 attention，问题就不再只是“梯度能不能回去”，而是“回去时到底保存了什么、重算了什么”。这时要去看 `grad_fn`、`saved_tensors` 和 attention 的 `dV -> dP -> dS -> dQ/dK` 链路。很多人真正卡住的不是公式，而是公式和执行路径没对上。
+## 3. 把监督口径接到有效更新
 
-这一步对应 [02 自动微分与 Attention 反向传播](./02_autograd_and_attention_backward.md)。
+进入 [03 监督、梯度尺度与有效更新](./03_supervision_gradient_scale_effective_update.md)。先确定哪些 token 参与监督，再核对损失归约和有效 token 分母，最后将多个微批次对齐到一次优化器更新步。
 
-## 第三段：loss 对齐以后，显存账本才有意义
+这一步的检查结果应能回答：一个累计窗口覆盖多少有效 token，损失如何归一化，参数更新和学习率调度器分别执行多少次。
 
-如果 `labels / mask / shift / ignore_index` 没对齐，后面的 loss 曲线本身就不可信。只有监督口径成立了，activation、参数、梯度和 optimizer state 的显存账本才值得继续分析。
+## 4. 沿时间线建立状态账本
 
-这一步对应 [03 损失对齐与显存账本](./03_loss_alignment_memory_ledger.md)。
+进入 [04 训练状态生命周期](./04_training_state_lifecycle.md)。静态字节数只能说明对象大小，生命周期才能说明哪些对象在同一阶段重叠。按前向传播、反向传播和优化器更新步记录参数、激活、反向保存张量、梯度、优化器状态与工作区。
 
-## 第四段：checkpointing 与 offload 改的不是同一类代价
+只有先找到峰值阶段和主导对象，后续策略选择才有依据。
 
-训练侧显存一高，最容易想到的就是 checkpointing 和 offload。但这两条线改的不是同一种东西：checkpointing 是重算换空间，offload 是搬运换空间。它们都能压显存，但会把训练节奏改成不同的样子。
+## 5. 比较重算与搬运
 
-这一步对应 [04 Checkpointing 与 Offload](./04_checkpointing_and_offload.md)。
+进入 [05 激活检查点与卸载](./05_checkpointing_and_offload.md)。激活检查点改变激活的保存与重算，卸载改变状态的驻留位置。比较时同时记录正确性条件、释放容量和新增时间。
 
-## 第五段：最后回到训练节奏
+若激活检查点路径包含随机层，还要确认 RNG 状态和外部副作用；若选择卸载，则要核对搬回时点和暴露传输时间。
 
-真正的闭环结束点不是“显存降了”，而是 accumulation、optimizer step、effective batch 和 profiling 口径都统一了。把这条故事走完以后，一个更像真实结论的说法通常不是“我们用了 checkpointing”，而是：梯度路径清楚、监督口径正确、activation 保存点明确，最终训练节奏和显存代价都能被解释。
+## 6. 建立采用门槛
 
-这一步对应 [05 梯度累积、训练闭环与 Profiling](./05_accumulation_decision_profiling.md)，并回到 [Part 02 · 73 训练性能分析](../../02_PyTorch_Algorithms/73_Training_Performance_Analysis.ipynb) → [Part 02 · 76 激活检查点与 Offload benchmark](../../02_PyTorch_Algorithms/76_Activation_Checkpoint_Offload_Benchmark.ipynb) → [Part 02 · 75 显存预算压缩](../../02_PyTorch_Algorithms/75_Memory_Budget_Compression_Project.ipynb) 验证。
+最后阅读 [06 正确性与性能证据](./06_correctness_and_performance_evidence.md)。候选策略依次通过输入口径、梯度正确性、更新语义、数值稳定和质量门槛后，再比较峰值显存、单步时间与吞吐。
+
+项目验证按以下顺序展开：
+
+```text
+Part02 · 73 训练基线
+→ Part02 · 74 性能分析归因
+→ Part02 · 76 策略对照与决策
+```
+
+## 最小 PyTorch 接口映射
+
+| 机制环节 | 最小接口 | 需要核对的关系 |
+|:---|:---|:---|
+| 计算图与反向传播 | `torch.autograd`、`loss.backward()` | 损失是否连接到待训练参数 |
+| 梯度边界 | `detach()`、`no_grad()`、`requires_grad` | 图是否在预期位置切断 |
+| 梯度累积 | `backward()`、`zero_grad()` | 多次反向传播是否对应一次更新 |
+| 参数更新 | `optimizer.step()`、`scheduler.step()` | 更新和调度次数是否一致 |
+| 激活重算 | `torch.utils.checkpoint` | 输出、输入梯度与参数梯度是否保持一致 |
+| 梯度安全 | `GradScaler`、`clip_grad_norm_` | 梯度尺度还原、有限值检查和梯度裁剪的顺序 |
+| 性能证据 | CUDA 内存 API、`torch.profiler` | 峰值、阶段耗时和时间线追踪是否来自同一工作负载 |
