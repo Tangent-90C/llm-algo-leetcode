@@ -1,165 +1,132 @@
-# 专题讨论轴
+# 专题路线总览
 
-`topic_discussion` 是跨多个 Part 的知识组织与导航层。它不替代各 Part 中的 Notebook 学习内容，而是把分散的内容放回路线、方法和证据框架中。
+`topic_discussion` 是跨 Part 的路线与证据导航层。它不复制 Notebook 的代码、题目或实验结果，而是回答三个问题：当前要解决什么问题、应按什么顺序学习、一个结论需要哪些机制与证据支持。
 
-它主要承担以下职责：
+![专题路线：主学习路线、横向工程能力、领域专题与项目收口](../public/topic_discussion/topic_discussion_overview.svg)
 
-- 把各 `Part` 中分散的 Notebook 和项目组织成清晰的路线入口；
-- 为跨路线反复出现的方法轴提供统一的判断框架；
-- 为基础机制、项目指标和专题边界补充背景解释，帮助读者理解结论来自什么机制、需要什么证据。
+## 如何使用专题路线
 
-## 入口与专题层级
+先按目标选择一条主学习路线；遇到量化、通信、部署或数据问题时进入横向工程专题；任务面向 Agent 或多模态时再补领域专题。Part 00/01、反向传播机制与 SFT 基础只在出现知识缺口时回查。完成局部机制与 benchmark 后，由 Part 05 将多个候选收束为项目交付和架构决策。
 
-专题轴不是另一条线性课程，而是把纵向 Part、四条主学习路线、横向工程能力和基础/领域入口组织在一起。没有明确问题时，可以从四条主路线中选择；已经知道瓶颈对象时，直接进入对应的横向专题或基础支撑专题。
+专题页负责关系、判断条件和项目入口；代码实现、CPU 机制实验、GPU/backend benchmark 仍以对应 Part 的 Notebook 为准。
 
-![专题讨论轴：纵向 Part、主学习路线、横向支撑与收口层](../public/topic_discussion/topic_discussion_overview.svg)
+## 五条主学习路线
 
-专题页负责组织关系和学习入口，具体机制、题目和实验仍以对应 Part 的 Notebook 为准。主路线关注优化目标，横向专题关注通用方法，基础与领域专题提供认知和应用背景，最终由 Part 05 收口到综合项目和架构决策。
+五条路线可按目标独立进入；下表从模型结构、能力形成依次排到服务运行、性能诊断和底层实现，用来表达对象层次，而不是严格的前置依赖。
 
-### 主学习路线
-
-| 路线 | 主入口 | 主要回答的问题 |
-|:---|:---|:---|
-| 推理优化 | [推理优化（Inference Optimization）](./inference_optimization/intro.md) | 请求、Prefill、Decode、KV Cache、Serving 如何协同提升端到端推理性能？ |
-| 性能优化 | [性能优化（Performance Optimization）](./performance_optimization/intro.md) | 性能分析、显存管理、通信代价和成本决策如何串成证据链？ |
-| 算子优化 | [算子优化（Operator Optimization）](./operator_optimization/intro.md) | 如何从访存、Kernel、Fusion 和执行约束提升局部与端到端性能？ |
-| 后训练优化 | [后训练优化（Post-Training Optimization）](./post_training_optimization/intro.md) | 如何从监督微调走向偏好数据、DPO、GRPO 和对齐项目？ |
-
-### 横向工程专题
-
-| 专题 | 主入口 | 主要作用 |
-|:---|:---|:---|
-| 显存优化 | [显存优化（Memory Optimization）](./memory_performance_tuning/intro.md) | 深入理解 VRAM、Activation、Checkpoint、Offload、KV Cache 和资源权衡。 |
-| 性能分析 | [性能分析（Performance Analysis）](./profiling/intro.md) | 提供跨训练、推理和系统层的测量、Trace 和瓶颈归因方法。 |
-| 量化与压缩 | [量化与压缩（Quantization and Compression）](./quantization/intro.md) | 比较表示压缩、精度、显存、吞吐和部署格式。 |
-| 通信与并行 | [通信与并行（Communication and Parallelism）](./communication_parallel/intro.md) | 解释多卡切分、通信原语、拓扑和扩展效率。 |
-| 部署与异构 | [部署与异构系统（Deployment and Heterogeneous Systems）](./deployment_heterogeneous/intro.md) | 组织模型产物、Backend、设备协同和部署验证。 |
-
-### 基础与领域专题
-
-基础专题包括[反向传播与训练机制](./backpropagation_training_mechanism/intro.md)、[大模型架构](./model_architecture/intro.md)和[SFT / LoRA 基础模块](./post_training_optimization/sft_foundation/intro.md)；图级优化与编译已经并入[算子优化](./operator_optimization/intro.md)的支撑模块；领域专题包括[多模态](./multimodal/intro.md)等。它们按需补充机制、模型结构、数据工程和应用背景，不要求在主路线之前全部学完。
-
-### 收口层
-
-[Part 05：综合项目与架构决策](../05_Integrated_Projects_and_Decisions/intro.md)负责把多条路线的证据汇总到一个工程问题中，完成方案组合、成本估算、架构选型和最终交付判断。
-
-## Infra 层与证据维度
-
-### LLM Infra 五层总览
-
-横向专题统一放回下面这套从下到上的 Infra 结构理解：
-
-| 层级 | 主要内容 | 核心问题 | 边界判断 |
+| 路线 | 解决的核心问题 | 主要入口 | 当前建设重点 |
 |:---|:---|:---|:---|
-| Infra-L1 硬件与基础设施 | GPU/NPU、CPU、HBM、PCIe、NVLink、InfiniBand、SSD | 物理资源提供了什么能力？ | 改的是芯片、容量、带宽、拓扑或物理设备 |
-| Infra-L2 系统软件与加速库 | 驱动、CUDA/ROCm、编译器、Triton、NCCL、cuBLAS、FlashAttention | 如何把硬件能力调用出来？ | 改的是 kernel、算子、编译、通信原语或设备运行时 |
-| Infra-L3 框架与运行时 | PyTorch、JAX、FSDP、DeepSpeed、Megatron、训练运行时 | 模型计算和状态如何组织？ | 改的是计算图、自动求导、并行切分、状态管理或执行调度 |
-| Infra-L4 服务与模型优化 | vLLM、SGLang、TensorRT-LLM、量化、KV Cache、Serving 调度 | 一个模型实例如何高效执行？ | 改的是模型加载、请求处理、缓存、实例吞吐和延迟 |
-| Infra-L5 平台与 MLOps | 资源调度、模型仓库、灰度发布、监控、告警、工作流 | 多个模型和用户如何稳定交付？ | 改的是资源编排、版本生命周期、流量治理和服务可用性 |
+| 大模型架构演进 | 如何解释并比较 Block、Attention、位置、MoE 与混合架构选择？ | [大模型架构演进](./llm_architecture_evolution/intro.md) | 架构演进链、模型审计和选型判断 |
+| 后训练优化 | 如何完成 SFT、偏好优化、RL 对齐及其工程交付？ | [后训练优化](./post_training_optimization/intro.md) | 数据、DPO、GRPO、RL 工程与评测 |
+| 推理优化 | 如何降低请求延迟、提高吞吐并稳定 Serving？ | [推理优化](./inference_optimization/intro.md) | decode、KV Cache、调度、PD 与分布式推理 |
+| 性能优化 | 如何定位计算、显存、通信与 I/O 瓶颈，并形成可信决策？ | [性能优化](./performance_optimization/intro.md) | 可观测性、显存账本、系统级复测 |
+| 算子优化 | 如何在 kernel、访存、融合和后端层消除局部瓶颈？ | [算子优化](./operator_optimization/intro.md) | Triton、经典算子、Attention 与 CUDA 下探 |
 
-模型、数据和 workload 不是独立的一层，而是运行在这五层之上的负载面：训练主要落在 Infra-L3，推理主要落在 Infra-L4，最终都受 Infra-L1/Infra-L2 的硬件与系统软件约束。
+## 横向工程专题
 
-层间存在灰色地带。例如，FlashAttention 的算法思想属于方法层，kernel 实现属于 Infra-L2，服务集成属于 Infra-L4；FSDP / DeepSpeed 属于 Infra-L3，但底层会调用 Infra-L2 的 NCCL，集群资源又由 Infra-L5 管理；量化理论属于算法方法，低比特 kernel 属于 Infra-L2，推理部署属于 Infra-L4，模型版本和发布流程属于 Infra-L5。KV Cache 的数据结构和调度主要在 Infra-L3/Infra-L4，显存容量和带宽受 Infra-L1 约束，监控和扩缩容则属于 Infra-L5。
+这些专题服务多条主路线；它们不是彼此替代关系。
 
-Profiling 不属于某一个固定层，而是贯穿 Infra-L1–Infra-L5 的证据工具。它把硬件利用率、kernel 时间、框架调度、服务请求和平台资源放到同一条证据链中；因此一个优化结论不能只说“某层变快了”，还要说明它对 `Compute / Memory / Communication / Quality / End-to-End` 的影响。
-
-### 横向能力轴
-
-五层结构回答“组件位于哪里”，还需要三条横向能力轴回答“代价如何产生”：
-
-- `Compute`：FLOPs、kernel 时间、利用率和计算重叠。
-- `Memory`：容量、带宽、数据驻留、缓存和访存次数。
-- `Communication`：GPU 间、CPU-GPU 间、节点间传输、同步和拓扑。
-
-Profiling 与 Evaluation 横跨五层：前者负责采集证据，后者负责验证质量、性能、显存、通信和部署结果。每个优化结论至少要说明 `Compute Δ / Memory Δ / Communication Δ / Quality Δ / End-to-End Δ`。
-
-## 路线选择与运行环境
-
-### 如何选择主路线
-
-四条主路线是并列入口，不代表学习顺序。先按问题表现选择入口，再根据定位结果进入相关横向专题。
-
-| 如果你主要遇到 | 优先进入 | 重点观察 |
+| 专题 | 主要服务对象 | 当前判断 |
 |:---|:---|:---|
-| 请求延迟、吞吐、并发或服务调度 | 推理优化 | TTFT、TPOT、吞吐、P99、KV Cache |
-| OOM、activation、optimizer state 或显存预算 | 性能优化 → Task2 | peak memory、带宽、重算、搬运、OOM 边界 |
-| 单个 kernel 慢、访存低效或融合收益不明显 | 算子优化 | kernel time、带宽利用率、occupancy、端到端收益 |
-| SFT 后的偏好、奖励、DPO 或 GRPO 问题 | 后训练优化 | 偏好质量、任务指标、稳定性、训练代价 |
+| [量化与压缩](./quantization_compression/intro.md) | 推理、后训练、部署 | 主线已覆盖对象、校准、PTQ、QLoRA、运行时低精度、artifact 与 Serving 决策；剪枝、蒸馏和稀疏化仍是后续扩展，不应被默认当作已覆盖内容。 |
+| [通信与并行](./communication_parallelism/intro.md) | 训练、推理、MoE、性能 | 覆盖通信原语、状态切分、并行、EP hotspot、overlap 与 benchmark；真实多卡项目提供最终证据。 |
+| [数据工程](./data_engineering/intro.md) | 后训练、RAG、性能 | 负责数据生命周期、解析、清洗、去重、质量、配比、合成与血缘；当前先建设路线和正文。 |
+| [部署与异构系统](./deployment_heterogeneous/intro.md) | 推理、量化、通信、领域服务 | 把 artifact、backend、设备兼容、数据路径、服务分层、端边云、发布与成本收束为可交付部署方案。 |
 
-这里的 Infra 层表示问题主要发生的位置，不表示路线等级或学习先后。需要跨层定位时，再结合 Profiling、量化与压缩、通信与并行等横向专题。
+量化专题输出可复测的 artifact、质量与 Serving 候选；部署专题继续验证其目标设备、runtime、服务拓扑和成本。通信专题解释多设备机制；性能专题负责采集、归因和复测它们的系统代价。
 
-### 运行环境
+## 领域专题
 
-项目的运行环境由硬件、运行方式和依赖配置三部分组成：
-
-| 硬件 | 运行方式 | 依赖配置示例 |
+| 专题 | 关注的对象 | 当前建设阶段 |
 |:---|:---|:---|
-| CPU | Python / PyTorch 逻辑验证 | base.txt + torch-cpu.txt |
-| 单 GPU | Transformers / PyTorch 训练或本地推理 | fine-tuning.txt + torch-cu128.txt |
-| 单 GPU | vLLM / SGLang 真实推理服务 | inference-vllm.txt 或 inference-sglang.txt |
-| 多 GPU | PyTorch Distributed / 分布式服务 | distributed.txt + torch-cu128.txt |
+| [Agent 基础设施](./agent/intro.md) | 工具轨迹、沙盒、任务调度、可观测性与 Agentic RL | 已确定 Task0–6；优先建设数据生产与沙盒环境。 |
+| [多模态与视觉推理](./multimodal/intro.md) | 视觉 token、视觉 KV、VLM Serving、压缩与性能分析 | 已确定 Task0–6；先建设模型架构与多模态 workload。 |
 
-“单 GPU”和“真实 backend”不是递进等级：前者描述硬件，后者描述软件运行方式，两者可以同时成立。没有对应硬件时可以完成逻辑验证，但不能把模拟结果当作真实性能结论。
+领域专题复用推理、后训练、数据、性能和部署的共同证据字段，但应保留自己的质量协议，例如任务完成率、VQA/OCR 指标或轨迹正确性。
 
-### 常见问题跳转
+## 基础与诊断入口
 
-如果还没有定位问题，先选择一条主路线；如果已经知道问题属于某个方法轴，再进入横切支撑专题；如果需要补机制背景，再回看基础支撑专题。
+| 入口 | 用途 | 何时进入 |
+|:---|:---|:---|
+| [反向传播与训练机制](./backpropagation_training_mechanism/intro.md) | autograd、saved tensors、checkpoint、offload 与训练状态账本 | 训练、后训练或训练侧性能问题需要回补机制时 |
+| [性能分析](./performance_analysis/intro.md) | profiling、trace、回归验证与行动决策 | 需要先拿到时间、显存、通信或服务路径证据时 |
 
-常见跳转：
+SFT / LoRA 已并入[后训练优化](./post_training_optimization/intro.md)的 Task1–2；图级优化与编译已并入[算子优化](./operator_optimization/intro.md)的 Task1。它们可以保留内部正文目录，但不再作为单独专题入口。显存优化的核心内容已迁入[性能优化](./performance_optimization/intro.md) Task2–3，不再作为专题路线入口；性能分析则继续作为独立的基础取证专题，为所有主路线提供测量方法。
 
-- `偏好数据 / DPO / GRPO / 对齐项目` -> [后训练优化专题](./post_training_optimization/intro.md)
-- `结构前置 / SFT / LoRA / 训练工程` -> [SFT / LoRA 基础模块](./post_training_optimization/sft_foundation/intro.md)
-- `prefill / decode / PagedAttention / benchmark` -> [推理优化](./inference_optimization/intro.md)
-- `VRAM / checkpoint / offload / memory trade-off` -> [显存优化](./memory_performance_tuning/intro.md)
-- `量化是否值得做` -> [量化与压缩](./quantization/intro.md)
-- `为什么慢、为什么爆显存、证据怎么拿` -> [性能分析](./profiling/intro.md)
-- `多卡通信和并行切分怎么判断` -> [通信与并行](./communication_parallel/intro.md)
+## 从现象选择入口
 
-## 专题分工与项目复用
+| 遇到的现象 | 优先进入 | 常见的下一跳 |
+|:---|:---|:---|
+| TTFT、TPOT、吞吐、排队或 KV Cache 问题 | 推理优化 | 性能优化、量化、部署与异构 |
+| OOM、activation、offload、显存预算问题 | 性能优化 | 反向传播与训练机制、量化 |
+| 单 kernel 慢、访存利用率低、融合无收益 | 算子优化 | 性能优化、算子优化 Task1 的图级变换与编译内容 |
+| SFT、偏好数据、DPO、GRPO、reward 问题 | 后训练优化 | 数据工程、反向传播与训练机制 |
+| 模型结构、上下文、MoE 或 Attention 选择 | 大模型架构演进 | 推理优化、通信与并行 |
+| 量化 artifact、dtype、质量或低比特 Serving 问题 | 量化与低比特适配 | 部署与异构、性能优化 |
+| 多卡扩展、NCCL、EP 或通信等待 | 通信与并行 | 性能优化、部署与异构 |
+| 模型无法加载、目标设备不兼容、端边云放置 | 部署与异构系统 | 量化、通信与并行、Part 05 |
 
-### 能力与组件边界
+## 模型评测与决策的跨专题分工
 
-这些内容连接五层结构，但承担的角色不同：算子优化是主路线，图级优化与编译是其 Task1 支撑模块，通信与并行是横切支撑，MLSys 是跨专题的方法框架，不是独立的第 12 个专题。
+模型评测不是某一条路线末尾的附加步骤，而是所有会改变数据、模型表示、执行路径或部署环境的专题共同遵守的质量门槛。当前由[后训练优化 Task6](./post_training_optimization/09_preference_data_and_project_decision.md)维护共同的模型质量、对齐、鲁棒性、失败记录与 `accept / tune / reject` 协议；各专题只补充自己改变对象的专项证据。
 
-| 能力 | 主要连接 | 在专题中的展开位置 | 当前项目入口 |
+| 专题 | 模型评测中的主责 | 需要交给其他专题的部分 |
+|:---|:---|:---|
+| [数据工程](./data_engineering/intro.md) | 评测集版本、训练/评测隔离、去污染、覆盖与血缘 | 后训练判断能力提升；推理判断检索与服务效果 |
+| [后训练优化](./post_training_optimization/intro.md) | 任务质量、安全、有用性、鲁棒性、judge 一致性与在线回滚 | 数据工程保证评测可信；性能优化解释资源代价 |
+| [量化与压缩](./quantization_compression/intro.md) | 复用质量门槛，检查低比特表示造成的质量回归 | 性能与部署记录 artifact、延迟、显存和 backend 路径 |
+| [通信与并行](./communication_parallelism/intro.md) | 复用质量门槛，检查数值一致性和训练回归 | 性能优化记录通信、overflow 与扩展代价 |
+| [部署与异构系统](./deployment_heterogeneous/intro.md) | 复用固定质量集，检查跨 backend / 设备输出一致性 | Part05 收束兼容性、成本和交付选择 |
+| [性能优化](./performance_optimization/intro.md) | 保证性能收益不以降低质量条件为代价 | 后训练或任务页定义质量指标 |
+
+## 统一模型角色与结果可比性
+
+横向专题共享模型角色，但不强制所有实验使用同一模型。稳定功能基线用于验证代码和执行路径，现代兼容性候选用于检查新架构与新工具栈，性能工作负载和生产候选才用于形成资源与系统结论。
+
+| 模型角色 | 默认选择 | 主要用途 | 能否形成性能结论 |
 |:---|:---|:---|:---|
-| 算子优化 | Infra-L1–Infra-L3 | [算子优化](./operator_optimization/intro.md)、[Part 03](../03_Triton_Kernels/intro.md)、[Part 04](../04_CUDA_and_System_Optimization/intro.md)；必要时用 [Part 02 · 74 Profiling](../02_PyTorch_Algorithms/74_Profiling_Driven_End_to_End_Optimization.md) 验证 kernel 对端到端结果的影响 | [Part 03](../03_Triton_Kernels/intro.md) / [Part 04](../04_CUDA_and_System_Optimization/intro.md) |
-| 图级优化与编译 | Infra-L2–Infra-L3 | [算子优化支撑模块](./operator_optimization/graph_compiler/intro.md)，负责图变换、IR、lowering 和 backend 决策 | [Part 03](../03_Triton_Kernels/intro.md) / [Part 04](../04_CUDA_and_System_Optimization/intro.md) |
-| 异构并行与通信 | 主要连接 Infra-L1–Infra-L3；资源编排延伸到 Infra-L5 | 通信与并行；性能分析负责定位计算、内存、通信等待 | [Part 02 · 79 分布式并行](../02_PyTorch_Algorithms/79_Distributed_Parallel_Benchmark.md) / [Part 02 · 80 MoE 专家并行](../02_PyTorch_Algorithms/80_MoE_Expert_Parallel_Benchmark.md) / [Part 02 · 81 分布式推理](../02_PyTorch_Algorithms/81_Distributed_Inference_Project.md) |
-| MLSys 方法 | Infra-L2–Infra-L5 | 作为跨专题方法：约束建模、profiling、benchmark、资源调度和回归决策 | [Part 02 · 74 Profiling](../02_PyTorch_Algorithms/74_Profiling_Driven_End_to_End_Optimization.md) / [Part 02 · 75 显存预算](../02_PyTorch_Algorithms/75_Memory_Budget_Compression_Project.md) / [Part 02 · 79 分布式并行](../02_PyTorch_Algorithms/79_Distributed_Parallel_Benchmark.md) |
+| 稳定功能基线 | `Qwen/Qwen2.5-0.5B-Instruct` | 加载、前向、量化、训练和分布式机制 smoke | 否，只证明功能路径可运行 |
+| 现代兼容性候选 | `Qwen/Qwen3-0.6B`，固定 `enable_thinking` | Qwen3 架构、tokenizer、chat template 与新版 backend 兼容性 | 否，只解释候选兼容性 |
+| 性能工作负载 | 各专题登记的 1.5B–7B 模型或合成大 Payload | 显存、吞吐、延迟、通信和扩展效率 | 可以，但必须固定比较契约 |
+| 生产候选 | 项目指定模型与产物 | 真实部署、成本和交付决策 | 只对登记环境与工作负载有效 |
 
-库的归属按主要职责判断：NCCL 和算子库偏 Infra-L2，训练与并行框架偏 Infra-L3，服务和资源编排分别进入 Infra-L4、Infra-L5。专题不重复介绍同一个库，而是解释它在当前问题中的作用和代价。
+功能基线不能外推生产性能；Qwen2.5 与 Qwen3 的架构、KV Head、tokenizer 和 chat template 不同，不能直接比较结果。跨专题复用证据时，至少固定 `model_id`、revision、tokenizer、chat template、Thinking 模式和实际输入/输出 token。具体模型版本、技术栈要求和适用专题统一登记在 [模型、执行栈与环境资产表](../gpu_environment_assets.md)，各专题只解释为什么选择该角色。
 
-### 多专题项目如何阅读
+## 统一执行栈角色与版本口径
 
-一个项目可以被多个专题复用，但只保留一个主叙事入口。主专题负责定义项目问题和最终结论，关联专题只复用其中的指标、机制或实验结果；例如 `66` 的主专题是推理优化，但量化、编译、显存和性能分析可以分别解释它的低比特、kernel、预算和证据视角。项目资产表中的“主专题 / 关联专题 / Infra 层”用于记录这种关系，避免把同一个项目误读成多个独立项目。
+同一个模型可以经过不同执行栈运行，但这些工具回答的问题不同。专题页选择执行栈时先按实验目的分层，不用“都能生成文本”作为横向比较依据。
 
-### 按需入口与基础支撑
+| 执行栈 | 教程中的主要角色 | 适合回答的问题 | 不直接承担的结论 |
+|:---|:---|:---|:---|
+| Transformers | 模型语义与固定输入参考路径 | 模型、tokenizer、chat template、训练接口和原生前向是否正确 | 生产 Serving 吞吐或调度优劣 |
+| vLLM | GPU Serving 主基线 | Continuous Batching、KV Cache、并发、TTFT、TPOT 与吞吐 | SGLang 或其他引擎在不同 workload 下的表现 |
+| SGLang | 结构化执行与缓存/调度对照 | Prefix Cache、RadixAttention、结构化生成与调度策略 | 无共同输入和版本条件时的跨引擎排名 |
+| llama.cpp | GGUF 与本地、CPU、端侧执行路径 | 低资源部署、CPU/GPU offload、端侧延迟和内存 | NVIDIA 数据中心 Serving 的替代基线 |
+| TensorRT-LLM | NVIDIA 优化引擎候选 | Engine 构建、插件与精度路径、目标 GPU 上的优化部署 | 脱离 CUDA、TensorRT、GPU 架构和构建产物的通用收益 |
 
-这些入口不替代主路线，而是把跨路线反复出现的方法轴单独拉出来。性能优化负责把测量、资源和决策串起来；下面的专题负责深入某一类机制或工程手段：
+版本采用三层口径：requirements 记录仓库安装意图，模型、执行栈与环境资产表记录最低兼容与已验证快照，单次结果 JSON 记录真正参与实验的版本。文档中的“当前版本”不等于已验证版本；没有运行快照时只能标记为待验证。具体固定方式、官方矩阵和仓库状态见 [模型、执行栈与环境资产表](../gpu_environment_assets.md)。
 
-**横切支撑专题**
+## 统一证据与项目复用
 
-| 专题 | 主入口 | 更适合什么时候进入 |
-|:---|:---|:---|
-| 量化与压缩 | [量化与压缩（Quantization and Compression）](./quantization/intro.md) | 当你同时要看精度、显存、带宽和部署取舍时 |
-| 通信与并行 | [通信与并行（Communication and Parallelism）](./communication_parallel/intro.md) | 当你开始进入多卡训练、并行切分和通信瓶颈时 |
-| 性能分析 | [性能分析（Performance Analysis）](./profiling/intro.md) | 当你需要拿证据，而不是只靠经验猜测时 |
-| 部署与异构系统 | [部署与异构系统（Deployment and Heterogeneous Systems）](./deployment_heterogeneous/intro.md) | 当你要理解模型产物、backend、设备协同和部署交付时 |
+跨专题结论至少要说明以下内容：
 
-**领域入口**
+| 字段组 | 最少说明 |
+|:---|:---|
+| workload | 输入/输出长度、并发、warmup、重复、质量集版本 |
+| candidate | 模型 revision、artifact、量化/并行/服务配置 |
+| environment | 设备、driver/runtime、backend、实际 dtype 与关键路径 |
+| metrics | 质量、TTFT、TPOT、吞吐、P95/P99、峰值显存、通信/传输等待、成本 |
+| evidence | CPU 模拟、GPU 探针、load smoke、固定 benchmark 或真实部署；失败记录与 `accept / tune / reject` |
 
-| 专题 | 主入口 | 更适合什么时候进入 |
-|:---|:---|:---|
-| 多模态 | [多模态（Multimodal）](./multimodal/intro.md) | 当你要把图像、文本等多种输入接入训练、推理和评测时 |
+同一个 Part 02 或 Part 05 项目可以被多个专题引用，但只能有一个主叙事：主专题定义问题、质量协议和最终判断；关联专题只解释其中的机制或复用相应证据。例如，量化项目 67 的主叙事是量化部署，部署专题复用它的 artifact 与 backend 结论，性能专题复用其测量证据。
 
-**基础支撑专题**
+## 建设优先级
 
-这些专题更偏机制解释和背景支撑，常作为主路线的前置桥。监督微调与训练工程是后训练优化的 V1 前置支撑，不再作为当前主路线入口：
+1. 完成部署与异构的 Task2/3：07 兼容 gate、08 端边云放置已建立，下一步接入 72、81 与 Part 05 的真实项目字段。
+2. 完成数据工程的 Task0–2：全景、解析与清洗质量链。
+3. 完成 Agent 的 Task0–2 与多模态的 Task0–1，先建立各自的 workload、数据与环境概念。
+4. 继续收口性能优化与后训练优化的项目证据；算子优化在 Part 03/04 的实现资产稳定后继续下探。
 
-| 专题 | 主入口 | 更常服务哪条路线 |
-|:---|:---|:---|
-| 反向传播与训练机制 | [反向传播与训练机制（Backpropagation and Training Mechanics）](./backpropagation_training_mechanism/intro.md) | 训练微调、显存优化 |
-| 大模型架构 | [大模型架构（Model Architecture）](./model_architecture/intro.md) | 训练微调、推理优化 |
-| SFT / LoRA 基础模块 | [SFT / LoRA 基础模块](./post_training_optimization/sft_foundation/intro.md) | 后训练优化、训练项目 |
-| 图级优化与编译 | [算子优化支撑模块](./operator_optimization/graph_compiler/intro.md) | 算子优化、推理优化、系统优化 |
+## Part 05 收口
+
+[Part 05：综合项目与架构决策](../05_Integrated_Projects_and_Decisions/intro.md)负责将多条路线组合为真实工程项目：推理服务、训练优化、Agent、多模态，以及硬件、架构、引擎、部署和 TCO 选型。它不重复专题机制，而是要求项目说明候选、证据、约束、失败与最终决策。
