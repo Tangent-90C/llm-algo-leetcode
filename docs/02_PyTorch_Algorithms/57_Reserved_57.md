@@ -23,7 +23,7 @@
 **导语：** 先看上下游章节，再看这个预留页；这一页的作用是为后续扩展保留统一入口。
 - - [50. Preference Data and Evaluation | 偏好数据与评估](./50_Preference_Data_and_Evaluation.md)
 - - [51. Online DPO | 在线 DPO 变体](./51_Online_DPO.md)
-- - [60. LoRA Fine-Tuning Project | LoRA 微调项目](./60_LoRA_Fine_Tuning_Project.md)
+- - [62. Instruction Fine-Tuning Project | 指令微调项目](./62_Instruction_Fine_Tuning_Project.md)
 - - [61. Model Architecture Exploration | 架构验证](./61_Model_Architecture_Exploration.md)
 
 ### Step 1: 定义这个预留位的未来职责
