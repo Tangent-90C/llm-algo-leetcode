@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1720 860" role="img" aria-labelledby="title desc">
-  <title id="title">Cross Module Knowledge Map</title>
-  <desc id="desc">Knowledge navigation map for model architecture pages showing the order of core modules, representative models, MoE, and visual assets.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1720" height="860" viewBox="0 0 1720 860" role="img" aria-labelledby="title desc">
+  <title id="title">架构审计跨模块地图</title>
+  <desc id="desc">从输入表示和核心组件进入 Transformer 块，再连接代表模型、MoE 稀疏化和专项证据。</desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0%" stop-color="#f8fafc"/>
@@ -26,33 +26,33 @@
   </defs>
 
   <rect width="1720" height="860" fill="url(#bg)"/>
-  <text x="64" y="66" class="title">Cross Module Knowledge Map</text>
-  <text x="64" y="98" class="sub">How the topic pages connect: input, core block, model choices, sparse routing, and visual assets</text>
+  <text x="64" y="66" class="title">架构审计跨模块地图</text>
+  <text x="64" y="98" class="sub">从组件机制进入 Transformer 块组装，再把真实模型差异映射到训练、推理与系统证据</text>
 
   <rect x="70" y="160" width="260" height="110" class="box warm"/>
-  <text x="200" y="204" text-anchor="middle" class="label">01 Transformer Decoder</text>
-  <text x="200" y="232" text-anchor="middle" class="small">decoder-only / causal mask</text>
-  <text x="200" y="252" text-anchor="middle" class="small">the main structural origin</text>
+  <text x="200" y="204" text-anchor="middle" class="label">01 Transformer 解码器</text>
+  <text x="200" y="232" text-anchor="middle" class="small">仅解码器 / 因果掩码</text>
+  <text x="200" y="252" text-anchor="middle" class="small">现代生成模型的结构原点</text>
 
   <rect x="390" y="160" width="260" height="110" class="box blue"/>
-  <text x="520" y="204" text-anchor="middle" class="label">02 Tokenization / Embedding</text>
-  <text x="520" y="232" text-anchor="middle" class="small">tokens into hidden state</text>
-  <text x="520" y="252" text-anchor="middle" class="small">input representation layer</text>
+  <text x="520" y="204" text-anchor="middle" class="label">02 分词与嵌入</text>
+  <text x="520" y="232" text-anchor="middle" class="small">词元进入隐状态空间</text>
+  <text x="520" y="252" text-anchor="middle" class="small">输入表示与词表契约</text>
 
   <rect x="710" y="160" width="260" height="110" class="box blue"/>
-  <text x="840" y="204" text-anchor="middle" class="label">03 Norm Evolution</text>
-  <text x="840" y="232" text-anchor="middle" class="small">BatchNorm -> LayerNorm -> RMSNorm -> DyT</text>
-  <text x="840" y="252" text-anchor="middle" class="small">stability and depth control</text>
+  <text x="840" y="204" text-anchor="middle" class="label">03 归一化演进</text>
+  <text x="840" y="232" text-anchor="middle" class="small">BatchNorm → LayerNorm → RMSNorm → DyT</text>
+  <text x="840" y="252" text-anchor="middle" class="small">数值尺度、稳定性与深度</text>
 
   <rect x="1030" y="160" width="260" height="110" class="box green"/>
-  <text x="1160" y="204" text-anchor="middle" class="label">04 Attention Evolution</text>
-  <text x="1160" y="232" text-anchor="middle" class="small">MHA -> GQA -> MLA -> sparse attention</text>
-  <text x="1160" y="252" text-anchor="middle" class="small">cache, routing, long context</text>
+  <text x="1160" y="204" text-anchor="middle" class="label">04 注意力演进</text>
+  <text x="1160" y="232" text-anchor="middle" class="small">MHA → GQA → MLA → 稀疏注意力</text>
+  <text x="1160" y="252" text-anchor="middle" class="small">状态表示、访问范围与长上下文</text>
 
   <rect x="1350" y="160" width="300" height="110" class="box purple"/>
-  <text x="1500" y="204" text-anchor="middle" class="label">05 RoPE / Position Encoding</text>
-  <text x="1500" y="232" text-anchor="middle" class="small">position meets attention</text>
-  <text x="1500" y="252" text-anchor="middle" class="small">default modern choice</text>
+  <text x="1500" y="204" text-anchor="middle" class="label">05 RoPE 与位置编码</text>
+  <text x="1500" y="232" text-anchor="middle" class="small">位置如何进入注意力</text>
+  <text x="1500" y="252" text-anchor="middle" class="small">训练长度与外推边界</text>
 
   <path d="M 330 215 L 390 215" class="arrow"/>
   <path d="M 650 215 L 710 215" class="arrow"/>
@@ -60,24 +60,24 @@
   <path d="M 1290 215 L 1350 215" class="arrow"/>
 
   <rect x="210" y="360" width="300" height="120" class="box neutral"/>
-  <text x="360" y="404" text-anchor="middle" class="label">06 Block / Residual Path</text>
-  <text x="360" y="432" text-anchor="middle" class="small">how the parts are wired together</text>
-  <text x="360" y="454" text-anchor="middle" class="small">norm -> attention -> MLP -> residual</text>
+  <text x="360" y="404" text-anchor="middle" class="label">06 Transformer 块与残差路径</text>
+  <text x="360" y="432" text-anchor="middle" class="small">组件如何形成可堆叠单元</text>
+  <text x="360" y="454" text-anchor="middle" class="small">归一化 → 注意力 → MLP → 残差</text>
 
   <rect x="590" y="360" width="300" height="120" class="box neutral"/>
-  <text x="740" y="404" text-anchor="middle" class="label">07 MLP / FFN Evolution</text>
-  <text x="740" y="432" text-anchor="middle" class="small">dense -> gated -> MoE-ready</text>
-  <text x="740" y="454" text-anchor="middle" class="small">capacity and compute trade-off</text>
+  <text x="740" y="404" text-anchor="middle" class="label">07 MLP / FFN 演进</text>
+  <text x="740" y="432" text-anchor="middle" class="small">稠密 → 门控 → MoE 专家</text>
+  <text x="740" y="454" text-anchor="middle" class="small">容量、激活计算与参数效率</text>
 
   <rect x="970" y="360" width="350" height="120" class="box rose"/>
-  <text x="1145" y="404" text-anchor="middle" class="label">08 Representative Models</text>
+  <text x="1145" y="404" text-anchor="middle" class="label">08 代表模型结构</text>
   <text x="1145" y="432" text-anchor="middle" class="small">LLaMA / Mistral / Qwen / Gemma / DeepSeek</text>
-  <text x="1145" y="454" text-anchor="middle" class="small">how the modules are selected in practice</text>
+  <text x="1145" y="454" text-anchor="middle" class="small">核对真实模型如何组合组件</text>
 
   <rect x="1380" y="360" width="260" height="120" class="box rose"/>
-  <text x="1510" y="404" text-anchor="middle" class="label">09 MoE / Sparsity</text>
-  <text x="1510" y="432" text-anchor="middle" class="small">router / experts / top-k</text>
-  <text x="1510" y="454" text-anchor="middle" class="small">dense path turned sparse</text>
+  <text x="1510" y="404" text-anchor="middle" class="label">09 MoE 与稀疏化</text>
+  <text x="1510" y="432" text-anchor="middle" class="small">路由器 / 专家 / Top-k</text>
+  <text x="1510" y="454" text-anchor="middle" class="small">稠密 FFN 转为稀疏激活</text>
 
   <path d="M 510 310 C 510 340 360 338 360 360" class="arrow"/>
   <path d="M 840 310 C 840 340 740 338 740 360" class="arrow"/>
@@ -85,20 +85,20 @@
   <path d="M 1500 310 C 1500 340 1510 338 1510 360" class="arrow"/>
 
   <rect x="120" y="570" width="420" height="170" class="box neutral"/>
-  <text x="330" y="612" text-anchor="middle" class="label">10 Visual Assets</text>
-  <text x="150" y="648" class="small">Timeline, block overview, DeepSeek attention, MoE sparsity</text>
-  <text x="150" y="674" class="small">These are the visual anchors that compress the whole topic</text>
-  <text x="150" y="700" class="small">Use them as the entry point before jumping into detailed pages</text>
+  <text x="330" y="612" text-anchor="middle" class="label">10 线性注意力、SSM 与混合架构</text>
+  <text x="150" y="648" class="small">显式 KV：按需重读历史词元</text>
+  <text x="150" y="674" class="small">递推状态：固定大小状态持续更新</text>
+  <text x="150" y="700" class="small">混合层：为不同层分配不同记忆职责</text>
 
   <rect x="620" y="570" width="470" height="170" class="box neutral"/>
-  <text x="855" y="612" text-anchor="middle" class="label">Suggested reading flow</text>
-  <text x="650" y="648" class="small">01 -> 02 -> 03 -> 04 -> 05 -> 06 -> 07</text>
-  <text x="650" y="674" class="small">Then move to 08 for real models, 09 for sparse routing, 10 for charts</text>
-  <text x="650" y="700" class="small">This is a knowledge map, not a strict file list</text>
+  <text x="855" y="612" text-anchor="middle" class="label">建议阅读路径</text>
+  <text x="650" y="648" class="small">01 → 02 → 03 → 04 → 05 → 06 → 07</text>
+  <text x="650" y="674" class="small">再进入 08 真实模型、09 稀疏路由与 10 混合记忆</text>
+  <text x="650" y="700" class="small">按机制依赖学习，不按模型名称背诵</text>
 
   <rect x="1150" y="570" width="420" height="170" class="box neutral"/>
-  <text x="1360" y="612" text-anchor="middle" class="label">Cross links</text>
-  <text x="1180" y="648" class="small">02, 03, 04, 05 feed into 06</text>
-  <text x="1180" y="674" class="small">07 and 09 explain why dense FFN becomes sparse</text>
-  <text x="1180" y="700" class="small">08 joins module choices to actual model families</text>
+  <text x="1360" y="612" text-anchor="middle" class="label">跨模块关系</text>
+  <text x="1180" y="648" class="small">02–05 提供 Transformer 块的输入与核心分支</text>
+  <text x="1180" y="674" class="small">07 与 09 连接密集 FFN 和稀疏专家</text>
+  <text x="1180" y="700" class="small">08 与 10 将组件选择映射到真实模型家族</text>
 </svg>

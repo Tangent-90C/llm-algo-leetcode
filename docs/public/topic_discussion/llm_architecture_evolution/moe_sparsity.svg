@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 720" role="img" aria-labelledby="title desc">
-  <title id="title">MoE and Sparsity Evolution</title>
-  <desc id="desc">Dense FFN compared with MoE sparse routing, top-k experts, load balancing, and expert parallel.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="720" viewBox="0 0 1600 720" role="img" aria-labelledby="title desc">
+  <title id="title">MoE 与稀疏化演进</title>
+  <desc id="desc">对比稠密 FFN 与 MoE 稀疏路由，展示 Top-k 专家、负载均衡和专家并行带来的结构与系统变化。</desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0%" stop-color="#fbfaf8"/>
@@ -22,51 +22,51 @@
   </defs>
 
   <rect width="1600" height="720" fill="url(#bg)"/>
-  <text x="64" y="64" class="title">MoE / Sparsity Evolution</text>
-  <text x="64" y="96" class="sub">How router, experts, top-k selection, load balancing, and expert parallel replace a dense FFN</text>
+  <text x="64" y="64" class="title">MoE 演进：扩大参数容量，只激活少数专家</text>
+  <text x="64" y="96" class="sub">路由器、Top-k、负载均衡和专家并行共同把稠密 FFN 变成可执行的稀疏路径</text>
 
   <rect x="70" y="160" width="280" height="96" class="box" fill="#fff7ed" stroke="#f97316"/>
-  <text x="210" y="198" text-anchor="middle" class="label">Dense FFN</text>
-  <text x="210" y="224" text-anchor="middle" class="small">every token follows the same path</text>
+  <text x="210" y="198" text-anchor="middle" class="label">稠密 FFN</text>
+  <text x="210" y="224" text-anchor="middle" class="small">所有词元经过同一条路径</text>
 
   <rect x="410" y="160" width="280" height="96" class="box" fill="#f3e8ff" stroke="#7c3aed"/>
-  <text x="550" y="198" text-anchor="middle" class="label">Router</text>
-  <text x="550" y="224" text-anchor="middle" class="small">scores tokens against experts</text>
+  <text x="550" y="198" text-anchor="middle" class="label">路由器</text>
+  <text x="550" y="224" text-anchor="middle" class="small">计算词元对专家的偏好</text>
 
   <rect x="750" y="124" width="300" height="164" class="box" fill="#ecfccb" stroke="#65a30d"/>
-  <text x="900" y="160" text-anchor="middle" class="label">Experts</text>
+  <text x="900" y="160" text-anchor="middle" class="label">专家集合</text>
   <text x="900" y="188" text-anchor="middle" class="small">E1   E2   E3   E4</text>
-  <text x="900" y="214" text-anchor="middle" class="small">top-k sparse activation</text>
-  <text x="900" y="240" text-anchor="middle" class="small">higher total capacity</text>
+  <text x="900" y="214" text-anchor="middle" class="small">Top-k 稀疏激活</text>
+  <text x="900" y="240" text-anchor="middle" class="small">扩大总参数容量</text>
 
   <rect x="1110" y="160" width="300" height="96" class="box" fill="#eff6ff" stroke="#2563eb"/>
-  <text x="1260" y="198" text-anchor="middle" class="label">Combine</text>
-  <text x="1260" y="224" text-anchor="middle" class="small">weighted expert outputs</text>
+  <text x="1260" y="198" text-anchor="middle" class="label">结果聚合</text>
+  <text x="1260" y="224" text-anchor="middle" class="small">按路由权重合并专家输出</text>
 
   <path d="M 350 208 L 410 208" class="arrow dense"/>
   <path d="M 690 208 L 750 208" class="arrow sparse"/>
   <path d="M 1050 208 L 1110 208" class="arrow"/>
 
   <rect x="80" y="360" width="440" height="230" class="box" fill="#ffffff" stroke="#cbd5e1"/>
-  <text x="300" y="398" text-anchor="middle" class="label">Why MoE exists</text>
-  <text x="110" y="438" class="small">• Dense FFN is simple and stable, but every token pays the full cost.</text>
-  <text x="110" y="470" class="small">• MoE keeps total parameter capacity growing while activation cost stays sparse.</text>
-  <text x="110" y="502" class="small">• The router decides where the token goes; experts do the actual transform.</text>
-  <text x="110" y="534" class="small">• Top-k routing avoids evaluating every expert for every token.</text>
-  <text x="110" y="566" class="small">• Load balancing keeps routing from collapsing into a few hot experts.</text>
+  <text x="300" y="398" text-anchor="middle" class="label">为什么需要 MoE</text>
+  <text x="110" y="438" class="small">• 稠密 FFN 简单稳定，但每个词元都支付完整计算成本。</text>
+  <text x="110" y="470" class="small">• MoE 扩大总参数容量，同时保持每个词元的激活量稀疏。</text>
+  <text x="110" y="502" class="small">• 路由器决定词元去向，专家负责实际特征变换。</text>
+  <text x="110" y="534" class="small">• Top-k 避免每个词元执行全部专家。</text>
+  <text x="110" y="566" class="small">• 负载均衡防止少数热点专家吸收大部分词元。</text>
 
   <rect x="580" y="360" width="460" height="230" class="box" fill="#ffffff" stroke="#cbd5e1"/>
-  <text x="810" y="398" text-anchor="middle" class="label">Parallel system concerns</text>
-  <text x="610" y="438" class="small">• Token dispatch and gather are communication-heavy.</text>
-  <text x="610" y="470" class="small">• Expert parallel splits experts across devices.</text>
-  <text x="610" y="502" class="small">• Training and inference both need stable routing behavior.</text>
-  <text x="610" y="534" class="small">• Sparse patterns help only when hardware and layout are aligned.</text>
-  <text x="610" y="566" class="small">• The model problem becomes a systems problem very quickly.</text>
+  <text x="810" y="398" text-anchor="middle" class="label">并行系统约束</text>
+  <text x="610" y="438" class="small">• 词元分发 / 合并会引入高强度通信。</text>
+  <text x="610" y="470" class="small">• 专家并行把专家权重切分到不同设备。</text>
+  <text x="610" y="502" class="small">• 训练和推理都要求路由行为稳定。</text>
+  <text x="610" y="534" class="small">• 稀疏结构只有命中合适布局与 Kernel 才可能获益。</text>
+  <text x="610" y="566" class="small">• 架构容量问题会转化为通信、调度和负载问题。</text>
 
   <rect x="1090" y="360" width="440" height="230" class="box" fill="#ffffff" stroke="#cbd5e1"/>
-  <text x="1310" y="398" text-anchor="middle" class="label">MoE in one sentence</text>
-  <text x="1120" y="448" class="small">Router picks a few experts for each token,</text>
-  <text x="1120" y="482" class="small">experts provide capacity without making every token pay the full price,</text>
-  <text x="1120" y="516" class="small">and load balancing + expert parallel keep the whole thing trainable.</text>
-  <text x="1120" y="550" class="small">This is how dense MLP becomes sparse routing.</text>
+  <text x="1310" y="398" text-anchor="middle" class="label">MoE 的决策链</text>
+  <text x="1120" y="448" class="small">路由器为每个词元选择少数专家，</text>
+  <text x="1120" y="482" class="small">专家在不增加每个词元全量计算的前提下提供容量，</text>
+  <text x="1120" y="516" class="small">负载均衡与专家并行控制训练和执行代价。</text>
+  <text x="1120" y="550" class="small">最终要同时验证容量、质量、通信与尾延迟。</text>
 </svg>

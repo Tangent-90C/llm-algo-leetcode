@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 980" role="img" aria-labelledby="title desc">
-  <title id="title">Model Architecture Overview Map</title>
-  <desc id="desc">A top-level map showing how the model architecture topic flows from decoder and tokenization through norm, attention, RoPE, block assembly, model comparisons, MoE, and visual assets.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1760" height="980" viewBox="0 0 1760 980" role="img" aria-labelledby="title desc">
+  <title id="title">大模型架构演进总览</title>
+  <desc id="desc">从仅解码器主干、输入表示、归一化、注意力、RoPE 和 Transformer 块组装，连接到代表模型、MoE 与架构审计。</desc>
   <defs>
     <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
       <stop offset="0%" stop-color="#f8fafc"/>
@@ -26,33 +26,33 @@
   </defs>
 
   <rect width="1760" height="980" fill="url(#bg)"/>
-  <text x="68" y="70" class="title">Model architecture topic overview</text>
-  <text x="68" y="102" class="sub">A compact entry map for the whole topic: structure origin, modules, model choices, sparsity, and visual assets</text>
+  <text x="68" y="70" class="title">大模型架构演进总览</text>
+  <text x="68" y="102" class="sub">从结构原点进入组件演进，再用代表模型与架构审计检验结构选择</text>
 
   <rect x="80" y="150" width="300" height="110" class="box warm"/>
-  <text x="230" y="190" text-anchor="middle" class="label">01 Transformer Decoder</text>
-  <text x="230" y="218" text-anchor="middle" class="small">decoder-only origin</text>
-  <text x="230" y="240" text-anchor="middle" class="small">causal generation path</text>
+  <text x="230" y="190" text-anchor="middle" class="label">01 Transformer 解码器</text>
+  <text x="230" y="218" text-anchor="middle" class="small">仅解码器结构原点</text>
+  <text x="230" y="240" text-anchor="middle" class="small">因果生成主路径</text>
 
   <rect x="430" y="150" width="300" height="110" class="box blue"/>
-  <text x="580" y="190" text-anchor="middle" class="label">02 Tokenization / Embedding</text>
-  <text x="580" y="218" text-anchor="middle" class="small">BPE and input representation</text>
-  <text x="580" y="240" text-anchor="middle" class="small">text -> token -> hidden state</text>
+  <text x="580" y="190" text-anchor="middle" class="label">02 分词与嵌入</text>
+  <text x="580" y="218" text-anchor="middle" class="small">BPE 与输入表示</text>
+  <text x="580" y="240" text-anchor="middle" class="small">文本 → 词元 → 隐状态</text>
 
   <rect x="780" y="150" width="300" height="110" class="box blue"/>
-  <text x="930" y="190" text-anchor="middle" class="label">03 Norm Evolution</text>
+  <text x="930" y="190" text-anchor="middle" class="label">03 归一化演进</text>
   <text x="930" y="218" text-anchor="middle" class="small">BatchNorm -> LayerNorm -> RMSNorm -> DyT</text>
-  <text x="930" y="240" text-anchor="middle" class="small">training stability</text>
+  <text x="930" y="240" text-anchor="middle" class="small">训练稳定性与深度扩展</text>
 
   <rect x="1130" y="150" width="300" height="110" class="box green"/>
-  <text x="1280" y="190" text-anchor="middle" class="label">04 Attention Evolution</text>
-  <text x="1280" y="218" text-anchor="middle" class="small">MHA -> GQA -> MLA -> sparse attention</text>
-  <text x="1280" y="240" text-anchor="middle" class="small">cache, routing, long context</text>
+  <text x="1280" y="190" text-anchor="middle" class="label">04 注意力演进</text>
+  <text x="1280" y="218" text-anchor="middle" class="small">MHA → GQA → MLA → 稀疏注意力</text>
+  <text x="1280" y="240" text-anchor="middle" class="small">状态表示、访问范围与长上下文</text>
 
   <rect x="1480" y="150" width="200" height="110" class="box purple"/>
   <text x="1580" y="190" text-anchor="middle" class="label">05 RoPE</text>
-  <text x="1580" y="218" text-anchor="middle" class="small">position in Q / K</text>
-  <text x="1580" y="240" text-anchor="middle" class="small">context extension</text>
+  <text x="1580" y="218" text-anchor="middle" class="small">将位置写入 Q / K</text>
+  <text x="1580" y="240" text-anchor="middle" class="small">长度外推与缩放</text>
 
   <path d="M 380 205 L 430 205" class="arrow"/>
   <path d="M 730 205 L 780 205" class="arrow"/>
@@ -60,24 +60,24 @@
   <path d="M 1430 205 L 1480 205" class="arrow"/>
 
   <rect x="150" y="340" width="300" height="120" class="box neutral"/>
-  <text x="300" y="384" text-anchor="middle" class="label">06 Block / Residual Path</text>
-  <text x="300" y="412" text-anchor="middle" class="small">how modules are wired together</text>
-  <text x="300" y="434" text-anchor="middle" class="small">norm -> attention -> MLP -> residual</text>
+  <text x="300" y="384" text-anchor="middle" class="label">06 Transformer 块与残差路径</text>
+  <text x="300" y="412" text-anchor="middle" class="small">组件如何组装为可堆叠单元</text>
+  <text x="300" y="434" text-anchor="middle" class="small">归一化 → 注意力 → MLP → 残差</text>
 
   <rect x="520" y="340" width="300" height="120" class="box neutral"/>
-  <text x="670" y="384" text-anchor="middle" class="label">07 MLP / FFN Evolution</text>
-  <text x="670" y="412" text-anchor="middle" class="small">dense -> gated -> MoE-ready</text>
-  <text x="670" y="434" text-anchor="middle" class="small">capacity and compute trade-off</text>
+  <text x="670" y="384" text-anchor="middle" class="label">07 MLP / FFN 演进</text>
+  <text x="670" y="412" text-anchor="middle" class="small">稠密 → 门控 → MoE 专家</text>
+  <text x="670" y="434" text-anchor="middle" class="small">参数容量与激活计算的取舍</text>
 
   <rect x="890" y="340" width="360" height="120" class="box rose"/>
-  <text x="1070" y="384" text-anchor="middle" class="label">08 Representative Models</text>
+  <text x="1070" y="384" text-anchor="middle" class="label">08 代表模型结构</text>
   <text x="1070" y="412" text-anchor="middle" class="small">LLaMA / Mistral / Qwen / Gemma / DeepSeek</text>
-  <text x="1070" y="434" text-anchor="middle" class="small">what the module choices look like in real models</text>
+  <text x="1070" y="434" text-anchor="middle" class="small">在真实模型中核对组件组合</text>
 
   <rect x="1310" y="340" width="340" height="120" class="box rose"/>
-  <text x="1480" y="384" text-anchor="middle" class="label">09 MoE / Sparsity</text>
-  <text x="1480" y="412" text-anchor="middle" class="small">router / experts / top-k</text>
-  <text x="1480" y="434" text-anchor="middle" class="small">dense path turns sparse</text>
+  <text x="1480" y="384" text-anchor="middle" class="label">09 MoE 与稀疏化</text>
+  <text x="1480" y="412" text-anchor="middle" class="small">路由器 / 专家 / Top-k</text>
+  <text x="1480" y="434" text-anchor="middle" class="small">从稠密 FFN 到稀疏激活</text>
 
   <path d="M 580 260 C 580 300 300 300 300 340" class="arrow"/>
   <path d="M 930 260 C 930 300 670 300 670 340" class="arrow"/>
@@ -85,20 +85,20 @@
   <path d="M 1580 260 C 1580 300 1480 300 1480 340" class="arrow"/>
 
   <rect x="220" y="520" width="500" height="170" class="box neutral"/>
-  <text x="470" y="582" text-anchor="middle" class="label">10 Visual Assets</text>
-  <text x="250" y="620" class="small">timeline, block overview, model matrix, cross-module map</text>
-  <text x="250" y="648" class="small">these are the quick-entry assets for the whole topic</text>
-  <text x="250" y="676" class="small">they compress the topic into a glanceable set of diagrams</text>
+  <text x="470" y="582" text-anchor="middle" class="label">10 线性注意力、SSM 与混合架构</text>
+  <text x="250" y="620" class="small">显式历史访问与固定大小递推状态</text>
+  <text x="250" y="648" class="small">注意力层、SSM 层与混合层的职责分配</text>
+  <text x="250" y="676" class="small">比较检索能力、状态增长与长序列成本</text>
 
   <rect x="820" y="520" width="760" height="170" class="box neutral"/>
-  <text x="1200" y="582" text-anchor="middle" class="label">Suggested reading order</text>
-  <text x="860" y="620" class="small">01 -> 02 -> 03 -> 04 -> 05 -> 06 -> 07</text>
-  <text x="860" y="648" class="small">then 08 for real models, 09 for sparse routing, 10 for the diagram set</text>
-  <text x="860" y="676" class="small">the topic is organized as a knowledge path, not a loose file list</text>
+  <text x="1200" y="582" text-anchor="middle" class="label">建议学习顺序</text>
+  <text x="860" y="620" class="small">01 → 02 → 03 → 04 → 05 → 06 → 07</text>
+  <text x="860" y="648" class="small">再用 08 对照真实模型，进入 09 稀疏路由与 10 混合记忆</text>
+  <text x="860" y="676" class="small">沿结构依赖学习，而不是按文件清单记忆</text>
 
   <rect x="220" y="720" width="1360" height="140" class="box neutral"/>
-  <text x="900" y="760" text-anchor="middle" class="label">How to use this page</text>
-  <text x="250" y="796" class="small">Use it when you want the whole topic in one glance.</text>
-  <text x="250" y="822" class="small">Then jump into a single module page or the visual asset page depending on the question you are solving.</text>
-  <text x="250" y="848" class="small">This is the top of the topic hierarchy, not a replacement for the detailed pages.</text>
+  <text x="900" y="760" text-anchor="middle" class="label">最终能力出口</text>
+  <text x="250" y="796" class="small">能够从配置和模块树识别结构，不只记住模型名称。</text>
+  <text x="250" y="822" class="small">能够解释组件替换改变了哪些训练状态、推理状态、容量和执行约束。</text>
+  <text x="250" y="848" class="small">能够在固定工作负载下比较候选架构，并给出采用、调优或拒绝结论。</text>
 </svg>
