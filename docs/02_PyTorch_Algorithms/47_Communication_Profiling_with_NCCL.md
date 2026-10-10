@@ -1,11 +1,11 @@
-# 46. Communication Profiling with NCCL | NCCL 通信剖析
+# 47. Communication Profiling with NCCL | NCCL 通信剖析
 **难度：** Hard | **环境：** CPU-first | **标签：** `并行通信`, `NCCL`, `性能剖析` | **目标人群：** 并行通信学习者
 
 > 🚀 **云端运行环境**
 >
 > 本章节的实战代码可以点击以下链接在免费 GPU 算力平台上直接运行：
 >
-> [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/datawhalechina/llm-algo-leetcode/blob/main/02_PyTorch_Algorithms/46_Communication_Profiling_with_NCCL.ipynb)
+> [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/datawhalechina/llm-algo-leetcode/blob/main/02_PyTorch_Algorithms/47_Communication_Profiling_with_NCCL.ipynb)
 > [![Open In Studio](https://img.shields.io/badge/Open%20In-ModelScope-blueviolet?logo=alibabacloud)](https://modelscope.cn/my/mynotebook) *(国内推荐：魔搭社区免费实例)*
 
 
@@ -56,11 +56,11 @@ total_communication_time ≈ sync_count × single_collective_time
 | ReduceScatter | 梯度或部分和 | 聚合后保留本 rank 分片 | 分片均衡、后续依赖 |
 | All-to-All | token / expert payload | 各 rank 按目的地交换数据 | 负载偏斜、跨节点流量 |
 
-![NCCL 通信分析总览](../public/02_PyTorch_Algorithms/46_nccl_profiling_overview.svg)
+![NCCL 通信分析总览](../public/02_PyTorch_Algorithms/47_nccl_profiling_overview.svg)
 
 ### Step 2：通信时间线需要记录什么
 
-真实 NCCL、PyTorch Profiler 或 Nsight Systems 的输出形式不同，但都能整理为统一的时间线事件。以下四类字段共同描述发生了什么、持续多久、传输了多少，以及哪些时间没有被计算隐藏。
+真实 NCCL、PyTorch Profiler 或 Nsight Systems 的输出形式不同，但都能整理为统一的时间线事件。本节 CPU 事件的 `start / end / duration` 统一使用毫秒；接入真实 Trace 时必须先完成单位归一化。以下四类字段共同描述发生了什么、持续多久、传输了多少，以及哪些时间没有被计算隐藏。
 
 | 证据 | 典型字段 | 用途 |
 |------|----------|------|
@@ -82,7 +82,7 @@ total_communication_time ≈ sync_count × single_collective_time
 
 有效重叠时间来自通信区间与计算区间的交集，暴露通信时间则是通信中未被覆盖的剩余部分。若多个计算区间相互重叠，不能重复累计同一段通信；因此要先合并覆盖范围，再判断可隐藏时间。
 
-![通信事件如何读时间线](../public/02_PyTorch_Algorithms/46_collective_trace.svg)
+![通信事件如何读时间线](../public/02_PyTorch_Algorithms/47_collective_trace.svg)
 
 ### Step 4：CPU 机制实现——从时间线到热点
 
@@ -106,6 +106,7 @@ from typing import Any, Dict, List
 ```python
 @dataclass
 class CommEvent:
+    """一条 CPU 时间线事件；start / end 的单位统一为毫秒。"""
     op: str
     start: float
     end: float
@@ -188,6 +189,26 @@ class NCCLProfilerSim:
             "by_op": by_op,
         }
 
+    @staticmethod
+    def export_hotspot_events(summary: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """将本节汇总转换为第 48 节可直接消费的热点事件字段。"""
+        events: List[Dict[str, Any]] = []
+        for collective, item in summary["by_op"].items():
+            total_comm_ms = float(item["time"])
+            exposed_comm_ms = float(item["exposed_time"])
+            hidden_comm_ms = max(total_comm_ms - exposed_comm_ms, 0.0)
+            events.append({
+                "collective": collective,
+                "sync_count": int(item["count"]),
+                "total_comm_ms": total_comm_ms,
+                "exposed_comm_ms": exposed_comm_ms,
+                "payload_bytes": int(item["bytes"]),
+                "overlap_ratio": hidden_comm_ms / max(total_comm_ms, 1e-8),
+                "rank_imbalance_ratio": None,
+                "rank_imbalance_observed": False,
+            })
+        return events
+
     def find_priority_hotspot(self, summary: Dict[str, Any]) -> Dict[str, Any]:
         """从按 op 汇总的证据中找出最优先处理的 exposed communication hotspot。"""
         # ==========================================
@@ -256,6 +277,14 @@ def test_nccl_summary_contract():
         hotspot = _build_profiler_fixture().find_priority_hotspot(summary)
         assert hotspot['op'] == 'all_reduce'
         assert round(hotspot['exposed_time'], 6) == 1.0
+        exported = NCCLProfilerSim.export_hotspot_events(summary)
+        all_reduce = next(item for item in exported if item['collective'] == 'all_reduce')
+        assert all_reduce['sync_count'] == 2
+        assert all_reduce['payload_bytes'] == 160 * 1024
+        assert round(all_reduce['total_comm_ms'], 6) == 2.5
+        assert round(all_reduce['exposed_comm_ms'], 6) == 1.0
+        assert all_reduce['rank_imbalance_ratio'] is None
+        assert all_reduce['rank_imbalance_observed'] is False
     except NotImplementedError as e:
         raise NotImplementedError('请先完成 TODO 代码！') from e
     except (AttributeError, NameError, TypeError, ValueError, AssertionError) as e:
@@ -302,6 +331,7 @@ print('✅ NCCLProfilerSim 测试通过')
 
 @dataclass
 class CommEvent:
+    """一条 CPU 时间线事件；start / end 的单位统一为毫秒。"""
     op: str
     start: float
     end: float
@@ -395,6 +425,26 @@ class NCCLProfilerSim:
             "by_op": by_op,
         }
 
+    @staticmethod
+    def export_hotspot_events(summary: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """将本节汇总转换为第 48 节可直接消费的热点事件字段。"""
+        events: List[Dict[str, Any]] = []
+        for collective, item in summary["by_op"].items():
+            total_comm_ms = float(item["time"])
+            exposed_comm_ms = float(item["exposed_time"])
+            hidden_comm_ms = max(total_comm_ms - exposed_comm_ms, 0.0)
+            events.append({
+                "collective": collective,
+                "sync_count": int(item["count"]),
+                "total_comm_ms": total_comm_ms,
+                "exposed_comm_ms": exposed_comm_ms,
+                "payload_bytes": int(item["bytes"]),
+                "overlap_ratio": hidden_comm_ms / max(total_comm_ms, 1e-8),
+                "rank_imbalance_ratio": None,
+                "rank_imbalance_observed": False,
+            })
+        return events
+
     def find_priority_hotspot(self, summary: Dict[str, Any]) -> Dict[str, Any]:
         """从按 op 汇总的证据中找出最优先处理的 exposed communication hotspot。"""
         # ==========================================
@@ -439,87 +489,123 @@ class NCCLProfilerSim:
 
 ### Step 5：可选 GPU 复测——NCCL collective 规模基准
 
-先用 CPU 实验理解“什么时间会暴露在关键路径上”，再在真实多卡环境中比较四类 collective 随 payload 增长的时间与有效带宽。
+先用 CPU 实验理解“什么时间会暴露在关键路径上”，再在真实多卡环境中比较 collective 随 payload 增长的时间与有效带宽，并区分请求的 NCCL 算法与日志中实际观察到的算法。
 
 | 学习问题 | CPU 已确认 | GPU 要确认与后续使用 |
 | --- | --- | --- |
-| collective 类型与 payload 如何改变通信成本 | 时间区间、有效 overlap、按 op 聚合与优先热点 | 比较 All-Reduce、All-Gather、Reduce-Scatter、All-to-All 的规模曲线，再到 48、79 对照真实 workload trace |
+| collective 类型、payload 与算法选择如何改变通信成本 | 时间区间、有效 overlap、按 op 聚合与优先热点 | 比较 All-Reduce、显式 Reduce-Scatter + All-Gather、其他 collective 及 Auto/Ring/Tree，再到 48、79 对照真实 workload trace |
 
 #### 5.1 环境与固定 workload
 
-默认关闭；以下配置固定 world size、dtype、payload 梯度、warmup 与重复次数。
+安装与双卡预检见通信专题 Quickstart。本单元只固定这次比较使用的 world size、dtype、payload 梯度、warmup、重复次数和运行标签。
 
 | 类别 | 固定并记录的字段 | 用途 |
 | --- | --- | --- |
 | 运行环境 | GPU 数、PyTorch / CUDA、NCCL、world size | 确认 collective 可启动 |
 | workload | backend、每 rank payload、warmup、repeats | 固定通信规模与运行方式 |
-| 对照矩阵 | 四类 collective × 多档 payload | 区分启动延迟区与带宽主导区 |
-| 输出 | `TRACE_PATH`、默认关闭开关 | 保存 JSON 与 failure |
+| 算法证据 | `algorithm_requested`、`algorithm_observed`、NCCL 日志 | 请求值不等于实际执行证据 |
+| 对照矩阵 | collective × payload × Auto/Ring/Tree | 区分启动延迟区、带宽主导区和算法适用区 |
+| 输出 | 每种算法独立 JSON 与日志、默认关闭开关 | 保存指标、failure 与算法证据 |
 
 ```python
-# 默认关闭；确认至少有两张 CUDA GPU 后再改为 True。
 from pathlib import Path
 
-RUN_NCCL_BENCHMARK = False
+RUN_MODE = 'dry_run'  # 默认 dry_run；双卡 Profile 预检通过后改为 real_gpu。
+RUN_LABEL = 'default'  # 默认 default；正式复测改为唯一标签并保留历史 JSON。
+ENVIRONMENT_PROFILE = 'PAR-CUDA-MECHANISM'  # 通信机制页统一使用的双卡环境。
+WORKLOAD_ID = 'par-nccl-collective-matrix'  # collective × payload × NCCL 算法配对矩阵。
 WORLD_SIZE = 2  # 真实 NCCL collective 最少需要两个 rank。
 BACKEND = 'nccl'  # GPU collective 使用 NCCL。
-DTYPE = 'float32'
-PAYLOAD_ELEMENTS = [256 * 1024, 1024 * 1024, 4 * 1024 * 1024]
-WARMUP = 5
-REPEATS = 20
-RESULTS_DIR = Path('benchmarks/results/46_communication_profiling')
-TRACE_PATH = RESULTS_DIR / 'gpu_nccl_collective_matrix.json'
-TORCHRUN = [
+NCCL_ALGORITHMS = ['Auto', 'Ring', 'Tree']  # Auto 不设置 NCCL_ALGO；其余候选显式请求。
+DTYPE = 'float32'  # 固定元素类型，避免 payload 字节数随候选变化。
+PAYLOAD_ELEMENTS = [256 * 1024, 1024 * 1024, 4 * 1024 * 1024]  # 每 rank 的元素数梯度。
+WARMUP = 5  # 每个候选的预热轮数，不进入统计。
+REPEATS = 20  # 每个候选的正式重复轮数，用于 median / P95。
+RESULTS_DIR = Path('benchmarks/results/47_communication_profiling')
+TRACE_PATHS = {name: RESULTS_DIR / f'gpu_nccl_{name.lower()}_{RUN_LABEL}.json' for name in NCCL_ALGORITHMS}
+LOG_PATHS = {name: RESULTS_DIR / f'gpu_nccl_{name.lower()}_{RUN_LABEL}.log' for name in NCCL_ALGORITHMS}
+TORCHRUN_BASE = [
     'torchrun', '--standalone', '--nproc_per_node', str(WORLD_SIZE),
     'tools/run_parallel_mechanism_benchmark.py', '--mode', 'collective_matrix',
     '--payload-elements', ','.join(map(str, PAYLOAD_ELEMENTS)), '--dtype', DTYPE,
-    '--warmup', str(WARMUP), '--repeats', str(REPEATS), '--output', str(TRACE_PATH),
+    '--warmup', str(WARMUP), '--repeats', str(REPEATS),
 ]
-print({'enabled': RUN_NCCL_BENCHMARK, 'world_size': WORLD_SIZE, 'payload_elements': PAYLOAD_ELEMENTS, 'result': str(TRACE_PATH)})
+print({'run_mode': RUN_MODE, 'profile': ENVIRONMENT_PROFILE, 'world_size': WORLD_SIZE, 'algorithms': NCCL_ALGORITHMS, 'payload_elements': PAYLOAD_ELEMENTS, 'results': {k: str(v) for k, v in TRACE_PATHS.items()}})
 ```
 
 #### 5.2 执行 collective 并保存结果
 
-运行后仅 rank 0 写入 JSON。每一行对应一种 collective 与一档 payload，并记录最慢 rank 时间、各 rank 时间和有效 payload 带宽。
+每个算法候选单独启动一次 `torchrun`。rank 0 写入 JSON，父进程保留 NCCL 日志并扫描 Ring/Tree 证据；若日志没有明确算法，`algorithm_observed` 保持 `unconfirmed`，不能用请求值替代观察值。
 
 ```python
-if RUN_NCCL_BENCHMARK:
+if RUN_MODE == 'real_gpu':
+    import json
+    import os
+    import re
     import subprocess
     import torch
     if torch.cuda.device_count() < WORLD_SIZE:
         raise RuntimeError(f'需要至少 {WORLD_SIZE} 张 CUDA GPU，当前只有 {torch.cuda.device_count()} 张。')
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    subprocess.run(TORCHRUN, check=True)
+    for algorithm in NCCL_ALGORITHMS:
+        env = os.environ.copy()
+        env['NCCL_DEBUG'] = 'INFO'
+        if algorithm == 'Auto':
+            env.pop('NCCL_ALGO', None)
+        else:
+            env['NCCL_ALGO'] = algorithm
+        command = TORCHRUN_BASE + [
+            '--run-label', RUN_LABEL, '--workload-id', WORKLOAD_ID,
+            '--output', str(TRACE_PATHS[algorithm]),
+        ]
+        completed = subprocess.run(command, env=env, text=True, capture_output=True)
+        log_text = completed.stdout + '\n' + completed.stderr
+        LOG_PATHS[algorithm].write_text(log_text, encoding='utf-8')
+        if completed.returncode != 0:
+            raise RuntimeError(f'{algorithm} benchmark 失败；查看 {LOG_PATHS[algorithm]}')
+        record = json.loads(TRACE_PATHS[algorithm].read_text(encoding='utf-8'))
+        observed = sorted({item.title() for item in re.findall(r'(?i)\b(ring|tree)\b', log_text)})
+        record['workload']['algorithm_observed'] = observed if observed else 'unconfirmed'
+        record['artifacts'] = {'nccl_log': str(LOG_PATHS[algorithm])}
+        TRACE_PATHS[algorithm].write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding='utf-8')
 else:
-    print('跳过 NCCL benchmark：将 RUN_NCCL_BENCHMARK 改为 True 后执行 5.2。')
+    print('dry_run：完成配置检查后，将 RUN_MODE 改为 real_gpu 再执行 5.2。')
 ```
 
-#### 5.3 读取结果、解释指标与形成决策
+#### 5.3 读取结果
 
-先检查运行状态，再按 operation 和 payload 排序结果。小 payload 主要暴露启动成本，大 payload 更能反映链路带宽；该曲线用于解释 48 的热点，不替代 79 的端到端扩展效率。
+读取每种请求算法的结果和日志证据，并按 `collective` 与 payload 展开原始行。解释和决策集中放在 5.4。
 
 ```python
 import json
 
-if not TRACE_PATH.exists():
-    print(f'尚无 GPU 结果：先运行 5.2，预期路径为 {TRACE_PATH}')
+available = {name: path for name, path in TRACE_PATHS.items() if path.exists()}
+if not available:
+    print(f'尚无 GPU 结果：先运行 5.2，预期目录为 {RESULTS_DIR}')
 else:
-    record = json.loads(TRACE_PATH.read_text(encoding='utf-8'))
-    metrics = record.get('metrics', {})
-    print({
-        'decision': record.get('decision'),
-        'evidence_level': record.get('evidence_level'),
-        'failure': record.get('failure'),
-        'rows': metrics.get('rows', []),
-    })
+    for algorithm, path in available.items():
+        record = json.loads(path.read_text(encoding='utf-8'))
+        workload = record.get('workload', {})
+        print({
+            'algorithm_requested': workload.get('algorithm_requested'),
+            'algorithm_observed': workload.get('algorithm_observed'),
+            'decision': record.get('decision'),
+            'evidence_level': record.get('evidence_level'),
+            'failure': record.get('failure'),
+            'rows': record.get('metrics', {}).get('rows', []),
+        })
 ```
 
-| 读取项 | 判断与下一步 |
-| --- | --- |
-| 运行状态 | `failure` 非空时记录 NCCL 或多进程初始化问题，不比较耗时 |
-| 可比口径 | `world_size / backend / payload / environment` 必须与对照一致 |
-| 核心指标 | 按 operation / payload 读取最慢 rank 时间、rank 离散度与有效带宽 |
-| 结论 | 用 `evidence_level / decision` 决定是否到 48、79 采集真实 workload trace |
+#### 5.4 解释证据并形成决策
+
+小 payload 更容易暴露 collective 启动成本，大 payload 更能反映链路带宽。显式 Reduce-Scatter + All-Gather 用于验证两阶段语义，不代表 NCCL 内部一定选择 Ring；请求算法只有得到日志或 Profiler 支持时才能写成观察到的执行路径。
+
+| 观察项 | 读取字段 | 当前结果 | 解释与动作 |
+| --- | --- | --- | --- |
+| 运行与可比性 | `failure`、`world_size`、`dtype`、`warmup`、`repeats` | 运行后填写 | 失败时保留日志，不比较耗时 |
+| 算法路径 | `algorithm_requested`、`algorithm_observed` | 运行后填写 | 未观察到时标记 `unconfirmed`，不以请求值代替 |
+| 启动与带宽区间 | `collective`、`payload_bytes_per_rank`、`median_max_rank_ms`、`p95_max_rank_ms`、`effective_payload_gbps` | 运行后填写 | 找到 payload 增长后的延迟拐点和带宽平台 |
+| 下一步 | `evidence_level`、`decision` | 运行后填写 | 通过后进入 48，验证真实调度中的暴露通信 |
 ## 相关阅读
 
 想把本节的时间线判断用于真实工作负载，可继续查看 profiler 工具、通信热点归因与多卡项目证据。
@@ -528,5 +614,5 @@ else:
 - [PyTorch Profiler 文档](https://pytorch.org/docs/stable/profiler.html)
 - [NVIDIA Nsight Systems 文档](https://docs.nvidia.com/nsight-systems/)
 - [48. Communication Hotspots and Mitigation | 通信热点与缓解策略](./48_Communication_Hotspots_and_Mitigation.md)
-- [47. MoE Expert Parallel | MoE 专家并行](./47_MoE_Expert_Parallel.md)
+- [46. MoE Expert Parallel | MoE 专家并行](./46_MoE_Expert_Parallel.md)
 - [79. Distributed Parallel Benchmark | 分布式并行 Benchmark](./79_Distributed_Parallel_Benchmark.md)

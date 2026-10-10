@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">MoE Dispatch 与 Combine 数据流</title>
+  <desc id="desc">Token 表示携带 token id、专家 id 和路由权重，通过容量门控、分组发送、专家计算和回程合并恢复原 token 顺序；旁路记录溢出、负载和跨 rank 字节。</desc>
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#475569"/></marker>
+    <style>
+      .title{font:700 26px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.label{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.body{font:500 13px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.edge{fill:none;stroke:#475569;stroke-width:3;marker-end:url(#arrow)}.observe{fill:none;stroke:#64748b;stroke-width:2;stroke-dasharray:7 6;marker-end:url(#arrow)}.edgeText{font:600 12px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.box{stroke-width:2.5;rx:14}
+    </style>
+  </defs>
+  <rect width="1200" height="620" fill="#f8fafc"/>
+  <text x="48" y="48" class="title">Dispatch / Combine：数据怎样出去，又怎样回到原 token</text>
+  <text x="48" y="76" class="sub">路由索引和权重随表示一起流动；通信代价是旁路证据，不是参与合并的数据分支。</text>
+
+  <rect x="36" y="150" width="166" height="92" class="box" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="119" y="184" text-anchor="middle" class="label">Token 表示</text><text x="119" y="208" text-anchor="middle" class="body">token id · hidden</text>
+  <rect x="238" y="150" width="166" height="92" class="box" fill="#eef2ff" stroke="#6366f1"/>
+  <text x="321" y="184" text-anchor="middle" class="label">路由索引</text><text x="321" y="208" text-anchor="middle" class="body">expert id · weight</text>
+  <rect x="440" y="150" width="166" height="92" class="box" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="523" y="184" text-anchor="middle" class="label">容量门控</text><text x="523" y="208" text-anchor="middle" class="body">accepted · overflow</text>
+  <rect x="642" y="150" width="174" height="92" class="box" fill="#fef3c7" stroke="#d97706"/>
+  <text x="729" y="184" text-anchor="middle" class="label">Dispatch 打包</text><text x="729" y="208" text-anchor="middle" class="body">按 owner rank 分组</text>
+  <rect x="852" y="150" width="174" height="92" class="box" fill="#ecfccb" stroke="#65a30d"/>
+  <text x="939" y="184" text-anchor="middle" class="label">专家计算</text><text x="939" y="208" text-anchor="middle" class="body">All-to-All 后执行</text>
+
+  <rect x="852" y="332" width="174" height="92" class="box" fill="#f5f3ff" stroke="#8b5cf6"/>
+  <text x="939" y="366" text-anchor="middle" class="label">Combine 回程</text><text x="939" y="390" text-anchor="middle" class="body">结果 + token id + weight</text>
+  <rect x="642" y="332" width="174" height="92" class="box" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="729" y="366" text-anchor="middle" class="label">原序输出</text><text x="729" y="390" text-anchor="middle" class="body">按 token id 加权累加</text>
+  <rect x="238" y="474" width="368" height="82" class="box" fill="#e0f2fe" stroke="#0284c7"/>
+  <text x="422" y="508" text-anchor="middle" class="label">旁路账本</text><text x="422" y="532" text-anchor="middle" class="body">accepted / overflow · rank 负载 · 跨 rank 往返字节</text>
+
+  <path d="M202 196 H238" class="edge"/>
+  <path d="M404 196 H440" class="edge"/>
+  <path d="M606 196 H642" class="edge"/>
+  <path d="M816 196 H852" class="edge"/>
+  <text x="820" y="184" class="edgeText">All-to-All</text>
+  <path d="M939 242 V332" class="edge"/>
+  <text x="950" y="291" class="edgeText">回程</text>
+  <path d="M852 378 H816" class="edge"/>
+  <path d="M523 242 C510 330 470 407 438 474" class="observe"/>
+  <path d="M729 242 C690 340 582 430 520 474" class="observe"/>
+  <path d="M939 424 C820 485 690 508 606 515" class="observe"/>
+</svg>

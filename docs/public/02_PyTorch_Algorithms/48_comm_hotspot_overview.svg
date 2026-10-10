@@ -1,11 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" role="img" aria-labelledby="t d">
-<title id="t">通信热点识别总览</title><desc id="d">从通信时间线和指标识别带宽、延迟或等待热点，再选择对应缓解动作。</desc>
-<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><style>.h{font:700 26px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.s{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.l{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.b{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:3;rx:16}.f{stroke:#475569;stroke-width:4;fill:none;marker-end:url(#a)}</style></defs>
-<rect width="1200" height="500" fill="#f8fafc"/><text x="50" y="55" class="h">通信热点：先定位，再缓解</text><text x="50" y="83" class="s">不同热点对应不同动作，不能把所有慢都归因于一个 collective。</text>
-<rect x="55" y="190" width="220" height="110" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="165" y="232" text-anchor="middle" class="l">Trace / 指标</text><text x="165" y="263" text-anchor="middle" class="b">耗时 · 带宽 · 等待</text>
-<rect x="345" y="190" width="220" height="110" class="box" fill="#fef3c7" stroke="#d97706"/><text x="455" y="232" text-anchor="middle" class="l">热点分类</text><text x="455" y="263" text-anchor="middle" class="b">带宽 · 延迟 · 等待链</text>
-<rect x="635" y="115" width="220" height="100" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="745" y="155" text-anchor="middle" class="l">带宽受限</text><text x="745" y="185" text-anchor="middle" class="b">消息量或拓扑</text>
-<rect x="635" y="260" width="220" height="100" class="box" fill="#fff1f2" stroke="#e11d48"/><text x="745" y="300" text-anchor="middle" class="l">延迟 / 等待</text><text x="745" y="330" text-anchor="middle" class="b">小消息或同步链</text>
-<rect x="930" y="190" width="210" height="110" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="1035" y="232" text-anchor="middle" class="l">缓解方案</text><text x="1035" y="263" text-anchor="middle" class="b">bucket · overlap · 分组</text>
-<path d="M275 245H345M565 235L635 165M565 265L635 310M855 165L930 225M855 310L930 265" class="f"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">通信热点证据：从 trace 到优先 collective</title>
+  <desc id="desc">固定 workload 下的通信 trace 分别提供暴露通信时间、传输量、重叠比例和 rank 不均衡信号，汇总后选择优先检查的 collective。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+    <style>.title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.group{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.node{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.body{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:2.5;rx:14}.shell{stroke-width:2.5;stroke-dasharray:7 6;rx:18}.arrow{stroke:#475569;stroke-width:3;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1200" height="620" fill="#f8fafc"/>
+  <text x="48" y="54" class="title">通信热点：先建立证据，再选择优先 collective</text>
+  <text x="48" y="82" class="sub">总通信时间只是起点；要判断关键路径热点，还要同时观察暴露时间、传输量、重叠与 rank 差异。</text>
+  <rect x="415" y="112" width="370" height="72" class="box" fill="#eef2ff" stroke="#6366f1"/>
+  <text x="600" y="143" text-anchor="middle" class="node">固定 workload 下的通信 trace</text>
+  <text x="600" y="168" text-anchor="middle" class="body">collective · 时间区间 · rank</text>
+
+  <rect x="58" y="240" width="246" height="165" class="shell" fill="#f0fdf4" stroke="#22c55e"/>
+  <text x="82" y="269" class="group">关键路径信号</text>
+  <rect x="82" y="291" width="198" height="78" class="box" fill="#fff" stroke="#22c55e"/>
+  <text x="181" y="322" text-anchor="middle" class="node">暴露通信时间</text>
+  <text x="181" y="347" text-anchor="middle" class="body">没有被计算隐藏的部分</text>
+
+  <rect x="337" y="240" width="246" height="165" class="shell" fill="#fff7ed" stroke="#f97316"/>
+  <text x="361" y="269" class="group">传输压力信号</text>
+  <rect x="361" y="291" width="198" height="78" class="box" fill="#fff" stroke="#f97316"/>
+  <text x="460" y="322" text-anchor="middle" class="node">payload 与次数</text>
+  <text x="460" y="347" text-anchor="middle" class="body">数据量与 collective 频率</text>
+
+  <rect x="616" y="240" width="246" height="165" class="shell" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="640" y="269" class="group">调度信号</text>
+  <rect x="640" y="291" width="198" height="78" class="box" fill="#fff" stroke="#3b82f6"/>
+  <text x="739" y="322" text-anchor="middle" class="node">重叠比例</text>
+  <text x="739" y="347" text-anchor="middle" class="body">计算覆盖通信的程度</text>
+
+  <rect x="895" y="240" width="246" height="165" class="shell" fill="#fdf2f8" stroke="#db2777"/>
+  <text x="919" y="269" class="group">协同信号</text>
+  <rect x="919" y="291" width="198" height="78" class="box" fill="#fff" stroke="#db2777"/>
+  <text x="1018" y="322" text-anchor="middle" class="node">rank 不均衡</text>
+  <text x="1018" y="347" text-anchor="middle" class="body">到达与完成时间差异</text>
+
+  <rect x="390" y="477" width="420" height="100" class="box" fill="#f5f3ff" stroke="#8b5cf6"/>
+  <text x="600" y="515" text-anchor="middle" class="node">按 collective 汇总并选择优先热点</text>
+  <text x="600" y="543" text-anchor="middle" class="body">比较总暴露时间，同时保留最差重叠与最大 rank 差异</text>
+  <path d="M600 184V210H181V240M600 210H460V240M600 210H739V240M600 210H1018V240" class="arrow"/>
+  <path d="M181 405V438H480V477M460 405V438H560V477M739 405V438H640V477M1018 405V438H720V477" class="arrow"/>
 </svg>

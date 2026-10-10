@@ -26,7 +26,7 @@
 - [28. Pipeline Parallelism MicroBatch | Pipeline 并行与 MicroBatch](./28_Pipeline_Parallelism_MicroBatch.md)
 - [29. Tensor Parallelism Sim | Tensor Parallelism 模拟](./29_Tensor_Parallelism_Sim.md)
 - [PAR-CONTEXT. Context and Sequence Parallelism | 上下文与序列并行](./PAR-CONTEXT_Context_and_Sequence_Parallelism.md)
-- [47. MoE Expert Parallel | MoE 专家并行](./47_MoE_Expert_Parallel.md)
+- [46. MoE Expert Parallel | MoE 专家并行](./46_MoE_Expert_Parallel.md)
 - [PAR-REPLICA. Serving Replica Routing | Serving 副本与请求路由](./PAR-REPLICA_Serving_Replica_Routing.md)
 
 ---
@@ -46,7 +46,7 @@
 
 ![并行策略选择总览](../public/02_PyTorch_Algorithms/49_parallel_strategy_overview.svg)
 
-### Step 2: 用约束生成并行候选
+### Step 2：用约束生成并行候选
 
 并行方式不是互斥菜单。ZeRO 处理训练状态，TP 切层内张量，PP 切模型层，CP 切长序列，EP 切专家；Serving 副本不切模型，而是分发独立请求。候选排序还要满足模型结构、workload 与互联条件。
 
@@ -63,7 +63,7 @@
 
 ### Step 3：比较风险并设计复测
 
-候选排序只是开始。对每个候选固定同一模型、batch、序列长度和精度后，再同时读取容量、step time、通信暴露时间和负载分布；否则无法判断收益来自策略本身还是 workload 变化。
+候选排序只是开始。对每个候选固定同一模型、batch、序列长度和精度后，再读取容量、最大 rank 时间、通信量和负载分布。47 提供 `collective / payload_bytes_per_rank / median_max_rank_ms / p95_max_rank_ms`，48 在同一口径上增加配对调度收益；只有真实 Trace 提供 `exposed_comm_ms` 和 step time 时，才计算 49 使用的 `comm_exposed_ratio`。
 
 | 方案已被排到前列时 | 需要保留的证据 | 出现什么情况要回调策略 |
 | --- | --- | --- |
@@ -74,21 +74,15 @@
 | CP / Sequence Parallel | 序列通信量、暴露通信时间、单 rank 状态 | 通信增长抵消长上下文容量收益 |
 | Serving 副本 | 各副本队列、缓存命中、P95 / P99 | 吞吐增加但请求或缓存分布持续偏斜 |
 
-![并行候选的收益与代价](../public/02_PyTorch_Algorithms/49_strategy_tradeoff.svg)
-
 ### Step 4：CPU 机制实现——从约束到候选方案
 
-题目区用归一化信号模拟选型：先识别最强压力，再结合模型容量、互联、结构、上下文长度和 Serving workload 生成候选，最后给出复测所需的证据。
+题目区用归一化信号模拟选型：先识别最强压力，再结合模型容量、互联、结构、上下文长度和 Serving workload 生成候选，最后给出主策略、兼容候选和复测证据。`signals` 的值在 0–1 之间；`constraints` 表示模型与集群条件。
 
-| TODO | 函数 / 机制 | 输入与关键变量 | 输出与不变量 | 测试关注点 |
-| --- | --- | --- | --- | --- |
-| 1 | `classify_parallel_bottleneck`：压力归因 | `signals`、最大信号、0.50 次要风险阈值 | 输出 `primary`、`severity`、`secondary_risks`；主压力只能有一个 | 最大信号映射与次要风险保留是否正确 |
-| 2 | `rank_parallel_candidates`：候选生成与排序 | `summary`、模型与 workload 约束、`scores` | 每项候选保留 `name / score / risk`；不满足条件的候选不进入列表 | 训练、长上下文、MoE 与 Serving 条件是否改变排序 |
-| 3 | `recommend_parallel_followup`：复测决策 | 首选候选、风险、次要风险 | 输出 `accept / tune / collect_more_evidence` 与测量字段 | 风险或证据不足是否触发正确决策 |
-
-### 题目区
-
-`signals` 中每个值已归一化到 0–1，越大表示该问题越接近关键路径。`constraints` 用布尔字段表达当前模型与集群条件；题目只要求根据这些条件建立透明的优先级，不假装替代真实多卡基准。
+| 任务与目的 | 已知条件 | 完成标准 | 测试验证 |
+| --- | --- | --- | --- |
+| TODO 1：识别主要压力并保留次要风险 | `classify_parallel_bottleneck` 已提供信号到瓶颈的映射 | 只保留一个主压力；达到阈值的其余信号进入次要风险 | 最大信号、阈值边界与非法输入 |
+| TODO 2：对满足硬约束的候选计算相关度并排序 | `rank_parallel_candidates` 已提供候选的适用条件、目标压力和风险 | 不可行候选不得进入列表；主压力匹配优先于次要风险匹配 | 状态、MoE、长上下文与 Serving 条件 |
+| TODO 3：组合兼容方案并形成复测决策 | `recommend_parallel_followup` 已提供兼容关系和每类候选的测量字段 | 输出首选方案、兼容候选和 `accept / tune / collect_more_evidence` | 无候选、无风险接受、风险调优与组合兼容 |
 
 
 ```python
@@ -99,12 +93,9 @@ from typing import Any, Dict, List
 
 ```python
 def classify_parallel_bottleneck(signals: Dict[str, float]) -> Dict[str, Any]:
-    """
-    TODO 1：从 workload 信号归因当前最强的并行压力。
-
-    `signals` 的值在 0–1 之间；除训练状态、激活、通信、bubble 和
-    rank 不均衡外，也可包含长上下文与 Serving 队列压力。
-    """
+    """识别最强并行压力，并保留达到阈值的次要风险。"""
+    if not signals or any(value < 0.0 or value > 1.0 for value in signals.values()):
+        raise ValueError('signals 必须非空，且所有值都位于 0–1')
     signal_to_bottleneck = {
         'state_memory_pressure': 'state_memory',
         'activation_memory_pressure': 'activation_memory',
@@ -114,146 +105,156 @@ def classify_parallel_bottleneck(signals: Dict[str, float]) -> Dict[str, Any]:
         'long_context_pressure': 'long_context',
         'serving_queue_pressure': 'serving_queue',
     }
-    # 提示：primary_signal, severity = ???；再用映射得到 primary。
-    # 提示：secondary_risks 只保留不等于 primary 且不低于 0.50 的问题。
+    # TODO 1（压力归因）：找出最强信号，并保留达到阈值的其他风险。
+    # primary_signal, severity = ???  # 原始信号名及其强度；强度最大。
+    # primary = ???  # 由 signal_to_bottleneck 映射得到的机制压力。
+    # secondary_risks = ???  # 排除主信号，且原始强度不低于 0.50。
     raise NotImplementedError
+    return {'primary': primary, 'severity': severity, 'secondary_risks': secondary_risks}
 
 
 def rank_parallel_candidates(summary: Dict[str, Any], constraints: Dict[str, bool]) -> List[Dict[str, Any]]:
-    """
-    TODO 2：用主压力和硬件 / workload 约束为 ZeRO、TP、PP、EP、CP、Replica 排序。
-
-    constraints 包含 model_fits_single_gpu、strong_interconnect、
-    large_linear_layer、has_moe、long_context、serving_workload；返回项应保留
-    name、score 和 risk。
-    """
+    """筛掉不满足硬约束的方案，再按压力相关度排序。"""
     primary = summary['primary']
     secondary = set(summary['secondary_risks'])
-    scores = {'dp_zero': 0, 'tp': 0, 'pp': 0, 'ep': 0, 'cp': 0, 'replica': 0}
-
-    # 提示：state_memory 时提高 dp_zero；activation_memory 或模型不能单卡容纳时提高 pp。
-    # 提示：large_linear_layer 且 strong_interconnect 时提高 tp；has_moe 时提高 ep。
-    # 提示：long_context 时提高 cp；serving_workload 且模型可由单实例承载时提高 replica。
-    # 提示：通信压力或互联不足应降低 tp；负载不均应让 ep 保留但附带风险。
-    # scores[...] = ???
-    raise NotImplementedError
+    profiles = [
+        {'name': 'dp_zero', 'eligible': primary == 'state_memory', 'pressures': {'state_memory'}, 'risk_pressures': {'communication'}, 'risk': 'inspect_collective_frequency'},
+        {'name': 'tp', 'eligible': constraints.get('large_linear_layer', False) and constraints.get('strong_interconnect', False), 'pressures': {'state_memory', 'communication'}, 'risk_pressures': {'communication'}, 'risk': 'inspect_all_reduce_exposure'},
+        {'name': 'pp', 'eligible': primary in {'activation_memory', 'pipeline_bubble'} or not constraints.get('model_fits_single_gpu', True), 'pressures': {'activation_memory', 'pipeline_bubble'}, 'risk_pressures': {'pipeline_bubble'}, 'risk': 'inspect_bubble_and_stage_balance'},
+        {'name': 'ep', 'eligible': constraints.get('has_moe', False), 'pressures': {'load_imbalance', 'communication'}, 'risk_pressures': {'load_imbalance', 'communication'}, 'risk': 'inspect_expert_load_and_all_to_all'},
+        {'name': 'cp', 'eligible': constraints.get('long_context', False), 'pressures': {'long_context', 'communication'}, 'risk_pressures': {'communication'}, 'risk': 'inspect_sequence_collective_exposure'},
+        {'name': 'replica', 'eligible': constraints.get('serving_workload', False) and constraints.get('model_fits_single_gpu', True), 'pressures': {'serving_queue', 'load_imbalance'}, 'risk_pressures': {'load_imbalance'}, 'risk': 'inspect_queue_balance_and_cache_locality'},
+    ]
+    candidates = []
+    for profile in profiles:
+        if not profile['eligible']:
+            continue
+        # TODO 2（候选排序）：主压力匹配权重大于次要风险匹配。
+        # primary_match = ???  # 主压力是否属于候选可处理的压力集合。
+        # secondary_matches = ???  # 次要风险与候选压力集合的交集数量。
+        # score = ???  # 主压力匹配计 3 分，次要风险每项计 1 分。
+        raise NotImplementedError
+        if score > 0:
+            known_pressures = {primary} | secondary
+            risk = profile['risk'] if known_pressures & profile['risk_pressures'] else None
+            candidates.append({'name': profile['name'], 'score': score, 'risk': risk})
+    return sorted(candidates, key=lambda item: (-item['score'], item['name']))
 
 
 def recommend_parallel_followup(
     summary: Dict[str, Any],
     ranked: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    """
-    TODO 3：把首选候选转成下一轮的复测决策。
-
-    `accept` 表示可作为下一轮 baseline；`tune` 表示先处理明显风险；
-    `collect_more_evidence` 表示信号不足，不能直接选择并行方案。
-    """
+    """把首选候选、兼容组合和风险转成下一轮复测计划。"""
     if not ranked or ranked[0]['score'] <= 0:
         return {
             'decision': 'collect_more_evidence',
             'plan': None,
             'reason': '没有足够强的约束支持某个并行候选',
+            'compatible_plans': [],
             'required_measurements': ['peak_memory_mb', 'step_time_ms'],
         }
 
     candidate = ranked[0]
-    # 提示：candidate['risk'] 不为 None 或 secondary_risks 非空时，decision = ???。
-    # 提示：根据 candidate['name'] 填写最相关的 required_measurements。
+    compatibility = {
+        'dp_zero': {'tp', 'pp'}, 'tp': {'dp_zero', 'pp', 'cp', 'ep'},
+        'pp': {'dp_zero', 'tp'}, 'ep': {'dp_zero', 'tp'},
+        'cp': {'dp_zero', 'tp'}, 'replica': {'tp', 'pp', 'cp', 'ep'},
+    }
+    measurements = {
+        'dp_zero': ['peak_memory_mb_per_rank', 'payload_bytes_per_rank', 'median_max_rank_ms'],
+        'tp': ['payload_bytes_per_rank', 'median_max_rank_ms', 'max_abs_error'],
+        'pp': ['bubble_ratio', 'stage_time_ms', 'peak_memory_mb'],
+        'ep': ['cross_rank_dispatch_bytes', 'load_skew_ratio', 'p95_max_rank_ms'],
+        'cp': ['kv_exchange_bytes_per_rank', 'median_max_rank_ms', 'peak_memory_mb_per_rank'],
+        'replica': ['queue_wait_p95_ms', 'cache_hit_rate', 'throughput_requests_per_s'],
+    }
+    # TODO 3（复测决策）：只组合兼容候选，并让已知风险触发 tune。
+    # compatible_plans = ???  # ranked[1:] 中与主策略兼容的候选名称。
+    # needs_tuning = ???  # 候选风险或次要风险存在时为 True。
+    # decision = ???  # needs_tuning 为真时 tune，否则 accept。
     raise NotImplementedError
+    return {
+        'decision': decision,
+        'plan': candidate['name'],
+        'reason': candidate['risk'] or '主压力与候选约束一致',
+        'compatible_plans': compatible_plans,
+        'required_measurements': measurements[candidate['name']],
+    }
 
 ```
 
 
 ```python
-# 这些测试分别验证归因、候选排序和风险决策；它们不替代真实多卡基准。
 def test_parallel_bottleneck_classification():
-    try:
-        summary = classify_parallel_bottleneck({
-            'state_memory_pressure': 0.85,
-            'activation_memory_pressure': 0.20,
-            'comm_exposed_ratio': 0.40,
-            'pipeline_bubble_ratio': 0.10,
-            'rank_imbalance_ratio': 0.55,
-        })
-        assert summary == {
-            'primary': 'state_memory',
-            'severity': 0.85,
-            'secondary_risks': ['load_imbalance'],
-        }
-    except NotImplementedError:
-        raise
-    except (AttributeError, KeyError, NameError, TypeError, ValueError, AssertionError) as e:
-        raise NotImplementedError('请先完成 TODO 1：并行压力归因。') from e
+    """最大信号成为主压力，达到阈值的其他信号保留为次要风险。"""
+    summary = classify_parallel_bottleneck({
+        'state_memory_pressure': 0.85, 'activation_memory_pressure': 0.20,
+        'comm_exposed_ratio': 0.40, 'pipeline_bubble_ratio': 0.10,
+        'rank_imbalance_ratio': 0.55,
+    })
+    assert summary == {'primary': 'state_memory', 'severity': 0.85, 'secondary_risks': ['load_imbalance']}
 
+def test_parallel_bottleneck_validation():
+    """空信号和越界强度不能形成并行候选。"""
+    for signals in ({}, {'state_memory_pressure': 1.1}):
+        try:
+            classify_parallel_bottleneck(signals)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('非法 signals 应抛出 ValueError')
 
-def test_parallel_candidate_ranking():
-    try:
-        summary = {'primary': 'state_memory', 'severity': 0.85, 'secondary_risks': []}
-        ranked = rank_parallel_candidates(summary, {
-            'model_fits_single_gpu': True,
-            'strong_interconnect': False,
-            'large_linear_layer': False,
-            'has_moe': False,
-        })
-        assert ranked == [{'name': 'dp_zero', 'score': 3, 'risk': 'inspect_collective_frequency'}]
+def test_training_state_candidate_gate():
+    """状态压力应保留 ZeRO，并排除不满足硬约束的候选。"""
+    ranked = rank_parallel_candidates(
+        {'primary': 'state_memory', 'severity': 0.85, 'secondary_risks': []},
+        {'model_fits_single_gpu': True, 'strong_interconnect': False, 'large_linear_layer': False, 'has_moe': False},
+    )
+    assert ranked == [{'name': 'dp_zero', 'score': 3, 'risk': None}]
 
-        ep_ranked = rank_parallel_candidates(
-            {'primary': 'load_imbalance', 'severity': 0.80, 'secondary_risks': ['communication']},
-            {'model_fits_single_gpu': True, 'strong_interconnect': True, 'large_linear_layer': False, 'has_moe': True},
-        )
-        assert ep_ranked[0]['name'] == 'ep'
-        assert ep_ranked[0]['risk'] == 'inspect_expert_load_and_all_to_all'
+def test_specialized_candidate_ranking():
+    """MoE、长上下文和 Serving 条件应激活各自候选。"""
+    cases = [
+        ({'primary': 'load_imbalance', 'severity': 0.8, 'secondary_risks': ['communication']}, {'model_fits_single_gpu': True, 'strong_interconnect': True, 'has_moe': True}, 'ep'),
+        ({'primary': 'long_context', 'severity': 0.9, 'secondary_risks': ['communication']}, {'model_fits_single_gpu': False, 'strong_interconnect': True, 'long_context': True}, 'cp'),
+        ({'primary': 'serving_queue', 'severity': 0.8, 'secondary_risks': []}, {'model_fits_single_gpu': True, 'serving_workload': True}, 'replica'),
+    ]
+    for summary, constraints, expected in cases:
+        assert rank_parallel_candidates(summary, constraints)[0]['name'] == expected
 
-        cp_ranked = rank_parallel_candidates(
-            {'primary': 'long_context', 'severity': 0.90, 'secondary_risks': ['communication']},
-            {'model_fits_single_gpu': False, 'strong_interconnect': True, 'large_linear_layer': False,
-             'has_moe': False, 'long_context': True, 'serving_workload': False},
-        )
-        assert cp_ranked[0]['name'] == 'cp'
+def test_parallel_followup_accept_and_tune():
+    """无风险候选可以接受，已有风险必须进入调优。"""
+    accepted = recommend_parallel_followup(
+        {'primary': 'state_memory', 'severity': 0.85, 'secondary_risks': []},
+        [{'name': 'dp_zero', 'score': 3, 'risk': None}],
+    )
+    assert accepted['decision'] == 'accept'
+    assert 'peak_memory_mb_per_rank' in accepted['required_measurements']
+    tuned = recommend_parallel_followup(
+        {'primary': 'load_imbalance', 'severity': 0.80, 'secondary_risks': ['communication']},
+        [{'name': 'ep', 'score': 4, 'risk': 'inspect_expert_load_and_all_to_all'}],
+    )
+    assert tuned['decision'] == 'tune'
+    assert 'load_skew_ratio' in tuned['required_measurements']
 
-        replica_ranked = rank_parallel_candidates(
-            {'primary': 'serving_queue', 'severity': 0.80, 'secondary_risks': []},
-            {'model_fits_single_gpu': True, 'strong_interconnect': False, 'large_linear_layer': False,
-             'has_moe': False, 'long_context': False, 'serving_workload': True},
-        )
-        assert replica_ranked[0]['name'] == 'replica'
-    except NotImplementedError:
-        raise
-    except (AttributeError, KeyError, NameError, TypeError, ValueError, AssertionError) as e:
-        raise NotImplementedError('请先完成 TODO 2：并行候选排序。') from e
-
-
-def test_parallel_followup_decision():
-    try:
-        accepted = recommend_parallel_followup(
-            {'primary': 'state_memory', 'severity': 0.85, 'secondary_risks': []},
-            [{'name': 'dp_zero', 'score': 3, 'risk': None}],
-        )
-        assert accepted['decision'] == 'accept'
-        assert 'peak_memory_mb' in accepted['required_measurements']
-
-        tuned = recommend_parallel_followup(
-            {'primary': 'load_imbalance', 'severity': 0.80, 'secondary_risks': ['communication']},
-            [{'name': 'ep', 'score': 4, 'risk': 'inspect_expert_load_and_all_to_all'}],
-        )
-        assert tuned['decision'] == 'tune'
-        assert 'expert_token_cv' in tuned['required_measurements']
-
-        missing = recommend_parallel_followup(
-            {'primary': 'communication', 'severity': 0.10, 'secondary_risks': []}, []
-        )
-        assert missing['decision'] == 'collect_more_evidence'
-        print('✅ 并行候选与复测决策通过')
-    except NotImplementedError:
-        raise
-    except (AttributeError, KeyError, NameError, TypeError, ValueError, AssertionError) as e:
-        raise NotImplementedError('请先完成 TODO 3：复测决策。') from e
-
+def test_parallel_followup_compatibility_and_missing_evidence():
+    """组合只保留兼容候选；空候选要求继续收集证据。"""
+    combined = recommend_parallel_followup(
+        {'primary': 'state_memory', 'severity': 0.90, 'secondary_risks': []},
+        [{'name': 'dp_zero', 'score': 4, 'risk': None}, {'name': 'tp', 'score': 3, 'risk': None}, {'name': 'replica', 'score': 2, 'risk': None}],
+    )
+    assert combined['compatible_plans'] == ['tp']
+    missing = recommend_parallel_followup({'primary': 'communication', 'severity': 0.10, 'secondary_risks': []}, [])
+    assert missing['decision'] == 'collect_more_evidence'
 
 test_parallel_bottleneck_classification()
-test_parallel_candidate_ranking()
-test_parallel_followup_decision()
+test_parallel_bottleneck_validation()
+test_training_state_candidate_gate()
+test_specialized_candidate_ranking()
+test_parallel_followup_accept_and_tune()
+test_parallel_followup_compatibility_and_missing_evidence()
+print('parallel strategy selection passed')
 
 ```
 
@@ -274,12 +275,9 @@ test_parallel_followup_decision()
 
 ```python
 def classify_parallel_bottleneck(signals: Dict[str, float]) -> Dict[str, Any]:
-    """
-    TODO 1：从 workload 信号归因当前最强的并行压力。
-
-    `signals` 的值在 0–1 之间；除训练状态、激活、通信、bubble 和
-    rank 不均衡外，也可包含长上下文与 Serving 队列压力。
-    """
+    """识别最强并行压力，并保留达到阈值的次要风险。"""
+    if not signals or any(value < 0.0 or value > 1.0 for value in signals.values()):
+        raise ValueError('signals 必须非空，且所有值都位于 0–1')
     signal_to_bottleneck = {
         'state_memory_pressure': 'state_memory',
         'activation_memory_pressure': 'activation_memory',
@@ -300,89 +298,73 @@ def classify_parallel_bottleneck(signals: Dict[str, float]) -> Dict[str, Any]:
 
 
 def rank_parallel_candidates(summary: Dict[str, Any], constraints: Dict[str, bool]) -> List[Dict[str, Any]]:
-    """
-    TODO 2：用主压力和硬件 / workload 约束为 ZeRO、TP、PP、EP、CP、Replica 排序。
-
-    constraints 包含 model_fits_single_gpu、strong_interconnect、
-    large_linear_layer、has_moe、long_context、serving_workload；返回项保留
-    name、score 和 risk。
-    """
+    """筛掉不满足硬约束的方案，再按压力相关度排序。"""
     primary = summary['primary']
     secondary = set(summary['secondary_risks'])
-    scores = {'dp_zero': 0, 'tp': 0, 'pp': 0, 'ep': 0, 'cp': 0, 'replica': 0}
-
-    if primary == 'state_memory':
-        scores['dp_zero'] += 3
-    if primary == 'activation_memory' or not constraints['model_fits_single_gpu']:
-        scores['pp'] += 3
-    if constraints['large_linear_layer'] and constraints['strong_interconnect']:
-        scores['tp'] += 3
-    if constraints['has_moe']:
-        scores['ep'] += 3
-    if constraints.get('long_context', False):
-        scores['cp'] += 3
-    if constraints.get('serving_workload', False) and constraints['model_fits_single_gpu']:
-        scores['replica'] += 3
-
-    if 'communication' in secondary or primary == 'communication' or not constraints['strong_interconnect']:
-        scores['tp'] -= 2
-    if primary == 'pipeline_bubble':
-        scores['pp'] -= 1
-    if primary == 'load_imbalance':
-        scores['ep'] += 2
-    if primary == 'long_context':
-        scores['cp'] += 2
-    if primary == 'serving_queue':
-        scores['replica'] += 2
-
-    risks = {
-        'dp_zero': 'inspect_collective_frequency' if primary == 'state_memory' else None,
-        'tp': 'inspect_all_reduce_exposure' if scores['tp'] > 0 else None,
-        'pp': 'inspect_bubble_and_stage_balance' if scores['pp'] > 0 else None,
-        'ep': 'inspect_expert_load_and_all_to_all' if constraints['has_moe'] else None,
-        'cp': 'inspect_sequence_collective_exposure' if scores['cp'] > 0 else None,
-        'replica': 'inspect_queue_balance_and_cache_locality' if scores['replica'] > 0 else None,
-    }
-    candidates = [
-        {'name': name, 'score': score, 'risk': risks[name]}
-        for name, score in scores.items()
-        if score > 0
+    profiles = [
+        {'name': 'dp_zero', 'eligible': primary == 'state_memory', 'pressures': {'state_memory'}, 'risk_pressures': {'communication'}, 'risk': 'inspect_collective_frequency'},
+        {'name': 'tp', 'eligible': constraints.get('large_linear_layer', False) and constraints.get('strong_interconnect', False), 'pressures': {'state_memory', 'communication'}, 'risk_pressures': {'communication'}, 'risk': 'inspect_all_reduce_exposure'},
+        {'name': 'pp', 'eligible': primary in {'activation_memory', 'pipeline_bubble'} or not constraints.get('model_fits_single_gpu', True), 'pressures': {'activation_memory', 'pipeline_bubble'}, 'risk_pressures': {'pipeline_bubble'}, 'risk': 'inspect_bubble_and_stage_balance'},
+        {'name': 'ep', 'eligible': constraints.get('has_moe', False), 'pressures': {'load_imbalance', 'communication'}, 'risk_pressures': {'load_imbalance', 'communication'}, 'risk': 'inspect_expert_load_and_all_to_all'},
+        {'name': 'cp', 'eligible': constraints.get('long_context', False), 'pressures': {'long_context', 'communication'}, 'risk_pressures': {'communication'}, 'risk': 'inspect_sequence_collective_exposure'},
+        {'name': 'replica', 'eligible': constraints.get('serving_workload', False) and constraints.get('model_fits_single_gpu', True), 'pressures': {'serving_queue', 'load_imbalance'}, 'risk_pressures': {'load_imbalance'}, 'risk': 'inspect_queue_balance_and_cache_locality'},
     ]
-    return sorted(candidates, key=lambda item: item['score'], reverse=True)
+    candidates = []
+    for profile in profiles:
+        if not profile['eligible']:
+            continue
+        primary_match = primary in profile['pressures']
+        secondary_matches = len(secondary & profile['pressures'])
+        score = 3 * int(primary_match) + secondary_matches
+        if score > 0:
+            known_pressures = {primary} | secondary
+            risk = profile['risk'] if known_pressures & profile['risk_pressures'] else None
+            candidates.append({'name': profile['name'], 'score': score, 'risk': risk})
+    return sorted(candidates, key=lambda item: (-item['score'], item['name']))
 
 
 def recommend_parallel_followup(
     summary: Dict[str, Any],
     ranked: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    """
-    TODO 3：把首选候选转成下一轮的复测决策。
-
-    `accept` 表示可作为下一轮 baseline；`tune` 表示先处理明显风险；
-    `collect_more_evidence` 表示信号不足，不能直接选择并行方案。
-    """
+    """把首选候选、兼容组合和风险转成下一轮复测计划。"""
     if not ranked or ranked[0]['score'] <= 0:
         return {
             'decision': 'collect_more_evidence',
             'plan': None,
             'reason': '没有足够强的约束支持某个并行候选',
+            'compatible_plans': [],
             'required_measurements': ['peak_memory_mb', 'step_time_ms'],
         }
 
     candidate = ranked[0]
+    compatibility = {
+        'dp_zero': {'tp', 'pp'},
+        'tp': {'dp_zero', 'pp', 'cp', 'ep'},
+        'pp': {'dp_zero', 'tp'},
+        'ep': {'dp_zero', 'tp'},
+        'cp': {'dp_zero', 'tp'},
+        'replica': {'tp', 'pp', 'cp', 'ep'},
+    }
+    compatible_plans = [
+        item['name'] for item in ranked[1:]
+        if item['name'] in compatibility[candidate['name']]
+    ]
     measurements = {
-        'dp_zero': ['peak_memory_mb', 'collective_time_ms', 'step_time_ms'],
-        'tp': ['all_reduce_payload_mb', 'exposed_comm_ms', 'step_time_ms'],
+        'dp_zero': ['peak_memory_mb_per_rank', 'payload_bytes_per_rank', 'median_max_rank_ms'],
+        'tp': ['payload_bytes_per_rank', 'median_max_rank_ms', 'max_abs_error'],
         'pp': ['bubble_ratio', 'stage_time_ms', 'peak_memory_mb'],
-        'ep': ['expert_token_cv', 'all_to_all_time_ms', 'p95_step_time_ms'],
-        'cp': ['sequence_payload_mb', 'exposed_comm_ms', 'peak_memory_mb'],
+        'ep': ['cross_rank_dispatch_bytes', 'load_skew_ratio', 'p95_max_rank_ms'],
+        'cp': ['kv_exchange_bytes_per_rank', 'median_max_rank_ms', 'peak_memory_mb_per_rank'],
         'replica': ['queue_wait_p95_ms', 'cache_hit_rate', 'throughput_requests_per_s'],
     }
     needs_tuning = candidate['risk'] is not None or bool(summary['secondary_risks'])
+    decision = 'tune' if needs_tuning else 'accept'
     return {
-        'decision': 'tune' if needs_tuning else 'accept',
+        'decision': decision,
         'plan': candidate['name'],
         'reason': candidate['risk'] or '主压力与候选约束一致',
+        'compatible_plans': compatible_plans,
         'required_measurements': measurements[candidate['name']],
     }
 
@@ -390,11 +372,22 @@ def recommend_parallel_followup(
 
 ### 解析
 
-TODO 1：先把最大信号映射成主压力，并保留仍然较高的次要风险。这样即使 DP+ZeRO 缓解了状态显存，也不会忽略随后的专家负载或通信问题。
+本题依次完成压力归因、候选排序和复测决策。答案保留题目区的规则表与控制流，只补全对应的机制判断。
 
-TODO 2：候选分数来自约束，而不是预先写死的一列排名。TP 需要大线性层和较强互联；PP 适合模型无法放入单卡；EP 只有存在 MoE 时才有意义；CP 对应长上下文切分，Replica 对应可独立路由的 Serving 请求。每个候选同时携带下一轮要检查的风险。
+**TODO 1：识别主要压力并保留次要风险**
 
-TODO 3：`accept` 只表示可以进入统一 workload 的下一轮 baseline，`tune` 表示候选合理但风险已明确，`collect_more_evidence` 则要求先补齐关键测量。它们都不是最终的多卡性能结论。
+- 最大信号决定唯一主压力，其他达到阈值的信号保留为次要风险；输入校验阻止空信号和越界强度进入选型。
+- 归因测试同时验证主压力、阈值筛选和非法输入。
+
+**TODO 2：按硬约束和压力相关度排序候选**
+
+- 候选先通过模型结构、互联和 workload 条件，再比较它与主压力及次要风险的匹配程度。
+- 专项测试分别覆盖训练状态、MoE、长上下文和 Serving，确认不可行候选不会进入列表。
+
+**TODO 3：形成兼容组合与复测决策**
+
+- `compatible_plans` 只保留能与首选方案叠加的候选；已知风险或次要风险触发 `tune`。
+- 决策测试覆盖接受、调优、组合兼容和证据不足四条路径。
 
 ## 相关阅读
 

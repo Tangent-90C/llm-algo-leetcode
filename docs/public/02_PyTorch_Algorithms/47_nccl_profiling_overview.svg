@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">NCCL 通信剖析总览：从并行工作负载到热点归因</title>
+  <desc id="desc">并行工作负载同时产生计算时间线和 collective 时间线；两者对齐后得到可隐藏与暴露的通信时间，再按 collective 和 rank 归因。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+    <style>
+      .title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.group{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.node{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.body{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.arrow{stroke:#475569;stroke-width:3;fill:none;marker-end:url(#arrow)}.shell{stroke-width:2.5;stroke-dasharray:7 6;rx:18}.box{stroke-width:2.5;rx:14}
+    </style>
+  </defs>
+  <rect width="1200" height="620" fill="#f8fafc"/>
+  <text x="48" y="54" class="title">NCCL 通信剖析：从并行工作负载到热点归因</text>
+  <text x="48" y="82" class="sub">关键不是单独测一条 collective，而是把计算与通信放到同一时间轴中，找出真正暴露在关键路径上的通信。</text>
+
+  <rect x="435" y="112" width="330" height="72" class="box" fill="#eef2ff" stroke="#6366f1"/>
+  <text x="600" y="143" text-anchor="middle" class="node">并行工作负载</text>
+  <text x="600" y="168" text-anchor="middle" class="body">训练或推理 · 多 rank</text>
+
+  <rect x="75" y="236" width="425" height="178" class="shell" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="99" y="266" class="group">计算时间线</text>
+  <rect x="102" y="288" width="165" height="86" class="box" fill="#fff" stroke="#3b82f6"/>
+  <text x="184" y="323" text-anchor="middle" class="node">计算区间</text>
+  <text x="184" y="348" text-anchor="middle" class="body">forward / backward</text>
+  <rect x="305" y="288" width="165" height="86" class="box" fill="#fff" stroke="#3b82f6"/>
+  <text x="387" y="323" text-anchor="middle" class="node">执行位置</text>
+  <text x="387" y="348" text-anchor="middle" class="body">rank · stream</text>
+
+  <rect x="700" y="236" width="425" height="178" class="shell" fill="#fff7ed" stroke="#fb923c"/>
+  <text x="724" y="266" class="group">collective 时间线</text>
+  <rect x="727" y="288" width="165" height="86" class="box" fill="#fff" stroke="#f97316"/>
+  <text x="809" y="323" text-anchor="middle" class="node">通信对象</text>
+  <text x="809" y="348" text-anchor="middle" class="body">all-reduce / all-to-all</text>
+  <rect x="930" y="288" width="165" height="86" class="box" fill="#fff" stroke="#f97316"/>
+  <text x="1012" y="323" text-anchor="middle" class="node">传输证据</text>
+  <text x="1012" y="348" text-anchor="middle" class="body">耗时 · bytes · rank</text>
+
+  <rect x="402" y="462" width="396" height="108" class="box" fill="#f0fdf4" stroke="#22c55e"/>
+  <text x="600" y="498" text-anchor="middle" class="node">在同一时间轴对齐</text>
+  <text x="600" y="524" text-anchor="middle" class="body">区分可被计算隐藏的通信与暴露通信</text>
+  <text x="600" y="548" text-anchor="middle" class="body">再按 collective 与 rank 汇总优先级</text>
+
+  <path d="M600 184V210H287V236" class="arrow"/>
+  <path d="M600 210H912V236" class="arrow"/>
+  <path d="M287 414V438H510V462" class="arrow"/>
+  <path d="M912 414V438H690V462" class="arrow"/>
+</svg>

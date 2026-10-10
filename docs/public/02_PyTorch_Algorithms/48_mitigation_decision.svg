@@ -1,11 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" role="img" aria-labelledby="t d">
-<title id="t">通信热点到缓解动作</title><desc id="d">把热点证据映射到 collective、bucket、overlap 或分组策略，并重新测量结果。</desc>
-<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><style>.h{font:700 26px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.s{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.l{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.b{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:3;rx:16}.f{stroke:#475569;stroke-width:4;fill:none;marker-end:url(#a)}</style></defs>
-<rect width="1200" height="500" fill="#f8fafc"/><text x="50" y="55" class="h">缓解动作：从假设回到证据</text><text x="50" y="83" class="s">每次只改变一个主要条件，再用相同 workload 验证收益和副作用。</text>
-<rect x="55" y="190" width="220" height="110" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="165" y="232" text-anchor="middle" class="l">热点证据</text><text x="165" y="263" text-anchor="middle" class="b">trace · rank 等待 · 带宽</text>
-<rect x="345" y="190" width="220" height="110" class="box" fill="#fef3c7" stroke="#d97706"/><text x="455" y="232" text-anchor="middle" class="l">单变量动作</text><text x="455" y="263" text-anchor="middle" class="b">改一种策略或配置</text>
-<rect x="635" y="115" width="220" height="100" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="745" y="155" text-anchor="middle" class="l">性能收益</text><text x="745" y="185" text-anchor="middle" class="b">通信时间下降</text>
-<rect x="635" y="260" width="220" height="100" class="box" fill="#fff1f2" stroke="#e11d48"/><text x="745" y="300" text-anchor="middle" class="l">副作用</text><text x="745" y="330" text-anchor="middle" class="b">显存 · 质量 · 稳定性</text>
-<rect x="930" y="190" width="210" height="110" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="1035" y="232" text-anchor="middle" class="l">决策</text><text x="1035" y="263" text-anchor="middle" class="b">accept / tune / reject</text>
-<path d="M275 245H345M565 235L635 165M565 265L635 310M855 165L930 225M855 310L930 265" class="f"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 690" role="img" aria-labelledby="title desc">
+  <title id="title">通信热点到缓解动作与复测</title>
+  <desc id="desc">优先通信热点按传输路由压力、暴露通信压力或 rank 不均衡分类；每种模式对应不同的候选动作和复测指标，最后在固定 workload 下形成决策。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+    <style>.title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.group{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.node{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.body{font:500 13px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:2.5;rx:14}.shell{stroke-width:2.5;stroke-dasharray:7 6;rx:18}.arrow{stroke:#475569;stroke-width:3;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1200" height="690" fill="#f8fafc"/>
+  <text x="48" y="54" class="title">缓解动作：把热点假设变成可复测对照</text>
+  <text x="48" y="82" class="sub">先按热点模式选择一个主要动作，再在不改变 workload 的前提下比较收益与新代价。</text>
+  <rect x="415" y="112" width="370" height="70" class="box" fill="#eef2ff" stroke="#6366f1"/>
+  <text x="600" y="143" text-anchor="middle" class="node">优先 collective 热点</text>
+  <text x="600" y="167" text-anchor="middle" class="body">暴露时间 · payload · overlap · rank 差异</text>
+
+  <rect x="50" y="245" width="330" height="248" class="shell" fill="#fff7ed" stroke="#f97316"/>
+  <text x="74" y="274" class="group">传输量 / 路由压力</text>
+  <rect x="76" y="294" width="278" height="62" class="box" fill="#fff" stroke="#f97316"/>
+  <text x="215" y="331" text-anchor="middle" class="node">payload 大的 all-to-all</text>
+  <rect x="76" y="385" width="278" height="74" class="box" fill="#fff" stroke="#f97316"/>
+  <text x="215" y="416" text-anchor="middle" class="node">减少跨 rank 路由流量</text>
+  <text x="215" y="440" text-anchor="middle" class="body">复测：payload · token 比例 · 吞吐</text>
+
+  <rect x="435" y="245" width="330" height="248" class="shell" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="459" y="274" class="group">暴露通信压力</text>
+  <rect x="461" y="294" width="278" height="62" class="box" fill="#fff" stroke="#3b82f6"/>
+  <text x="600" y="331" text-anchor="middle" class="node">暴露高且 overlap 低</text>
+  <rect x="461" y="385" width="278" height="74" class="box" fill="#fff" stroke="#3b82f6"/>
+  <text x="600" y="416" text-anchor="middle" class="node">调整同步与 overlap</text>
+  <text x="600" y="440" text-anchor="middle" class="body">复测：暴露时间 · overlap · step time</text>
+
+  <rect x="820" y="245" width="330" height="248" class="shell" fill="#fdf2f8" stroke="#db2777"/>
+  <text x="844" y="274" class="group">rank 不均衡</text>
+  <rect x="846" y="294" width="278" height="62" class="box" fill="#fff" stroke="#db2777"/>
+  <text x="985" y="331" text-anchor="middle" class="node">个别 rank 明显滞后</text>
+  <rect x="846" y="385" width="278" height="74" class="box" fill="#fff" stroke="#db2777"/>
+  <text x="985" y="416" text-anchor="middle" class="node">重平衡切分或专家负载</text>
+  <text x="985" y="440" text-anchor="middle" class="body">复测：max rank · 负载偏斜 · P95</text>
+
+  <rect x="390" y="568" width="420" height="82" class="box" fill="#f5f3ff" stroke="#8b5cf6"/>
+  <text x="600" y="600" text-anchor="middle" class="node">固定 workload 复测并形成决策</text>
+  <text x="600" y="625" text-anchor="middle" class="body">accept · tune · collect more evidence</text>
+  <path d="M600 182V214H215V245M600 214V245M600 214H985V245" class="arrow"/>
+  <path d="M215 459V528H500V568M600 459V568M985 459V528H700V568" class="arrow"/>
 </svg>
