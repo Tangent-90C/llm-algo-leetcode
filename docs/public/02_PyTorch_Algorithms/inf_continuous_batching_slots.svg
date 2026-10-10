@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="390" viewBox="0 0 1120 390">
+  <rect width="1120" height="390" rx="24" fill="#f7f9fc"/>
+  <text x="560" y="42" text-anchor="middle" font-size="24" font-weight="700" fill="#172033">Static Batch 与 Continuous Batch 的空槽差异</text>
+  <g font-family="sans-serif" font-size="15">
+    <text x="70" y="105" font-weight="700" fill="#172033">Static Batch</text>
+    <text x="70" y="242" font-weight="700" fill="#172033">Continuous Batch</text>
+    <g text-anchor="middle">
+      <rect x="210" y="78" width="145" height="58" rx="10" fill="#dceafe" stroke="#4f7fc9"/><text x="283" y="112" fill="#172033">A · active</text>
+      <rect x="375" y="78" width="145" height="58" rx="10" fill="#eef1f5" stroke="#9aa5b5"/><text x="448" y="112" fill="#69768b">B · idle slot</text>
+      <rect x="540" y="78" width="145" height="58" rx="10" fill="#dceafe" stroke="#4f7fc9"/><text x="613" y="112" fill="#172033">C · active</text>
+      <rect x="705" y="78" width="145" height="58" rx="10" fill="#eef1f5" stroke="#9aa5b5"/><text x="778" y="112" fill="#69768b">D · idle slot</text>
+      <rect x="210" y="215" width="145" height="58" rx="10" fill="#dceafe" stroke="#4f7fc9"/><text x="283" y="249" fill="#172033">A · active</text>
+      <rect x="375" y="215" width="145" height="58" rx="10" fill="#e3f4ea" stroke="#4a9a6b"/><text x="448" y="249" fill="#172033">E · admitted</text>
+      <rect x="540" y="215" width="145" height="58" rx="10" fill="#dceafe" stroke="#4f7fc9"/><text x="613" y="249" fill="#172033">C · active</text>
+      <rect x="705" y="215" width="145" height="58" rx="10" fill="#e3f4ea" stroke="#4a9a6b"/><text x="778" y="249" fill="#172033">F · admitted</text>
+    </g>
+    <text x="210" y="324" fill="#526079">批次重组能减少因输出长度不同产生的空槽，但准入仍受 KV 容量、优先级和 SLO 约束。</text>
+  </g>
+</svg>

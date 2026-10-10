@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">服务执行中的计算与传输重叠时间线</title>
+  <desc id="desc">控制面准备下一批次，设备执行当前批次，状态传输与当前计算重叠；传输超过计算窗口的部分形成暴露时间，状态就绪后下一批次才能启动。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#486581"/></marker>
+    <style>.t{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;fill:#203040}.h{font-size:22px;font-weight:700}.b{font-size:16px}.s{font-size:13px;fill:#526777}.dep{fill:none;stroke:#486581;stroke-width:2;marker-end:url(#arrow)}.event{fill:none;stroke:#cc6677;stroke-width:2;stroke-dasharray:6 5}</style>
+  </defs>
+  <rect width="1200" height="500" fill="#f7f9fc"/>
+  <text x="600" y="40" text-anchor="middle" class="t h">服务执行中的计算与传输重叠时间线</text>
+
+  <rect x="165" y="70" width="965" height="88" rx="12" fill="#eef5ff"/>
+  <rect x="165" y="176" width="965" height="88" rx="12" fill="#edf8f2"/>
+  <rect x="165" y="282" width="965" height="88" rx="12" fill="#fff8e9"/>
+  <text x="55" y="119" class="t b">控制面</text>
+  <text x="55" y="225" class="t b">设备计算</text>
+  <text x="55" y="331" class="t b">状态传输</text>
+
+  <rect x="210" y="84" width="245" height="60" rx="10" fill="#dfeeff" stroke="#5b8def" stroke-width="2"/>
+  <text x="332" y="109" text-anchor="middle" class="t b">准备下一轮候选</text>
+  <text x="332" y="132" text-anchor="middle" class="t s">读取队列、容量与优先级</text>
+  <rect x="610" y="84" width="220" height="60" rx="10" fill="#dfeeff" stroke="#5b8def" stroke-width="2"/>
+  <text x="720" y="109" text-anchor="middle" class="t b">形成下一批次</text>
+  <text x="720" y="132" text-anchor="middle" class="t s">成员确定，等待状态就绪</text>
+  <path d="M455 114H610" class="dep"/>
+
+  <rect x="210" y="190" width="480" height="60" rx="10" fill="#def3e8" stroke="#48a879" stroke-width="2"/>
+  <text x="450" y="215" text-anchor="middle" class="t b">执行当前批次</text>
+  <text x="450" y="238" text-anchor="middle" class="t s">为独立状态传输提供可隐藏的计算窗口</text>
+  <rect x="850" y="190" width="245" height="60" rx="10" fill="#def3e8" stroke="#48a879" stroke-width="2"/>
+  <text x="972" y="215" text-anchor="middle" class="t b">执行下一批次</text>
+  <text x="972" y="238" text-anchor="middle" class="t s">批次确定且所需状态可见</text>
+  <path d="M690 220H850" class="dep"/>
+  <path d="M720 144V166H900V190" class="dep"/>
+
+  <clipPath id="transfer-clip"><rect x="400" y="296" width="450" height="60" rx="10"/></clipPath>
+  <g clip-path="url(#transfer-clip)">
+    <rect x="400" y="296" width="290" height="60" fill="#ffe8ad"/>
+    <rect x="690" y="296" width="160" height="60" fill="#ffdce1"/>
+  </g>
+  <rect x="400" y="296" width="450" height="60" rx="10" fill="none" stroke="#d99b2b" stroke-width="2"/>
+  <line x1="690" y1="296" x2="690" y2="356" stroke="#cc6677" stroke-width="2"/>
+  <text x="545" y="321" text-anchor="middle" class="t b">被计算窗口隐藏</text>
+  <text x="545" y="344" text-anchor="middle" class="t s">传输与当前批次并行</text>
+  <text x="770" y="321" text-anchor="middle" class="t b">暴露时间</text>
+  <text x="770" y="344" text-anchor="middle" class="t s">仍留在关键路径</text>
+  <path d="M850 326V274H972V250" class="dep"/>
+  <line x1="850" y1="274" x2="850" y2="370" class="event"/>
+  <text x="862" y="388" class="t s">状态就绪事件</text>
+
+  <path d="M690 267V276H400V267" fill="none" stroke="#d99b2b" stroke-width="2"/>
+  <text x="545" y="270" text-anchor="middle" class="t s">实际重叠窗口</text>
+
+  <line x1="165" y1="445" x2="1120" y2="445" stroke="#789" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <text x="1130" y="451" class="t s">时间</text>
+</svg>

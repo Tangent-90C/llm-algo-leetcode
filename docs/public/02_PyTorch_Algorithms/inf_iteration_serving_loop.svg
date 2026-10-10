@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">推理服务的单轮执行闭环</title>
+  <desc id="desc">请求从等待队列进入本轮选择，再由执行引擎完成前向、采样和状态更新；未完成请求返回等待队列。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#486581"/></marker>
+    <style>.t{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;fill:#203040}.h{font-size:22px;font-weight:700}.b{font-size:17px}.s{font-size:14px;fill:#526777}.box{stroke-width:2;rx:14}.line{fill:none;stroke:#486581;stroke-width:2.2;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1200" height="520" fill="#f7f9fc"/>
+  <text x="600" y="42" text-anchor="middle" class="t h">推理服务的单轮执行闭环</text>
+  <rect x="70" y="92" width="270" height="250" class="box" fill="#e8f2ff" stroke="#5b8def"/>
+  <text x="205" y="128" text-anchor="middle" class="t h">请求队列</text>
+  <rect x="105" y="158" width="200" height="58" rx="10" fill="#fff" stroke="#89aee8"/>
+  <text x="205" y="184" text-anchor="middle" class="t b">新到达请求</text><text x="205" y="205" text-anchor="middle" class="t s">输入尚未预填充</text>
+  <rect x="105" y="242" width="200" height="58" rx="10" fill="#fff" stroke="#89aee8"/>
+  <text x="205" y="268" text-anchor="middle" class="t b">等待推进请求</text><text x="205" y="289" text-anchor="middle" class="t s">保留已有 KV 状态</text>
+  <rect x="465" y="92" width="270" height="250" class="box" fill="#fff4db" stroke="#d99b2b"/>
+  <text x="600" y="128" text-anchor="middle" class="t h">本轮选择</text>
+  <rect x="500" y="158" width="200" height="58" rx="10" fill="#fff" stroke="#e4b55d"/>
+  <text x="600" y="184" text-anchor="middle" class="t b">检查准入条件</text><text x="600" y="205" text-anchor="middle" class="t s">槽位 · KV 容量 · 服务目标</text>
+  <rect x="500" y="242" width="200" height="58" rx="10" fill="#fff" stroke="#e4b55d"/>
+  <text x="600" y="268" text-anchor="middle" class="t b">组成执行批次</text><text x="600" y="289" text-anchor="middle" class="t s">分配本轮 Token 预算</text>
+  <path d="M600 216 V242" class="line"/>
+  <rect x="860" y="92" width="270" height="250" class="box" fill="#e8f7ef" stroke="#48a879"/>
+  <text x="995" y="128" text-anchor="middle" class="t h">执行与更新</text>
+  <rect x="895" y="158" width="200" height="58" rx="10" fill="#fff" stroke="#71bd97"/>
+  <text x="995" y="184" text-anchor="middle" class="t b">前向计算与采样</text><text x="995" y="205" text-anchor="middle" class="t s">预填充分块或单步解码</text>
+  <rect x="895" y="242" width="200" height="58" rx="10" fill="#fff" stroke="#71bd97"/>
+  <text x="995" y="268" text-anchor="middle" class="t b">更新请求状态</text><text x="995" y="289" text-anchor="middle" class="t s">追加 KV · 判断完成</text>
+  <path d="M995 216 V242" class="line"/>
+  <path d="M340 217 H465" class="line"/><path d="M735 217 H860" class="line"/>
+  <rect x="880" y="390" width="230" height="58" rx="12" fill="#f1eaff" stroke="#8c6bc7" stroke-width="2"/>
+  <text x="995" y="416" text-anchor="middle" class="t b">已完成：返回结果</text><text x="995" y="438" text-anchor="middle" class="t s">释放状态与序列槽位</text>
+  <path d="M1035 300 V390" class="line"/>
+  <path d="M955 300 V375 H205 V342" class="line"/>
+  <text x="550" y="367" text-anchor="middle" class="t s">未完成：携带新 KV 状态进入下一轮</text>
+</svg>

@@ -15,9 +15,9 @@
 
 前面几节已经看过投机解码和多 Token 生成。现在把视角从单个请求扩展到一组同时生成的请求：有的刚完成输入处理，有的正在逐 Token 生成，有的即将结束。调度器需要根据这些状态决定下一步推进谁。
 
-本节关注请求状态、选择依据和调度结果之间的关系：同一批请求采用不同的选择规则时，服务顺序、等待时间和生成进度会如何变化。
+本节关注请求级选择：候选请求采用不同排序规则时，服务顺序、等待时间和生成进度会如何变化；当高优先级或临近 deadline 的请求无法准入时，还要判断能否安全抢占并在之后恢复。每轮批次成员如何动态加入和退出，继续由 Continuous Batching 机制处理。
 
-**关键词：** `decode scheduling`, `prefill`, `batch reordering`
+**关键词：** `decode scheduling`, `admission`, `aging`, `fairness`, `preemption`
 
 ---
 
@@ -25,62 +25,59 @@
 
 **导语：** 进入本节前，先能区分请求的 prefill、decode 和完成状态，再观察调度器如何依据状态选择下一步请求。
 - [21. Decoding Strategies | 解码策略](./21_Decoding_Strategies.md)
-- [23. Speculative Decoding | 投机解码](./23_Speculative_Decoding.md)
-- [35. Multi-Token Decoding | 多 Token 解码](./35_Multi_Token_Decoding.md)
 
 ---
 
 ### Step 1: 多请求为什么需要解码调度
 
-把多个请求放进同一个等待队列后，它们可能处于不同阶段，拥有不同的生成进度、优先级和缓存状态。调度器需要先把这些信息组织成请求状态，再依据选择规则决定下一步推进谁。本节位于四层调度的第一层：请求级调度，关注“这一轮推进哪个请求”，而不是批次如何重组或资源池如何拆分。
+把多个请求放进同一个等待队列后，它们会竞争下一轮 Decode 的执行机会。本节用请求阶段、缓存命中和业务优先级确定谁先获得执行机会；这些选择会改变生成进度、响应延迟和完成顺序。
 
-调度器选择的不只是请求，还包括一次推进多少工作：普通 Decode 通常推进一个 token，而投机或多 Token 路径可能一次接受一段 token。推进量、等待时间和公平性共同影响服务顺序。
+固定优先级策略直接使用业务优先级；aging 把等待步数折算成优先级增量，避免低优先级请求长期饥饿；deadline 策略进一步比较剩余步数与完成预算。调度前还要检查 KV block 是否足够：容量不足时只能排队，或抢占可安全暂停且优先级更低的已准入请求。
 
-本节先把请求状态、选择依据和调度目标放进同一张表，再沿着状态变化和排序键进入实现。
-
-图中的请求是带有阶段、进度、生成上限和缓存状态的活动对象；调度器每轮从未完成请求中选择一个并推进。草稿验证只作为请求状态中的生成进度来源。
-
-| 观察对象 | 要回答的问题 | 对调度的影响 |
+| 字段或观察对象 | 在本节中的角色 | 对当前选择的影响 |
 | --- | --- | --- |
-| 请求状态 | 请求当前处于哪个生成阶段？ | 决定是否优先完成 `prefill` 或继续 `decode` |
-| 选择依据 | 为什么这次选择了某个请求？ | 受到 cache、优先级和总长度影响 |
-| 调度目标 | 希望改善哪类服务表现？ | 影响生成进度、响应延迟和公平性 |
+| 活动请求集合 | 收集尚未完成、可继续推进的请求 | 形成可重排的候选集合 |
+| 阶段、缓存命中、业务优先级 | 排序键的主要决策字段 | 决定谁先获得一个执行步 |
+| 总长度、请求编号 | 稳定 tie-breaker | 只在前面字段相同时决定顺序 |
+| `wait_steps` | 等待与潜在饥饿的观测字段 | 固定策略只记录；aging 策略将其折算为优先级增量 |
+| `required_blocks` / 可用 KV block | 请求的容量需求与系统容量状态 | 决定请求当前能否准入；不负责 block 的物理分配 |
+| `deadline_step` / `preemptible` | 截止步与能否安全暂停 | 决定紧急程度，以及容量不足时是否允许抢占 |
+| 完成进度与事件序列 | 调度后的结果记录 | 用于解释完成顺序、等待与公平性 |
 
 ![Decode 调度概念图：请求状态进入调度器并循环推进](../public/02_PyTorch_Algorithms/36_decode_scheduling_board.svg)
 
 ### Step 2: 请求状态与生命周期机制
 
-调度前先把一个请求看成一个会变化的状态对象。它从 prefill（处理输入）进入 decode（逐步生成），每次被选中后前进一小步，达到生成上限后离开活动集合；调度器的工作就是反复读取这些状态并推进其中一个请求。
+调度前先把请求看成会变化的状态对象。正常路径是 waiting → admitted → prefill → decode → finished；容量压力下，已准入请求还可能进入 preempted，释放其 KV 预算，之后重新准入并从保存的阶段继续。
 
 | 机制环节 | 状态或动作 | 机制含义 |
 |---|---|---|
 | 状态对象 | 输入、阶段、生成进度、生成上限和缓存信息 | 说明请求当前处于什么阶段，还需要生成多少内容 |
-| 状态转移 | prefill → decode | 请求完成输入处理，进入逐步生成阶段 |
+| 状态转移 | waiting → admitted → prefill → decode | 请求获得容量后完成输入处理并逐步生成 |
+| 抢占与恢复 | admitted → preempted → admitted | 保存阶段和生成进度，释放后重新申请容量 |
 | 活动集合 | 尚未完成的请求 | 只保留仍需要推进的请求，已完成请求退出队列 |
 | 单步推进 | 选中一个请求前进一轮 | 每一轮只推进当前选中的请求，其他请求继续等待 |
 | 完成条件 | 达到生成上限 | 请求完成并从活动集合中退出 |
 
 ### Step 3: 调度策略与排序优先级
 
-有了请求生命周期，还需要一条选择规则来比较多个活动请求。调度策略把请求阶段、缓存状态、业务优先级和序列长度组织成有先后顺序的排序键；字段越靠前，决策优先级越高，排序键越小的请求越早获得推进机会。
+有了请求生命周期，还需要一条可重复的选择规则来比较活动请求。本节固定排序键为“阶段 → 缓存命中 → 业务优先级 → 总长度 → 请求编号”：字段越靠前，越先决定结果；排序键越小的请求越早获得推进机会。业务优先级采用负号转换，因此数值越大的请求越靠前。
 
-下面的图展示排序字段的优先级，以及第一个不同字段如何决定两个请求的先后。具体字段如何写入 `_schedule_key`，留到 Step 4 的代码实现中完成。
+三条策略共享阶段、缓存命中和稳定 tie-breaker：固定策略使用业务优先级，aging 使用 `priority + wait_steps // aging_interval`，deadline 策略优先选择完成余量更小的请求。若最紧急请求容量不足，调度器只能抢占 `preemptible=True` 且优先级更低的已准入请求；抢占必须保留原阶段和生成进度，恢复后不能重新开始。
 
 ![Decode 调度排序键：从左到右比较字段](../public/02_PyTorch_Algorithms/36_decode_sort_key.svg)
 
-### Step 4: 动手实现与结果观察
+### Step 4: 实现请求状态与调度循环
 
-**动手任务**：请补全下方 `DecodeSchedulerSim`，跑通“入队 → 排序 → 单步推进 → 持续调度”这条链路。需要完成三个位置：构造请求状态、定义排序键和选择本轮请求；执行步数的更新已经给出，作为 `max_steps` 的防护计数。代码中的检查负责保证输入长度和生成上限有效；这些约束属于调度器的输入契约，不是新的调度策略。
+请补全下方 `DecodeSchedulerSim`，跑通“入队 → 固定/aging/deadline 排序 → 容量准入或抢占 → 单步推进 → 恢复或释放容量”这条链路。物理 block 管理由缓存机制负责，本题只模拟调度器消费和归还容量状态。
 
-完成代码后，按下面的表格逐项核对事件：先看触发条件，再看状态变化，最后结合排序键解释事件顺序。
-
-| 事件 | 发生条件 | 状态变化 | 观察重点 |
-| --- | --- | --- | --- |
-| `prefill_to_decode` | 选中的请求仍处于 `prefill` | `phase` 切换为 `decode` | 请求完成输入处理，获得生成资格 |
-| `decode_one_step` | 选中的请求处于 `decode`，尚未达到生成上限 | `generated_len` 增加 1 | 当前请求推进一步，其他请求继续等待 |
-| `finish` | 生成后达到 `max_new_tokens` | 请求从 active 集合中退出 | 对照完成时间和 `wait_steps`，观察调度公平性 |
-
-
+| TODO / 实现对象 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
+|---|---|---|---|
+| TODO 1 / `enqueue` | 构造请求状态并加入队列 | 记录容量、deadline 和可抢占性 | 输入状态契约 |
+| TODO 2 / `_schedule_key` | 比较 fixed、aging 与 deadline | deadline 只在显式策略下改变顺序；tie-breaker 稳定 | 公平性与紧急度对照 |
+| TODO 3 / `_ensure_capacity` | 执行准入或选择抢占对象 | 只能抢占可暂停且优先级更低的请求；状态与进度必须保留 | 容量与抢占不变量 |
+| TODO 4 / `step` | 推进并记录恢复、完成和 deadline | 恢复不重置进度，完成释放容量，未选请求累计等待 | 状态、容量、SLO 与事件观测 |
+| `run` / 事件记录 | 使用已有循环推进并保存事件 | `max_steps` 只作循环保护 | 事件数量与异常输入 |
 
 ```python
 from dataclasses import dataclass
@@ -91,6 +88,7 @@ from typing import Dict, List, Literal
 
 ```python
 Phase = Literal['prefill', 'decode']
+RequestStatus = Literal['waiting', 'running', 'preempted', 'finished']
 
 
 @dataclass
@@ -103,7 +101,13 @@ class RequestState:
     phase: Phase = 'prefill'
     priority: int = 0
     cache_hit: bool = False
-    wait_steps: int = 0  # 仅用于观察等待，不参与当前排序键
+    wait_steps: int = 0
+    required_blocks: int = 1
+    admitted: bool = False
+    deadline_step: int | None = None
+    preemptible: bool = True
+    status: RequestStatus = 'waiting'
+    preemptions: int = 0
 
     @property
     def total_len(self) -> int:
@@ -117,57 +121,86 @@ class RequestState:
 class DecodeSchedulerSim:
     """用事件序列观察多个请求如何在 prefill 与 decode 之间推进。"""
 
-    def __init__(self):
+    def __init__(self, policy: str = 'fixed_priority', free_kv_blocks: int = 1_000_000, aging_interval: int = 4):
+        if policy not in {'fixed_priority', 'aging', 'deadline'}:
+            raise ValueError('policy 必须是 fixed_priority、aging 或 deadline')
+        if free_kv_blocks < 0 or aging_interval <= 0:
+            raise ValueError('容量不能为负，aging_interval 必须为正数')
+        self.policy = policy
+        self.free_kv_blocks = free_kv_blocks
+        self.aging_interval = aging_interval
+        self.clock = 0
         self.queue: List[RequestState] = []
         self.timeline: List[Dict[str, int | str]] = []
 
-    def enqueue(self, request_id: int, prompt_len: int, max_new_tokens: int = 2, priority: int = 0, cache_hit: bool = False) -> None:
+    def enqueue(self, request_id: int, prompt_len: int, max_new_tokens: int = 2, priority: int = 0, cache_hit: bool = False, required_blocks: int = 1, deadline_step: int | None = None, preemptible: bool = True) -> None:
         """校验并登记请求；请求从 prefill 阶段开始。"""
         if request_id in {item.request_id for item in self.queue}:
             raise ValueError(f'重复的 request_id: {request_id}')
-        if prompt_len <= 0 or max_new_tokens <= 0:
-            raise ValueError('prompt_len 和 max_new_tokens 必须为正数')
+        if prompt_len <= 0 or max_new_tokens <= 0 or required_blocks <= 0:
+            raise ValueError('prompt_len、max_new_tokens 和 required_blocks 必须为正数')
+        if deadline_step is not None and deadline_step <= self.clock:
+            raise ValueError('deadline_step 必须晚于当前调度时钟')
         # ==========================================
         # TODO 1: 构造请求状态，并加入调度队列
-        # 提示: RequestState 默认处于 prefill 阶段；分别传入输入长度和生成上限
+        # 提示：保留优先级、容量、deadline 与 preemptible；状态从 waiting 开始。
+        # request：待加入队列的 RequestState，保存请求的最小调度状态
         # ==========================================
         # request = ???
         self.queue.append(request)
 
-    def _schedule_key(self, req: RequestState) -> tuple[int, int, int, int, int]:
-        """返回当前示例策略的排序键；wait_steps 暂不参与排序。"""
-        # ==========================================
-        # TODO 2: 定义调度排序键
-        # 提示: prefill 优先于 decode，cache hit 优先于 cache miss，高 priority 更靠前；
-        #       tuple 会按从左到右的顺序比较字段
-        # ==========================================
+    def _effective_priority(self, req: RequestState) -> int:
+        """返回 fixed/aging 共用的有效业务优先级。"""
+        return req.priority + (req.wait_steps // self.aging_interval if self.policy == 'aging' else 0)
+
+    def _remaining_steps(self, req: RequestState) -> int:
+        return (1 if req.phase == 'prefill' else 0) + max(req.max_new_tokens - req.generated_len, 0)
+
+    def _schedule_key(self, req: RequestState) -> tuple[int, int, int, int, int, int]:
+        """返回 deadline、阶段、缓存、有效优先级与稳定字段组成的排序键。"""
+        # TODO 2（排序策略）：deadline 模式使用完成余量；其他模式不启用 deadline 排序。
+        # deadline_slack = ???
         phase_rank = 0 if req.phase == 'prefill' else 1
         cache_rank = 0 if req.cache_hit else 1
-        # key = ???
-        return key
+        return (deadline_slack, phase_rank, cache_rank, -self._effective_priority(req), req.total_len, req.request_id)
+
+    def _ensure_capacity(self, challenger: RequestState) -> int | None:
+        """为 challenger 准入；必要时抢占一个低优先级、可暂停的已准入请求。"""
+        # TODO 3（准入与抢占）：返回被抢占的 request_id；无需抢占时返回 None。
+        # 约束：只有 challenger 更紧急时才可抢占，且 victim 的阶段与 generated_len 不得重置。
+        raise NotImplementedError
 
     def step(self) -> Dict[str, int | str] | None:
         """选择并推进一个活动请求，同时记录事件和等待步数。"""
-        active = [req for req in self.queue if not req.done]
-        if not active:
+        candidates = [req for req in self.queue if not req.done]
+        if not candidates:
             return None
 
         # ==========================================
-        # TODO 3: 从 active 请求中选择本轮要调度的请求
-        # 提示: 使用 min(..., key=self._schedule_key) 选择排序最靠前的请求
+        # TODO 4: 按排序键选择请求，并通过 _ensure_capacity 完成准入、抢占或恢复。
+        # chosen：本轮实际获得一个调度步的 RequestState
         # ==========================================
         # chosen = ???
+        # preempted_request_id = ???
 
-        for req in active:
+        for req in candidates:
             if req is not chosen:
                 req.wait_steps += 1
 
         if chosen.phase == 'prefill':
+            if not chosen.admitted:
+                self.free_kv_blocks -= chosen.required_blocks
+                chosen.admitted = True
+            chosen.status = 'running'
             chosen.phase = 'decode'
             action = 'prefill_to_decode'
         else:
             chosen.generated_len += 1
             action = 'finish' if chosen.done else 'decode_one_step'
+            if chosen.done and chosen.admitted:
+                self.free_kv_blocks += chosen.required_blocks
+                chosen.admitted = False
+                chosen.status = 'finished'
 
         event = {
             'request_id': chosen.request_id,
@@ -177,8 +210,12 @@ class DecodeSchedulerSim:
             'generated_len': chosen.generated_len,
             'max_new_tokens': chosen.max_new_tokens,
             'wait_steps': chosen.wait_steps,
+            'free_kv_blocks': self.free_kv_blocks,
+            'preempted_request_id': preempted_request_id,
+            'deadline_missed': chosen.deadline_step is not None and self.clock + 1 + self._remaining_steps(chosen) > chosen.deadline_step,
         }
         self.timeline.append(event)
+        self.clock += 1
         return event
 
     def run(self, max_steps: int = 100) -> List[Dict[str, int | str]]:
@@ -198,82 +235,151 @@ class DecodeSchedulerSim:
 
 
 ```python
-# 测试你的实现
-def test_decode_scheduler():
+# 机制测试：分别验证请求状态、排序、公平性、容量准入和输入保护。
+def test_enqueue_contract():
+    """验证新请求从 prefill 状态入队，并保留输入契约字段。"""
+    sim = DecodeSchedulerSim()
+    sim.enqueue(request_id=1, prompt_len=2, max_new_tokens=2, priority=2, cache_hit=True)
+    req = sim.queue[0]
+    assert req.phase == 'prefill' and req.generated_len == 0
+    assert req.prompt_len == 2 and req.max_new_tokens == 2
+    assert req.required_blocks == 1 and not req.admitted
+
+
+def test_schedule_key_decision_order():
+    """验证阶段、缓存命中、业务优先级与稳定字段的既定顺序。"""
+    sim = DecodeSchedulerSim()
+    sim.enqueue(1, 4, 1, priority=0, cache_hit=False)
+    sim.enqueue(2, 4, 1, priority=9, cache_hit=True)
+    sim.queue[1].phase = 'decode'
+    # phase 比缓存和 priority 更靠前，因此 prefill 请求先被选中。
+    assert sim._schedule_key(sim.queue[0]) < sim._schedule_key(sim.queue[1])
+
+    sim = DecodeSchedulerSim()
+    sim.enqueue(1, 4, 1, priority=1, cache_hit=False)
+    sim.enqueue(2, 4, 1, priority=1, cache_hit=True)
+    assert sim._schedule_key(sim.queue[1]) < sim._schedule_key(sim.queue[0])
+
+    sim = DecodeSchedulerSim()
+    sim.enqueue(1, 4, 1, priority=1, cache_hit=True)
+    sim.enqueue(2, 4, 1, priority=3, cache_hit=True)
+    assert sim._schedule_key(sim.queue[1]) < sim._schedule_key(sim.queue[0])
+    assert sim.step()['request_id'] == 2
+
+
+def test_wait_steps_is_observation_not_priority():
+    """验证等待步数只记录公平性，不得改变当前排序键。"""
+    sim = DecodeSchedulerSim()
+    sim.enqueue(1, 4, 1, priority=1, cache_hit=True)
+    sim.enqueue(2, 4, 1, priority=1, cache_hit=True)
+    first, second = sim.queue
+    key_before = sim._schedule_key(first)
+    first.wait_steps = 50
+    second.wait_steps = 0
+    assert sim._schedule_key(first) == key_before
+    assert sim._schedule_key(first) < sim._schedule_key(second)
+
+
+def test_aging_changes_effective_priority():
+    """验证 aging 只在显式启用时提高等待请求的有效优先级。"""
+    sim = DecodeSchedulerSim(policy='aging', aging_interval=2)
+    sim.enqueue(1, 4, 1, priority=1, cache_hit=True)
+    sim.enqueue(2, 4, 1, priority=3, cache_hit=True)
+    sim.queue[0].wait_steps = 6
+    assert sim._effective_priority(sim.queue[0]) == 4
+    assert sim._schedule_key(sim.queue[0]) < sim._schedule_key(sim.queue[1])
+
+
+def test_capacity_admission_and_release():
+    """验证容量不足的请求暂不准入，完成请求会释放 KV block。"""
+    sim = DecodeSchedulerSim(free_kv_blocks=2)
+    sim.enqueue(1, 4, 1, priority=9, required_blocks=3)
+    sim.enqueue(2, 4, 1, priority=1, required_blocks=2)
+    assert sim.step()['request_id'] == 2
+    assert sim.free_kv_blocks == 0
+    assert sim.step()['action'] == 'finish'
+    assert sim.free_kv_blocks == 2
+
+
+def test_preemption_and_resume_preserve_progress():
+    """验证高优先级请求可抢占，victim 恢复时保留阶段与生成进度。"""
+    sim = DecodeSchedulerSim(free_kv_blocks=2)
+    sim.enqueue(1, 4, 2, priority=1, required_blocks=2, preemptible=True)
+    assert sim.step()['request_id'] == 1
+    victim = sim.queue[0]
+    assert victim.phase == 'decode' and victim.admitted
+    sim.enqueue(2, 2, 1, priority=9, required_blocks=2)
+    event = sim.step()
+    assert event['request_id'] == 2 and event['preempted_request_id'] == 1
+    assert victim.status == 'preempted' and victim.phase == 'decode' and victim.generated_len == 0
+    sim.run(max_steps=10)
+    assert victim.done and victim.preemptions == 1
+
+
+def test_non_preemptible_and_deadline_policy():
+    """验证不可抢占请求受保护，并验证 deadline 余量进入排序与违约记录。"""
+    sim = DecodeSchedulerSim(free_kv_blocks=2)
+    sim.enqueue(1, 4, 2, priority=1, required_blocks=2, preemptible=False)
+    sim.step()
+    sim.enqueue(2, 2, 1, priority=9, required_blocks=2)
+    event = sim.step()
+    assert event['request_id'] == 1 and event['preempted_request_id'] is None
+
+    deadline_sim = DecodeSchedulerSim(policy='deadline')
+    deadline_sim.enqueue(1, 4, 4, priority=9, deadline_step=20)
+    deadline_sim.enqueue(2, 2, 1, priority=0, deadline_step=1)
+    event = deadline_sim.step()
+    assert event['request_id'] == 2 and event['deadline_missed'] is True
+
+
+def test_state_progression_and_completion():
+    """验证 prefill 到 decode、完成退出和等待累计。"""
+    sim = DecodeSchedulerSim()
+    sim.enqueue(1, 2, 2, priority=2, cache_hit=True)
+    sim.enqueue(2, 3, 3, priority=1, cache_hit=False)
+    events = sim.run(max_steps=20)
+    assert len(events) == 7
+    assert any(event['action'] == 'finish' for event in events)
+    assert all(req.done for req in sim.queue)
+    assert any(event['wait_steps'] > 0 for event in events)
+
+
+def test_input_guards_and_step_limit():
+    """验证非法请求与调度步数上限的保护。"""
+    sim = DecodeSchedulerSim()
+    for kwargs in ({'request_id': 1, 'prompt_len': 0}, {'request_id': 1, 'prompt_len': 1, 'max_new_tokens': 0}, {'request_id': 1, 'prompt_len': 1, 'required_blocks': 0}):
+        try:
+            sim.enqueue(**kwargs)
+        except ValueError:
+            continue
+        raise AssertionError('非法请求参数应被拒绝')
+    sim.enqueue(1, 1, 3)
+    assert len(sim.run(max_steps=2)) == 2
     try:
-        sim = DecodeSchedulerSim()
-        sim.enqueue(request_id=1, prompt_len=2, max_new_tokens=2, priority=2, cache_hit=True)
-        sim.enqueue(request_id=2, prompt_len=3, max_new_tokens=3, priority=1, cache_hit=False)
-        sim.enqueue(request_id=3, prompt_len=1, max_new_tokens=1, priority=3, cache_hit=True)
+        sim.run(max_steps=-1)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('负数 max_steps 应被拒绝')
 
-        assert len(sim.queue) == 3
-        assert sim.queue[0].phase == 'prefill'
-        assert sim.queue[0].prompt_len == 2
-        assert sim.queue[0].max_new_tokens == 2
-        assert sim._schedule_key(sim.queue[2]) < sim._schedule_key(sim.queue[1])
 
-        # 其他字段相同时，request_id 提供稳定的最终排序
-        stable = DecodeSchedulerSim()
-        stable.enqueue(request_id=9, prompt_len=4, max_new_tokens=1)
-        stable.enqueue(request_id=3, prompt_len=4, max_new_tokens=1)
-        assert stable._schedule_key(stable.queue[1]) < stable._schedule_key(stable.queue[0])
-        assert stable.step()['request_id'] == 3
-
-        first_event = sim.step()
-        assert first_event['request_id'] == 3
-        assert first_event['action'] == 'prefill_to_decode'
-        assert sim.queue[0].wait_steps == 1 and sim.queue[1].wait_steps == 1
-        events = sim.run(max_steps=20)
-        assert len(events) == 9
-        assert any(e['action'] == 'finish' for e in events)
-        assert all(req.done for req in sim.queue)
-        assert all(event['max_new_tokens'] >= event['generated_len'] for event in events)
-        assert any(event['wait_steps'] > 0 for event in events)
-
-        limited = DecodeSchedulerSim()
-        limited.enqueue(request_id=4, prompt_len=8, max_new_tokens=8)
-        assert len(limited.run(max_steps=2)) == 2
-
-        invalid = DecodeSchedulerSim()
-        try:
-            invalid.enqueue(request_id=5, prompt_len=0, max_new_tokens=1)
-            raise AssertionError('应拒绝非正 prompt_len')
-        except ValueError:
-            pass
-        invalid.enqueue(request_id=5, prompt_len=1, max_new_tokens=1)
-        try:
-            invalid.enqueue(request_id=5, prompt_len=1, max_new_tokens=1)
-            raise AssertionError('应拒绝重复 request_id')
-        except ValueError:
-            pass
-        try:
-            invalid.run(max_steps=-1)
-            raise AssertionError('应拒绝负数 max_steps')
-        except ValueError:
-            pass
-
-        assert sim.timeline is events
-
-        print('✅ DecodeSchedulerSim 测试通过')
-    except NotImplementedError as e:
-        raise NotImplementedError('请先完成 TODO 代码！') from e
-    except NameError as e:
-        raise NotImplementedError('请先完成 TODO 代码！') from e
+def test_decode_scheduler():
+    test_enqueue_contract()
+    test_schedule_key_decision_order()
+    test_wait_steps_is_observation_not_priority()
+    test_aging_changes_effective_priority()
+    test_capacity_admission_and_release()
+    test_preemption_and_resume_preserve_progress()
+    test_non_preemptible_and_deadline_policy()
+    test_state_progression_and_completion()
+    test_input_guards_and_step_limit()
+    print('✅ DecodeSchedulerSim 机制测试通过：排序、公平性、准入、抢占、恢复和 deadline 均通过。')
 
 
 test_decode_scheduler()
-
 ```
 
----
 
-🛑 **STOP HERE** 🛑
-<br><br><br><br><br><br><br><br><br><br>
-> 请先尝试自己完成代码并跑通测试。<br>
-> 如果你正在 Colab 中运行，并且遇到困难没有思路，可以向下滚动查看参考答案。
-<br><br><br><br><br><br><br><br><br><br>
-
----
 ## 参考代码与解析
 
 ### 代码
@@ -282,6 +388,7 @@ test_decode_scheduler()
 # TODO：下面是题目区的参考实现。
 
 Phase = Literal['prefill', 'decode']
+RequestStatus = Literal['waiting', 'running', 'preempted', 'finished']
 
 
 @dataclass
@@ -294,7 +401,13 @@ class RequestState:
     phase: Phase = 'prefill'
     priority: int = 0
     cache_hit: bool = False
-    wait_steps: int = 0  # 仅用于观察等待，不参与当前排序键
+    wait_steps: int = 0
+    required_blocks: int = 1
+    admitted: bool = False
+    deadline_step: int | None = None
+    preemptible: bool = True
+    status: RequestStatus = 'waiting'
+    preemptions: int = 0
 
     @property
     def total_len(self) -> int:
@@ -308,16 +421,26 @@ class RequestState:
 class DecodeSchedulerSim:
     """用事件序列观察多个请求如何在 prefill 与 decode 之间推进。"""
 
-    def __init__(self):
+    def __init__(self, policy: str = 'fixed_priority', free_kv_blocks: int = 1_000_000, aging_interval: int = 4):
+        if policy not in {'fixed_priority', 'aging', 'deadline'}:
+            raise ValueError('policy 必须是 fixed_priority、aging 或 deadline')
+        if free_kv_blocks < 0 or aging_interval <= 0:
+            raise ValueError('容量不能为负，aging_interval 必须为正数')
+        self.policy = policy
+        self.free_kv_blocks = free_kv_blocks
+        self.aging_interval = aging_interval
+        self.clock = 0
         self.queue: List[RequestState] = []
         self.timeline: List[Dict[str, int | str]] = []
 
-    def enqueue(self, request_id: int, prompt_len: int, max_new_tokens: int = 2, priority: int = 0, cache_hit: bool = False) -> None:
+    def enqueue(self, request_id: int, prompt_len: int, max_new_tokens: int = 2, priority: int = 0, cache_hit: bool = False, required_blocks: int = 1, deadline_step: int | None = None, preemptible: bool = True) -> None:
         """校验并登记请求；请求从 prefill 阶段开始。"""
         if request_id in {item.request_id for item in self.queue}:
             raise ValueError(f'重复的 request_id: {request_id}')
-        if prompt_len <= 0 or max_new_tokens <= 0:
-            raise ValueError('prompt_len 和 max_new_tokens 必须为正数')
+        if prompt_len <= 0 or max_new_tokens <= 0 or required_blocks <= 0:
+            raise ValueError('prompt_len、max_new_tokens 和 required_blocks 必须为正数')
+        if deadline_step is not None and deadline_step <= self.clock:
+            raise ValueError('deadline_step 必须晚于当前调度时钟')
         # ==========================================
         # TODO 1: 构造请求状态，并加入调度队列
         # 提示: RequestState 默认处于 prefill 阶段；分别传入输入长度和生成上限
@@ -328,33 +451,79 @@ class DecodeSchedulerSim:
             max_new_tokens=max_new_tokens,
             priority=priority,
             cache_hit=cache_hit,
+            required_blocks=required_blocks,
+            deadline_step=deadline_step,
+            preemptible=preemptible,
         )
         self.queue.append(request)
 
-    def _schedule_key(self, req: RequestState) -> tuple[int, int, int, int, int]:
-        """返回当前示例策略的排序键；wait_steps 暂不参与排序。"""
+    def _effective_priority(self, req: RequestState) -> int:
+        """返回固定策略或 aging 策略使用的有效优先级。"""
         # ==========================================
-        # TODO 2: 定义调度排序键
-        # 提示: prefill 优先于 decode，cache hit 优先于 cache miss，高 priority 更靠前；
-        #       tuple 会按从左到右的顺序比较字段
+        # TODO 2: 计算固定优先级或 aging 策略的有效优先级
         # ==========================================
+        effective_priority = req.priority
+        if self.policy == 'aging':
+            effective_priority += req.wait_steps // self.aging_interval
+        return effective_priority
+
+    def _remaining_steps(self, req: RequestState) -> int:
+        return (1 if req.phase == 'prefill' else 0) + max(req.max_new_tokens - req.generated_len, 0)
+
+    def _schedule_key(self, req: RequestState) -> tuple[int, int, int, int, int, int]:
+        """返回 deadline、阶段、缓存、有效优先级与稳定字段组成的排序键。"""
+        # TODO 2: deadline 模式优先比较完成余量。
+        deadline_slack = 1_000_000_000
+        if self.policy == 'deadline' and req.deadline_step is not None:
+            deadline_slack = req.deadline_step - self.clock - self._remaining_steps(req)
         phase_rank = 0 if req.phase == 'prefill' else 1
         cache_rank = 0 if req.cache_hit else 1
-        key = (phase_rank, cache_rank, -req.priority, req.total_len, req.request_id)
-        return key
+        return (deadline_slack, phase_rank, cache_rank, -self._effective_priority(req), req.total_len, req.request_id)
+
+    def _ensure_capacity(self, challenger: RequestState) -> int | None:
+        """为 challenger 准入，必要时抢占一个低优先级、可暂停的请求。"""
+        # TODO 3: 已准入请求直接继续；空闲容量不足时寻找一个可安全抢占的 victim。
+        if challenger.admitted:
+            challenger.status = 'running'
+            return None
+        if challenger.required_blocks <= self.free_kv_blocks:
+            self.free_kv_blocks -= challenger.required_blocks
+            challenger.admitted = True
+            challenger.status = 'running'
+            return None
+        victims = [req for req in self.queue if req.admitted and not req.done and req.preemptible and self._effective_priority(req) < self._effective_priority(challenger)]
+        victims.sort(key=lambda req: (self._effective_priority(req), -req.required_blocks, req.request_id))
+        victim = next((req for req in victims if self.free_kv_blocks + req.required_blocks >= challenger.required_blocks), None)
+        if victim is None:
+            return None
+        victim.admitted = False
+        victim.status = 'preempted'
+        victim.preemptions += 1
+        self.free_kv_blocks += victim.required_blocks
+        self.free_kv_blocks -= challenger.required_blocks
+        challenger.admitted = True
+        challenger.status = 'running'
+        return victim.request_id
 
     def step(self) -> Dict[str, int | str] | None:
         """选择并推进一个活动请求，同时记录事件和等待步数。"""
-        active = [req for req in self.queue if not req.done]
-        if not active:
+        candidates = [req for req in self.queue if not req.done]
+        if not candidates:
             return None
 
         # ==========================================
-        # TODO 3: 从 active 请求中选择本轮要调度的请求
-        # 提示: 使用 min(..., key=self._schedule_key) 选择排序最靠前的请求
+        # TODO 4: 按排序键尝试准入；容量不足时允许 _ensure_capacity 执行安全抢占。
         # ==========================================
-        chosen = min(active, key=self._schedule_key)
-        for req in active:
+        chosen = None
+        preempted_request_id = None
+        for candidate in sorted(candidates, key=self._schedule_key):
+            preempted_request_id = self._ensure_capacity(candidate)
+            if candidate.admitted:
+                chosen = candidate
+                break
+        if chosen is None:
+            return None
+        for req in candidates:
             if req is not chosen:
                 req.wait_steps += 1
         if chosen.phase == 'prefill':
@@ -363,6 +532,10 @@ class DecodeSchedulerSim:
         else:
             chosen.generated_len += 1
             action = 'finish' if chosen.done else 'decode_one_step'
+            if chosen.done and chosen.admitted:
+                self.free_kv_blocks += chosen.required_blocks
+                chosen.admitted = False
+                chosen.status = 'finished'
 
         event = {
             'request_id': chosen.request_id,
@@ -372,8 +545,12 @@ class DecodeSchedulerSim:
             'generated_len': chosen.generated_len,
             'max_new_tokens': chosen.max_new_tokens,
             'wait_steps': chosen.wait_steps,
+            'free_kv_blocks': self.free_kv_blocks,
+            'preempted_request_id': preempted_request_id,
+            'deadline_missed': chosen.deadline_step is not None and self.clock + 1 + self._remaining_steps(chosen) > chosen.deadline_step,
         }
         self.timeline.append(event)
+        self.clock += 1
         return event
 
     def run(self, max_steps: int = 100) -> List[Dict[str, int | str]]:
@@ -393,206 +570,43 @@ class DecodeSchedulerSim:
 
 ### 解析
 
-**1. TODO 1: 构造请求状态**
-- **实现方式**：`request = RequestState(request_id=request_id, prompt_len=prompt_len, max_new_tokens=max_new_tokens, priority=priority, cache_hit=cache_hit)`
-- **关键点**：请求入队时默认处于 `prefill` 阶段，`generated_len` 从 0 开始，`max_new_tokens` 单独记录输出上限
-- **技术细节**：`RequestState` 把输入长度、生成上限、阶段、优先级、cache 命中和等待步数收在一起，后续调度只需要读取这个状态对象
+本题依次实现请求状态登记、固定/aging/deadline 排序、容量准入、安全抢占和恢复。答案代码保留与题目区相同的状态流，只补全每处机制决策。
 
-**2. TODO 2: 定义调度排序键**
-- **实现方式**：`key = (phase_rank, cache_rank, -req.priority, req.total_len, req.request_id)`
-- **关键点**：排序键越小越优先，因此 `prefill` 用 0、`decode` 用 1，cache hit 用 0、cache miss 用 1
-- **技术细节**：Python 按 tuple 从左到右比较；`-req.priority` 让更高优先级排在前面，`total_len` 和 `request_id` 用作稳定的 tie-breaker
+**TODO 1：构造请求状态**
 
-**3. TODO 3: 选择本轮调度请求**
-- **实现方式**：`chosen = min(active, key=self._schedule_key)`
-- **关键点**：调度器不是按入队顺序直接执行，而是每一步都根据当前状态重新选择最适合推进的请求
-- **技术细节**：`active` 已经过滤掉完成请求，`min(..., key=...)` 会把排序规则集中交给 `_schedule_key`；未被选中的 active 请求会累加 `wait_steps`，用于观察等待情况。测试还检查了排序字段完全相同时由 `request_id` 稳定打破平局。
+- 使用 `RequestState` 保存输入长度、生成上限、阶段、优先级、KV block、deadline 和可抢占性。
+- 新请求默认处于 `prefill`，`generated_len` 从 0 开始，再加入调度队列。
 
-**运行保护：调度步数上限**
-- `steps = steps + 1` 是给定的循环保护逻辑，不属于本节需要设计的调度策略。
-- 只有 `step()` 返回事件时才增加步数；没有活动请求时立即退出，`max_steps` 用于防止规则异常导致无限循环。
+**TODO 2：计算排序键**
 
-**输入契约与测试**
-- `enqueue` 拒绝非正的 `prompt_len` / `max_new_tokens`，也拒绝重复的 `request_id`；`run` 拒绝负数 `max_steps`。这些检查保证状态机收到可解释的输入。
-- 测试同时检查请求状态、排序先后、稳定 tie-breaker、首轮等待步数、事件数量、请求完成和上述异常输入；它验证的是状态转移和调度规则，不是 GPU 性能。
+- 固定策略直接使用业务优先级，aging 按等待步数提高有效优先级，deadline 策略先比较预计完成余量。
+- 非 deadline 策略保持既有阶段、cache 命中和业务优先级顺序；长度和请求编号只负责稳定打破平局。
 
-**Decode Scheduling 核心机制**
-- **阶段差异**：`prefill` 通常一次处理较长输入；`decode` 每次推进少量新 token，但会重复执行多步，因此直接影响 token latency
-- **排序规则**：当前规则同时考虑请求阶段、cache 命中、业务优先级和序列长度；它是一个可解释的示例策略，不等同于生产系统的完整调度器
-- **状态推进**：一次 prefill 会把请求切到 decode；decode 每执行一步就增加 `generated_len`，直到请求完成
+**TODO 3：执行容量准入与安全抢占**
 
-**工程优化要点**
-- **吞吐与延迟权衡**：过度追求大 batch 会增加等待时间，过度追求低延迟又会降低 GPU 利用率
-- **等待与公平性**：本实现记录 `wait_steps` 作为观察指标，但当前排序键尚未使用它；若某请求长期等待，可进一步设计 aging 或多队列策略
-- **真实系统扩展**：生产调度器还会加入 token budget、KV Cache 容量、请求超时、抢占和多队列策略
+- 空闲容量足够时直接准入；否则只能选择 `preemptible=True`、优先级更低且释放后足够容纳 challenger 的 victim。
+- 抢占只改变 admitted/status 和容量账本，不重置 victim 的 phase、generated_len 或 deadline。
 
-### Step 5: 可选 GPU 微基准
+**TODO 4：选择并推进请求**
 
-本步用人工构造的 GPU 矩阵乘法负载比较 FIFO 与本节排序键，观察调度顺序和执行开销。代码不加载大模型，因此不替代真实模型或 vLLM / SGLang Serving 实验。
+- 按排序键依次尝试准入；成功时推进请求，恢复被抢占请求时从保存阶段继续，完成时释放容量。
+- 未被选中的请求增加 `wait_steps`；事件同时记录抢占对象和预计 deadline 是否已经无法满足。
 
-运行前确认当前 Notebook 内核就是目标 GPU 环境；仓库根目录可执行 `python tools/environment_preflight.py --gpu --packages torch`。本步只依赖 PyTorch CUDA。
+**测试如何定位问题**
 
-配置单元先选择是否运行、dtype、请求规格、重复次数和结果路径；执行单元会自动查找项目根目录、创建 `benchmarks/results/` 并保存 JSON，不需要手动填写绝对路径。真实 Serving 指标和 backend 对比统一在 [70. Serving Scheduler Benchmark](./70_Serving_Scheduler_Benchmark.md) 中验证。
+- 输入契约测试检查非法长度、deadline、block 需求和重复 `request_id`；策略测试分别检查 fixed、aging 与 deadline。
+- 容量测试检查 admission/release；抢占测试检查不可抢占保护与恢复；deadline 测试检查紧急排序和违约记录。
+### 真实 GPU 验证出口
 
-| 实验内容 | 固定或改变的条件 | 观察目的 |
-|---|---|---|
-| GPU 负载 | 人工构造的矩阵乘法；`GPU_HIDDEN_SIZE` 控制规模 | 观察调度执行的 GPU 时间和峰值显存 |
-| 请求集合 | `REQUEST_SPECS` 固定输入长度、生成上限、优先级和缓存状态 | 保持两种策略使用同一批请求 |
-| 对照变量 | FIFO vs 本节排序键 | 比较请求完成顺序和等待步数 |
-| 运行条件 | dtype、重复次数、随机种子保持一致 | 让结果可以复查 |
-| 结果指标 | 总耗时、token/s、完成步、`wait_steps`、峰值显存、OOM | 判断调度代价，不输出 Serving 结论 |
-| 证据范围 | 人工构造的 GPU 矩阵乘法微基准 | 不推导 TTFT、TPOT、P50/P99、连续批处理或 backend 结论 |
+本节 Step 4 比较 FCFS、业务优先级、aging、SLO 与容量准入的请求选择结果。随机矩阵微基准不能反映队列等待、饥饿、抢占或尾延迟，因此不作为 GPU 证据。
 
-
-
-```python
-# Step 5 配置单元：先运行本 cell，再运行下面的 GPU 执行单元。
-RUN_GPU_MICROBENCH = False  # False 只检查代码；True 才运行 GPU 并保存结果。
-GPU_RESULT_PATH = 'benchmarks/results/36_decode_scheduling_gpu.json'  # 相对项目根目录，无需填写绝对路径。
-GPU_REPEATS = 3  # 两种策略使用相同重复次数。
-GPU_HIDDEN_SIZE = 512  # 人工构造矩阵的宽度；只改变 workload 时再修改。
-GPU_DTYPE = 'float16'  # 可改为 bfloat16，但必须确认硬件原生支持。
-GPU_SEED = 42
-REQUEST_SPECS = [
-    {'request_id': 1, 'prompt_len': 64, 'max_new_tokens': 16, 'priority': 1, 'cache_hit': False},
-    {'request_id': 2, 'prompt_len': 128, 'max_new_tokens': 16, 'priority': 2, 'cache_hit': True},
-    {'request_id': 3, 'prompt_len': 256, 'max_new_tokens': 16, 'priority': 1, 'cache_hit': False},
-]
-
-```
-
-
-```python
-# Step 5 GPU 执行单元：依赖上面的配置单元；默认不启动 GPU。
-def _run_gpu_schedule_policy(policy):
-    import time
-    import torch
-
-    if not torch.cuda.is_available():
-        raise RuntimeError('GPU 微基准需要 CUDA；请先切换到 GPU runtime。')
-    if GPU_DTYPE not in {'float16', 'bfloat16'}:
-        raise ValueError('GPU_DTYPE 只能是 float16 或 bfloat16')
-    if GPU_DTYPE == 'bfloat16' and not torch.cuda.is_bf16_supported(including_emulation=False):
-        raise RuntimeError('当前 GPU 不支持原生 BF16，请改用 float16。')
-    torch.manual_seed(GPU_SEED)
-    torch.cuda.manual_seed_all(GPU_SEED)
-    device = torch.device('cuda')
-    dtype = getattr(torch, GPU_DTYPE)
-    weight = torch.randn(GPU_HIDDEN_SIZE, GPU_HIDDEN_SIZE, device=device, dtype=dtype)
-    inputs = {spec['request_id']: torch.randn(1, GPU_HIDDEN_SIZE, device=device, dtype=dtype) for spec in REQUEST_SPECS}
-    generated = {spec['request_id']: 0 for spec in REQUEST_SPECS}
-    wait_steps = {spec['request_id']: 0 for spec in REQUEST_SPECS}
-    completion_step = {}
-    total_events = sum(spec['max_new_tokens'] + 1 for spec in REQUEST_SPECS)
-
-    for _ in range(2):
-        _ = inputs[REQUEST_SPECS[0]['request_id']] @ weight
-    torch.cuda.synchronize()
-    torch.cuda.reset_peak_memory_stats()
-    sim = DecodeSchedulerSim() if policy == 'priority_cache_aware' else None
-    if sim is not None:
-        for spec in REQUEST_SPECS:
-            sim.enqueue(**spec)
-    torch.cuda.synchronize()
-    start = time.perf_counter()
-    for step_index in range(total_events):
-        if policy == 'fifo':
-            request_id = next(
-                spec['request_id'] for spec in REQUEST_SPECS
-                if spec['request_id'] not in completion_step
-            )
-            spec = next(item for item in REQUEST_SPECS if item['request_id'] == request_id)
-            if generated[request_id] < spec['max_new_tokens']:
-                generated[request_id] += 1
-            else:
-                completion_step[request_id] = step_index + 1
-        else:
-            event = sim.step()
-            if event is None:
-                break
-            request_id = event['request_id']
-            generated[request_id] = event['generated_len']
-            wait_steps[request_id] = event['wait_steps']
-            if event['action'] == 'finish':
-                completion_step[request_id] = step_index + 1
-        _ = inputs[request_id] @ weight
-        if policy == 'fifo':
-            for other_id in wait_steps:
-                if other_id != request_id and other_id not in completion_step:
-                    wait_steps[other_id] += 1
-    torch.cuda.synchronize()
-    elapsed = time.perf_counter() - start
-    total_tokens = sum(generated.values())
-    return {
-        'policy': policy,
-        'dtype': GPU_DTYPE,
-        'elapsed_ms': round(elapsed * 1000, 3),
-        'tokens_per_s': round(total_tokens / elapsed, 3) if elapsed else 0.0,
-        'completion_step': completion_step,
-        'wait_steps': wait_steps,
-        'peak_memory_mb': round(torch.cuda.max_memory_allocated() / (1024 ** 2), 2),
-    }
-
-if RUN_GPU_MICROBENCH:
-    import json
-    from pathlib import Path
-
-    gpu_results = {
-        policy: [_run_gpu_schedule_policy(policy) for _ in range(GPU_REPEATS)]
-        for policy in ('fifo', 'priority_cache_aware')
-    }
-    # 自动向上查找包含 benchmarks/ 的项目根目录，兼容从仓库根目录或 Notebook 子目录启动。
-    project_root = next((p for p in [Path.cwd(), *Path.cwd().parents] if (p / 'benchmarks').is_dir()), Path.cwd())
-    output_path = project_root / GPU_RESULT_PATH
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    report = {
-        'task': 'decode_scheduling_gpu_microbenchmark',
-        'evidence_level': 'synthetic_gpu_microbenchmark',
-        'config': {
-            'workload': 'synthetic_matmul',
-            'request_count': len(REQUEST_SPECS),
-            'request_specs': REQUEST_SPECS,
-            'hidden_size': GPU_HIDDEN_SIZE,
-            'dtype': GPU_DTYPE,
-            'repeats': GPU_REPEATS,
-            'seed': GPU_SEED,
-            'torch': torch.__version__,
-            'torch_cuda': torch.version.cuda,
-            'device': torch.cuda.get_device_name(0),
-        },
-        'results': gpu_results,
-        'decision': {'decision': 'measure', 'reason': '仅比较人工构造的 GPU 矩阵乘法负载下的调度顺序和执行开销。'},
-    }
-    output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
-    print(f'GPU 微基准结果已保存：{output_path}')
-    print(json.dumps(report, ensure_ascii=False, indent=2))
-else:
-    print('GPU 微基准未启动：将 RUN_GPU_MICROBENCH 改为 True 后运行。')
-
-```
-
-#### GPU 实验记录
-
-完成 GPU 执行单元后填写下面这张总表。共同条件写入第三列，FIFO 与本节排序键分别填写对应结果；调整请求规格后新增一组记录，不覆盖已有结果。
-
-| 类别 | 项目 | 共同条件 / 本次配置 | FIFO | 本节排序键 | 说明 |
-|---|---|---|---:|---:|---|
-| 环境 | GPU 工作负载 | 人工构造的 GPU 矩阵乘法；`GPU_HIDDEN_SIZE` 控制矩阵规模 |  |  | 记录 GPU、PyTorch / CUDA 和矩阵规模 |
-| 环境 | dtype | `GPU_DTYPE`；默认 `float16` |  |  | BF16 需确认硬件原生支持 |
-| workload | 请求规格 | `REQUEST_SPECS` 固定请求数、输入长度、优先级和 `max_new_tokens` |  |  | 改变请求规格时新增一组记录 |
-| workload | 重复与随机性 | `GPU_REPEATS`、`GPU_SEED` |  |  | 两种策略使用相同设置 |
-| 结果 | 总耗时（ms） | 预热后重复运行 |  |  | 越低越好，但需结合等待和完成步数 |
-| 结果 | 吞吐（token/s） | 固定输出 token 数 |  |  | 仅表示本人工构造负载的执行吞吐 |
-| 结果 | 最晚完成步 / 最大 `wait_steps` | 从事件记录计算 |  |  | 观察服务顺序和等待情况 |
-| 结果 | 峰值显存（MB） / OOM | 从 CUDA 统计和运行状态记录 |  |  | OOM 时保留失败状态 |
-| 结果 | JSON 报告 | `GPU_RESULT_PATH` |  |  | 每组实验使用独立路径 |
-
+真实调度实验应在同一 Serving backend 上固定模型、到达轨迹、输入/输出长度和 KV 预算，仅替换请求选择策略，并记录 queue wait、TTFT、TPOT、P95/P99、饥饿与拒绝请求。该对照由 [70 Serving 调度基准](./70_Serving_Scheduler_Benchmark.md) 承接。
 ## 相关阅读
 
 完成请求状态、选择规则和推进顺序的模拟后，可以继续阅读推理服务调度的论文与真实基准项目。
 
 - [Orca 原论文：A Distributed Serving System for Transformer-Based Generative Models](https://www.usenix.org/conference/osdi22/presentation/yu)
 - [vLLM 官方仓库](https://github.com/vllm-project/vllm)
-- [37. KV Cache Scheduling | KV Cache 调度](./37_KV_Cache_Scheduling.md)
+- [37. KV Cache Lifecycle and Capacity Control | KV Cache 生命周期与容量控制](./37_KV_Cache_Lifecycle_and_Capacity_Control.md)
 - [38. Prefill/Decode Scheduling | Prefill/Decode 调度](./38_Prefill_Decode_Scheduling.md)
 - [70. Serving Scheduler Benchmark | 服务调度基准项目](./70_Serving_Scheduler_Benchmark.md)
