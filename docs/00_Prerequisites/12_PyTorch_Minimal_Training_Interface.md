@@ -1,6 +1,6 @@
-# 12. PyTorch Minimal Training Interface | PyTorch 最小训练接口
+# 12. PyTorch Minimal Training Interface | PyTorch 数据接口与训练生命周期
 
-**难度：** Medium | **环境：** CPU-first | **标签：** `PyTorch`, `数据接口`, `batch 契约` | **目标人群：** Part 2-4 前置补课者
+**难度：** Medium | **环境：** CPU-first | **标签：** `PyTorch`, `batch 契约`, `训练生命周期` | **目标人群：** 准备把数据入口与模型更新接成训练闭环的学习者
 
 > 🚀 **云端运行环境**
 >
@@ -10,29 +10,30 @@
 > [![Open In Studio](https://img.shields.io/badge/Open%20In-ModelScope-blueviolet?logo=alibabacloud)](https://modelscope.cn/my/mynotebook) *(国内推荐：魔搭社区免费实例)*
 
 
-本页聚焦：理解 Dataset 和 DataLoader 的最小职责；掌握 batch 组织和训练接口的关系；能把输入、标签和训练循环对齐到同一套约定。前面几页已经把模型怎么更新讲清楚了，这一页开始补“数据怎么稳定地喂进去”。你可以先把它看成 Part 2 里最常回看的“数据入口”：先把样本组织好，再看 batch 怎么组、怎么对齐、怎么搬到 device。阅读顺序可以按这条线走：先看单样本和 batch 怎么分工，再看 batch 契约和 SFT 对齐，最后把 batch、device 和训练接口串起来。更贴近真实训练时，batch 往往不是简单的 `(x, y)`，而是带有 `input_ids / attention_mask / labels` 这类字段的字典。实际训练前，batch 还要先和模型放到同一个 device 上。
+训练生命周期从原始样本开始，依次经过 tokenizer、batch 组装、输入契约、forward、loss、backward、参数更新、验证与指标评价。本页先整理 `Dataset`、`DataLoader` 和 `collate_fn` 的分工，再用同一 batch 契约连接训练态、验证态和模型评价。
 
-**关键词：** `Dataset`, `DataLoader`, `collate`
+**关键词：** `Dataset`, `DataLoader`, `batch contract`, `train/validate`, `evaluation metrics`
 
-**显存路线视角：** batch size、padding、序列长度和 mask 会改变每个 step 的输入与 activation 规模；本页只验证 batch 契约和数据对齐，不测真实吞吐或显存峰值。在 73 / 76 中，应固定这些 workload 参数并把它们写入报告。
+![从单样本到模型输入的 batch 契约](../public/00_Prerequisites/12_batch_contract_map.svg)
 
 ## 前置阅读
-**导语：** 先看 0C 组页，把训练闭环和数据接口的边界对齐，再进入这一页会更顺。
+**导语：** 先回顾优化器与损失函数如何消费模型输出，再从本页建立训练循环的数据入口。
 - [11. PyTorch Optimizers and Loss | PyTorch 优化器与损失函数](./11_PyTorch_Optimizers_and_Loss.md)
 - [0C 组页](./0C.md)
 
 ## 相关阅读
-**导语：** 本页先把 Dataset、DataLoader 和 batch 契约讲清楚；如果想继续看训练循环怎么把这些接口串起来，再顺着看下面这一页。
-- [13. Simple Neural Network Training | 简单神经网络训练循环](./13_Simple_Neural_Network_Training.md)
+**导语：** 完成数据到训练的闭环后，可以继续观察模型内部的 Block 数据流，或进入训练性能实验。
+- [13. Transformer Block Dataflow and Residual Stream | Transformer Block 数据流与残差通路](./13_Transformer_Block_Dataflow_and_Residual_Stream.md)
 - [73. Training Performance Analysis | 训练性能分析](../02_PyTorch_Algorithms/73_Training_Performance_Analysis.md)
 
 ## Q1：Dataset 和 DataLoader 分别解决什么问题？
 
-`Dataset` 负责单样本怎么取，`DataLoader` 负责 batch 怎么组。先把这两个角色分清，后面训练接口才不会把样本级逻辑和 batch 级逻辑混在一起。这里先记住：`Dataset` 解决“单条样本长什么样”，`DataLoader` 解决“这些样本怎么组批”。在 Part 2 的真实页面里，batch 常常还会多出 `attention_mask`、`labels`、`position_ids` 这类字段。
+`Dataset` 定义单样本字段，`DataLoader` 负责采样、组批与迭代。样本级逻辑和 batch 级逻辑分开后，`attention_mask`、`labels`、`position_ids` 等字段才能在明确的位置生成和校验。
 
 
 ```python
 import torch
+import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
 
@@ -57,7 +58,7 @@ for batch in loader:
 
 ```
 
-## Q1验证：batch 输出 shape 是否稳定？
+## Q1 验证：batch 输出 shape 是否稳定？
 
 这里直接确认 `DataLoader` 取出来的 batch 维度是否符合预期。你要记住的是，batch 不一定总是 tuple，dict batch 在大模型训练里更常见。
 
@@ -74,18 +75,18 @@ print('✅ Dataset / DataLoader 通过')
 
 ```
 
-## Q2：一个 batch 必须向训练循环承诺什么？
+## Q2：`collate_fn` 怎样把单样本组织成 batch？
 
-一个 batch 至少要说明字段、形状、标签位置和 padding 规则，训练循环才能稳定解包和对齐。否则看起来是模型问题，实际可能是 batch 契约没对上。对于大模型页面，最常见的契约是包含 `input_ids`、`attention_mask` 和 `labels` 的字典；Q2 先确认这份承诺，再用补充例子看 SFT 场景怎么对齐。
+`Dataset` 返回单样本，`collate_fn` 决定同一批样本如何按字段堆叠。输出必须明确字段名、batch 维和 dtype，训练循环才能稳定解包。
 
 
 ```python
 def collate_pair(batch):
     # 自定义 collate 时，先把单样本拆开，再按当前任务需求重组。
-    # 这里用 torch.cat 把同字段的单样本拼成 batch 字段。
-    input_ids = torch.cat([item['input_ids'] for item in batch], dim=0)
-    attention_mask = torch.cat([item['attention_mask'] for item in batch], dim=0)
-    labels = torch.cat([item['labels'] for item in batch], dim=0)
+    # torch.stack 新增 batch 维，同时保留每条样本原有的序列维。
+    input_ids = torch.stack([item['input_ids'] for item in batch], dim=0)
+    attention_mask = torch.stack([item['attention_mask'] for item in batch], dim=0)
+    labels = torch.stack([item['labels'] for item in batch], dim=0)
     return {
         'input_ids': input_ids,
         'attention_mask': attention_mask,
@@ -100,13 +101,80 @@ for batch in loader:
 
 ```
 
-## Q2验证：自定义 collate 是否真的改变了 batch 结构？
+## Q2 验证：自定义 collate 是否保留了 batch 与序列维？
 
-这里直接检查自定义 `collate_fn` 是否把默认 batch 组织方式改成了更适合当前接口的字典 batch。
+自定义 `collate_fn` 仍应得到 `[batch, sequence]`，不能在组批时把单样本的序列维压平。
 
-## Q2补充：SFT 风格 batch 要怎么对齐？
 
-这不是一个新的问题，而是 Q2 在 SFT 场景下的具体例子。当样本里同时有 `prompt`、`response` 和 `loss_mask` 时，batch 就不再是简单的 `(x, y)`。这里先用一个最小例子把 `prompt -> -100`、`response -> loss` 这条最常见的对齐链跑通，再用断言确认 padding、mask 和 labels 没有串位。
+```python
+loader = DataLoader(ToyDataset(), batch_size=2, shuffle=False, collate_fn=collate_pair)
+batch = next(iter(loader))
+assert batch['input_ids'].shape == (2, 1)
+assert batch['attention_mask'].shape == (2, 1)
+assert batch['labels'].shape == (2, 1)
+print('✅ collate_fn 通过')
+
+```
+
+## Q3：变长 tokenizer 输出怎样成为统一 batch？
+
+tokenizer 把文本变成不同长度的 token 序列；batch 层再完成截断、补齐和字段派生。三类字段承担不同职责：`input_ids` 保存 token 编号，`attention_mask` 区分有效 token 与 padding，`labels` 指定哪些位置参与损失。下面从 tokenizer 输出开始，验证长度对齐、padding mask 和 labels 屏蔽是否满足训练接口契约。
+
+```python
+PAD_ID = 0
+BOS_ID = 1
+EOS_ID = 2
+
+
+def tokenize_for_contract(text, max_length):
+    """生成确定性的 token 序列，用于演示截断契约而非复现真实分词算法。"""
+    content_ids = [10 + (ord(char) % 50) for char in text]
+    token_ids = [BOS_ID, *content_ids, EOS_ID]
+    return token_ids[:max_length]
+
+
+def collate_tokenized_texts(texts, max_length):
+    """将变长 tokenizer 输出整理为 input_ids、attention_mask 与 labels。"""
+    tokenized = [tokenize_for_contract(text, max_length) for text in texts]
+    batch_length = max(len(token_ids) for token_ids in tokenized)
+
+    input_rows = []
+    mask_rows = []
+    label_rows = []
+    for token_ids in tokenized:
+        pad_length = batch_length - len(token_ids)
+        input_rows.append(token_ids + [PAD_ID] * pad_length)
+        mask_rows.append([1] * len(token_ids) + [0] * pad_length)
+        label_rows.append(token_ids + [-100] * pad_length)
+
+    return {
+        'input_ids': torch.tensor(input_rows, dtype=torch.long),
+        'attention_mask': torch.tensor(mask_rows, dtype=torch.long),
+        'labels': torch.tensor(label_rows, dtype=torch.long),
+    }
+
+
+tokenized_batch = collate_tokenized_texts(['batch', 'io'], max_length=6)
+print({key: value.tolist() for key, value in tokenized_batch.items()})
+```
+
+## Q3 验证：截断、padding 与忽略标签是否使用同一坐标？
+
+三个字段应具有相同 shape；padding 位置的 `attention_mask` 为 0，对应 `labels` 必须为 `-100`。
+
+
+```python
+assert tuple(tokenized_batch['input_ids'].shape) == (2, 6)
+assert tokenized_batch['input_ids'].shape == tokenized_batch['attention_mask'].shape == tokenized_batch['labels'].shape
+assert torch.equal(tokenized_batch['attention_mask'].eq(0), tokenized_batch['labels'].eq(-100))
+assert tokenized_batch['attention_mask'][1].tolist() == [1, 1, 1, 1, 0, 0]
+print('✅ tokenizer 输出与 padding 契约通过')
+
+```
+
+## Q4：SFT 的 prompt、response、padding 与 labels 怎样对齐？
+
+SFT batch 不只是简单的 `(x, y)`。prompt 与 padding 位置通常用 `-100` 排除在损失之外，response token 才保留为监督标签；三者必须与 `attention_mask` 使用同一序列坐标。
 
 
 ```python
@@ -147,16 +215,6 @@ sft_batch = {
     'labels': pad_to_max_len([item['labels'] for item in sft_samples], pad_value=-100),
 }
 
-# 先看 padding 是否把样本补齐，再用断言确认 prompt / response / pad 的角色没串位。
-assert tuple(sft_batch['input_ids'].shape) == (2, 6)
-assert tuple(sft_batch['attention_mask'].shape) == (2, 6)
-assert tuple(sft_batch['labels'].shape) == (2, 6)
-assert sft_batch['input_ids'][0].tolist() == [101, 11, 12, 102, 7, 8]
-assert sft_batch['labels'][0].tolist() == [-100, -100, -100, -100, 7, 8]
-assert sft_batch['input_ids'][1].tolist() == [101, 21, 102, 9, 10, 0]
-assert sft_batch['attention_mask'][1].tolist() == [1, 1, 1, 1, 1, 0]
-assert sft_batch['labels'][1].tolist() == [-100, -100, -100, 9, 10, -100]
-
 print('input_ids shape:', tuple(sft_batch['input_ids'].shape))
 print('attention_mask row1:', sft_batch['attention_mask'][1].tolist())
 print('labels row0:', sft_batch['labels'][0].tolist())
@@ -164,129 +222,230 @@ print('labels row1:', sft_batch['labels'][1].tolist())
 
 ```
 
+## Q4 验证：Prompt、response 与 padding 是否各自落在正确位置？
+
+Prompt 和 padding 不参与 SFT loss，response token 保留监督标签；三类位置必须与 `input_ids` 和 `attention_mask` 对齐。
+
 
 ```python
-loader = DataLoader(ToyDataset(), batch_size=2, shuffle=False, collate_fn=collate_pair)
-batch = next(iter(loader))
-assert batch['input_ids'].shape == (2,)
-assert batch['attention_mask'].shape == (2,)
-assert batch['labels'].shape == (2,)
-print('✅ collate_fn 通过')
+assert tuple(sft_batch['input_ids'].shape) == (2, 6)
+assert sft_batch['input_ids'].shape == sft_batch['attention_mask'].shape == sft_batch['labels'].shape
+assert sft_batch['input_ids'][0].tolist() == [101, 11, 12, 102, 7, 8]
+assert sft_batch['labels'][0].tolist() == [-100, -100, -100, -100, 7, 8]
+assert sft_batch['input_ids'][1].tolist() == [101, 21, 102, 9, 10, 0]
+assert sft_batch['attention_mask'][1].tolist() == [1, 1, 1, 1, 1, 0]
+assert sft_batch['labels'][1].tolist() == [-100, -100, -100, 9, 10, -100]
+print('✅ SFT label 对齐通过')
 
 ```
 
-## Q3：什么时候必须让训练和验证复用同一套接口？
+## Q5：batch 怎样适配并验证为模型可消费的输入？
 
-训练、验证和推理最好共享同一份数据组织方式，区别只在于是否更新参数。接口如果不统一，后面复现和排查都会很麻烦。这里要记住：同一套 batch 契约应该同时服务 train / val / infer。真正变化的通常是 `model.train()` / `model.eval()` 和是否包 `no_grad()`，不是 batch 的字段结构；另外，batch 进模型前通常还会先搬到同一个 device。
+数据 batch 可以同时包含模型输入与监督标签。适配层负责迁移 device、筛出 `forward()` 所需字段，并把 `labels` 单独交给损失函数；契约检查则在执行前验证字段、首维、shape 和 dtype。
 
 
 ```python
-def batch_to_device(batch, device):
-    # 真实训练里，先把 batch 搬到 device，再交给模型。
-    return {k: v.to(device) for k, v in batch.items()}
+class MaskedMeanRegressor(nn.Module):
+    def forward(self, input_ids, attention_mask):
+        mask = attention_mask.to(dtype=torch.float32)
+        values = input_ids.to(dtype=torch.float32)
+        return (values * mask).sum(dim=1) / mask.sum(dim=1).clamp_min(1.0)
 
 
-def train_step_like(batch, device=torch.device('cpu')):
-    # 这里模拟训练步：先对齐 device，再从 batch 里取字段。
-    batch = batch_to_device(batch, device)
-    x = batch['input_ids'].float()
-    y = batch['labels'].float()
-    return x.mean().item(), y.mean().item()
+def adapt_batch_for_model(batch, device):
+    """迁移 batch，并拆分模型输入与监督标签。"""
+    moved = {key: value.to(device) for key, value in batch.items()}
+    model_inputs = {
+        'input_ids': moved['input_ids'],
+        'attention_mask': moved['attention_mask'],
+    }
+    return model_inputs, moved['labels'].squeeze(-1)
 
 
-for batch in DataLoader(ToyDataset(), batch_size=2, shuffle=False):
-    train_x_mean, train_y_mean = train_step_like(batch)
-    print('train-like means:', train_x_mean, train_y_mean)
+def validate_batch_contract(batch, required_keys, expected_batch_size):
+    """检查训练 batch 的字段、首维、shape 对齐和整数 dtype。"""
+    missing_keys = [key for key in required_keys if key not in batch]
+    if missing_keys:
+        return {'valid': False, 'errors': [f'missing keys: {missing_keys}']}
+
+    errors = []
+    shapes = {key: tuple(batch[key].shape) for key in required_keys}
+    for key in required_keys:
+        if batch[key].ndim < 1 or batch[key].shape[0] != expected_batch_size:
+            errors.append(f'{key}: invalid batch dimension {shapes[key]}')
+        if batch[key].dtype != torch.long:
+            errors.append(f'{key}: expected torch.long, got {batch[key].dtype}')
+    if len(set(shapes.values())) != 1:
+        errors.append(f'field shapes are not aligned: {shapes}')
+    return {'valid': not errors, 'errors': errors, 'shapes': shapes}
+
+
+model = MaskedMeanRegressor()
+batch = next(iter(DataLoader(ToyDataset(), batch_size=2, shuffle=False)))
+model_inputs, labels = adapt_batch_for_model(batch, torch.device('cpu'))
+predictions = model(**model_inputs)
+print('predictions / labels shape：', predictions.shape, labels.shape)
 
 ```
 
-## Q3验证：同一批数据在训练和验证中是否能复用？
+## Q5 验证：适配结果与失败报告是否都足够明确？
 
-这里确认一件事：同一份 batch 可以直接被训练逻辑和验证逻辑消费，而不需要重新改数据结构。
+适配结果应只把模型需要的字段传入 `forward()`，同时保留 labels 供损失计算；合法 batch 应通过检查，缺少字段时应在模型前向之前给出明确报告。
 
 
 ```python
-loader = DataLoader(ToyDataset(), batch_size=2, shuffle=False)
-batch = next(iter(loader))
-train_like = batch['input_ids'].float().mean().item() + batch['labels'].float().mean().item()
-val_like = batch['input_ids'].float().mean().item() + batch['labels'].float().mean().item()
-assert train_like == val_like
-print('✅ 训练/验证接口一致通过')
+required_keys = ('input_ids', 'attention_mask', 'labels')
+report = validate_batch_contract(batch, required_keys, expected_batch_size=2)
+assert report['valid']
+assert report['shapes']['input_ids'] == (2, 1)
+assert set(model_inputs) == {'input_ids', 'attention_mask'}
+assert predictions.shape == labels.shape == (2,)
+broken_batch = {key: value for key, value in batch.items() if key != 'attention_mask'}
+broken_report = validate_batch_contract(broken_batch, required_keys, expected_batch_size=2)
+assert not broken_report['valid']
+assert 'missing keys' in broken_report['errors'][0]
+print('✅ batch 适配与输入契约检查通过')
 
 ```
 
-## Q4：什么时候必须把最小训练接口串成闭环？
+## Q6：怎样把数据、更新和验证接成完整训练生命周期？
 
-只要你要验证一套算法页的数据流，就应该先把单样本、batch、模型输入和训练步串成闭环。这里的闭环重点是：样本 -> batch -> 模型输入 -> 训练步。对 Part 2 来说，这一步会直接帮你检查 batch 契约和模型签名是不是一致，也能顺手确认 batch 是否已经放到正确的 device。
+同一份 batch 契约应同时服务训练和验证。训练阶段启用梯度并执行 optimizer step，验证阶段切换 `eval()` 并关闭梯度记录；两者返回可比较的平均损失。
 
 
 ```python
-def summarize_batch(batch):
+class TrainableRegressor(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.projection = nn.Linear(1, 1)
+
+    def forward(self, input_ids, attention_mask):
+        mask = attention_mask.to(dtype=torch.float32)
+        values = input_ids.to(dtype=torch.float32)
+        pooled = (values * mask).sum(dim=1) / mask.sum(dim=1).clamp_min(1.0)
+        return self.projection(pooled.unsqueeze(-1)).squeeze(-1)
+
+
+def run_epoch(model, loader, optimizer=None):
+    """使用同一 batch 契约执行训练或验证 epoch。"""
+    is_training = optimizer is not None
+    model.train(is_training)
+    losses = []
+    for batch in loader:
+        report = validate_batch_contract(batch, ('input_ids', 'attention_mask', 'labels'), batch['input_ids'].shape[0])
+        if not report['valid']:
+            raise ValueError(report['errors'])
+        model_inputs, labels = adapt_batch_for_model(batch, torch.device('cpu'))
+        with torch.set_grad_enabled(is_training):
+            predictions = model(**model_inputs)
+            loss = torch.nn.functional.mse_loss(predictions, labels.to(torch.float32))
+        if is_training:
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            optimizer.step()
+        losses.append(float(loss.detach()))
+    return sum(losses) / len(losses)
+
+
+lifecycle_loader = DataLoader(ToyDataset(), batch_size=2, shuffle=False, collate_fn=collate_pair)
+lifecycle_model = TrainableRegressor()
+lifecycle_optimizer = torch.optim.SGD(lifecycle_model.parameters(), lr=0.05)
+before_training = {name: value.detach().clone() for name, value in lifecycle_model.named_parameters()}
+train_loss = run_epoch(lifecycle_model, lifecycle_loader, lifecycle_optimizer)
+after_training = {name: value.detach().clone() for name, value in lifecycle_model.named_parameters()}
+validation_loss = run_epoch(lifecycle_model, lifecycle_loader)
+print({'train_loss': train_loss, 'validation_loss': validation_loss})
+
+```
+
+## Q6 验证：训练更新和验证边界是否正确？
+
+训练 epoch 应更新至少一个参数；验证 epoch 应返回有限损失、保持参数不变，并在结束时让模型处于验证态。
+
+
+```python
+assert any(not torch.equal(before_training[name], after_training[name]) for name in before_training)
+before_validation = {name: value.detach().clone() for name, value in lifecycle_model.named_parameters()}
+repeat_validation_loss = run_epoch(lifecycle_model, lifecycle_loader)
+after_validation = {name: value.detach().clone() for name, value in lifecycle_model.named_parameters()}
+assert all(torch.equal(before_validation[name], after_validation[name]) for name in before_validation)
+assert torch.isfinite(torch.tensor([train_loss, validation_loss, repeat_validation_loss])).all()
+assert lifecycle_model.training is False
+print('✅ 数据、更新与验证生命周期通过')
+
+```
+
+## Q7：训练后怎样用 loss 和任务指标评价模型？
+
+loss 是优化目标，任务指标回答模型在目标任务上表现如何。评价时应使用独立的 validation 或 test 数据、关闭梯度并按样本或 token 汇总分子与分母，避免直接平均不同大小 batch 的均值。validation 指标用于调参和选择最佳 checkpoint，test 指标用于最终报告，不应反过来参与模型选择。下面沿用回归示例计算 MAE、MSE 与 RMSE。
+
+| 任务 | 常用评价信号 | 聚合单位 |
+|:---|:---|:---|
+| 回归 | MAE、RMSE | 样本 |
+| 分类 | loss、accuracy，必要时 precision / recall / F1 | 样本或类别 |
+| 语言模型 | token loss、perplexity | 非 padding token |
+
+
+```python
+def evaluate_regressor(model, loader):
+    """按样本汇总回归误差，返回可比较的评价指标。"""
+    model.eval()
+    absolute_error_sum = 0.0
+    squared_error_sum = 0.0
+    sample_count = 0
+    with torch.no_grad():
+        for batch in loader:
+            report = validate_batch_contract(
+                batch, ('input_ids', 'attention_mask', 'labels'), batch['input_ids'].shape[0]
+            )
+            if not report['valid']:
+                raise ValueError(report['errors'])
+            model_inputs, labels = adapt_batch_for_model(batch, torch.device('cpu'))
+            predictions = model(**model_inputs)
+            errors = predictions - labels.to(torch.float32)
+            absolute_error_sum += float(errors.abs().sum())
+            squared_error_sum += float(errors.square().sum())
+            sample_count += errors.numel()
+    if sample_count == 0:
+        raise ValueError('评价数据不能为空')
+    mae = absolute_error_sum / sample_count
+    mse = squared_error_sum / sample_count
     return {
-        'input_shape': tuple(batch['input_ids'].shape),
-        'mask_shape': tuple(batch['attention_mask'].shape),
-        'label_shape': tuple(batch['labels'].shape),
-        'input_mean': batch['input_ids'].float().mean().item(),
-        'label_mean': batch['labels'].float().mean().item(),
+        'mae': mae,
+        'mse': mse,
+        'rmse': mse ** 0.5,
+        'sample_count': sample_count,
     }
 
 
-batch = next(iter(DataLoader(ToyDataset(), batch_size=2, shuffle=False)))
-print('batch summary:', summarize_batch(batch))
+evaluation_loader = DataLoader(
+    ToyDataset(), batch_size=3, shuffle=False, collate_fn=collate_pair
+)
+before_evaluation = {
+    name: value.detach().clone() for name, value in lifecycle_model.named_parameters()
+}
+evaluation_metrics = evaluate_regressor(lifecycle_model, evaluation_loader)
+after_evaluation = {
+    name: value.detach().clone() for name, value in lifecycle_model.named_parameters()
+}
+print('evaluation metrics：', evaluation_metrics)
 
 ```
 
-## Q4验证：接口闭环是否可观察？
+## Q7 验证：指标是否按全部样本汇总且不修改模型？
 
-这里直接输出 batch 摘要，确认单样本到 batch 的转换链路是可见、可查、可复用的。
-
-
-```python
-batch = next(iter(DataLoader(ToyDataset(), batch_size=2, shuffle=False)))
-summary = summarize_batch(batch)
-assert summary['input_shape'] == (2, 1)
-assert summary['mask_shape'] == (2, 1)
-assert summary['label_shape'] == (2, 1)
-print('✅ 最小训练接口闭环通过')
-
-```
-
-## Q5：什么情况下需要用 `collate_fn` 实现这个 batch 契约？
-
-如果 batch 里出现变长序列、嵌套结构或需要额外对齐的字段，默认拼接就不够了，这时应该先把 batch 组织规则写进 `collate_fn`。这里可以把它理解成“批处理层的定制打包逻辑”：先决定怎么补齐，再决定怎么对齐字段。真实的大模型 batch 往往需要 padding、mask 和字段对齐，这一题就是在把 Q2 的契约判断落到实现层。
+评价 loader 的两个 batch 大小分别为 3 和 1；指标仍应按 4 个样本汇总。评价过程不更新参数，并保持模型处于验证态。
 
 
 ```python
-def need_custom_collate(has_variable_length, has_nested_structures, needs_padding):
-    if has_variable_length or has_nested_structures or needs_padding:
-        return {'collate': 'custom', 'reason': 'batch_contract_not_flat'}
-    return {'collate': 'default', 'reason': 'batch_contract_flat'}
-
-
-print(need_custom_collate(True, False, False))
-print(need_custom_collate(False, False, False))
-# 输出示例: custom / default 会直接对应 batch 组织方式
-
-```
-
-## Q6：batch 不匹配时，应该先改数据契约还是模型签名？
-
-如果问题的根源是 batch 形状、字段对齐或样本组织方式不稳定，就应该先改数据契约；模型只在契约稳定后再调整。这里优先级很重要：先把数据打包方式理顺，再动模型签名。对 Part 2 来说，先修 batch 再修模型，通常比反过来更高效。Q6 是前面判断的收口：先看数据契约，再看模型输入，SFT 里最常见的就是先让 prompt / response / mask 对齐，再考虑模型输入形式。
-
-这也是为什么先看 batch 契约，再看模型签名，通常比反过来更稳。
-
-
-```python
-def fix_layer_for_interface(problem_at_batch, problem_at_sample, model_can_absorb):
-    if problem_at_batch or problem_at_sample:
-        return {'first_fix': 'data_contract', 'next': 'collate_or_sampler'}
-    if model_can_absorb:
-        return {'first_fix': 'model_input', 'next': 'adjust_forward_signature'}
-    return {'first_fix': 'profile_more', 'next': 'inspect_end_to_end'}
-
-
-print(fix_layer_for_interface(True, False, False))
-print(fix_layer_for_interface(False, False, True))
-# 输出示例: data_contract / model_input
+assert evaluation_metrics['sample_count'] == len(ToyDataset())
+assert torch.isfinite(torch.tensor([
+    evaluation_metrics['mae'], evaluation_metrics['mse'], evaluation_metrics['rmse']
+])).all()
+assert abs(evaluation_metrics['rmse'] ** 2 - evaluation_metrics['mse']) < 1e-6
+assert evaluation_metrics['mae'] <= evaluation_metrics['rmse'] + 1e-6
+assert all(torch.equal(before_evaluation[name], after_evaluation[name]) for name in before_evaluation)
+assert lifecycle_model.training is False
+print('✅ 模型评价指标与参数不变性通过')
 
 ```

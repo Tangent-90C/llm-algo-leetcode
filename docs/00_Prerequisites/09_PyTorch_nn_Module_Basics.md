@@ -1,6 +1,6 @@
 # 09. PyTorch nn Module Basics | PyTorch nn.Module 基础
 
-**难度：** Medium | **环境：** CPU-first | **标签：** `PyTorch`, `模型封装`, `状态管理` | **目标人群：** Part 2-4 前置补课者
+**难度：** Medium | **环境：** CPU-first | **标签：** `PyTorch`, `模型封装`, `状态管理` | **目标人群：** 准备阅读模型定义与训练代码的学习者
 
 > 🚀 **云端运行环境**
 >
@@ -10,27 +10,24 @@
 > [![Open In Studio](https://img.shields.io/badge/Open%20In-ModelScope-blueviolet?logo=alibabacloud)](https://modelscope.cn/my/mynotebook) *(国内推荐：魔搭社区免费实例)*
 
 
-本页聚焦：会用 `nn.Module` 封装最小模型；会区分参数、缓冲区和普通属性；会读懂 `state_dict()` 和 `parameters()`。这一页开始把前面的 Tensor 和 Autograd 结果，正式收进一个模型对象里，让“能算”变成“能组织成模块”。
+`nn.Module` 把参数、缓冲区、子模块、前向计算和运行模式组织成一个可递归组合的对象。本页从模块调用进入，依次检查参数初始化、注册状态、`train/eval` 和参数冻结，让学习者能够判断参数如何获得初始值，以及哪些对象会参与计算、更新、迁移或保存。
 
-阅读顺序可以按这条线走：先看模型对象怎么成立，再看状态边界怎么划分，然后看 `forward()` 怎么串子模块，最后看 `state_dict()` 怎么保存和恢复。
+**关键词：** `nn.Module`, `initialization`, `Parameter`, `train/eval`, `requires_grad`
 
-**关键词：** `nn.Module`, `Parameter`, `state_dict`
-
-**显存路线视角：** 参数、buffer 和普通属性的注册方式决定哪些对象会进入模型状态、迁移到 device 或被保存；本页只验证模块和状态边界，不估算完整训练峰值。完整账本还要把参数、梯度和 optimizer state 放在一起，可参阅 [20 显存账本](./20_Profiling_and_Memory_Ledger.md)。
+![nn.Module 的对象与注册关系](../public/00_Prerequisites/09_module_registry_map.svg)
 
 ## 前置阅读
-**导语：** 先看 0C 组页，把梯度边界和模型封装的边界对齐，再进入这一页会更顺。
+**导语：** Tensor 与梯度进入模型对象后，参数注册决定优化器能够更新哪些状态。
 - [08. PyTorch Grad Hygiene and No-Grad | PyTorch 梯度习惯与无梯度模式](./08_PyTorch_Grad_Hygiene_and_No_Grad.md)
 - [0C 组页](./0C.md)
 
 ## 相关阅读
-**导语：** 本页先把 `nn.Module`、参数注册和状态保存的最小判断讲清楚；如果想继续看 state_dict 的持久化细节，再顺着看下面这一页。
-- [10. PyTorch State_dict and Persistence | PyTorch 状态管理与持久化](./10_PyTorch_State_dict_and_Persistence.md)
-- [20. Profiling and Memory Ledger | 性能剖析与显存账本](./20_Profiling_and_Memory_Ledger.md)
+**导语：** 模块对象建立后，下一页继续处理状态的序列化、恢复和结构迁移。
+- [10. PyTorch State, Checkpoint, and Recovery | PyTorch 状态、Checkpoint 与恢复](./10_PyTorch_State_dict_and_Persistence.md)
 
-## Q1：如何把模型组织成一个可调用的 `nn.Module`？
+## Q1：如何把层和子模块组织成可调用的 `nn.Module`？
 
-模型不是一堆散落函数，而是一个有边界、可调用、可递归组合的对象。`nn.Module` 先提供三个入口：用 `__init__()` 注册参数和子模块，用 `forward()` 描述计算，用 `model(x)` 触发前向。状态保存放到 Q4 再处理。
+模型不是一组散落函数，而是可调用、可递归组合的对象。`__init__()` 注册参数和子模块，`forward()` 描述数据流，`model(x)` 通过模块调用入口触发前向；模块构造完成后，还需要为参数设置与层规模匹配的初始尺度。
 
 
 ```python
@@ -75,7 +72,7 @@ print('named_parameters：', [name for name, _ in model.named_parameters()])
 
 ```
 
-## Q1验证：参数注册和前向输出是否正确？
+## Q1 验证：参数注册、子模块和前向输出是否正确？
 
 这里直接检查两件事：自定义层能不能跑，MLP 的输出 shape 和参数总量是否符合预期。
 
@@ -107,7 +104,59 @@ test_two_layer_mlp()
 
 ```
 
-## Q2：`Parameter`、`buffer` 和普通属性分别会进入哪里？
+## Q2：参数初始化为什么需要同时考虑尺度与可复现性？
+
+初始化决定训练开始时信号和梯度的尺度。线性层可根据输入、输出维度设置 Xavier 范围，bias 通常从零开始；固定随机种子则让同一初始化方案可复查。初始化策略仍应结合后续激活函数和残差结构选择。
+
+
+```python
+def reset_linear_parameters(layer, seed):
+    """按 Xavier uniform 重置 CPU 线性层，并返回初始化尺度摘要。"""
+    if not isinstance(layer, nn.Linear):
+        raise TypeError('layer 必须是 nn.Linear')
+    if not isinstance(seed, int) or seed < 0:
+        raise ValueError('seed 必须是非负整数')
+    generator = torch.Generator().manual_seed(seed)
+    with torch.no_grad():
+        nn.init.xavier_uniform_(layer.weight, generator=generator)
+        if layer.bias is not None:
+            nn.init.zeros_(layer.bias)
+    bound = (6.0 / (layer.in_features + layer.out_features)) ** 0.5
+    return {
+        'fan_in': layer.in_features,
+        'fan_out': layer.out_features,
+        'xavier_bound': bound,
+        'weight_std': float(layer.weight.std()),
+    }
+
+
+linear_a = nn.Linear(4, 8)
+linear_b = nn.Linear(4, 8)
+linear_c = nn.Linear(4, 8)
+initialization = reset_linear_parameters(linear_a, seed=7)
+reset_linear_parameters(linear_b, seed=7)
+reset_linear_parameters(linear_c, seed=11)
+print('初始化摘要：', initialization)
+
+```
+
+## Q2 验证：随机种子、Xavier 范围和 bias 起点是否正确？
+
+相同种子应得到相同参数，不同种子应改变权重；所有权重应位于理论 Xavier 范围内，bias 从零开始。
+
+
+```python
+assert torch.equal(linear_a.weight, linear_b.weight)
+assert not torch.equal(linear_a.weight, linear_c.weight)
+assert torch.count_nonzero(linear_a.bias) == 0
+assert float(linear_a.weight.abs().max()) <= initialization['xavier_bound'] + 1e-6
+assert initialization['weight_std'] > 0
+assert linear_a(torch.ones(2, 4)).shape == (2, 8)
+print('✅ 参数初始化尺度与可复现性通过')
+
+```
+
+## Q3：`Parameter`、`buffer` 和普通属性分别会进入哪里？
 
 阅读一个模块时，先用“是否训练、是否保存、是否随模块迁移”三件事判断对象的归属。下面的表格给出本节需要掌握的最小区别。
 
@@ -139,7 +188,7 @@ print('state_dict keys：', list(m.state_dict().keys()))
 
 ```
 
-## Q2验证：state_dict 是否同时包含参数和 buffer？
+## Q3 验证：state_dict 是否同时包含参数和 buffer？
 
 这里确认 `state_dict()` 会包含参数和 buffer，但不会把普通属性当成可保存状态。
 
@@ -154,67 +203,92 @@ print('✅ state_dict 结构通过')
 
 ```
 
-## Q3：如何阅读 `forward()` 和子模块组合？
+## Q4：`train/eval` 与梯度模式分别控制什么？
 
-先沿着 `forward()` 看数据经过哪些子模块，再用 `named_children()` 或 `named_modules()` 对照模块层级。这里关注的是数据流和模块边界，不是记住每个接口的名称。
+`train()` 与 `eval()` 改变 Dropout、BatchNorm 等模块的运行行为，`torch.no_grad()` 控制是否记录计算图；两者解决不同问题。验证阶段通常同时使用 `model.eval()` 与 `torch.no_grad()`，训练阶段则恢复 `model.train()`。
 
 
 ```python
-x = torch.randn(2, 4)
+class ModeAwareBlock(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.dropout = nn.Dropout(p=1.0)
+
+    def forward(self, x):
+        # 乘法确保 eval 路径也产生一个新结果，便于单独检查梯度模式。
+        return self.dropout(x) * 1.0
+
+
+mode_model = ModeAwareBlock()
+mode_input = torch.ones(2, 3, requires_grad=True)
+mode_model.train()
+train_output = mode_model(mode_input)
+mode_model.eval()
+with torch.no_grad():
+    eval_output = mode_model(mode_input)
+print('train / eval output：', train_output, eval_output)
+
+```
+
+## Q4 验证：模块模式与梯度模式是否彼此独立？
+
+训练态的 Dropout 会改变输出；验证态恢复确定性行为，而 `no_grad()` 额外保证验证输出不连接计算图。
+
+
+```python
+assert mode_model.training is False
+assert torch.equal(train_output, torch.zeros_like(train_output))
+assert torch.equal(eval_output, mode_input)
+assert train_output.requires_grad
+assert not eval_output.requires_grad
+print('✅ train/eval 与梯度模式检查通过')
+
+```
+
+## Q5：冻结参数后，注册状态与可训练状态有什么不同？
+
+`requires_grad=False` 只关闭梯度与更新，不会把参数移出模块，也不会让它消失在 `state_dict()` 中。构造优化器时应显式筛选可训练参数，避免把“已注册”和“应更新”混为一谈。
+
+
+```python
+def split_parameter_roles(module):
+    """按 requires_grad 划分已注册参数，返回名称列表。"""
+    trainable = []
+    frozen = []
+    for name, parameter in module.named_parameters():
+        (trainable if parameter.requires_grad else frozen).append(name)
+    return {'trainable': trainable, 'frozen': frozen}
+
+
 model = TwoLayerMLP(4, 8, 2)
-# 调用模块时写 `model(x)`，PyTorch 会帮你走到 `forward()`。
-y = model(x)
-print('输出 shape：', y.shape)
-print('模块层级：', model)
-print('named_children：', [name for name, _ in model.named_children()])
+for parameter in model.fc1.parameters():
+    parameter.requires_grad_(False)
+
+roles = split_parameter_roles(model)
+optimizer = torch.optim.SGD(
+    [parameter for parameter in model.parameters() if parameter.requires_grad],
+    lr=0.1,
+)
+print('parameter roles：', roles)
 
 ```
 
-## Q3验证：子模块组合是否正常？
+## Q5 验证：冻结参数是否仍被保存但不产生梯度？
 
-这里直接检查前向输出 shape 和模块结构，确认组合后的网络还能正常执行。
-
-
-```python
-model = TwoLayerMLP(4, 8, 2)
-x = torch.randn(5, 4)
-y = model(x)
-assert y.shape == (5, 2)
-print('✅ forward 和子模块组合通过')
-
-```
-
-## Q4：如何完成模型状态的最小保存与恢复？
-
-模型结构确定后，再把参数和 buffer 做一次最小保存—恢复闭环。`state_dict()` 负责取得当前模型状态，`load_state_dict()` 负责恢复这些状态；它们处理的是模型状态，不包含 optimizer、学习率和训练步数。
+冻结后的 `fc1` 仍应出现在 `state_dict()` 中；反向传播后它没有梯度，优化器也只持有 `fc2` 的可训练参数。
 
 
 ```python
-model = TwoLayerMLP(3, 6, 2)
-# `state_dict()` 只保存状态，不保存训练过程。
-before = {k: v.clone() for k, v in model.state_dict().items()}
-buffer = model.state_dict()
-model.load_state_dict(buffer)
-after = model.state_dict()
+x = torch.randn(3, 4)
+loss = model(x).pow(2).mean()
+loss.backward()
 
-for key in before:
-    assert torch.allclose(before[key], after[key])
-print('✅ state_dict roundtrip 通过')
-
-```
-
-## Q4验证：保存和恢复是否不丢状态？
-
-这里只检查一件事：读出来再写回去，参数和 buffer 的值还在不在。你要把它理解成最小的“状态闭环”：只要状态没变，模型就能被稳定恢复。
-
-
-```python
-model = TwoLayerMLP(3, 6, 2)
-before = {k: v.clone() for k, v in model.state_dict().items()}
-model.load_state_dict(model.state_dict())
-after = model.state_dict()
-for key in before:
-    assert torch.allclose(before[key], after[key])
-print('✅ state_dict 保持一致')
+assert roles['frozen'] == ['fc1.weight', 'fc1.bias']
+assert roles['trainable'] == ['fc2.weight', 'fc2.bias']
+assert {'fc1.weight', 'fc1.bias'} <= set(model.state_dict())
+assert all(parameter.grad is None for parameter in model.fc1.parameters())
+assert all(parameter.grad is not None for parameter in model.fc2.parameters())
+assert sum(len(group['params']) for group in optimizer.param_groups) == 2
+print('✅ 冻结与可训练参数语义通过')
 
 ```
