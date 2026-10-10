@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="620" viewBox="0 0 1280 620" role="img" aria-labelledby="title desc">
+  <title id="title">可重复基线的冻结与继承</title>
+  <desc id="desc">依次冻结环境、工作负载和测量协议，形成带守护条件的基线分布，供执行轨迹、对象驻留和回归验证继承。</desc>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><style>text{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;fill:#172033}.title{font-size:28px;font-weight:700}.sub{font-size:15px;fill:#526581}.head{font-size:18px;font-weight:700}.body{font-size:14px;fill:#475569}.node{stroke-width:2;rx:16}.line{stroke:#475569;stroke-width:2.8;fill:none;marker-end:url(#arrow)}</style></defs>
+  <rect width="1280" height="620" fill="#f8fafc"/>
+  <text x="640" y="46" text-anchor="middle" class="title">可重复基线：冻结条件，再扩展证据</text>
+  <text x="640" y="74" text-anchor="middle" class="sub">任何身份或测量协议变化都应建立新基线，不能与旧分布直接混比</text>
+
+  <rect x="55" y="130" width="230" height="92" fill="#dbeafe" stroke="#60a5fa" class="node"/><text x="170" y="165" text-anchor="middle" class="head">环境快照</text><text x="170" y="194" text-anchor="middle" class="body">硬件 · 驱动 · 框架 · 后端</text>
+  <rect x="350" y="130" width="230" height="92" fill="#dcfce7" stroke="#4ade80" class="node"/><text x="465" y="165" text-anchor="middle" class="head">工作负载身份</text><text x="465" y="194" text-anchor="middle" class="body">模型 · 输入 · 批量 · 种子</text>
+  <rect x="645" y="130" width="230" height="92" fill="#fef3c7" stroke="#f59e0b" class="node"/><text x="760" y="165" text-anchor="middle" class="head">测量协议</text><text x="760" y="194" text-anchor="middle" class="body">预热 · 重复 · 同步 · 统计</text>
+  <rect x="940" y="130" width="285" height="92" fill="#fee2e2" stroke="#fb7185" class="node"/><text x="1082" y="165" text-anchor="middle" class="head">基线分布与守护条件</text><text x="1082" y="194" text-anchor="middle" class="body">原始样本 · 失败 · 质量 · 服务目标</text>
+  <path d="M285 176H340" class="line"/><path d="M580 176H635" class="line"/><path d="M875 176H930" class="line"/>
+
+  <rect x="450" y="305" width="380" height="100" fill="#ede9fe" stroke="#a78bfa" class="node"/>
+  <text x="640" y="344" text-anchor="middle" class="head">稳定的基线身份</text><text x="640" y="374" text-anchor="middle" class="body">条件字段 + 每轮结果 + 聚合统计 + 失败分母</text>
+  <path d="M1082 222V270H640V295" class="line"/>
+
+  <rect x="105" y="480" width="280" height="86" fill="#e0f2fe" stroke="#38bdf8" class="node"/><text x="245" y="514" text-anchor="middle" class="head">执行轨迹继承</text><text x="245" y="541" text-anchor="middle" class="body">阶段、事件依赖与关键路径</text>
+  <rect x="500" y="480" width="280" height="86" fill="#e0f2fe" stroke="#38bdf8" class="node"/><text x="640" y="514" text-anchor="middle" class="head">对象驻留继承</text><text x="640" y="541" text-anchor="middle" class="body">创建、峰值重叠与释放</text>
+  <rect x="895" y="480" width="280" height="86" fill="#e0f2fe" stroke="#38bdf8" class="node"/><text x="1035" y="514" text-anchor="middle" class="head">回归验证继承</text><text x="1035" y="541" text-anchor="middle" class="body">配对身份、阈值与守护条件</text>
+  <path d="M555 405V445H245V470" class="line"/><path d="M640 405V470" class="line"/><path d="M725 405V445H1035V470" class="line"/>
+</svg>

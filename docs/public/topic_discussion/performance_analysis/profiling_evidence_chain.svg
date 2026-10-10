@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">性能分析知识地图</title>
+  <desc id="desc">将观察对象、证据形式、资源约束和验证输出分为四层，说明性能分析如何从现象形成可复查诊断。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+    <style>
+      text{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;fill:#172033}.title{font-size:29px;font-weight:700}.sub{font-size:15px;fill:#526581}.layer{font-size:18px;font-weight:700}.chip{font-size:14px;font-weight:600}.panel{stroke-width:2;rx:18}.item{stroke-width:1.6;rx:11}.line{stroke:#475569;stroke-width:2.8;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1280" height="640" fill="#f8fafc"/>
+  <text x="640" y="46" text-anchor="middle" class="title">性能分析知识地图</text>
+  <text x="640" y="74" text-anchor="middle" class="sub">同一现象需要经过观察、取证、归因和验证，才能形成可行动结论</text>
+
+  <rect x="45" y="120" width="255" height="430" fill="#eff6ff" stroke="#60a5fa" class="panel"/>
+  <text x="172" y="158" text-anchor="middle" class="layer">观察对象</text>
+  <rect x="75" y="195" width="195" height="64" fill="#fff" stroke="#93c5fd" class="item"/><text x="172" y="234" text-anchor="middle" class="chip">阶段时间与等待</text>
+  <rect x="75" y="285" width="195" height="64" fill="#fff" stroke="#93c5fd" class="item"/><text x="172" y="324" text-anchor="middle" class="chip">对象驻留与峰值</text>
+  <rect x="75" y="375" width="195" height="64" fill="#fff" stroke="#93c5fd" class="item"/><text x="172" y="414" text-anchor="middle" class="chip">通信、I/O 与排队</text>
+  <rect x="75" y="465" width="195" height="54" fill="#dbeafe" stroke="#60a5fa" class="item"/><text x="172" y="499" text-anchor="middle" class="chip">目标指标与质量门槛</text>
+
+  <rect x="360" y="120" width="255" height="430" fill="#f0fdf4" stroke="#4ade80" class="panel"/>
+  <text x="487" y="158" text-anchor="middle" class="layer">证据形式</text>
+  <rect x="390" y="195" width="195" height="64" fill="#fff" stroke="#86efac" class="item"/><text x="487" y="234" text-anchor="middle" class="chip">带单位指标与原始样本</text>
+  <rect x="390" y="285" width="195" height="64" fill="#fff" stroke="#86efac" class="item"/><text x="487" y="324" text-anchor="middle" class="chip">执行轨迹与事件依赖</text>
+  <rect x="390" y="375" width="195" height="64" fill="#fff" stroke="#86efac" class="item"/><text x="487" y="414" text-anchor="middle" class="chip">性能剖析与显存快照</text>
+  <rect x="390" y="465" width="195" height="54" fill="#dcfce7" stroke="#4ade80" class="item"/><text x="487" y="499" text-anchor="middle" class="chip">环境与工作负载身份</text>
+
+  <rect x="675" y="120" width="255" height="430" fill="#fff7ed" stroke="#fb923c" class="panel"/>
+  <text x="802" y="158" text-anchor="middle" class="layer">资源约束</text>
+  <rect x="705" y="195" width="195" height="64" fill="#fff" stroke="#fdba74" class="item"/><text x="802" y="223" text-anchor="middle" class="chip">计算与启动</text><text x="802" y="245" text-anchor="middle" class="chip">算术强度与执行效率</text>
+  <rect x="705" y="285" width="195" height="64" fill="#fff" stroke="#fdba74" class="item"/><text x="802" y="313" text-anchor="middle" class="chip">带宽与容量</text><text x="802" y="335" text-anchor="middle" class="chip">搬运字节与峰值驻留</text>
+  <rect x="705" y="375" width="195" height="64" fill="#fff" stroke="#fdba74" class="item"/><text x="802" y="403" text-anchor="middle" class="chip">通信与 I/O</text><text x="802" y="425" text-anchor="middle" class="chip">暴露时间与依赖窗口</text>
+  <rect x="705" y="465" width="195" height="54" fill="#ffedd5" stroke="#fb923c" class="item"/><text x="802" y="499" text-anchor="middle" class="chip">排队、同步与负载不均</text>
+
+  <rect x="990" y="120" width="245" height="430" fill="#faf5ff" stroke="#a78bfa" class="panel"/>
+  <text x="1112" y="158" text-anchor="middle" class="layer">验证输出</text>
+  <rect x="1015" y="195" width="195" height="64" fill="#fff" stroke="#c4b5fd" class="item"/><text x="1112" y="223" text-anchor="middle" class="chip">可重复基线</text><text x="1112" y="245" text-anchor="middle" class="chip">固定条件与波动范围</text>
+  <rect x="1015" y="285" width="195" height="64" fill="#fff" stroke="#c4b5fd" class="item"/><text x="1112" y="313" text-anchor="middle" class="chip">可证伪归因</text><text x="1112" y="335" text-anchor="middle" class="chip">主约束、反例与未知项</text>
+  <rect x="1015" y="375" width="195" height="64" fill="#fff" stroke="#c4b5fd" class="item"/><text x="1112" y="403" text-anchor="middle" class="chip">配对回归判断</text><text x="1112" y="425" text-anchor="middle" class="chip">差异、阈值与守护条件</text>
+  <rect x="1015" y="465" width="195" height="54" fill="#ede9fe" stroke="#a78bfa" class="item"/><text x="1112" y="499" text-anchor="middle" class="chip">补测或交接优化</text>
+
+  <path d="M300 335H350" class="line"/>
+  <path d="M615 335H665" class="line"/>
+  <path d="M930 335H980" class="line"/>
+</svg>

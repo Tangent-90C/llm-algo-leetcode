@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="620" viewBox="0 0 1280 620" role="img" aria-labelledby="title desc">
+  <title id="title">时间线、事件依赖与关键路径</title>
+  <desc id="desc">在主机和设备两条泳道中区分输入准备、搬运、计算内核、同步与暴露等待，并用依赖关系识别关键路径。</desc>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><style>text{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;fill:#172033}.title{font-size:28px;font-weight:700}.sub{font-size:15px;fill:#526581}.lane{font-size:17px;font-weight:700}.label{font-size:14px;font-weight:600}.note{font-size:14px;fill:#475569}.line{stroke:#475569;stroke-width:2.5;fill:none;marker-end:url(#arrow)}.guide{stroke:#94a3b8;stroke-width:1.8;stroke-dasharray:7 6}</style></defs>
+  <rect width="1280" height="620" fill="#f8fafc"/>
+  <text x="640" y="46" text-anchor="middle" class="title">时间线：区分总时间与真正暴露的等待</text>
+  <text x="640" y="74" text-anchor="middle" class="sub">条块长度描述持续时间，依赖箭头决定哪些事件实际延长完成时间</text>
+
+  <text x="70" y="154" class="lane">主机</text><line x1="145" y1="148" x2="1190" y2="148" class="guide"/>
+  <rect x="170" y="120" width="190" height="56" rx="10" fill="#dbeafe" stroke="#60a5fa" stroke-width="2"/><text x="265" y="154" text-anchor="middle" class="label">读取与整理输入</text>
+  <rect x="390" y="120" width="150" height="56" rx="10" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/><text x="465" y="154" text-anchor="middle" class="label">主机到设备搬运</text>
+  <rect x="570" y="120" width="125" height="56" rx="10" fill="#ede9fe" stroke="#a78bfa" stroke-width="2"/><text x="632" y="154" text-anchor="middle" class="label">发起计算</text>
+  <rect x="725" y="120" width="205" height="56" rx="10" fill="#fee2e2" stroke="#fb7185" stroke-width="2"/><text x="827" y="154" text-anchor="middle" class="label">同步等待</text>
+  <rect x="960" y="120" width="170" height="56" rx="10" fill="#dcfce7" stroke="#4ade80" stroke-width="2"/><text x="1045" y="154" text-anchor="middle" class="label">消费结果</text>
+
+  <text x="70" y="300" class="lane">设备</text><line x1="145" y1="294" x2="1190" y2="294" class="guide"/>
+  <rect x="390" y="266" width="150" height="56" rx="10" fill="#bae6fd" stroke="#38bdf8" stroke-width="2"/><text x="465" y="300" text-anchor="middle" class="label">数据搬入</text>
+  <rect x="570" y="266" width="205" height="56" rx="10" fill="#bbf7d0" stroke="#22c55e" stroke-width="2"/><text x="672" y="300" text-anchor="middle" class="label">计算内核 A</text>
+  <rect x="795" y="266" width="135" height="56" rx="10" fill="#e9d5ff" stroke="#a855f7" stroke-width="2"/><text x="862" y="300" text-anchor="middle" class="label">依赖空洞</text>
+  <rect x="950" y="266" width="180" height="56" rx="10" fill="#bbf7d0" stroke="#22c55e" stroke-width="2"/><text x="1040" y="300" text-anchor="middle" class="label">计算内核 B</text>
+  <path d="M465 176V256" class="line"/><path d="M632 176V256" class="line"/><path d="M775 294H785" class="line"/><path d="M930 294H940" class="line"/><path d="M1040 322V350H1045V186" class="line"/>
+
+  <rect x="145" y="410" width="300" height="120" rx="16" fill="#eff6ff" stroke="#60a5fa" stroke-width="2"/>
+  <text x="295" y="446" text-anchor="middle" class="lane">阶段时间</text><text x="295" y="476" text-anchor="middle" class="note">每类事件累计花了多久</text><text x="295" y="502" text-anchor="middle" class="note">用于发现值得展开的区间</text>
+  <rect x="490" y="410" width="300" height="120" rx="16" fill="#fff7ed" stroke="#fb923c" stroke-width="2"/>
+  <text x="640" y="446" text-anchor="middle" class="lane">事件依赖</text><text x="640" y="476" text-anchor="middle" class="note">谁必须等待谁完成</text><text x="640" y="502" text-anchor="middle" class="note">用于排除可被隐藏的时间</text>
+  <rect x="835" y="410" width="300" height="120" rx="16" fill="#fef2f2" stroke="#fb7185" stroke-width="2"/>
+  <text x="985" y="446" text-anchor="middle" class="lane">关键路径</text><text x="985" y="476" text-anchor="middle" class="note">决定本轮完成时间的依赖链</text><text x="985" y="502" text-anchor="middle" class="note">同步等待与空洞是否真正暴露</text>
+</svg>
