@@ -16,9 +16,16 @@ CONTRACT_VERSION = "project-evidence/v1"
 EVIDENCE_LEVELS = {
     "theoretical",
     "cpu_simulation",
+    "cpu_mechanism_validation",
+    "cpu_project_model",
     "gpu_smoke",
+    "local_mechanism_benchmark",
     "real_benchmark",
+    "real_project_benchmark",
     "profiler_trace",
+    "integrated_system_evidence",
+    "delivery_decision",
+    "not_recorded",
 }
 DECISIONS = {"accept", "tune", "reject", "pending"}
 STATUSES = {"ok", "failed", "blocked", "skipped"}
@@ -189,3 +196,44 @@ def save_record(
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(dict(record), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return output
+
+
+def load_record(path: str | Path) -> dict[str, Any]:
+    """Read one JSON object with an actionable error for project notebooks."""
+
+    source = Path(path)
+    if not source.is_file():
+        raise FileNotFoundError(f"项目结果不存在: {source}")
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(payload, Mapping):
+        raise ValueError(f"项目结果必须是 JSON object: {source}")
+    return dict(payload)
+
+
+def validate_run_result(record: Mapping[str, Any]) -> list[str]:
+    """Validate the common envelope without judging project-specific metrics."""
+
+    errors: list[str] = []
+    if record.get("schema_version") != CONTRACT_VERSION:
+        errors.append(f"schema_version 必须是 {CONTRACT_VERSION}")
+    if record.get("record_type") != "run_result":
+        errors.append("record_type 必须是 run_result")
+    semantic_id = record.get("semantic_id")
+    try:
+        project = get_project(str(semantic_id))
+    except KeyError:
+        project = None
+        errors.append(f"semantic_id 未登记: {semantic_id!r}")
+    if project and record.get("primary_owner") != project.get("primary_owner"):
+        errors.append("primary_owner 与项目注册表不一致")
+    if record.get("status") not in STATUSES:
+        errors.append(f"未知 status: {record.get('status')!r}")
+    if record.get("evidence_level") not in EVIDENCE_LEVELS:
+        errors.append(f"未知 evidence_level: {record.get('evidence_level')!r}")
+    decision = record.get("decision")
+    decision_status = decision.get("status") if isinstance(decision, Mapping) else None
+    if decision_status not in DECISIONS:
+        errors.append(f"未知 decision.status: {decision_status!r}")
+    if record.get("status") == "failed" and not record.get("failure"):
+        errors.append("failed 结果必须记录 failure")
+    return errors

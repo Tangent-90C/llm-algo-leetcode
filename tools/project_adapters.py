@@ -8,6 +8,10 @@ a smoke result into benchmark evidence.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+from pathlib import Path
+import shutil
+import subprocess
 from typing import Any, Callable, Mapping, Protocol
 
 from .project_contracts import make_run_result
@@ -38,6 +42,60 @@ class CallableExecutionAdapter:
 
     def run(self, spec: Mapping[str, Any]) -> Mapping[str, Any]:
         return dict(self.runner(spec))
+
+
+@dataclass(frozen=True)
+class CommandExecutionAdapter:
+    """Run an explicit command that writes one project result JSON.
+
+    The command is a sequence rather than a shell string.  This keeps quoting
+    predictable and prevents a notebook configuration field from becoming an
+    implicit shell program.
+    """
+
+    name: str
+    command: tuple[str, ...]
+    output_path: str | Path
+
+    def preflight(self, spec: Mapping[str, Any]) -> Mapping[str, Any]:
+        if not self.command:
+            return {"status": "blocked", "ready": False, "reason": "adapter command is empty"}
+        executable = self.command[0]
+        if not (Path(executable).is_file() or shutil.which(executable)):
+            return {
+                "status": "blocked",
+                "ready": False,
+                "reason": f"adapter executable not found: {executable}",
+            }
+        output = Path(self.output_path)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        return {"status": "ok", "ready": True, "adapter": self.name, "output_path": str(output)}
+
+    def run(self, spec: Mapping[str, Any]) -> Mapping[str, Any]:
+        completed = subprocess.run(list(self.command), capture_output=True, text=True, check=False)
+        if completed.returncode != 0:
+            return {
+                "status": "failed",
+                "failure": {
+                    "stage": "execution",
+                    "returncode": completed.returncode,
+                    "stderr": completed.stderr[-2000:],
+                },
+                "metrics": {},
+                "decision": "pending",
+            }
+        output = Path(self.output_path)
+        if not output.is_file():
+            return {
+                "status": "failed",
+                "failure": {"stage": "result_read", "message": f"adapter result missing: {output}"},
+                "metrics": {},
+                "decision": "pending",
+            }
+        payload = json.loads(output.read_text(encoding="utf-8"))
+        if not isinstance(payload, Mapping):
+            raise ValueError("adapter result must be a JSON object")
+        return dict(payload)
 
 
 def execute_with_adapter(

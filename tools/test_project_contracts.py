@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.project_adapters import CallableExecutionAdapter, execute_with_adapter
+from tools.project_adapters import CallableExecutionAdapter, CommandExecutionAdapter, execute_with_adapter
 from tools.project_contracts import (
     get_project,
     load_project_registry,
     make_artifact_manifest,
     make_experiment_spec,
+    validate_run_result,
 )
 
 
@@ -50,6 +51,7 @@ def main() -> None:
     assert result["status"] == "ok"
     assert result["semantic_id"] == "INF-FLOAT-BASELINE"
     assert result["artifacts"][0]["artifact_id"] == "smoke-result"
+    assert validate_run_result(result) == []
 
     failed_adapter = CallableExecutionAdapter(
         name="expected-failure",
@@ -62,6 +64,12 @@ def main() -> None:
     )
     assert failed["status"] == "failed"
     assert failed["failure"]["error_type"] == "RuntimeError"
+    blocked = execute_with_adapter(
+        CommandExecutionAdapter(name="empty", command=(), output_path="unused.json"),
+        spec,
+        default_evidence_level="real_project_benchmark",
+    )
+    assert blocked["status"] == "blocked"
     print("project contract smoke: ok")
 
 
