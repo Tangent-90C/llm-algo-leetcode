@@ -1,0 +1,34 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#F7F4EC"/>
+  <rect x="56" y="48" width="1168" height="624" rx="28" fill="#FFFDF7" stroke="#1F2937" stroke-width="2"/>
+  <text x="88" y="100" fill="#111827" font-size="30" font-family="Arial, sans-serif" font-weight="700">前缀缓存与分块预填充</text>
+  <text x="88" y="132" fill="#4B5563" font-size="18" font-family="Arial, sans-serif">前缀缓存减少重复计算，分块预填充控制单次执行压力。</text>
+  <rect x="102" y="208" width="238" height="108" rx="20" fill="#DBEAFE" stroke="#2563EB" stroke-width="2"/>
+  <text x="164" y="246" fill="#1E3A8A" font-size="22" font-family="Arial, sans-serif" font-weight="700">已缓存前缀</text>
+  <text x="134" y="278" fill="#1E3A8A" font-size="16" font-family="Arial, sans-serif">系统提示词</text>
+  <text x="134" y="300" fill="#1E3A8A" font-size="16" font-family="Arial, sans-serif">工具说明 / 历史上下文</text>
+  <rect x="390" y="208" width="254" height="108" rx="20" fill="#FDE68A" stroke="#D97706" stroke-width="2"/>
+  <text x="456" y="246" fill="#92400E" font-size="22" font-family="Arial, sans-serif" font-weight="700">新请求</text>
+  <text x="428" y="278" fill="#92400E" font-size="16" font-family="Arial, sans-serif">查找最长前缀命中</text>
+  <text x="428" y="300" fill="#92400E" font-size="16" font-family="Arial, sans-serif">拆分可复用前缀和后缀</text>
+  <rect x="694" y="208" width="222" height="108" rx="20" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
+  <text x="742" y="246" fill="#166534" font-size="22" font-family="Arial, sans-serif" font-weight="700">未命中后缀</text>
+  <text x="724" y="278" fill="#166534" font-size="16" font-family="Arial, sans-serif">只有这一部分需要</text>
+  <text x="724" y="300" fill="#166534" font-size="16" font-family="Arial, sans-serif">重新执行 prefill</text>
+  <rect x="966" y="208" width="180" height="108" rx="20" fill="#FCE7F3" stroke="#DB2777" stroke-width="2"/>
+  <text x="998" y="246" fill="#9D174D" font-size="22" font-family="Arial, sans-serif" font-weight="700">分块计划</text>
+  <text x="992" y="278" fill="#9D174D" font-size="16" font-family="Arial, sans-serif">块 1、块 2、块 3……</text>
+  <text x="992" y="300" fill="#9D174D" font-size="16" font-family="Arial, sans-serif">按顺序进入执行</text>
+  <path d="M340 262H390" stroke="#374151" stroke-width="3"/>
+  <path d="M644 262H694" stroke="#374151" stroke-width="3"/>
+  <path d="M916 262H966" stroke="#374151" stroke-width="3"/>
+  <path d="M375 254L390 262L375 270" fill="#374151"/>
+  <path d="M679 254L694 262L679 270" fill="#374151"/>
+  <path d="M951 254L966 262L951 270" fill="#374151"/>
+  <rect x="102" y="388" width="1044" height="126" rx="22" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.5"/>
+  <text x="132" y="428" fill="#111827" font-size="22" font-family="Arial, sans-serif" font-weight="700">阅读重点</text>
+  <text x="132" y="462" fill="#374151" font-size="18" font-family="Arial, sans-serif">前缀缓存回答“哪些计算可以安全跳过”；分块预填充回答“剩余计算如何进入执行计划”。</text>
+  <text x="132" y="492" fill="#374151" font-size="18" font-family="Arial, sans-serif">命中前缀越长，重复计算越少；分块过大时，长 prefill 更难与其他请求交错执行。</text>
+  <rect x="102" y="550" width="1044" height="76" rx="18" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/>
+  <text x="132" y="584" fill="#075985" font-size="18" font-family="Arial, sans-serif">记住：前缀复用决定“少算什么”，分块预填充决定“剩余工作如何执行”。</text>
+</svg>
