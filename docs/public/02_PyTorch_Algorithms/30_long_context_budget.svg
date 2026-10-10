@@ -1,34 +1,42 @@
-<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1280" height="720" fill="#F7F4EC"/>
-  <rect x="56" y="48" width="1168" height="624" rx="28" fill="#FFFDF7" stroke="#1F2937" stroke-width="2"/>
-  <text x="88" y="100" fill="#111827" font-size="30" font-family="Arial, sans-serif" font-weight="700">Long Context Fine-Tuning Budget</text>
-  <text x="88" y="132" fill="#4B5563" font-size="18" font-family="Arial, sans-serif">Long-context tuning is a balance between target length, data organization and memory budget, not just a larger sequence length.</text>
-  <rect x="112" y="208" width="214" height="94" rx="18" fill="#DBEAFE" stroke="#2563EB" stroke-width="2"/>
-  <text x="146" y="244" fill="#1E3A8A" font-size="22" font-family="Arial, sans-serif" font-weight="700">Target Length</text>
-  <text x="138" y="274" fill="#1E3A8A" font-size="16" font-family="Arial, sans-serif">4k, 8k, 16k or beyond</text>
-  <text x="138" y="296" fill="#1E3A8A" font-size="16" font-family="Arial, sans-serif">must be fixed first</text>
-  <rect x="380" y="208" width="214" height="94" rx="18" fill="#FDE68A" stroke="#D97706" stroke-width="2"/>
-  <text x="420" y="244" fill="#92400E" font-size="22" font-family="Arial, sans-serif" font-weight="700">Data Shape</text>
-  <text x="410" y="274" fill="#92400E" font-size="16" font-family="Arial, sans-serif">packing, truncation,</text>
-  <text x="410" y="296" fill="#92400E" font-size="16" font-family="Arial, sans-serif">chunk boundary rules</text>
-  <rect x="648" y="208" width="214" height="94" rx="18" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
-  <text x="684" y="244" fill="#166534" font-size="22" font-family="Arial, sans-serif" font-weight="700">Memory Budget</text>
-  <text x="674" y="274" fill="#166534" font-size="16" font-family="Arial, sans-serif">micro-batch, accum,</text>
-  <text x="674" y="296" fill="#166534" font-size="16" font-family="Arial, sans-serif">step time, peak mem</text>
-  <rect x="916" y="208" width="230" height="94" rx="18" fill="#FCE7F3" stroke="#DB2777" stroke-width="2"/>
-  <text x="956" y="244" fill="#9D174D" font-size="22" font-family="Arial, sans-serif" font-weight="700">Usable Outcome</text>
-  <text x="948" y="274" fill="#9D174D" font-size="16" font-family="Arial, sans-serif">better long-context quality</text>
-  <text x="948" y="296" fill="#9D174D" font-size="16" font-family="Arial, sans-serif">under stable training</text>
-  <path d="M326 255H380" stroke="#374151" stroke-width="3"/>
-  <path d="M594 255H648" stroke="#374151" stroke-width="3"/>
-  <path d="M862 255H916" stroke="#374151" stroke-width="3"/>
-  <path d="M365 247L380 255L365 263" fill="#374151"/>
-  <path d="M633 247L648 255L633 263" fill="#374151"/>
-  <path d="M901 247L916 255L901 263" fill="#374151"/>
-  <rect x="108" y="378" width="1052" height="128" rx="22" fill="#F3F4F6" stroke="#6B7280" stroke-width="1.5"/>
-  <text x="136" y="418" fill="#111827" font-size="22" font-family="Arial, sans-serif" font-weight="700">What to compare</text>
-  <text x="136" y="452" fill="#374151" font-size="18" font-family="Arial, sans-serif">baseline max length vs target length, packing rule, truncation rule, peak memory, step time and final quality under the same workload.</text>
-  <text x="136" y="482" fill="#374151" font-size="18" font-family="Arial, sans-serif">If longer context only produces memory blow-up without quality gain, the problem is likely data organization or budget, not ambition.</text>
-  <rect x="108" y="548" width="1052" height="78" rx="18" fill="#DBEAFE" stroke="#3B82F6" stroke-width="2"/>
-  <text x="136" y="582" fill="#1E3A8A" font-size="18" font-family="Arial, sans-serif">Page 30 uses this figure to force one rule: length, data shape and memory budget must be defined together, otherwise every comparison drifts.</text>
+<svg width="1500" height="470" viewBox="0 0 1500 470" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>上下文窗口预算与 Packing</title>
+  <desc>目标窗口先扣除模板和回答预留，按监督完整性区分通过与溢出，再把通过准入的短样本装入 Packing 容器。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0L10 5L0 10Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei","Droid Sans Fallback",sans-serif!important}</style>
+  <rect width="1500" height="470" rx="24" fill="#F8FAFC"/>
+  <text x="62" y="64" fill="#0F172A" font-family="Noto Sans CJK SC, sans-serif" font-size="30" font-weight="700">窗口预算与样本拼接共用同一 Token 账本</text>
+  <text x="62" y="98" fill="#475569" font-family="Noto Sans CJK SC, sans-serif" font-size="18">先判断单条样本能否保留有效监督，再组织通过准入的样本；样本拼接不能修复已经溢出的样本。</text>
+
+  <rect x="62" y="152" width="286" height="126" rx="18" fill="#DBEAFE" stroke="#2563EB" stroke-width="2"/>
+  <text x="92" y="188" fill="#1E3A8A" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">目标窗口</text>
+  <text x="92" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">模板 + 提示 + 回答 + EOS</text>
+  <text x="92" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">总量不得超过容量</text>
+
+  <rect x="422" y="152" width="286" height="126" rx="18" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
+  <text x="452" y="188" fill="#92400E" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">单样本总量</text>
+  <text x="452" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">模板 + 提示 + 真实回答</text>
+  <text x="452" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">按每条样本独立核算</text>
+
+  <rect x="782" y="152" width="286" height="126" rx="18" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
+  <text x="812" y="188" fill="#166534" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">监督完整性准入</text>
+  <text x="812" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">通过：回答目标仍完整</text>
+  <text x="812" y="250" fill="#991B1B" font-family="Noto Sans CJK SC, sans-serif" font-size="17">溢出：截断、切块或调窗</text>
+
+  <rect x="1142" y="152" width="296" height="126" rx="18" fill="#EDE9FE" stroke="#7C3AED" stroke-width="2"/>
+  <text x="1172" y="188" fill="#5B21B6" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">样本拼接容器</text>
+  <text x="1172" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">仅组织通过准入的短样本</text>
+  <text x="1172" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">样本边界与监督区独立</text>
+
+  <path d="M348 215H410" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M708 215H770" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M1068 215H1130" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="238" y="340" width="1024" height="76" rx="18" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+  <text x="278" y="374" fill="#0F172A" font-family="Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">检查顺序</text>
+  <text x="398" y="374" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="18">监督是否保留 → 容量是否满足 → 样本是否守恒 → 样本拼接利用率是否改善</text>
+  <text x="398" y="402" fill="#64748B" font-family="Noto Sans CJK SC, sans-serif" font-size="16">任何一步失败都先修正数据或窗口，不把问题隐藏在更大的批次中。</text>
 </svg>

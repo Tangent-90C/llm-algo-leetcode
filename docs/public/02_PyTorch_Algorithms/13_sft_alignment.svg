@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-labelledby="title desc">
+  <title id="title">SFT 数据与损失对齐</title>
+  <desc id="desc">展示 prompt、response、EOS 与 padding 在上下文和监督中的不同角色，以及当前位置预测下一 token 的对齐关系。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#eef2ff"/>
+    </linearGradient>
+    <style>
+      .title { font: 700 30px "Inter", "Noto Sans SC", sans-serif; fill: #0f172a; }
+      .sub { font: 500 16px "Inter", "Noto Sans SC", sans-serif; fill: #475569; }
+      .label { font: 700 18px "Inter", "Noto Sans SC", sans-serif; fill: #111827; }
+      .small { font: 500 14px "Inter", "Noto Sans SC", sans-serif; fill: #334155; }
+      .axis { stroke: #64748b; stroke-width: 3; }
+      .box { stroke-width: 2.5; rx: 14; ry: 14; }
+      .chip { fill: #fff; stroke: #cbd5e1; stroke-width: 2; rx: 12; ry: 12; }
+    </style>
+  </defs>
+  <rect width="1600" height="520" fill="url(#bg)"/>
+  <text x="64" y="66" class="title">SFT 监督位置与下一 token 目标</text>
+  <text x="64" y="96" class="sub">Prompt 提供上下文，response 与 EOS 提供监督，padding 不参与上下文和训练目标。</text>
+
+  <text x="70" y="160" class="label">Token 位置</text>
+  <line x1="220" y1="154" x2="1460" y2="154" class="axis"/>
+  <g>
+    <rect x="220" y="120" width="150" height="70" class="box" fill="#fff7ed" stroke="#f59e0b"/>
+    <rect x="380" y="120" width="150" height="70" class="box" fill="#fff7ed" stroke="#f59e0b"/>
+    <rect x="540" y="120" width="150" height="70" class="box" fill="#fff7ed" stroke="#f59e0b"/>
+    <rect x="700" y="120" width="150" height="70" class="box" fill="#ecfccb" stroke="#65a30d"/>
+    <rect x="860" y="120" width="150" height="70" class="box" fill="#ecfccb" stroke="#65a30d"/>
+    <rect x="1020" y="120" width="150" height="70" class="box" fill="#ecfccb" stroke="#65a30d"/>
+    <rect x="1180" y="120" width="150" height="70" class="box" fill="#ecfccb" stroke="#65a30d"/>
+    <rect x="1340" y="120" width="120" height="70" class="box" fill="#f5f3ff" stroke="#8b5cf6"/>
+    <rect x="1460" y="120" width="70" height="70" class="box" fill="#e2e8f0" stroke="#94a3b8"/>
+
+    <text x="295" y="150" text-anchor="middle" class="label">prompt</text>
+    <text x="455" y="150" text-anchor="middle" class="label">prompt</text>
+    <text x="615" y="150" text-anchor="middle" class="label">prompt</text>
+    <text x="775" y="150" text-anchor="middle" class="label">response</text>
+    <text x="935" y="150" text-anchor="middle" class="label">response</text>
+    <text x="1095" y="150" text-anchor="middle" class="label">response</text>
+    <text x="1255" y="150" text-anchor="middle" class="label">response</text>
+    <text x="1400" y="150" text-anchor="middle" class="label">EOS</text>
+    <text x="1495" y="150" text-anchor="middle" class="label">pad</text>
+  </g>
+
+  <rect x="70" y="230" width="1460" height="90" class="chip"/>
+  <text x="96" y="262" class="label">上下文角色</text>
+  <text x="310" y="262" class="small">prompt、response 与 EOS 构成真实序列；padding 只用于批次对齐</text>
+  <text x="96" y="292" class="label">有效位置</text>
+  <text x="310" y="292" class="small">真实序列位置有效，padding 位置无效</text>
+
+  <rect x="70" y="360" width="1460" height="100" class="chip"/>
+  <text x="96" y="392" class="label">监督角色</text>
+  <text x="250" y="392" class="small">prompt 与 padding 不提供训练目标；response 与 EOS 提供训练目标</text>
+  <text x="96" y="438" class="label">预测关系</text>
+  <text x="250" y="438" class="small">位置 t 的状态预测位置 t+1；只汇总落在有效回答目标上的损失</text>
+</svg>
