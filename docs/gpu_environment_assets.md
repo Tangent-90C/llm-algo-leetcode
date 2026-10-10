@@ -50,7 +50,7 @@ CNB CPU 环境统一为 `llm_algo_cnb_dev`，GPU 环境为 `llm_algo_cnb_gpu`。
 | --- | --- | --- | --- | --- |
 | 通用基础 | `requirements/base.txt` | Notebook、数据处理、Transformers 基础能力 | 所有环境的共同依赖；不包含 torch、驱动或 backend | 当前标准 |
 | CPU PyTorch | `requirements/torch-cpu.txt` | CPU-first 机制、题目区、测试区与 dry-run | 与 CUDA PyTorch profile 互斥 | 当前标准 |
-| CUDA PyTorch | `requirements/torch-cu128.txt` | PyTorch GPU、显存、性能与多卡实验 | 与 CPU profile 互斥；要求主机驱动兼容 | 当前标准 |
+| CUDA PyTorch | `requirements/torch-cu128.txt` | PyTorch GPU、显存、性能与多卡实验 | 固定 `torch==2.11.0` 的 cu128 wheel；与 CPU profile 互斥；要求主机驱动兼容 | 已选兼容基线，真实硬件快照按实验登记 |
 | GPU 便利 profile | `requirements/gpu.txt` | 旧 CUDA 开发环境 | 仅为兼容；新环境优先显式组合 base、CUDA PyTorch 与能力 profile | legacy convenience |
 
 ## 能力 profile 资产
@@ -59,12 +59,201 @@ CNB CPU 环境统一为 `llm_algo_cnb_dev`，GPU 环境为 `llm_algo_cnb_gpu`。
 | --- | --- | --- | --- | --- |
 | SFT / LoRA | `requirements/fine-tuning.txt` | `peft`、`accelerate`、`datasets` | 09–13、62–64 | 与一个明确的 CPU 或 CUDA PyTorch profile 组合 |
 | QLoRA | `requirements/qlora.txt` | fine-tuning + `bitsandbytes` | 26、65 | 通常需要 CUDA；CPU 路径只保留机制和 dry-run |
-| 量化机制与 PTQ | `requirements/quantization.txt` | `torchao`、`llmcompressor`、`compressed-tensors`、`datasets` | 25、40、41、52–54、82 | 与 CUDA PyTorch profile 组合；Serving 复测仍使用独立 vLLM/SGLang 环境 |
-| RL / 对齐 | `requirements/reinforcement-learning.txt` | fine-tuning + `trl` | 14–16、84–86 | 与 CPU 或 CUDA PyTorch profile 组合；真实 rollout 另验资源 |
-| 分布式 | `requirements/distributed.txt` | `accelerate`、`torchmetrics`、`deepspeed` | 27–29、46–49、79–81 | 机制页使用 `torchrun + torch.distributed`；真实训练项目使用 Transformers + Accelerate，并选择 FSDP 或 DeepSpeed；真实实验需 CUDA、多进程与通信后端 |
-| vLLM backend | `requirements/inference-vllm.txt` | `vllm`、`httpx[socks]` | 66–72、83 | 单独维护；不默认与 SGLang 共装或替换现有 PyTorch |
+| 量化机制与 PTQ | `requirements/quantization.txt`、`requirements/quantization-cu128-constraints.txt` | `torchao`、`llmcompressor`、`compressed-tensors`、`datasets`、`hqq` | 25、40、41、52–54、Mixed-bit、QAT、82 | 只与 CUDA PyTorch profile 组成全新 `Q-CUDA-MECHANISM` 环境；不得覆盖 vLLM/SGLang 环境；MSLK 仅作为 plain/preshuffled INT4 兼容诊断的可选运行时 |
+| RL / 对齐 | `requirements/reinforcement-learning.txt` | fine-tuning + `trl` | 16–18、84–86 | 与 CPU 或 CUDA PyTorch profile 组合；真实 rollout 另验资源 |
+| 分布式 | `requirements/distributed.txt` | `accelerate`、`torchmetrics`、`deepspeed` | 27–29、46–49、PAR-CONTEXT、PAR-REPLICA、79–81 | 与 CUDA PyTorch 组成独立 `PAR-CUDA-MECHANISM` 环境；机制页使用 `torchrun + torch.distributed`，真实训练项目再选择 FSDP 或 DeepSpeed；不得混装 Serving backend |
+| 模型架构机制 | `requirements/architecture.txt` | Transformers、Accelerate、Datasets | 05、44、45、ARCH-MLA、ARCH-HYBRID-MEMORY | 与 CUDA PyTorch 组成独立 `ARCH-CUDA-MECHANISM` 环境；用于单卡机制对照，不混装 Serving backend |
+| 反向传播与训练机制 | `requirements/training-mechanism.txt` | PyTorch、Transformers、Jupyter | 11、19、42、混合精度反向传播 | 与 CUDA PyTorch 组成独立 `TRAIN-CUDA-MECHANISM` 环境；共用固定 Qwen2.5-0.5B commit 完成单卡梯度累积、AMP、重算与卸载对照，不混装 Serving 或多卡框架 |
+| 后训练 SFT / LoRA | `requirements/fine-tuning.txt` | PEFT、Accelerate、Datasets | 09、10、13、62–64 | 与 CUDA PyTorch 组成 `PT-SFT-CUDA`；QLoRA 使用独立 `Q-QLORA` |
+| 后训练偏好与策略信号 | `requirements/fine-tuning.txt`、`requirements/post-training-cu128-constraints.txt` | Transformers、PEFT、Datasets、Accelerate | 17、18、PT-REWARD-SIGNAL | 与 CUDA PyTorch 组成 `PT-RL-CUDA`；TRL、多工作进程与 Serving 采样使用独立项目环境 |
+| vLLM 0.11 backend | `requirements/inference-vllm.txt`、`requirements/inference-vllm-cu128-constraints.txt` | `vllm`、PyTorch 2.8、`xformers`、`compressed-tensors` | 66–72、83 的历史 CUDA 12.8 基线 | vLLM wheel 维护自己的 PyTorch 栈；不与 `torch-cu128.txt`、量化机制或 SGLang profile 组合 |
 | SGLang backend | `requirements/inference-sglang.txt` | `sglang`、`httpx[socks]` | 66、69、70、72、83 | 单独维护；不默认与 vLLM 共装 |
 | Profiling | `requirements/profiling.txt` | `tensorboard` | 73–76、Part 03 / 04 | 真实 trace 仍依赖 PyTorch、GPU 和 profiler 能力 |
+
+环境 ID、requirements 组合、互斥包和预检条件同时登记在机器可读的 `requirements/environment-profiles.json`。文档解释使用方法，注册表负责让预检脚本执行同一套规则；两者不得各自发明新的 Profile 名称。
+
+<a id="par-cuda-mechanism"></a>
+
+### PAR-CUDA-MECHANISM：通信与并行双卡机制环境
+
+该 Profile 用于单机至少两张 GPU 的真实 NCCL collective 与切分机制实验。学习者从[通信与并行实验 Quickstart](../topic_discussion/communication_parallelism/quickstart.md#par-cuda-mechanism-quickstart)进入；页面与结果状态见[通信与并行实验资产表](../topic_discussion/communication_parallelism/experiment_assets.md)。
+
+| 项目 | 固定规则 |
+|:---|:---|
+| requirements | `requirements/torch-cu128.txt` + `requirements/distributed.txt` |
+| 最低设备数 | 2 张可见 CUDA GPU |
+| 机制执行 | `torchrun + torch.distributed + NCCL` |
+| 训练扩展 | Accelerate、FSDP 或 DeepSpeed；必须固定相同模型、输入和同步步数 |
+| 环境隔离 | 禁止混装 vLLM / SGLang；Serving 使用独立 Profile |
+| 证据范围 | 单机多卡机制与真实训练局部证据；不能外推跨机或生产 Serving 扩展效率 |
+
+<a id="arch-cuda-mechanism"></a>
+
+### ARCH-CUDA-MECHANISM：模型架构单卡机制环境
+
+该 Profile 用于 Block、Attention 访问、递推状态、MLA 表示与混合记忆的单卡受控比较。学习者从[模型架构实验 Quickstart](../topic_discussion/llm_architecture_evolution/quickstart.md#arch-cuda-mechanism-quickstart)进入；页面、工作负载和证据状态见[模型架构实验资产表](../topic_discussion/llm_architecture_evolution/experiment_assets.md)。
+
+| 项目 | 固定规则 |
+|:---|:---|
+| requirements | `requirements/torch-cu128.txt` + `requirements/architecture.txt` |
+| 最低设备数 | 1 张 CUDA GPU；Profile 最低参考显存 8 GiB；默认矩阵面向 12 GB 级 GPU；建议主机内存至少 16 GiB |
+| 机制执行 | PyTorch / Transformers；固定形状、长度阶梯、dtype 与随机种子 |
+| 模型语义 | 需要 checkpoint 时固定 model/tokenizer revision；不把跨模型观察写成单变量因果结论 |
+| 环境隔离 | 禁止混装 vLLM、SGLang 与 LLM Compressor；Serving 使用独立 Profile |
+| 证据范围 | 单卡局部机制、状态和质量—成本证据；不替代专用 Kernel、Serving backend 或多卡结果 |
+
+已验证快照（2026-10-08）：Python 3.12.15、PyTorch 2.11.0+cu128、CUDA 12.8、Transformers 5.19.0、Accelerate 1.15.0、Datasets 5.1.0；设备为 NVIDIA GeForce RTX 5070 Ti Laptop GPU，预检可用显存 11.48 GiB、计算能力 12.0，原生 BF16 可用。`pip check`、仓库运行时导入和 Jupyter Kernel 注册均通过；该快照是环境证据，不表示四个架构机制实验已经完成。
+
+<a id="train-cuda-mechanism"></a>
+
+### TRAIN-CUDA-MECHANISM：训练机制单卡环境
+
+该 Profile 用于梯度累积、混合精度反向、激活检查点与激活卸载的单卡受控比较。学习者从[反向传播与训练机制实验 Quickstart](../topic_discussion/backpropagation_training_mechanism/quickstart.md#train-cuda-mechanism-quickstart)进入；页面和证据状态见[训练机制实验资产表](../topic_discussion/backpropagation_training_mechanism/experiment_assets.md)。
+
+| 项目 | 固定规则 |
+|:---|:---|
+| requirements | `requirements/torch-cu128.txt` + `requirements/training-mechanism.txt` |
+| 最低设备数 | 1 张可见 CUDA GPU；显存至少 12 GiB；建议主机内存至少 16 GiB |
+| 机制执行 | Transformers Qwen2.5-0.5B + PyTorch AMP、原生 checkpoint 与 saved-tensor hook；固定模型 commit、Token、有效更新次数、dtype 与随机种子 |
+| 正确性门槛 | 先验证 loss/梯度、有限值、跳步与更新次数，再比较峰值显存和单步时间 |
+| 环境隔离 | 禁止混装 vLLM、SGLang、LLM Compressor 与 DeepSpeed；多卡训练使用独立 Profile |
+| 证据范围 | 单卡局部训练机制证据；不替代完整 SFT、偏好优化或多卡扩展效率 |
+
+<a id="perf-cuda-mechanism"></a>
+
+### PERF-CUDA-MECHANISM：性能机制单卡环境
+
+该 Profile 承载 Trace、配对回归、输入流水线、主机—设备搬运和 I/O 关键路径的真实单卡对照，不安装 Serving、量化或多卡训练框架。创建与恢复命令见[性能分析实验 Quickstart](../topic_discussion/performance_analysis/quickstart.md#perf-cuda-mechanism-quickstart)，页面和证据状态见[性能分析实验资产表](../topic_discussion/performance_analysis/experiment_assets.md)。
+
+| 项目 | 固定口径 |
+| --- | --- |
+| 安装入口 | `requirements/torch-cu128.txt` + `requirements/profiling.txt` |
+| 硬件 | 单张 CUDA GPU，建议至少 8 GiB；PyTorch CUDA 12.8 |
+| 核心依赖 | PyTorch、JupyterLab、TensorBoard |
+| 适用页面 | `PERF-TRACE`、`PERF-MEMORY-TIMELINE`、`PERF-ROOFLINE`、`PERF-REGRESSION`、`PERF-INPUT`、`PERF-IO` |
+| 证据边界 | 本机机制级配对实验；不能替代真实存储、网络或生产 Serving 压测 |
+
+```bash
+python -m pip install -r requirements/torch-cu128.txt --timeout 120 --retries 8
+python -m pip install -r requirements/profiling.txt
+python tools/register_notebook_runtime.py
+python tools/environment_preflight.py --profile PERF-CUDA-MECHANISM
+```
+
+<a id="inf-cuda-mechanism"></a>
+
+### INF-CUDA-MECHANISM：推理机制单卡环境
+
+该 Profile 用于真实模型的迭代成本、执行分派、显存和局部延迟对照。学习者从[推理优化实验 Quickstart](../topic_discussion/inference_optimization/quickstart.md#inf-cuda-mechanism-quickstart)进入；页面和证据状态见[推理优化实验资产表](../topic_discussion/inference_optimization/experiment_assets.md)。
+
+| 项目 | 固定规则 |
+|:---|:---|
+| requirements | `requirements/torch-cu128.txt` + `requirements/inference-mechanism.txt` |
+| 最低设备数 | 1 张可见 CUDA GPU；参考显存 8 GiB |
+| 机制执行 | PyTorch / Transformers；固定模型 revision、batch × context、dtype、预热与重复次数 |
+| 环境隔离 | 禁止混装 vLLM、SGLang、LLM Compressor 与 DeepSpeed；Serving 使用独立 Profile |
+| 证据范围 | 单卡局部延迟、显存、能力门槛和回退路径；不替代服务吞吐、调度或多卡结论 |
+
+<a id="pt-sft-cuda"></a>
+
+### PT-SFT-CUDA：后训练 SFT 与 LoRA 单卡环境
+
+该 Profile 用于真实 SFT/LoRA 更新、验证与训练产物记录。学习者从[后训练实验 Quickstart](../topic_discussion/post_training_optimization/quickstart.md#pt-sft-cuda-quickstart)进入；QLoRA 切换到 `Q-QLORA`，不向本环境追加量化依赖。
+
+| 项目 | 固定规则 |
+|:---|:---|
+| requirements | `requirements/torch-cu128.txt` + `requirements/fine-tuning.txt` |
+| 最低设备数 | 1 张可见 CUDA GPU；参考显存 8 GiB |
+| 固定口径 | model/tokenizer revision、chat template、数据 split、有效 batch、更新次数与随机种子 |
+| 证据范围 | 单卡真实训练机制与产物；不替代完整质量评测或多卡扩展 |
+
+<a id="pt-rl-cuda"></a>
+
+### PT-RL-CUDA：后训练偏好与 RL 单卡机制环境
+
+该 Profile 用于 DPO、GRPO 和奖励信号的单卡真实模型配对实验。PPO 多角色资源链、多工作进程轨迹采样、独立推理后端与分布式学习器必须使用项目环境。
+
+| 项目 | 固定规则 |
+|:---|:---|
+| requirements | `requirements/torch-cu128.txt` + `requirements/fine-tuning.txt` + `requirements/post-training-cu128-constraints.txt` |
+| 最低设备数 | 1 张可见 CUDA GPU；参考显存 12 GiB |
+| 固定口径 | 当前 / 参考策略版本、固定样本、奖励、优势候选、更新批次与评测集 |
+| 证据范围 | 单卡目标函数与有限闭环；不外推多 worker 吞吐和在线稳定性 |
+
+<a id="q-cuda-mechanism"></a>
+
+### Q-CUDA-MECHANISM：量化机制环境
+
+该 Profile 用于真实模型层、校准、低精度执行和局部质量对照，不用于 vLLM/SGLang 服务。学习者从[量化与压缩实验 Quickstart](../topic_discussion/quantization_compression/quickstart.md#q-cuda-mechanism-quickstart)进入；本页只维护跨专题共用的 Profile 定义、验证条件和隔离规则。
+
+| 注册项 | 全局定义 |
+|:---|:---|
+| 安装组合 | `requirements/torch-cu128.txt` → `requirements/quantization.txt` |
+| 机器规则 | `requirements/environment-profiles.json` 中的 `Q-CUDA-MECHANISM` |
+| Python / PyTorch | Python 3.11 或 3.12；PyTorch 2.11.0+cu128 |
+| 设备下限 | 至少一张可用 NVIDIA GPU；机制实验参考显存 8 GiB |
+| 必需能力 | JupyterLab、ipykernel、Transformers、TorchAO、LLM Compressor、compressed-tensors、Datasets、HQQ 和可写结果目录 |
+| 仓库运行时 | 当前环境执行 `python tools/register_notebook_runtime.py`；写入仓库根目录 `.pth` 后重启 Kernel |
+| 互斥环境 | 不得安装 vLLM 或 SGLang；服务后端使用独立 Profile |
+| 通过条件 | `pip check` 无冲突，能从 Part 02 工作目录导入 `tools`，Profile 预检返回 `status=ok`，Notebook Kernel 指向当前环境 |
+
+`quantization.txt` 会通过 `base.txt` 安装 JupyterLab、ipykernel 和 Notebook 基础依赖。环境安装器还会注册仓库公共运行时，避免 VS Code 将工作目录设为 Notebook 目录后无法导入 `tools`。PyTorch wheel 从官方 cu128 索引下载，`cuda-bindings` 等未镜像依赖从补充的 PyPI 索引解析。8 GiB 是教程机制实验参考档位，不是所有模型和量化产物的通用最低要求。
+
+已验证快照（2026-10-06）：Python 3.12.14、PyTorch 2.11.0+cu128、CUDA 12.8、Transformers 5.17.0、TorchAO 0.18.0、LLM Compressor 0.14.0、compressed-tensors 0.19.0、Datasets 5.0.1、HQQ 0.2.8.post1；设备为 NVIDIA GeForce RTX 5070 Ti Laptop GPU 12 GiB，驱动 570.211.01，计算能力 12.0。25、40、41、53、54、Mixed-bit 与 QAT 均已生成真实 GPU JSON；各实验观测到的最高峰值显存约为 14 MiB、2.24 GiB、2.07 GiB、5.00 GiB、1.20 GiB、2.51 GiB 与 4.02 GiB。峰值来自不同 workload 和统计范围，只用于环境容量参考，不可横向比较算法优劣。MSLK 是 plain/preshuffled INT4 的可选兼容诊断运行时，不属于默认 Profile，也不参与已验证的 tile-packed Mixed-bit 与 unpacked QAT 路径。
+
+<a id="q-qlora"></a>
+
+### Q-QLORA：低比特适配训练环境
+
+| 项目 | 固定口径 |
+|:---|:---|
+| 用途 | Part 02 · 26、65 的 BF16 LoRA / NF4 QLoRA 配对训练与 adapter 交付 |
+| 安装入口 | 先安装 `requirements/torch-cu128.txt`，再使用 `requirements/qlora-cu128-constraints.txt` 安装 `requirements/qlora.txt` |
+| 已验证依赖 | Python 3.12.14；PyTorch 2.11.0+cu128；Transformers 5.18.0；Datasets 5.1.0；Accelerate 1.15.0；PEFT 0.21.2；bitsandbytes 0.50.2 |
+| 已验证设备 | NVIDIA GeForce RTX 5070 Ti Laptop GPU 12 GiB；CUDA 12.8；计算能力 12.0 |
+| 设备下限 | 至少一张可用 NVIDIA GPU；0.5B 配对矩阵参考 8 GiB，1.5B 规模复测参考 12 GiB |
+| 隔离规则 | 不安装 vLLM、SGLang 或 LLM Compressor；不得覆盖 Serving 环境 |
+| 通过条件 | `pip check` 无冲突，`Q-QLORA` Profile 预检返回 `status=ok` |
+| 机器规则 | `requirements/environment-profiles.json` 中的 `Q-QLORA` |
+
+RTX 5070 Ti Laptop 12 GiB 已完成 0.5B 与 1.5B 的 BF16 LoRA / NF4 QLoRA 配对矩阵。0.5B 上训练工作区和反量化开销抵消了常驻底座节省；1.5B 上三档序列长度的总峰值下降 14.8%–26.7%，但单步时间增加 18.1%–41.4%。该快照证明容量交叉点存在，不代表 QLoRA 是训练加速方案。
+
+<a id="environment-isolation-troubleshooting"></a>
+
+### 环境隔离故障处理
+
+环境隔离检查不是默认安装步骤。只有 Profile 预检、`pip check` 或 `sys.executable` 显示当前环境混入 ROS、系统 Python、用户目录包或其他 Python 小版本时，才检查：
+
+```bash
+echo "PYTHONPATH=$PYTHONPATH"
+python -m pip show launch-ros
+python -c "import sys; print(sys.executable); print('\n'.join(sys.path))"
+```
+
+如果输出确认 `PYTHONPATH` 注入了 `/opt/ros` 或其他环境的 `site-packages`，可为当前 Conda 环境设置隔离变量并重新激活：
+
+```bash
+conda env config vars set PYTHONNOUSERSITE=1 PYTHONPATH=
+conda deactivate
+conda activate llm_quant_cu128
+python -m pip check
+```
+
+不要在没有污染证据时清空 `PYTHONPATH`；某些开发环境可能有意使用它。修复后应重新执行对应 Profile 的预检，而不是直接重装 PyTorch。
+
+<a id="inf-vllm-011-cu128"></a>
+
+### INF-VLLM-011-CU128：vLLM 0.11 服务环境
+
+该 Profile 用于复现教程历史 vLLM 0.11 CUDA 12.8 基线。vLLM wheel 自行安装匹配的 PyTorch 2.8、torchvision、torchaudio、xformers 和 compressed-tensors，不先安装 `torch-cu128.txt`：
+
+```bash
+python -m pip install -r requirements/inference-vllm.txt
+python -m pip check
+python tools/environment_preflight.py --profile INF-VLLM-011-CU128
+```
+
+`inference-vllm.txt` 同样通过 `base.txt` 提供 JupyterLab 与 ipykernel；需要在 Notebook 中调用服务客户端时，为该环境注册独立 Kernel。该环境不能安装 LLM Compressor、torchao、HQQ、AutoRound 或 SGLang。需要较新 vLLM 时应建立新的 Profile 和结果基线，不能覆盖此环境后继续沿用旧结果。
 
 ## 统一模型与工作负载资产
 
@@ -116,7 +305,7 @@ Qwen2.5 与 Qwen3 不是同一性能基线。切换模型时必须新建候选�
 | CUDA PyTorch + quantization | weight-only、FP8、GPTQ/AWQ、SmoothQuant | 25、40、41、52–54、82 | 局部低精度执行、校准和 compressed artifact | vLLM/SGLang 端到端吞吐与服务结论 |
 | CUDA PyTorch + reinforcement-learning | 偏好优化与 RL 训练 | 84–86 | 训练接口、rollout / reward 记录 | 生产级多机 rollout 吞吐 |
 | CUDA PyTorch + distributed | collective、多卡机制与真实训练 | 27–29、46–49、79、80 | collective、payload、rank 布局、负载、FSDP / DeepSpeed 训练与失败记录 | 真实推理服务 backend 对照 |
-| CUDA PyTorch + vLLM | 推理 backend benchmark | 66–72、83 | backend 可用性、TTFT / TPOT / 吞吐 | SGLang 行为或跨 backend 优劣 |
+| 独立 vLLM backend Profile | 推理 backend benchmark | 66–72、83 | backend 可用性、TTFT / TPOT / 吞吐 | SGLang 行为或跨 backend 优劣 |
 | CUDA PyTorch + SGLang | SGLang backend benchmark | 66、69、70、72、83 | SGLang 策略与服务证据 | vLLM 行为或跨 backend 优劣 |
 | llama.cpp 独立构建 / 镜像 | GGUF、本地 CPU、端侧和混合 offload | 部署与异构专题、后续 Part 05 项目 | 目标设备上的内存、延迟和可运行性 | vLLM/SGLang/TensorRT-LLM 的数据中心结论 |
 | TensorRT-LLM release 容器 | NVIDIA 专用 Engine 与部署候选 | 部署与异构专题、后续 Part 05 项目 | 固定 Engine、GPU 与版本矩阵下的性能 | 其他硬件、其他 TensorRT/CUDA 组合 |
@@ -136,6 +325,13 @@ Qwen2.5 与 Qwen3 不是同一性能基线。切换模型时必须新建候选�
 
 ```bash
 python tools/environment_preflight.py --gpu --packages transformers --output benchmarks/results/preflight.json
+```
+
+已登记 Profile 应优先按 ID 预检，避免每个 Notebook 重新拼接包名和硬件条件：
+
+```bash
+python tools/environment_preflight.py --list-profiles
+python tools/environment_preflight.py --profile Q-CUDA-MECHANISM
 ```
 
 backend、分布式和真实模型实验应在此基础上增加对应能力 profile 与项目专属检查；预检不会静默安装或替换驱动、CUDA PyTorch、vLLM 或 SGLang。
