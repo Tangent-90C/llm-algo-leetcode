@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">RL 工程循环</title>
+  <desc id="desc">从当前策略与输入开始，经由 rollout、奖励或验证器、策略更新、独立评测与回滚，形成可测量的 RL 工程闭环。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#52667d"/></marker>
+    <style>
+      .bg{fill:#f7fafc}.step{fill:#fff;stroke:#91a8bd;stroke-width:2}.accent{fill:#e8f2fb;stroke:#4d87b7;stroke-width:2}.label{font:600 20px 'Noto Sans SC','Microsoft YaHei',sans-serif;fill:#17324d}.sub{font:15px 'Noto Sans SC','Microsoft YaHei',sans-serif;fill:#52667d}.line{stroke:#52667d;stroke-width:2.5;fill:none;marker-end:url(#arrow)}.hint{font:15px 'Noto Sans SC','Microsoft YaHei',sans-serif;fill:#6a7d90}
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="360" rx="18"/>
+  <text x="60" y="55" class="label">一次 RL 工程循环：每一段都要独立记录输入、耗时、资源与失败状态</text>
+  <rect x="60" y="125" width="175" height="105" rx="12" class="step"/>
+  <text x="147" y="166" text-anchor="middle" class="label">当前策略与输入</text><text x="147" y="196" text-anchor="middle" class="sub">policy · prompt · 配置</text>
+  <rect x="285" y="125" width="175" height="105" rx="12" class="accent"/>
+  <text x="372" y="166" text-anchor="middle" class="label">Rollout</text><text x="372" y="196" text-anchor="middle" class="sub">候选生成 · 等待 · 吞吐</text>
+  <rect x="510" y="125" width="175" height="105" rx="12" class="step"/>
+  <text x="597" y="166" text-anchor="middle" class="label">奖励 / 验证器</text><text x="597" y="196" text-anchor="middle" class="sub">分数 · 一致性 · 失败</text>
+  <rect x="735" y="125" width="175" height="105" rx="12" class="accent"/>
+  <text x="822" y="166" text-anchor="middle" class="label">策略更新</text><text x="822" y="196" text-anchor="middle" class="sub">loss · 显存 · 通信</text>
+  <rect x="960" y="125" width="175" height="105" rx="12" class="step"/>
+  <text x="1047" y="166" text-anchor="middle" class="label">独立评测与回滚</text><text x="1047" y="196" text-anchor="middle" class="sub">质量 · 安全 · 版本</text>
+  <path d="M235 177 H285" class="line"/><path d="M460 177 H510" class="line"/><path d="M685 177 H735" class="line"/><path d="M910 177 H960" class="line"/>
+  <path d="M1047 230 V290 H147 V230" class="line"/>
+  <text x="597" y="320" text-anchor="middle" class="hint">通过评测：记录新版本；不通过：回滚并定位发生在数据、奖励、rollout 或 update 的问题</text>
+</svg>
