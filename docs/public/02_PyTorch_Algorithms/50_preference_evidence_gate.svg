@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
+  <title id="title">偏好评测证据准入</title><desc id="desc">固定比较条件后，质量、安全、覆盖与判分可靠性共同形成准入、复核或拒绝状态。</desc>
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#475569"/></marker><style>.t{font:700 25px Arial,sans-serif;fill:#172033}.s{font:15px Arial,sans-serif;fill:#475569}.h{font:700 17px Arial,sans-serif;fill:#172033}.c{font:14px Arial,sans-serif;fill:#334155}.l{fill:none;stroke:#475569;stroke-width:2.4;marker-end:url(#a)}</style></defs>
+  <rect width="1200" height="430" fill="#F8FAFC"/><rect x="28" y="24" width="1144" height="382" rx="24" fill="#FFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="62" y="68" class="t">独立评测：证据组合决定候选状态</text><text x="62" y="96" class="s">质量收益不能覆盖安全失败，证据不足也不能直接视为通过。</text>
+  <rect x="56" y="151" width="220" height="130" rx="16" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/>
+  <text x="78" y="185" class="h">固定比较条件</text><text x="78" y="216" class="c">同一评测集与生成条件</text><text x="78" y="242" class="c">同一判分与平局规则</text><text x="78" y="268" class="c">基线与候选身份明确</text>
+  <rect x="332" y="133" width="238" height="166" rx="16" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
+  <text x="354" y="167" class="h">四类独立证据</text><text x="354" y="197" class="c">质量：正确且有帮助</text><text x="354" y="223" class="c">安全：风险行为不退化</text><text x="354" y="249" class="c">覆盖：有效样本足够</text><text x="354" y="275" class="c">可靠性：复判与换序稳定</text>
+  <rect x="650" y="112" width="188" height="68" rx="14" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/><text x="672" y="142" class="h">准入</text><text x="672" y="164" class="c">全部门槛通过</text>
+  <rect x="650" y="198" width="188" height="68" rx="14" fill="#FFF7ED" stroke="#EA580C" stroke-width="2"/><text x="672" y="228" class="h">复核</text><text x="672" y="250" class="c">软证据不足或冲突</text>
+  <rect x="650" y="284" width="188" height="68" rx="14" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/><text x="672" y="314" class="h">拒绝</text><text x="672" y="336" class="c">契约或硬门槛失败</text>
+  <rect x="930" y="151" width="214" height="130" rx="16" fill="#F3E8FF" stroke="#9333EA" stroke-width="2"/>
+  <text x="952" y="185" class="h">复查证据包</text><text x="952" y="216" class="c">评测身份与样本规模</text><text x="952" y="242" class="c">失败案例与状态原因</text><text x="952" y="268" class="c">补证据或修复动作</text>
+  <path d="M276 216H324" class="l"/>
+  <path d="M570 170H610V146H642" class="l"/><path d="M570 216H642" class="l"/><path d="M570 262H610V318H642" class="l"/>
+  <path d="M838 146H876V181H922" class="l"/><path d="M838 232H922" class="l"/><path d="M838 318H876V251H922" class="l"/>
+</svg>

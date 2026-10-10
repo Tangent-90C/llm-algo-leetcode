@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
+  <title id="title">偏好数据契约</title><desc id="desc">同一任务下的可比回答经过偏好语义、来源身份和切分隔离检查，分别进入训练与独立评测。</desc>
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#475569"/></marker><style>.t{font:700 25px Arial,sans-serif;fill:#172033}.s{font:15px Arial,sans-serif;fill:#475569}.h{font:700 17px Arial,sans-serif;fill:#172033}.c{font:14px Arial,sans-serif;fill:#334155}.l{fill:none;stroke:#475569;stroke-width:2.4;marker-end:url(#a)}</style></defs>
+  <rect width="1200" height="430" fill="#F8FAFC"/><rect x="28" y="24" width="1144" height="382" rx="24" fill="#FFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="62" y="68" class="t">偏好数据：可比关系成立后，才能进入训练与评测</text><text x="62" y="96" class="s">比较对象、偏好依据、来源身份和数据切分共同决定偏好信号是否可信。</text>
+  <rect x="58" y="156" width="208" height="122" rx="16" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/>
+  <text x="80" y="191" class="h">同一任务的回答</text><text x="80" y="222" class="c">相同输入与任务约束</text><text x="80" y="248" class="c">回答之间可以直接比较</text>
+  <rect x="318" y="156" width="208" height="122" rx="16" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
+  <text x="340" y="191" class="h">偏好语义</text><text x="340" y="222" class="c">选择理由对应目标能力</text><text x="340" y="248" class="c">不是题目差异或标注噪声</text>
+  <rect x="578" y="156" width="220" height="122" rx="16" fill="#F3E8FF" stroke="#9333EA" stroke-width="2"/>
+  <text x="600" y="191" class="h">身份与切分隔离</text><text x="600" y="222" class="c">来源和判分依据可追溯</text><text x="600" y="248" class="c">训练与最终评测不泄漏</text>
+  <rect x="878" y="126" width="254" height="92" rx="15" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
+  <text x="900" y="162" class="h">偏好训练数据</text><text x="900" y="190" class="c">学习回答之间的相对选择</text>
+  <rect x="878" y="254" width="254" height="92" rx="15" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/>
+  <text x="900" y="290" class="h">独立评测数据</text><text x="900" y="318" class="c">检验能力变化而非训练记忆</text>
+  <path d="M266 217H310" class="l"/><path d="M526 217H570" class="l"/>
+  <path d="M798 190H834V172H870" class="l"/><path d="M798 244H834V300H870" class="l"/>
+</svg>
