@@ -22,7 +22,7 @@ REQUIRED_FIELDS = {"workload", "hardware", "metrics", "evidence_level", "failure
 
 def _args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--project", choices=("79", "80", "81", "PAR-MODEL-INTERNAL"), required=True)
+    parser.add_argument("--project", choices=("79", "87", "80", "81", "PAR-MODEL-INTERNAL"), required=True)
     parser.add_argument(
         "--role",
         choices=("training_state_parallel", "model_internal_parallel", "moe_expert_parallel", "distributed_serving"),
@@ -69,6 +69,7 @@ def main() -> int:
         failure = "; ".join(unreadable)
     default_roles = {
         "79": "training_state_parallel",
+        "87": "model_internal_parallel",
         "80": "moe_expert_parallel",
         "81": "distributed_serving",
         "PAR-MODEL-INTERNAL": "model_internal_parallel",

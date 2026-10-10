@@ -21,6 +21,7 @@ PROJECT_ROLES = (
 )
 REQUIRED_FIELDS = {
     "schema_version",
+    "semantic_id",
     "project",
     "role",
     "workload",
@@ -29,6 +30,20 @@ REQUIRED_FIELDS = {
     "evidence_level",
     "failure",
     "decision",
+}
+PROJECT_SEMANTIC_IDS = {
+    "79": "PAR-TRAINING-STATE",
+    "87": "PAR-MODEL-INTERNAL",
+    "PAR-MODEL-INTERNAL": "PAR-MODEL-INTERNAL",
+    "80": "PAR-MOE-EXPERT",
+    "81": "PAR-DISTRIBUTED-INFERENCE",
+}
+PROJECT_EXPECTED_ROLES = {
+    "79": "training_state_parallel",
+    "87": "model_internal_parallel",
+    "PAR-MODEL-INTERNAL": "model_internal_parallel",
+    "80": "moe_expert_parallel",
+    "81": "distributed_serving",
 }
 
 
@@ -69,8 +84,11 @@ def make_record(
 
     if role not in PROJECT_ROLES:
         raise ValueError(f"unknown distributed project role: {role}")
+    if str(project) not in PROJECT_SEMANTIC_IDS:
+        raise ValueError(f"unknown distributed project: {project}")
     record = {
         "schema_version": SCHEMA_VERSION,
+        "semantic_id": PROJECT_SEMANTIC_IDS[str(project)],
         "project": str(project),
         "role": role,
         "workload": dict(workload),
@@ -97,6 +115,15 @@ def validate_record(record: Mapping[str, Any]) -> list[str]:
         errors.append(f"schema_version must be {SCHEMA_VERSION}")
     if record.get("role") not in PROJECT_ROLES:
         errors.append(f"role must be one of {PROJECT_ROLES}")
+    project = str(record.get("project", ""))
+    expected_semantic_id = PROJECT_SEMANTIC_IDS.get(project)
+    if expected_semantic_id is None:
+        errors.append(f"unknown distributed project: {project!r}")
+    elif record.get("semantic_id") != expected_semantic_id:
+        errors.append(f"semantic_id must be {expected_semantic_id} for project {project}")
+    expected_role = PROJECT_EXPECTED_ROLES.get(project)
+    if expected_role is not None and record.get("role") != expected_role:
+        errors.append(f"role must be {expected_role} for project {project}")
     for field in ("workload", "hardware", "metrics", "decision"):
         if field in record and not isinstance(record[field], Mapping):
             errors.append(f"{field} must be a mapping")

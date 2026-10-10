@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
+import statistics
 import time
 from pathlib import Path
 
@@ -37,6 +39,8 @@ def _parse_args() -> argparse.Namespace:
         required=True,
     )
     parser.add_argument("--output", required=True)
+    parser.add_argument("--run-label", default="default")
+    parser.add_argument("--workload-id", default=None)
     parser.add_argument("--dtype", choices=("float32", "bfloat16"), default="bfloat16")
     parser.add_argument("--warmup", type=int, default=5)
     parser.add_argument("--repeats", type=int, default=20)
@@ -46,7 +50,14 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--hidden-dim", type=int, default=11008)
     parser.add_argument("--out-dim", type=int, default=4096)
     parser.add_argument("--tokens-per-rank", type=int, default=256)
-    parser.add_argument("--routing", choices=("balanced", "skewed"), default="balanced")
+    parser.add_argument(
+        "--routing",
+        choices=("local_heavy", "balanced", "skewed"),
+        default="balanced",
+    )
+    parser.add_argument("--num-experts", type=int, default=4)
+    parser.add_argument("--top-k", type=int, default=2)
+    parser.add_argument("--capacity-factor", type=float, default=1.25)
     parser.add_argument("--seq-len", type=int, default=2048)
     parser.add_argument("--num-heads", type=int, default=8)
     parser.add_argument("--head-dim", type=int, default=64)
@@ -70,6 +81,44 @@ def _timed(torch, dist, fn, warmup: int, repeats: int) -> tuple[float, list[floa
     dist.all_gather(gathered, local)
     per_rank = [round(item.item(), 5) for item in gathered]
     return max(per_rank), per_rank
+
+
+def _percentile(values: list[float], quantile: float) -> float:
+    """Return a linearly interpolated percentile for a non-empty sample list."""
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * quantile
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    weight = position - lower
+    return ordered[lower] * (1.0 - weight) + ordered[upper] * weight
+
+
+def _timed_distribution(torch, dist, fn, warmup: int, repeats: int) -> dict:
+    """Measure every repeat on every rank and summarize the slowest-rank series."""
+    for _ in range(warmup):
+        fn()
+    dist.barrier()
+    torch.cuda.synchronize()
+    local_samples = []
+    for _ in range(repeats):
+        dist.barrier()
+        started = time.perf_counter()
+        fn()
+        torch.cuda.synchronize()
+        local_samples.append((time.perf_counter() - started) * 1000.0)
+    local = torch.tensor(local_samples, device="cuda", dtype=torch.float64)
+    gathered = [torch.empty_like(local) for _ in range(dist.get_world_size())]
+    dist.all_gather(gathered, local)
+    rank_samples = [[float(value) for value in item.tolist()] for item in gathered]
+    max_rank_samples = [max(values) for values in zip(*rank_samples)]
+    rank_means = [statistics.fmean(values) for values in rank_samples]
+    return {
+        "rank_mean_ms": [round(value, 5) for value in rank_means],
+        "max_rank_mean_ms": round(max(rank_means), 5),
+        "median_max_rank_ms": round(statistics.median(max_rank_samples), 5),
+        "p95_max_rank_ms": round(_percentile(max_rank_samples, 0.95), 5),
+        "max_rank_samples_ms": [round(value, 5) for value in max_rank_samples],
+    }
 
 
 def _run_tp(torch, dist, args, device, dtype) -> dict:
@@ -130,48 +179,120 @@ def _run_collectives(torch, dist, args, device, dtype) -> dict:
         gather_output = torch.empty(elements * world_size, device=device, dtype=dtype)
         scatter_input = torch.ones(elements, device=device, dtype=dtype)
         scatter_output = torch.empty(elements // world_size, device=device, dtype=dtype)
+        decomposed_output = torch.empty(elements, device=device, dtype=dtype)
         all_to_all_output = torch.empty_like(local)
+
+        def reduce_scatter_plus_all_gather():
+            """Execute the two semantic phases of an AllReduce explicitly."""
+            dist.reduce_scatter_tensor(scatter_output, scatter_input)
+            dist.all_gather_into_tensor(decomposed_output, scatter_output)
+
         operations = {
             "all_reduce": lambda: dist.all_reduce(local),
+            "reduce_scatter_plus_all_gather": reduce_scatter_plus_all_gather,
             "all_gather_into_tensor": lambda: dist.all_gather_into_tensor(gather_output, local),
             "reduce_scatter_tensor": lambda: dist.reduce_scatter_tensor(scatter_output, scatter_input),
             "all_to_all_single": lambda: dist.all_to_all_single(all_to_all_output, local),
         }
         for name, operation in operations.items():
-            elapsed_ms, per_rank = _timed(torch, dist, operation, args.warmup, args.repeats)
+            timing = _timed_distribution(torch, dist, operation, args.warmup, args.repeats)
             payload_bytes = elements * element_size
             rows.append({
-                "operation": name,
+                "collective": name,
                 "payload_bytes_per_rank": payload_bytes,
-                "max_rank_elapsed_ms": elapsed_ms,
-                "rank_elapsed_ms": per_rank,
-                "effective_payload_gbps": round(payload_bytes / (elapsed_ms / 1000.0) / 1e9, 5),
+                **timing,
+                "effective_payload_gbps": round(
+                    payload_bytes / (timing["median_max_rank_ms"] / 1000.0) / 1e9, 5
+                ),
             })
     return {"strategy": "collective_size_matrix", "metrics": {"rows": rows}}
 
 
-def _destination_counts(tokens: int, world_size: int, routing: str) -> list[int]:
-    if tokens % world_size:
-        raise ValueError("tokens-per-rank 必须能被 world size 整除")
-    if routing == "balanced":
-        return [tokens // world_size] * world_size
-    hot = tokens * 3 // 4
-    remaining = tokens - hot
-    quotient, remainder = divmod(remaining, world_size - 1)
-    counts = [hot] + [quotient + (index < remainder) for index in range(world_size - 1)]
-    return counts
+def _build_ep_routes(
+    torch,
+    *,
+    tokens: int,
+    rank: int,
+    world_size: int,
+    num_experts: int,
+    top_k: int,
+    routing: str,
+    device,
+):
+    """Build deterministic expert ids for locality, balance, and hotspot cases."""
+    if tokens <= 0 or num_experts < world_size or top_k <= 0 or top_k > num_experts:
+        raise ValueError("tokens、num-experts 和 top-k 的组合无效")
+    experts_by_owner = {
+        owner: [expert for expert in range(num_experts) if expert % world_size == owner]
+        for owner in range(world_size)
+    }
+    if any(not experts for experts in experts_by_owner.values()):
+        raise ValueError("每个 rank 至少需要拥有一个 expert")
+
+    rows = []
+    for token_index in range(tokens):
+        if routing == "local_heavy":
+            local = experts_by_owner[rank]
+            row = [local[(token_index + offset) % len(local)] for offset in range(top_k)]
+        elif routing == "balanced":
+            row = [
+                (token_index * top_k + offset + rank) % num_experts
+                for offset in range(top_k)
+            ]
+        else:
+            row = [0]
+            cursor = (token_index + rank + 1) % num_experts
+            while len(row) < top_k:
+                if cursor not in row:
+                    row.append(cursor)
+                cursor = (cursor + 1) % num_experts
+        rows.append(row)
+    return torch.tensor(rows, device=device, dtype=torch.int64)
 
 
 def _run_ep(torch, dist, args, device, dtype) -> dict:
     world_size = dist.get_world_size()
     rank = dist.get_rank()
-    send_counts = _destination_counts(args.tokens_per_rank, world_size, args.routing)
+    routes = _build_ep_routes(
+        torch,
+        tokens=args.tokens_per_rank,
+        rank=rank,
+        world_size=world_size,
+        num_experts=args.num_experts,
+        top_k=args.top_k,
+        routing=args.routing,
+        device=device,
+    )
+    gathered_routes = [torch.empty_like(routes) for _ in range(world_size)]
+    dist.all_gather(gathered_routes, routes)
+    global_routes = torch.cat(gathered_routes, dim=0).reshape(-1)
+    expert_loads = torch.bincount(global_routes, minlength=args.num_experts)
+    total_routes = int(global_routes.numel())
+    capacity = math.ceil(total_routes / args.num_experts * args.capacity_factor)
+
+    accepted_global = torch.zeros_like(global_routes, dtype=torch.bool)
+    accepted_per_expert = [0] * args.num_experts
+    for route_index, expert_id in enumerate(global_routes.tolist()):
+        if accepted_per_expert[expert_id] < capacity:
+            accepted_global[route_index] = True
+            accepted_per_expert[expert_id] += 1
+    routes_per_rank = args.tokens_per_rank * args.top_k
+    local_start = rank * routes_per_rank
+    local_mask = accepted_global[local_start:local_start + routes_per_rank]
+    local_experts = routes.reshape(-1)[local_mask]
+    destination_ranks = local_experts.remainder(world_size)
+    order = torch.argsort(destination_ranks)
+    destination_ranks = destination_ranks[order]
+    send_counts_tensor = torch.bincount(destination_ranks, minlength=world_size)
+    send_counts = [int(value) for value in send_counts_tensor.tolist()]
     send_count_tensor = torch.tensor(send_counts, device=device, dtype=torch.int64)
     recv_count_tensor = torch.empty_like(send_count_tensor)
     dist.all_to_all_single(recv_count_tensor, send_count_tensor)
     recv_counts = [int(item) for item in recv_count_tensor.tolist()]
     torch.manual_seed(100 + rank)
-    dispatched = torch.randn(args.tokens_per_rank, args.hidden_dim, device=device, dtype=dtype)
+    token_states = torch.randn(args.tokens_per_rank, args.hidden_dim, device=device, dtype=dtype)
+    expanded = token_states.repeat_interleave(args.top_k, dim=0)[local_mask]
+    dispatched = expanded[order].contiguous()
     expert_weight = torch.randn(args.hidden_dim, args.hidden_dim, device=device, dtype=dtype) / args.hidden_dim**0.5
 
     def dispatch_expert_combine():
@@ -186,21 +307,46 @@ def _run_ep(torch, dist, args, device, dtype) -> dict:
     if combined.shape != dispatched.shape or not torch.isfinite(combined).all():
         raise RuntimeError("dispatch / combine 输出形状或数值异常")
     torch.cuda.reset_peak_memory_stats(device)
-    elapsed_ms, per_rank = _timed(torch, dist, dispatch_expert_combine, args.warmup, args.repeats)
+    timing = _timed_distribution(
+        torch, dist, dispatch_expert_combine, args.warmup, args.repeats
+    )
     local_received = torch.tensor([sum(recv_counts)], device=device, dtype=torch.float64)
     received_all = [torch.empty_like(local_received) for _ in range(world_size)]
     dist.all_gather(received_all, local_received)
     loads = [int(item.item()) for item in received_all]
     mean_load = sum(loads) / len(loads)
+    local_cross_rank = sum(
+        count for destination, count in enumerate(send_counts) if destination != rank
+    )
+    cross_rank_tensor = torch.tensor([local_cross_rank], device=device, dtype=torch.int64)
+    gathered_cross_rank = [torch.empty_like(cross_rank_tensor) for _ in range(world_size)]
+    dist.all_gather(gathered_cross_rank, cross_rank_tensor)
+    cross_rank_routes = sum(int(item.item()) for item in gathered_cross_rank)
+    local_peak = torch.tensor(
+        [torch.cuda.max_memory_allocated(device) / 1024**2], device=device, dtype=torch.float64
+    )
+    gathered_peak = [torch.empty_like(local_peak) for _ in range(world_size)]
+    dist.all_gather(gathered_peak, local_peak)
+    element_size = token_states.element_size()
+    overflow = total_routes - int(accepted_global.sum().item())
     return {
         "strategy": f"ep_{args.routing}_routing",
         "metrics": {
-            "max_rank_step_ms": elapsed_ms,
-            "rank_step_ms": per_rank,
+            **timing,
+            "expert_loads_before_capacity": [int(value) for value in expert_loads.tolist()],
+            "capacity_per_expert": capacity,
+            "accepted_routes": total_routes - overflow,
+            "overflow_routes": overflow,
+            "overflow_ratio": round(overflow / total_routes, 6),
             "received_tokens_per_rank": loads,
             "load_skew_ratio": round((max(loads) - min(loads)) / mean_load, 5) if mean_load else 0.0,
-            "dispatch_bytes_per_rank": args.tokens_per_rank * args.hidden_dim * dispatched.element_size(),
-            "peak_memory_mb_per_rank": round(torch.cuda.max_memory_allocated(device) / 1024**2, 3),
+            "logical_route_bytes": total_routes * args.hidden_dim * element_size,
+            "cross_rank_routes": cross_rank_routes,
+            "cross_rank_dispatch_bytes": cross_rank_routes * args.hidden_dim * element_size,
+            "cross_rank_roundtrip_bytes": cross_rank_routes * args.hidden_dim * element_size * 2,
+            "peak_memory_mb_per_rank": [round(item.item(), 3) for item in gathered_peak],
+            "combine_shape_check_passed": combined.shape == dispatched.shape,
+            "combine_finite_check_passed": bool(torch.isfinite(combined).all().item()),
         },
     }
 
@@ -278,18 +424,34 @@ def _run_comm_overlap(torch, dist, args, device, dtype) -> dict:
         work.wait()
         return output
 
-    serial_ms, serial_per_rank = _timed(torch, dist, serial_schedule, args.warmup, args.repeats)
-    overlap_ms, overlap_per_rank = _timed(torch, dist, overlap_schedule, args.warmup, args.repeats)
+    serial = _timed_distribution(torch, dist, serial_schedule, args.warmup, args.repeats)
+    overlap = _timed_distribution(torch, dist, overlap_schedule, args.warmup, args.repeats)
+    serial_ms = serial["median_max_rank_ms"]
+    overlap_ms = overlap["median_max_rank_ms"]
+    saved_ms = serial_ms - overlap_ms
+    payload_bytes = base.numel() * base.element_size()
     return {
         "strategy": "async_collective_compute_overlap",
         "metrics": {
-            "serial_max_rank_ms": serial_ms,
-            "overlap_max_rank_ms": overlap_ms,
-            "saved_ms": round(serial_ms - overlap_ms, 5),
-            "speedup": round(serial_ms / overlap_ms, 5) if overlap_ms else None,
-            "serial_rank_ms": serial_per_rank,
-            "overlap_rank_ms": overlap_per_rank,
-            "payload_bytes_per_rank": base.numel() * base.element_size(),
+            "rows": [
+                {
+                    "candidate": "serial",
+                    "collective": "all_reduce",
+                    "payload_bytes_per_rank": payload_bytes,
+                    **serial,
+                },
+                {
+                    "candidate": "overlap",
+                    "collective": "all_reduce",
+                    "payload_bytes_per_rank": payload_bytes,
+                    **overlap,
+                },
+            ],
+            "comparison": {
+                "saved_ms": round(saved_ms, 5),
+                "speedup": round(serial_ms / overlap_ms, 5) if overlap_ms else None,
+                "overlap_gain_ratio": round(max(saved_ms, 0.0) / serial_ms, 5) if serial_ms else 0.0,
+            },
             "compute_dim": args.compute_dim,
         },
     }
@@ -350,15 +512,32 @@ def main() -> int:
     local_rank = int(os.environ.get("LOCAL_RANK", rank))
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
     result = {
+        "schema_version": "parallel-mechanism-gpu/v1",
+        "semantic_id": {
+            "tp_mlp": "PAR-TENSOR-LAYOUT",
+            "collective_matrix": "PAR-NCCL-COLLECTIVE",
+            "ep_dispatch": "PAR-EXPERT-DISPATCH",
+            "cp_attention": "PAR-CONTEXT-RING",
+            "comm_overlap": "PAR-OVERLAP-HOTSPOT",
+            "replica_routing": "PAR-REPLICA-ROUTING",
+        }[args.mode],
+        "environment_profile": "PAR-CUDA-MECHANISM",
+        "run_label": args.run_label,
         "project": {
             "tp_mlp": "29",
-            "collective_matrix": "46",
-            "ep_dispatch": "47",
+            "collective_matrix": "47",
+            "ep_dispatch": "46",
             "cp_attention": "PAR-CONTEXT",
             "comm_overlap": "48",
             "replica_routing": "PAR-REPLICA",
         }[args.mode],
-        "workload": vars(args) | {"world_size": world_size},
+        "workload": vars(args) | {
+            "id": args.workload_id or args.mode,
+            "world_size": world_size,
+            "algorithm_requested": os.environ.get("NCCL_ALGO", "Auto"),
+            "algorithm_observed": None,
+            "nccl_debug": os.environ.get("NCCL_DEBUG", "WARN"),
+        },
         "hardware": {},
         "metrics": {},
         "failure": None,
@@ -374,7 +553,10 @@ def main() -> int:
         dtype = torch.float32 if args.dtype == "float32" else torch.bfloat16
         result["hardware"] = {
             "gpu": torch.cuda.get_device_name(local_rank),
+            "device_count": torch.cuda.device_count(),
             "world_size": world_size,
+            "topology_scope": "single_node",
+            "rank_device_mapping": {str(item): item for item in range(world_size)},
             "torch": torch.__version__,
             "cuda": torch.version.cuda,
             "nccl": _format_version(torch.cuda.nccl.version()),
