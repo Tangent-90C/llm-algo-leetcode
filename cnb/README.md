@@ -29,11 +29,11 @@
 
 ## 环境骨架
 
-- `cnb/environment.yml`：CNB 侧的 conda 环境入口
+- `cnb/environment.yml`：CNB CPU-first Conda 环境入口
+- `cnb/environment-gpu.yml`：CNB GPU Conda 环境入口
 - `environment.yml`：本地主入口环境
 
-CNB 默认会尽量复用与本地一致的依赖版本，但在实际启动前，仍需要由 `.cnb.yml` 指定最终的镜像和启动方式。
-如果需要更稳定的交互式开发环境，可以优先使用根目录 `.ide/Dockerfile` 作为开发镜像基础，再由 CNB 的 `vscode` 入口启动。
+CNB 使用两个独立入口：`.ide/Dockerfile` 服务 CPU `vscode`，`.ide/Dockerfile.gpu` 服务 GPU `vscode-gpu`。GPU 镜像只安装用户态 CUDA PyTorch 与 Triton；实际 GPU、驱动和可用 backend 仍以会话预检为准。
 
 ## 为什么需要 `vscode`
 
@@ -49,9 +49,10 @@ CNB 默认会尽量复用与本地一致的依赖版本，但在实际启动前�
 
 ## 当前状态
 
-- GitHub -> CNB 单向同步已跑通
-- CNB 仓库已收到当前集成分支内容
-- 统一启动配置 `.cnb.yml` 已存在，但交互会话是否真正吃到最新镜像，还需要实机确认
+- CNB 已提供 CPU `vscode` 与 GPU `vscode-gpu` 两个镜像入口。
+- `main.push` 只运行 CPU smoke，不把包导入当作 GPU 验证。
+- GPU 会话需执行预检脚本；GPU 型号、驱动、PyTorch、CUDA 与 Triton 版本应随正式结果写入 runtime 快照。
+- 当前尚未提交固定镜像 digest 或 lock 文件，版本组合仍需要在首次实机验证后冻结。
 
 ## 在 CNB 里怎么验
 
@@ -64,8 +65,6 @@ conda activate llm_algo_cnb_dev
 python --version
 python -m pip --version
 python -c "import torch; print(torch.__version__)"
-python -c "import triton; print(triton.__version__)"
-
 python tools/test_chapter0_1_notebooks.py
 python tools/test_notebook_answers.py --all --dir 02_PyTorch_Algorithms --mode both
 ```
@@ -79,9 +78,17 @@ Chapter 3 需要独立的 GPU 会话，不应默认依赖当前这套 CPU 交互
 - CPU 交互环境：用于 Chapter 0 / 1 / 2
 - GPU 验证环境：用于 Chapter 3 的内核、显存和通信验证
 - 对应的 CNB 入口名：`vscode-gpu`
-- 统一验证脚本：`scripts/validate_chapter3_gpu.sh`
+- Conda 环境名：`llm_algo_cnb_gpu`
+- 统一预检脚本：`bash tools/validate_cnb_gpu.sh`
 
 如果平台分配的当前会话没有 GPU，只能把它视为 Chapter 0 / 1 / 2 的统一环境，不要把 Chapter 3 的 GPU 结果当作最终验收。
+
+从仓库根目录创建 Conda 环境时，可使用：
+
+```bash
+conda env create -f cnb/environment.yml       # CPU-first
+conda env create -f cnb/environment-gpu.yml   # GPU
+```
 
 ## 适用场景
 
@@ -91,4 +98,4 @@ Chapter 3 需要独立的 GPU 会话，不应默认依赖当前这套 CPU 交互
 
 ## 说明
 
-CNB 的具体启动流程、镜像选择、Notebook 打开方式和测试脚本运行方式，将在 `.cnb.yml` 和 `docs/guide.md` 中继续完善。
+CNB 的具体镜像、启动方式和预检约定由 `.cnb.yml`、本目录文件与 `docs/guide.md` 共同维护；环境 profile 与运行时字段登记在 `docs/gpu_environment_assets.md`。

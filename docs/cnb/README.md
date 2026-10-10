@@ -1,4 +1,6 @@
-# CNB 环境说明
+# CNB 环境说明（历史镜像）
+
+> 当前 CNB 的配置事实来源已迁移到仓库根目录的 `cnb/README.md`、`cnb/environment.yml`、`cnb/environment-gpu.yml` 与 `.cnb.yml`。本页保留旧方案的设计背景，不应再作为环境名、镜像或验证脚本的依据。
 
 本目录用于未来的 CNB 云端统一教学环境，目标是为本项目提供一个 **更一致、可复现、对 GPU 友好** 的运行入口。
 
