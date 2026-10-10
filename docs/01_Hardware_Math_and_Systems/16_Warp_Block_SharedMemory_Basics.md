@@ -25,8 +25,8 @@ shared memory 之所以重要，不是因为它“更快”这句口号本身，
 
 **导语：** 先看执行层级，再看 shared memory 分工和片上复用会更顺。
 
-- [Group 1B: Single-GPU Hardware and Memory Optimization | 1B: 单卡硬件与访存优化](./1B.md)
-- [Group 1D: Heterogeneous Scheduling and Operator Programming | 1D: 异构调度与算子编程](./1D.md)
+- [Group 1B: Single-Device Execution, Memory and Data Access | 1B: 单设备执行、内存与访存](./1B.md)
+- [Group 1D: Execution Models, Asynchrony and Operator Mapping | 1D: 执行模型、异步调度与算子映射](./1D.md)
 - [15. CUDA Execution Model | CUDA 执行模型](./15_CUDA_Execution_Model.md)
 
 ## 相关阅读

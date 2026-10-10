@@ -24,7 +24,7 @@
 ---
 ## 前置阅读
 **导语：** 这一页先把从 PyTorch 到 CUDA / Triton 的编程模型演进接上，再看为什么自定义算子会更接近硬件。
-- [Group 1D: Heterogeneous Scheduling and Operator Programming | 1D: 异构调度与算子编程](./1D.md)
+- [Group 1D: Execution Models, Asynchrony and Operator Mapping | 1D: 执行模型、异步调度与算子映射](./1D.md)
 - [15. CUDA Execution Model | CUDA 执行模型](./15_CUDA_Execution_Model.md)
 - [16. Warp Block SharedMemory Basics | Warp、Block 与 Shared Memory 基础](./16_Warp_Block_SharedMemory_Basics.md)
 ## 相关阅读
