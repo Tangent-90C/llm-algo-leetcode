@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">I/O 对象如何进入冷启动与稳态路径</title>
+  <desc id="desc">模型产物决定冷启动读取、反序列化与设备放置；输入对象、运行时状态和输出对象持续参与稳态读取、搬运、计算与回写。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#334155"/></marker>
+    <style>
+      .title{font-family:"Noto Sans CJK SC",sans-serif;font-size:28px;font-weight:700;fill:#0f172a}.subtitle{font-family:"Noto Sans CJK SC",sans-serif;font-size:16px;fill:#475569}
+      .head{font-family:"Noto Sans CJK SC",sans-serif;font-size:18px;font-weight:700;fill:#172033}.body{font-family:"Noto Sans CJK SC",sans-serif;font-size:14px;fill:#475569}.relation{font-family:"Noto Sans CJK SC",sans-serif;font-size:13px;font-weight:700;fill:#334155}
+      .edge{fill:none;stroke:#334155;stroke-width:4;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="620" rx="24" fill="#f8fafc"/>
+  <text x="600" y="48" text-anchor="middle" class="title">先区分 I/O 对象，再定位它参与的生命周期</text>
+  <text x="600" y="78" text-anchor="middle" class="subtitle">对象、字节、频率、存储层级和消费依赖共同决定实际关键路径</text>
+  <g text-anchor="middle">
+    <rect x="45" y="125" width="240" height="104" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2.5"/>
+    <text x="165" y="162" class="head">模型产物</text><text x="165" y="193" class="body">权重 · 配置 · 适配器</text><text x="165" y="216" class="body">首次加载或切换版本时读取</text>
+    <rect x="335" y="125" width="240" height="104" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2.5"/>
+    <text x="455" y="162" class="head">输入对象</text><text x="455" y="193" class="body">样本 · Token · 批次</text><text x="455" y="216" class="body">按请求或训练步骤持续读取</text>
+    <rect x="625" y="125" width="240" height="104" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/>
+    <text x="745" y="162" class="head">运行时状态</text><text x="745" y="193" class="body">KV 缓存 · 激活 · 元数据</text><text x="745" y="216" class="body">随执行创建、迁移与回收</text>
+    <rect x="915" y="125" width="240" height="104" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2.5"/>
+    <text x="1035" y="162" class="head">输出对象</text><text x="1035" y="193" class="body">Token · 日志 · 检查点</text><text x="1035" y="216" class="body">按生成或保存节奏回写</text>
+  </g>
+
+  <rect x="80" y="385" width="430" height="112" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2.5"/>
+  <text x="295" y="422" text-anchor="middle" class="head">冷启动路径</text><text x="295" y="453" text-anchor="middle" class="body">发现 → 读取 → 反序列化 → 放置</text><text x="295" y="477" text-anchor="middle" class="body">模型产物决定首次可用时间</text>
+  <rect x="690" y="385" width="430" height="112" rx="16" fill="#e0f2fe" stroke="#0284c7" stroke-width="2.5"/>
+  <text x="905" y="422" text-anchor="middle" class="head">稳态路径</text><text x="905" y="453" text-anchor="middle" class="body">读取 → 状态搬运 → 计算 → 回写</text><text x="905" y="477" text-anchor="middle" class="body">频率、重叠与背压决定长期吞吐</text>
+
+  <path d="M165 229L295 385" class="edge"/><text x="200" y="300" class="relation">加载</text>
+  <path d="M455 229L775 385" class="edge"/><text x="555" y="300" class="relation">供给</text>
+  <path d="M745 229L905 385" class="edge"/><text x="790" y="300" class="relation">迁移</text>
+  <path d="M1035 229L1035 385" class="edge"/><text x="1048" y="310" class="relation">回写</text>
+</svg>

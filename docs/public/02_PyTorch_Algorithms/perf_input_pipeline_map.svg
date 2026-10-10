@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">训练输入流水线与三类等待来源</title>
+  <desc id="desc">样本从读取、CPU处理、批次整理、主机缓冲、主机到设备搬运进入GPU计算，并分别检查供给不足、无效Token和暴露搬运。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#334155"/>
+    </marker>
+    <style>
+      .title{font-family:"Noto Sans CJK SC",sans-serif;font-size:28px;font-weight:700;fill:#0f172a}.subtitle{font-family:"Noto Sans CJK SC",sans-serif;font-size:16px;fill:#475569}
+      .node-title{font-family:"Noto Sans CJK SC",sans-serif;font-size:18px;font-weight:700;fill:#172033}.node-text{font-family:"Noto Sans CJK SC",sans-serif;font-size:15px;fill:#475569}
+      .edge{fill:none;stroke:#334155;stroke-width:4;marker-end:url(#arrow)}
+      .branch{fill:none;stroke-width:4;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="620" rx="24" fill="#f8fafc"/>
+  <text id="title-text" x="600" y="48" text-anchor="middle" class="title">训练输入流水线：对象如何到达 GPU</text>
+  <text x="600" y="78" text-anchor="middle" class="subtitle">每个阶段交付一种对象；持续供给慢于消费时，等待会暴露到训练步骤</text>
+
+  <g>
+    <rect x="30" y="135" width="160" height="88" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="2.5"/>
+    <text x="110" y="171" text-anchor="middle" class="node-title">样本读取</text><text x="110" y="199" text-anchor="middle" class="node-text">文件 / 数据集</text>
+    <rect x="225" y="135" width="160" height="88" rx="14" fill="#e0f2fe" stroke="#0284c7" stroke-width="2.5"/>
+    <text x="305" y="171" text-anchor="middle" class="node-title">CPU 处理</text><text x="305" y="199" text-anchor="middle" class="node-text">解码 / 分词</text>
+    <rect x="420" y="135" width="160" height="88" rx="14" fill="#cffafe" stroke="#0891b2" stroke-width="2.5"/>
+    <text x="500" y="171" text-anchor="middle" class="node-title">批次整理</text><text x="500" y="199" text-anchor="middle" class="node-text">填充 / 装箱</text>
+    <rect x="615" y="135" width="160" height="88" rx="14" fill="#dcfce7" stroke="#16a34a" stroke-width="2.5"/>
+    <text x="695" y="171" text-anchor="middle" class="node-title">主机缓冲</text><text x="695" y="199" text-anchor="middle" class="node-text">普通 / 锁页内存</text>
+    <rect x="810" y="135" width="160" height="88" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/>
+    <text x="890" y="171" text-anchor="middle" class="node-title">H2D 搬运</text><text x="890" y="199" text-anchor="middle" class="node-text">同步 / 非阻塞</text>
+    <rect x="1005" y="135" width="160" height="88" rx="14" fill="#ede9fe" stroke="#7c3aed" stroke-width="2.5"/>
+    <text x="1085" y="171" text-anchor="middle" class="node-title">GPU 消费</text><text x="1085" y="199" text-anchor="middle" class="node-text">前向 / 反向</text>
+    <path d="M190 179 H225" class="edge"/><path d="M385 179 H420" class="edge"/><path d="M580 179 H615" class="edge"/><path d="M775 179 H810" class="edge"/><path d="M970 179 H1005" class="edge"/>
+  </g>
+
+  <g>
+    <rect x="210" y="350" width="190" height="120" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2.5"/>
+    <text x="305" y="388" text-anchor="middle" class="node-title" fill="#7f1d1d">供给不足</text>
+    <text x="305" y="420" text-anchor="middle" class="node-text">取批等待 · 队列见底</text><text x="305" y="448" text-anchor="middle" class="node-text">GPU 等待下一批</text>
+    <path d="M305 223 V350" class="branch" stroke="#dc2626"/>
+
+    <rect x="405" y="350" width="190" height="120" rx="16" fill="#ffedd5" stroke="#ea580c" stroke-width="2.5"/>
+    <text x="500" y="388" text-anchor="middle" class="node-title" fill="#7c2d12">无效 Token</text>
+    <text x="500" y="420" text-anchor="middle" class="node-text">填充占用搬运与计算</text><text x="500" y="448" text-anchor="middle" class="node-text">检查有效 Token 比例</text>
+    <path d="M500 223 V350" class="branch" stroke="#ea580c"/>
+
+    <rect x="795" y="350" width="190" height="120" rx="16" fill="#f3e8ff" stroke="#9333ea" stroke-width="2.5"/>
+    <text x="890" y="388" text-anchor="middle" class="node-title" fill="#581c87">暴露搬运</text>
+    <text x="890" y="420" text-anchor="middle" class="node-text">复制超出计算重叠窗口</text><text x="890" y="448" text-anchor="middle" class="node-text">检查 H2D 与设备空闲</text>
+    <path d="M890 223 V350" class="branch" stroke="#9333ea"/>
+  </g>
+</svg>

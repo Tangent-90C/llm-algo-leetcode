@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">阻塞 I/O 与可重叠 I/O 的暴露时间</title>
+  <desc id="desc">阻塞依赖中全部I/O时间延长关键路径；允许重叠时，I/O与独立计算重合，只有超出计算窗口的尾部成为暴露时间。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#334155"/></marker>
+    <style>
+      .title{font-family:"Noto Sans CJK SC",sans-serif;font-size:28px;font-weight:700;fill:#0f172a}.subtitle{font-family:"Noto Sans CJK SC",sans-serif;font-size:16px;fill:#475569}
+      .head{font-family:"Noto Sans CJK SC",sans-serif;font-size:18px;font-weight:700;fill:#172033}.label{font-family:"Noto Sans CJK SC",sans-serif;font-size:15px;font-weight:700;fill:#172033}.small{font-family:"Noto Sans CJK SC",sans-serif;font-size:13px;fill:#475569}
+      .axis{stroke:#64748b;stroke-width:2.5}.edge{fill:none;stroke:#334155;stroke-width:4;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="620" rx="24" fill="#f8fafc"/>
+  <text x="600" y="48" text-anchor="middle" class="title">总 I/O 时间不等于暴露 I/O 时间</text>
+  <text x="600" y="78" text-anchor="middle" class="subtitle">暴露时间是 I/O 中无法被独立工作隐藏、并实际推迟后继计算的部分</text>
+
+  <text x="50" y="140" class="head" fill="#991b1b">阻塞依赖</text>
+  <rect x="170" y="105" width="960" height="120" rx="14" fill="#fff7ed" data-layout-role="panel"/>
+  <rect x="200" y="123" width="300" height="84" rx="10" fill="#fde68a" stroke="#d97706" stroke-width="3"/>
+  <text x="350" y="158" text-anchor="middle" class="label">读取 / 搬运</text><text x="350" y="186" text-anchor="middle" class="small">全部暴露</text>
+  <rect x="550" y="123" width="480" height="84" rx="10" fill="#ddd6fe" stroke="#7c3aed" stroke-width="3"/>
+  <text x="790" y="170" text-anchor="middle" class="label">依赖数据的计算</text>
+  <path d="M500 165H550" class="edge"/>
+
+  <text x="50" y="330" class="head" fill="#166534">允许重叠</text>
+  <rect x="170" y="280" width="960" height="255" rx="14" fill="#f0fdf4" data-layout-role="panel"/>
+  <text x="190" y="356" class="small">I/O 流</text><text x="190" y="466" class="small">计算流</text>
+  <rect x="270" y="308" width="430" height="84" rx="10" fill="#fde68a" stroke="#d97706" stroke-width="3"/>
+  <text x="485" y="356" text-anchor="middle" class="label">状态搬运：总 I/O 时间</text>
+  <rect x="270" y="418" width="320" height="84" rx="10" fill="#bbf7d0" stroke="#16a34a" stroke-width="3"/>
+  <text x="430" y="466" text-anchor="middle" class="label">独立计算：可隐藏窗口</text>
+  <rect x="590" y="308" width="110" height="194" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="3" stroke-dasharray="7 5" data-layout-role="panel"/>
+  <text x="645" y="397" text-anchor="middle" class="label" fill="#991b1b">暴露</text><text x="645" y="421" text-anchor="middle" class="small" fill="#991b1b">I/O 尾部</text>
+  <rect x="760" y="418" width="300" height="84" rx="10" fill="#ddd6fe" stroke="#7c3aed" stroke-width="3"/>
+  <text x="910" y="466" text-anchor="middle" class="label">依赖状态的后继计算</text>
+  <path d="M700 350H730V460H760" class="edge"/>
+  <line x1="270" y1="520" x2="1060" y2="520" class="axis"/><text x="1060" y="548" text-anchor="end" class="small">时间 →</text>
+  <text x="485" y="305" text-anchor="middle" class="small">隐藏部分</text><text x="645" y="305" text-anchor="middle" class="small" fill="#991b1b">暴露部分</text>
+</svg>
