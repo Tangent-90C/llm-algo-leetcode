@@ -1,50 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
-  <title id="title">Online Softmax 的分块状态更新</title>
-  <desc id="desc">顶部概括一个 Q 行如何保持跨 K/V 分块的归一化等价，下面依次展开历史状态、当前分块和重标定结果。</desc>
+  <title id="title">在线 Softmax 的跨分块状态更新</title>
+  <desc id="desc">历史归一化状态与当前分块并列进入共同最大值，再在同一尺度上更新指数和与归一化输出。</desc>
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-      <path d="M0,0 L10,5 L0,10 Z" fill="#486581"/>
-    </marker>
-    <style>
-      .title{font:700 27px sans-serif;fill:#17324d}
-      .label{font:700 19px sans-serif;fill:#17324d}
-      .text{font:16px sans-serif;fill:#334e68}
-      .small{font:14px sans-serif;fill:#486581}
-      .box{stroke:#829ab1;stroke-width:2;rx:16}
-      .line{stroke:#486581;stroke-width:3;fill:none;marker-end:url(#arrow)}
-    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#486581"/></marker>
+    <style>.title{font:700 25px sans-serif;fill:#102a43}.history{fill:#eaf3fb;stroke:#5684aa;stroke-width:2}.tile{fill:#fff6e8;stroke:#c9852f;stroke-width:2}.merge{fill:#f2edfb;stroke:#8066b3;stroke-width:2}.result{fill:#eaf7ef;stroke:#4e8a68;stroke-width:2}.label{font:700 16px sans-serif;fill:#17324d}.small{font:14px sans-serif;fill:#365269}.formula{font:15px monospace;fill:#294861}.edge{fill:none;stroke:#486581;stroke-width:2.3;marker-end:url(#arrow)}</style>
   </defs>
+  <rect x="0" y="0" width="1200" height="520" fill="#f8fafc"/>
+  <text x="600" y="38" text-anchor="middle" class="title">在线 Softmax：历史贡献与当前分块必须先对齐到同一数值基准</text>
 
-  <rect width="1200" height="520" fill="#f7fafc"/>
-  <text x="600" y="42" text-anchor="middle" class="title">Online Softmax：一次分块更新如何保持结果等价</text>
+  <rect x="70" y="78" width="400" height="142" rx="16" class="history"/>
+  <text x="270" y="108" text-anchor="middle" class="label">已处理分块的历史状态</text>
+  <text x="270" y="140" text-anchor="middle" class="formula">m_i：Q_i 的历史最大值</text>
+  <text x="270" y="168" text-anchor="middle" class="formula">l_i：Q_i 的历史指数和</text>
+  <text x="270" y="196" text-anchor="middle" class="formula">O_i：Q_i 的历史归一化输出</text>
 
-  <rect x="300" y="70" width="600" height="82" fill="#e6f6f5" class="box"/>
-  <text x="600" y="108" text-anchor="middle" class="label">固定一个 Q 行，持续吸收 K/V 分块</text>
-  <text x="600" y="135" text-anchor="middle" class="text">每次更新都保留跨分块归一化所需的状态</text>
+  <rect x="730" y="78" width="400" height="142" rx="16" class="tile"/>
+  <text x="930" y="108" text-anchor="middle" class="label">当前 K/V 分块的局部贡献</text>
+  <text x="930" y="140" text-anchor="middle" class="formula">S_ij = Q_i × K_jᵀ</text>
+  <text x="930" y="168" text-anchor="middle" class="formula">m_ij = rowmax(S_ij)</text>
+  <text x="930" y="196" text-anchor="middle" class="formula">V_j：当前值向量分块</text>
 
-  <rect x="45" y="245" width="320" height="155" fill="#e6f6f5" class="box"/>
-  <text x="205" y="290" text-anchor="middle" class="label">历史状态</text>
-  <text x="75" y="330" class="text">m_i：历史最大值</text>
-  <text x="75" y="360" class="text">l_i：历史指数和</text>
-  <text x="75" y="390" class="text">O_i：历史输出</text>
+  <rect x="320" y="274" width="560" height="92" rx="16" class="merge"/>
+  <text x="600" y="303" text-anchor="middle" class="label">建立共同最大值并重标定历史与当前贡献</text>
+  <text x="600" y="331" text-anchor="middle" class="formula">m_i' = max(m_i, m_ij)</text>
+  <text x="600" y="354" text-anchor="middle" class="formula">α = exp(m_i − m_i')，W_ij = exp(S_ij − m_i')</text>
+  <path d="M270 220 V246 Q270 260 284 260 H520 Q540 260 540 274" class="edge"/>
+  <path d="M930 220 V246 Q930 260 916 260 H680 Q660 260 660 274" class="edge"/>
 
-  <rect x="440" y="245" width="320" height="155" fill="#fff4e6" class="box"/>
-  <text x="600" y="290" text-anchor="middle" class="label">当前 K/V 分块</text>
-  <text x="470" y="330" class="text">S_ij = Q_i K_jᵀ</text>
-  <text x="470" y="360" class="text">m_block 与局部指数项</text>
-  <text x="470" y="390" class="text">产生当前块的贡献</text>
-
-  <rect x="835" y="245" width="320" height="155" fill="#eef2ff" class="box"/>
-  <text x="995" y="290" text-anchor="middle" class="label">重标定后的新状态</text>
-  <text x="865" y="330" class="text">m_new = max(m_i, m_block)</text>
-  <text x="865" y="360" class="text">修正 l_i 并合并 O_i</text>
-  <text x="865" y="390" class="text">得到下一轮状态</text>
-
-  <path d="M600 152 V195 H205 V245" class="line"/>
-  <path d="M600 152 V245" class="line"/>
-  <path d="M600 152 V195 H995 V245" class="line"/>
-  <path d="M365 322 H440" class="line"/>
-  <path d="M760 322 H835" class="line"/>
-
-  <text x="600" y="465" text-anchor="middle" class="small">分块只改变状态的保存与更新方式，不改变最终 Attention 的数学结果。</text>
+  <rect x="300" y="410" width="600" height="80" rx="16" class="result"/>
+  <text x="600" y="433" text-anchor="middle" class="label">合并为新的跨分块状态</text>
+  <text x="600" y="457" text-anchor="middle" class="formula">l_i' = α·l_i + sum(W_ij)</text>
+  <text x="600" y="480" text-anchor="middle" class="formula">O_i' = O_i·(α·l_i/l_i') + (W_ij·V_j)/l_i'</text>
+  <path d="M600 366 V410" class="edge"/>
+  <text x="600" y="512" text-anchor="middle" class="small">撇号表示吸收 K_j、V_j 后的新状态；处理完全部 K/V 分块后，O_i 与完整行 Softmax 结果等价</text>
 </svg>
