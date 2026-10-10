@@ -1,10 +1,10 @@
-# 04. KV Cache Lifecycle and Reuse | KV Cache 生命周期与复用
+# 04. KV Cache Representation, Management and Reuse | KV Cache 表示、管理与复用
 
-## 页面目标
+## 学习问题
 
-从上一节留下的 Decode 状态开始，跟踪 KV Cache 如何保存、增长、复用并逐渐成为上下文、batch 和并发的容量边界。
+从 Attention 留下的 K/V 状态开始，理解它以什么表示保存、如何增长与复用，以及为什么会逐渐成为上下文、batch 和并发的容量边界。
 
-本节是 Cache 主题的主要正文入口：22、24、34 分别展开分页分配、前缀匹配和 Prefix Cache；69 负责真实复用收益验证；71 作为 MLA 表示方式的架构扩展。多请求队列、批处理和 PD 分离在后续 Serving 正文中继续展开。
+本节是 Cache 主题的主要正文入口：04 提供 MHA/GQA/MQA 的状态来源；22、24、34 分别展开分页分配、Radix 匹配和 Prefix Cache；69 负责真实复用收益验证；71 作为 MLA 表示方式的架构扩展。多请求队列、批处理和 PD 分离在后续 Serving 正文中继续展开。
 
 ## 核心机制
 
@@ -14,9 +14,9 @@ KV Cache 随层数、KV heads、上下文长度和 batch 增长。先把“每�
 
 ![KV Cache 生命周期与资源边界](../../public/topic_discussion/inference_optimization/kv_cache_lifecycle_zh.svg)
 
-| Cache 角色 | 主要改变什么 | 适用问题 | 主要指标与入口 |
+| Cache 层次 | 主要改变什么 | 适用问题 | 主要指标与入口 |
 |:---|:---|:---|:---|
-| 请求级状态 | 保存 Decode 需要的历史 K / V | Cache 随上下文、层数和 batch 增长 | 峰值显存、TPOT；11、Task2 |
+| 状态表示 | MHA / GQA / MQA / MLA 决定每 token 保存或重构什么 | Cache 随 `H_kv`、层数、上下文和 batch 增长 | Cache bytes、重构成本；04、71 |
 | 物理分配 | 按 Block 管理逻辑与物理位置 | 碎片、尾块浪费、并发容量不足 | Block 利用率、峰值显存；22 |
 | 前缀复用 | 查找并复用相同前缀状态 | 重复 Prefill、共享 system prompt 或历史 | 命中长度、reused tokens、TTFT；24、34、69 |
 | 容量治理 | 控制 Cache 驻留、压缩或量化 | Cache 接近预算、OOM 或并发受限 | OOM、速度、质量、并发；41、显存优化 |
@@ -78,7 +78,7 @@ MLA 放在本路线中属于架构扩展：它改变 KV Cache 的内部表示方
 
 参考入口：论文 [PagedAttention](https://arxiv.org/abs/2309.06180)；开源项目 [vLLM](https://github.com/vllm-project/vllm) 与 [SGLang](https://github.com/sgl-project/sglang)。
 
-## 判断框架
+## 选择条件与验证证据
 
 本节承接 `03` 的 Decode 状态，先用 `11`、`22`、`24` 和 `34` 理解 Cache 的增长、分页与复用，再通过 [69 Prefix Caching Benchmark](../../02_PyTorch_Algorithms/69_Prefix_Caching_Benchmark.md) 验证复用，最后用 [66 Inference Performance Comparison](../../02_PyTorch_Algorithms/66_Inference_Performance_Comparison.md) 做综合比较。阅读下表时，先固定请求分布、Prompt 长度、generated tokens、batch、并发窗口和 cache policy，再根据现象分流。
 

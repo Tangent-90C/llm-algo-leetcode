@@ -1,6 +1,6 @@
 # 03. Decoding Strategies | 解码策略
 
-## 页面目标
+## 学习问题
 
 从首 token 之后的生成循环开始，观察单条请求每轮如何读取已有 KV 状态、产生输出，再比较生成策略对速度、质量和额外成本的影响。
 
@@ -17,7 +17,10 @@ Decode 是一轮一轮的小步生成：每一步读取已有 KV 状态，得到
 | 贪心 Decode（基线） | 每轮选择 logits 最大的一个 token | 输出长度、TPOT、KV Cache 访问、质量 |
 | 随机采样 | 按 temperature、top-k / top-p 选择 token | 质量、重复率、TPOT、输出稳定性 |
 | 经典投机解码 | draft 提议、target 验证与修正 | acceptance rate、验证成本、TPOT |
-| 多 Token 投机式推进 | 单轮提出多个 token 或候选 | 有效推进、首次拒绝与回退 |
+| 原生 MTP | verifier 内部多 Token 预测模块提出候选 | 原生头数、接受长度、backend 命中 |
+| EAGLE | 外置轻量草稿器复用目标模型隐藏表示 | 候选树、draft cost、配对 checkpoint |
+| 块级并行草稿（DFlash） | block diffusion 一次提出 token block | block 接受率、draft cost、verify cost |
+| 半自回归草稿（DSpark） | 置信度驱动地决定候选推进与验证预算 | confidence、proposal budget、负载下 TPOT |
 | Decode Scheduling | 不同请求的执行顺序，属于 Task4 的请求级调度 | 吞吐、TPOT、P99 |
 
 单请求的 Decode 可以按“读取状态 → 计算 logits → 选择 token → 检查停止 → 追加状态”理解。策略改变的是其中的候选生成、验证或单轮产出；它不会自动消除 KV Cache 的容量约束，也不能用吞吐提升替代质量检查。比较 speculative decoding 或 multi-token decoding 时，还要记录接受情况和回退成本。
@@ -31,18 +34,33 @@ Decode 是一轮一轮的小步生成：每一步读取已有 KV 状态，得到
 
 生成策略的比较需要把“可重复性”和“质量门槛”一起固定。贪心 Decode 适合作为确定性基线；采样实验应固定随机种子和采样参数；speculative decoding 还要记录 draft 与 target 的版本、接受率和拒绝后的回退路径。只有在输出质量达到同一门槛后，TPOT 或吞吐的改善才可以作为性能收益。
 
+### 候选生成的两条扩展路径
+
+经典 speculative decoding 的草稿阶段仍然通常按 token 自回归推进。原生 MTP 将预测模块放在 verifier checkpoint 内部；EAGLE 复用目标模型的隐藏表示，用外置轻量草稿器自回归扩展候选树；DFlash 则将轻量 block diffusion 模型用于并行产生一个候选 block。三者改变的是候选来源与生成拓扑，不改变“验证—接受—回退”的证据要求。[EAGLE-3 论文](https://arxiv.org/abs/2503.01840)、[DFlash 论文](https://arxiv.org/abs/2602.06036)和[vLLM Speculators 算法指南](https://docs.vllm.ai/projects/speculators/en/latest/user_guide/algorithms/decision_guide/)给出了对应实现背景。
+
+DSpark 进一步采用半自回归候选生成，并用置信度调度候选长度和验证预算。它同时连接了 Task2 的候选生成机制与 Task4 的服务调度：在单请求中观察置信度和有效推进量，在多请求中还要观察队列等待、TPOT 和尾延迟。[DSpark 论文](https://arxiv.org/abs/2607.05147) 和 [vLLM Speculators 中的 DSpark 文档](https://docs.vllm.ai/projects/speculators/en/latest/user_guide/algorithms/dspark/) 可用于了解实现入口。
+
+| 扩展路径 | 候选生成方式 | Task2 重点 | Task4 交叉问题 |
+|:---|:---|:---|:---|
+| 原生 MTP | verifier 内部预测层提出连续候选 | 模型能力检查、连续接受与验证成本 | backend 是否支持原生 MTP |
+| EAGLE | 多层表示融合后自回归扩展候选树 | 候选树宽深、draft cost、checkpoint 配对 | 树宽与 batch / KV 预算 |
+| DFlash | block diffusion 并行提出候选 block | block 长度、接受前缀、verify 成本 | batch 中不同请求的 block 预算 |
+| DSpark | 半自回归 + 置信度调度 | 置信度、候选长度、回退语义 | 高负载下的动态 speculation budget |
+
 | 对照条件 | 应固定的内容 | 额外记录 |
 |:---|:---|:---|
 | 贪心基线 | 模型、Prompt、最大输出长度、停止条件 | 输出 token、TPOT、E2E、质量基线 |
 | 随机采样 | seed、temperature、top-k/top-p、Prompt 集 | 重复率、格式成功率、质量分布 |
 | 经典投机解码 | draft/target 模型、proposal 长度、验证规则 | acceptance rate、回退次数、额外显存 |
 | 多 Token 投机式推进 | 候选来源、单轮候选数量、接受与回退规则 | 有效推进、验证成本、TPOT |
+| EAGLE | verifier / speculator 配对、树宽深、隐藏层配置 | 接受长度、draft cost、树验证成本 |
+| DFlash / DSpark | draft family、proposal mode、候选预算、置信度规则 | block 接受率、draft/verify cost、负载下 TPOT |
 
-参考入口：论文 [Fast Inference from Transformers via Speculative Decoding](https://arxiv.org/abs/2211.17192)；开源实现 [vLLM Speculative Decoding](https://docs.vllm.ai/en/latest/features/speculative_decoding/)。
+参考入口：论文 [Fast Inference from Transformers via Speculative Decoding](https://arxiv.org/abs/2211.17192)；开源实现 [vLLM Speculative Decoding](https://docs.vllm.ai/en/latest/features/speculative_decoding/)。DFlash 和 DSpark 作为候选生成与动态预算的扩展，不要求在本页重写真实 draft model。
 
-## 判断框架
+## 选择条件与验证证据
 
-本节承接 `02` 的 Prefill 与 Attention，先用 [21 Decoding Strategies](../../02_PyTorch_Algorithms/21_Decoding_Strategies.md) 建立单步生成口径，再用 [23 Speculative Decoding](../../02_PyTorch_Algorithms/23_Speculative_Decoding.md) 理解经典 draft / target 验证，用 [35 Multi-Token Speculative Decoding](../../02_PyTorch_Algorithms/35_Multi_Token_Decoding.md) 比较候选推进分支，随后由 [68 Benchmark](../../02_PyTorch_Algorithms/68_Speculative_Decoding_Benchmark.md) 固定质量与成本口径；最后才通过 [36 Decode Scheduling](../../02_PyTorch_Algorithms/36_Decode_Scheduling.md) 观察多请求组织。阅读下表时，先固定 `TPOT`、`decode_share`、generated tokens 和质量约束，再根据现象选择下一步动作。
+本节承接 `02` 的 Prefill 与 Attention，先用 [21 Decoding Strategies](../../02_PyTorch_Algorithms/21_Decoding_Strategies.md)建立单步生成口径，再用 [23 Speculative Decoding](../../02_PyTorch_Algorithms/23_Speculative_Decoding.md)固定精确验证。候选生成分成三条路径：[35 原生 MTP](../../02_PyTorch_Algorithms/35_Multi_Token_Decoding.md)、[INF-EAGLE](../../02_PyTorch_Algorithms/INF-EAGLE_Feature_Drafter_and_Candidate_Tree.md)和[INF-PARALLEL-DRAFTING](../../02_PyTorch_Algorithms/INF-PARALLEL-DRAFTING_DFlash_and_DSpark.md)；[INF-PROPOSAL](../../02_PyTorch_Algorithms/INF-PROPOSAL_Dynamic_Proposal_and_Verification_Budget.md)再统一预算与净收益。随后由 [68 Benchmark](../../02_PyTorch_Algorithms/68_Speculative_Decoding_Benchmark.md)固定真实模型的质量与成本口径，最后通过 [36 Decode Scheduling](../../02_PyTorch_Algorithms/36_Decode_Scheduling.md)进入多请求组织。
 
 | 观察到的现象 | 优先判断 | 下一步 |
 |:---|:---|:---|

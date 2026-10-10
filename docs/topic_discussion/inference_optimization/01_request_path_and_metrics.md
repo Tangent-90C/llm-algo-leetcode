@@ -1,8 +1,8 @@
 # 01. Request Path and Metrics | 请求链路与指标口径
 
-## 页面目标
+## 学习问题
 
-从一次最小推理请求开始，沿着 `Prefill`、`KV Cache` 和 `Decode` 走一遍，认识 `TTFT`、`TPOT`、throughput、P99 和 peak memory。完成请求阶段与指标的映射后，你应该能够说明请求经过了哪些阶段，把阶段连接到可观察指标，并根据现象判断下一步该看哪类机制。需要补充 Attention 基础时，可先阅读 [04 Attention（MHA / GQA）](../../02_PyTorch_Algorithms/04_Attention_MHA_GQA.md)。
+从一次最小推理请求开始，沿着队列、`Prefill`、`KV Cache` 和 `Decode` 走一遍，认识 `TTFT`、`TPOT`、throughput、P99 和 peak memory。[INF-REQUEST 请求生命周期](../../02_PyTorch_Algorithms/INF-REQUEST-LIFECYCLE_Inference_Request_Lifecycle.md)提供可运行的状态与指标账本；本页把这些指标放回完整系统对象和 workload 中。需要补充 Attention 基础时，可先阅读 [04 Attention（MHA / GQA）](../../02_PyTorch_Algorithms/04_Attention_MHA_GQA.md)。
 
 ## 核心机制
 
@@ -60,7 +60,7 @@ MoE 是另一类架构变量：总参数量不等于每个 token 的实际计算
 
 参考入口：指标定义可看 [vLLM Metrics](https://github.com/vllm-project/vllm/blob/main/docs/design/metrics.md)；Serving 实现可看 [vLLM](https://github.com/vllm-project/vllm)。
 
-## 判断框架
+## 选择条件与验证证据
 
 比较前先固定 `workload`，也就是一组可复现的输入和运行条件：模型、backend（实际执行推理的框架或服务）、Prompt（输入文本）、generated tokens（输出长度）、batch（一次并行处理的请求数）、并发、dtype（计算数据类型）和 cache policy（缓存管理方式）。然后根据现象选择下一步：
 
