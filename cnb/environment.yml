@@ -1,4 +1,4 @@
-name: llm_algo_cnb
+name: llm_algo_cnb_dev
 channels:
   - conda-forge
   - pytorch
@@ -6,6 +6,7 @@ dependencies:
   - python=3.10
   - pip
   - pip:
-      - -r ../requirements/base.txt
-      - -r ../requirements/dev.txt
-      - -r ../requirements/gpu.txt
+      # Run `conda env create -f cnb/environment.yml` from repository root.
+      - -r requirements/base.txt
+      - -r requirements/dev.txt
+      - -r requirements/torch-cpu.txt

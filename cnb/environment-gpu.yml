@@ -1,0 +1,12 @@
+name: llm_algo_cnb_gpu
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      # Run `conda env create -f cnb/environment-gpu.yml` from repository root.
+      - -r requirements/base.txt
+      - -r requirements/dev.txt
+      - -r requirements/gpu.txt
