@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="520" viewBox="0 0 1280 520" role="img" aria-labelledby="title desc">
+<title id="title">总拥有成本决策链</title><desc id="desc">把设备采购、运行、迁移、利用率和扩容风险转换成同口径的有效成本与决策。</desc>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker><style>text{font-family:Arial,'Microsoft YaHei',sans-serif;fill:#172033}.t{font-size:28px;font-weight:700}.s{font-size:15px;fill:#475569}.h{font-size:18px;font-weight:700}.b{font-size:14px;fill:#334155}.p{stroke-width:2}.f{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#a)}</style></defs>
+<rect width="1280" height="520" rx="24" fill="#f8fafc"/><text x="640" y="45" text-anchor="middle" class="t">TCO：把价格转换成目标工作负载的有效成本</text><text x="640" y="73" text-anchor="middle" class="s">同一时间窗口内核对采购、运行、迁移、闲置和扩容风险</text>
+<rect x="45" y="135" width="260" height="240" rx="18" fill="#eff6ff" stroke="#60a5fa" class="p"/><text x="70" y="172" class="h">固定成本</text><text x="70" y="220" class="b">设备与基础设施</text><text x="70" y="255" class="b">软件许可与折旧</text><text x="70" y="290" class="b">统一核算时间窗口</text>
+<rect x="355" y="135" width="260" height="240" rx="18" fill="#f0fdf4" stroke="#4ade80" class="p"/><text x="380" y="172" class="h">运行与迁移成本</text><text x="380" y="220" class="b">电力 · 运维 · 网络</text><text x="380" y="255" class="b">适配 · 测试 · 回滚</text><text x="380" y="290" class="b">故障和停机风险</text>
+<rect x="665" y="135" width="260" height="240" rx="18" fill="#fffbeb" stroke="#f59e0b" class="p"/><text x="690" y="172" class="h">交付工作量</text><text x="690" y="220" class="b">有效 Token / 请求 / Step</text><text x="690" y="255" class="b">利用率与闲置比例</text><text x="690" y="290" class="b">容量和扩容节奏</text>
+<rect x="975" y="135" width="260" height="240" rx="18" fill="#faf5ff" stroke="#a855f7" class="p"/><text x="1000" y="172" class="h">成本决策</text><text x="1000" y="220" class="b">单位有效工作成本</text><text x="1000" y="255" class="b">盈亏平衡点</text><text x="1000" y="290" class="b">风险、退出与复测条件</text>
+<path d="M305 255H355" class="f"/><path d="M615 255H665" class="f"/><path d="M925 255H975" class="f"/>
+</svg>

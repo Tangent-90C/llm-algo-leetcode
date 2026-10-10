@@ -22,9 +22,9 @@
 
 ## 前置阅读
 **导语：** 这一页先把硬件规格、软件栈成熟度和迁移成本放到同一个框架里，再判断哪条路线更适合落地。
-- [Group 1B: Single-GPU Hardware and Memory Optimization | 1B: 单卡硬件与访存优化](./1B.md)
-- [Group 1C: Distributed Communication and Memory Sharing | 1C: 多卡通信与显存共享](./1C.md)
-- [Group 1E: Compiler Optimization and Hardware Ecosystem | 1E: 编译优化与硬件生态](./1E.md)
+- [Group 1B: Single-Device Execution, Memory and Data Access | 1B: 单设备执行、内存与访存](./1B.md)
+- [Group 1C: Communication, Parallelism and Fault Tolerance | 1C: 通信、并行与容错](./1C.md)
+- [Group 1F: Hardware Adaptation and System Constraints | 1F: 硬件适配与系统约束](./1F.md)
 ## 相关阅读
 **导语：** 如果想继续把选型、编译和通信侧的判断补完整，可以接着看这些页。
 - [05. Triton 性能调优与基准测试 (Autotune & Profiling)](../03_Triton_Kernels/05_Triton_Autotune_and_Profiling.md)
