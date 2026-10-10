@@ -16,10 +16,13 @@
 |:---|:---|:---|:---|
 | 卡数增加但吞吐没有明显提高 | Collective、Payload、拓扑与最慢 rank | 调用次数、有效带宽、max-rank time、扩展效率 | [02 数据并行与同步](./02_data_parallel_and_synchronization.md)、[06 Profiling 与 Overlap](./06_communication_profiling_and_overlap.md) |
 | 显存下降但 step time 变差 | 参数临时聚合、通信 buffer、offload 与 checkpoint | 生命周期峰值、All-Gather/Reduce-Scatter、step time | [03 状态分片与 ZeRO](./03_state_sharding_and_zero.md) |
-| Pipeline 能运行但 bubble 很大 | stage 划分、micro-batch 与依赖时序 | 每 stage 时间、活跃槽位、bubble ratio | [04 模型、上下文与请求切分](./04_pipeline_and_tensor_parallel.md) |
-| TP 或 CP 的通信随规模迅速增加 | Head/张量布局、序列切分与同步频率 | Collective bytes、调用次数、上下文长度 sweep | [04 模型、上下文与请求切分](./04_pipeline_and_tensor_parallel.md)、[06 Profiling 与 Overlap](./06_communication_profiling_and_overlap.md) |
-| EP 出现 overflow 或吞吐抖动 | capacity、路由偏斜、dispatch/combine | expert counts、dropped tokens、All-to-All bytes、max/mean load | [05 专家并行与动态路由](./05_expert_parallel_and_communication_hotspots.md) |
-| Serving 副本平均负载正常但 P99 恶化 | 队列、路由、缓存局部性和实例热点 | per-replica queue、cache hit、TTFT/TPOT、P95/P99 | [04 模型、上下文与请求切分](./04_pipeline_and_tensor_parallel.md)、[07 Benchmark 与决策](./07_benchmark_and_parallel_decision.md) |
+| Pipeline 能运行但 bubble 很大 | stage 划分、micro-batch 与依赖时序 | 每 stage 时间、活跃槽位、bubble ratio | [04 模型与上下文切分](./04_pipeline_and_tensor_parallel.md) |
+| TP 或 CP 的通信随规模迅速增加 | Head/张量布局、序列切分与同步频率 | Collective bytes、调用次数、上下文长度 sweep | [04 模型与上下文切分](./04_pipeline_and_tensor_parallel.md)、[06 Profiling 与 Overlap](./06_communication_profiling_and_overlap.md) |
+| EP 出现 overflow 或吞吐抖动 | capacity、路由偏斜、dispatch/combine | expert counts、dropped tokens、All-to-All bytes、max/mean load | [05 动态路由与负载](./05_expert_parallel_and_communication_hotspots.md) |
+| Serving 副本平均负载正常但 P99 恶化 | 队列、路由、缓存局部性和实例热点 | per-replica queue、cache hit、TTFT/TPOT、P95/P99 | [05 动态路由与负载](./05_expert_parallel_and_communication_hotspots.md)、[07 Benchmark 与决策](./07_benchmark_and_parallel_decision.md) |
+| collective 启动后挂起或超时 | world size、rank、进程组与 collective 调用顺序 | 每 rank 日志、最后进入的 collective、NCCL 错误 | 先检查[实验 Quickstart](./quickstart.md)，再回到 [02 数据并行与同步](./02_data_parallel_and_synchronization.md) |
+| 切分后输出与单卡基线不一致 | 分片边界、聚合顺序、位置编码与数值精度 | 单 rank 局部结果、聚合前后张量、误差阈值 | [04 模型与上下文切分](./04_pipeline_and_tensor_parallel.md) |
+| 常驻显存下降但执行时瞬时 OOM | 临时 All-Gather、通信 buffer 或重分片重叠 | 分阶段峰值、临时张量字节、collective 时间线 | [03 状态分片与 ZeRO](./03_state_sharding_and_zero.md)、[06 Profiling 与 Overlap](./06_communication_profiling_and_overlap.md) |
 | 通信总时长很高但端到端时间变化不大 | 通信是否已被计算覆盖 | Trace 时间线、暴露通信、关键路径 | [06 Profiling 与 Overlap](./06_communication_profiling_and_overlap.md) |
 | 单次 Benchmark 好看但结果不可复现 | 模型、输入、拓扑、并行度和测量协议 | 固定契约、重复运行、原始结果与失败记录 | [07 Benchmark 与决策](./07_benchmark_and_parallel_decision.md) |
 

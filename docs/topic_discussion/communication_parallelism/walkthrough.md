@@ -4,15 +4,7 @@
 
 `单卡约束 → 切分对象 → Collective 与 Payload → 同步和负载 → 暴露通信 → 扩展效率与决策`
 
-正文页解释单个机制，本页负责把训练状态、模型内部切分、专家路由和分布式推理连接起来。
-
-## 图册与知识地图
-
-路线图用于选择 Task 分支，知识地图用于回查切分对象、通信原语和结果证据之间的关系；局部机制图放在对应正文附近。
-
-![通信与并行学习路线：从多卡分工到系统决策](../../public/topic_discussion/communication_parallelism/communication_parallel_roadmap.svg)
-
-![通信与并行知识地图：从分工对象到多卡证据](../../public/topic_discussion/communication_parallelism/communication_parallel_knowledge_map.svg)
+下面沿训练状态、模型内部切分、专家路由和分布式推理，追踪切分对象如何产生通信，再进入热点与系统决策。总览路线和知识索引见[专题入口](./intro.md)。
 
 ## 第一段：从单卡约束选择切分对象
 
@@ -34,15 +26,15 @@
 
 DDP、FSDP 和 ZeRO 改变参数、梯度和优化器状态的复制方式；PP、TP 与 CP 则分别切层、张量和上下文。前者重点检查常驻状态、临时聚合和 checkpoint 生命周期，后者重点检查 bubble、层内同步、Head 布局与序列通信。
 
-对应 [03 状态分片与 ZeRO](./03_state_sharding_and_zero.md)和[04 模型、上下文与请求切分](./04_pipeline_and_tensor_parallel.md)。Serving Replica 也切请求，但路由、队列和缓存局部性属于服务侧证据，不能套用训练 DP 的梯度同步结论。
+对应 [03 状态分片与 ZeRO](./03_state_sharding_and_zero.md)和[04 模型与上下文切分](./04_pipeline_and_tensor_parallel.md)。
 
 ![层、张量、序列与请求四种切分维度](../../public/topic_discussion/communication_parallelism/partition_axes.svg)
 
-## 第四段：把专家并行看成动态通信
+## 第四段：比较两类动态路由
 
-EP 的 payload 不是固定张量布局决定的，而是由本批次路由结果决定。route、capacity、dispatch、expert compute 和 combine 共同形成 All-to-All、overflow 与热点 rank；平均负载正常也不代表最慢 rank 不会拖慢全局步骤。
+EP 的 payload 由本批次 token 路由决定，route、capacity、dispatch、expert compute 和 combine 共同形成 All-to-All、overflow 与热点 rank。Serving Replica 则把请求分给模型实例，队列、Prefix Cache 和 Session 局部性共同决定尾延迟。两者都要观察最慢执行单元，但不能混用专家容量和请求队列指标。
 
-对应 [05 专家并行与动态路由](./05_expert_parallel_and_communication_hotspots.md)。
+对应 [05 动态路由与负载](./05_expert_parallel_and_communication_hotspots.md)。
 
 ![专家路由如何形成 All-to-All 与负载热点](../../public/topic_discussion/communication_parallelism/expert_parallel_hotspots.svg)
 

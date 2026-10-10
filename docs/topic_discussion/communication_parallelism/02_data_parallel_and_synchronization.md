@@ -1,6 +1,6 @@
 # 02. Data Parallel and Synchronization | 数据并行与同步
 
-## 本页目标与路线位置
+## 学习问题
 
 数据并行让每个 rank 处理不同样本，却要求参数更新保持一致。计算可以复制，更新语义不能分叉，因此梯度同步构成多卡训练最基础的通信基线，也提供了理解 All-Reduce、payload 与同步等待的入口。
 
@@ -35,7 +35,7 @@ All-Reduce 是数据并行的常见同步原语，但真实性能由消息大小
 
 | 观察项 | 说明 | 对应实验 |
 |:---|:---|:---|
-| payload bytes | 每次同步传输的数据规模 | Part 02 · 46 的 payload matrix |
+| payload bytes | 每次同步传输的数据规模 | Part 02 · 47 的 payload matrix |
 | collective frequency | 每个 step 触发多少次同步 | backward bucket 与 accumulation 配置 |
 | max-rank time | 最慢 rank 决定同步完成时间 | 每 rank 时间与负载差异 |
 | overlap ratio | 通信有多少被 backward 计算覆盖 | trace 中通信与计算时间线 |
@@ -46,7 +46,7 @@ All-Reduce 是数据并行的常见同步原语，但真实性能由消息大小
 | 目的 | 入口 |
 |:---|:---|
 | 理解通信原语 | [Part 01 · 20 NCCL 与 AllReduce](../../01_Hardware_Math_and_Systems/20_NCCL_and_AllReduce_Basics.md) |
-| 实测 collective | [Part 02 · 46 通信 Profiling](../../02_PyTorch_Algorithms/46_Communication_Profiling_with_NCCL.md) |
+| 实测 collective | [Part 02 · 47 通信 Profiling](../../02_PyTorch_Algorithms/47_Communication_Profiling_with_NCCL.md) |
 | 从复制转向状态分片 | [03 状态分片与 ZeRO](./03_state_sharding_and_zero.md) |
 | 进入真实训练项目 | [Part 02 · 79 分布式并行基准](../../02_PyTorch_Algorithms/79_Distributed_Parallel_Benchmark.md) |
 

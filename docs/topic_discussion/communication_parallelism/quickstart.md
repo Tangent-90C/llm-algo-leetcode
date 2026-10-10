@@ -1,0 +1,82 @@
+# 通信与并行实验 Quickstart
+
+本页用于创建、恢复和预检真实多卡机制环境。页面、workload、结果路径和证据状态见[实验资产表](./experiment_assets.md)；精确 Profile 定义、隔离规则和硬件快照见[GPU 环境资产表](../../gpu_environment_assets.md)。以下命令均在仓库根目录执行。
+
+<a id="par-cuda-mechanism-quickstart"></a>
+
+## PAR-CUDA-MECHANISM：双卡通信机制环境
+
+27–29、46–48、PAR-CONTEXT 和 PAR-REPLICA 使用该环境。真实 collective 至少需要两张可见 CUDA GPU；单卡环境保持 `RUN_MODE=dry_run`，只运行 CPU 机制、测试和实验计划登记。
+
+### 一键创建（推荐）
+
+```bash
+python tools/install_environment_profile.py \
+  --profile PAR-CUDA-MECHANISM \
+  --env-name llm_parallel_cu128
+
+conda activate llm_parallel_cu128
+python -m jupyter lab
+```
+
+安装前可添加 `--dry-run` 查看计划。已有环境只有在依赖仍属于同一 Profile 时才使用 `--reuse`；vLLM、SGLang 和其他自带 PyTorch 版本的后端应保留独立环境。
+
+### 手动创建
+
+```bash
+conda create -n llm_parallel_cu128 python=3.12 -y
+conda activate llm_parallel_cu128
+
+python -m pip install --upgrade pip
+python -m pip install -r requirements/torch-cu128.txt \
+  --extra-index-url https://pypi.org/simple
+python -m pip install -r requirements/distributed.txt
+
+python tools/register_notebook_runtime.py
+python -m pip check
+python tools/environment_preflight.py --profile PAR-CUDA-MECHANISM
+
+python -m ipykernel install --user \
+  --name llm_parallel_cu128 \
+  --display-name "Python (llm_parallel_cu128)"
+python -m jupyter lab
+```
+
+### 后续复测
+
+```bash
+conda activate llm_parallel_cu128
+python tools/register_notebook_runtime.py --check
+python tools/environment_preflight.py --profile PAR-CUDA-MECHANISM
+python -m jupyter lab
+```
+
+Notebook 中使用 `sys.executable` 确认解释器属于当前环境。只有 `pip check` 无冲突、Profile 预检通过且 `torch.cuda.device_count() >= 2` 时，才启用真实多卡运行。
+
+## 分布式推理环境
+
+PAR-REPLICA 的机制实验仍使用 `PAR-CUDA-MECHANISM`，只验证独立 GPU 副本的负载分配。vLLM / SGLang 的真实请求、缓存和尾延迟证据使用各自独立 Profile，由分布式推理项目登记，不在本环境中追加安装。
+
+## Ray 环境选择
+
+当前机制环境不安装 Ray。27–29、46–48、PAR-CONTEXT 和 PAR-REPLICA 直接使用 `torchrun + torch.distributed + NCCL`，避免将 actor 启动、调度等待或对象存储时间混入 collective 机制结果。
+
+只有项目出现以下需求时，才创建独立 Ray Profile：
+
+| 计划环境 | 使用条件 | Ray 负责什么 | Ray 不证明什么 |
+|:---|:---|:---|:---|
+| `PAR-TRAIN-CLUSTER-RAY` | 79、PAR-MODEL-INTERNAL 或 80 需要跨节点 worker、资源整组预留或失败恢复 | Ray Train、placement group 与运行编排 | NCCL 正确性、collective 带宽和模型扩展效率 |
+| `PAR-SERVING-RAY` | 81 需要服务副本、跨节点 TP / PP worker 或弹性伸缩 | Ray Serve、副本生命周期、placement group 与请求编排 | vLLM / SGLang 的 kernel、KV Cache 和最终服务性能 |
+
+这两个 Profile 目前只登记职责，不加入 `requirements/distributed.txt`。待对应项目的模型、backend、拓扑和 workload 固定后，再分别锁定依赖版本与预检规则。
+
+## 常见异常入口
+
+| 现象 | 处理动作 |
+|:---|:---|
+| `No module named 'tools'` | 在仓库根目录运行 `python tools/register_notebook_runtime.py`，重启 Kernel |
+| `pip check` 出现 vLLM / torch / xformers 冲突 | 停止覆盖安装，重建本 Profile 的独立环境 |
+| 只发现一张 GPU | 保持 `dry_run`；不要把单进程复制写成 NCCL 证据 |
+| NCCL 初始化失败 | 检查可见设备、驱动、进程数和 rank 到设备映射，保留失败日志 |
+| 运行挂起 | 检查各 rank 是否进入相同 collective，并设置实验超时 |
+| 跨机网络或 RDMA 未配置 | 先完成单机双卡基线；跨机结果使用新的拓扑与运行标签 |
