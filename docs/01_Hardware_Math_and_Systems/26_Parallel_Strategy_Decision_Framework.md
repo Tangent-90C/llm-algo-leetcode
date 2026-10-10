@@ -1,6 +1,6 @@
 # 26. Parallel Strategy Decision Framework | 并行策略决策框架
 
-**难度：** Hard | **环境：** CPU-first | **标签：** `并行通信`, `DP/TP/PP`, `策略决策` | **目标人群：** 通信机制入门者
+**难度：** Hard | **环境：** CPU-first | **标签：** `并行通信`, `并行策略`, `策略决策` | **目标人群：** 通信机制入门者
 
 > 🚀 **云端运行环境**
 >
@@ -16,9 +16,9 @@
 
 本节提供并行策略的约束判断顺序：先看显存，再看互连和模型结构，最后检查方案风险。
 
-你将按“容量约束 → 互连条件 → 模型结构 → 风险验证”的顺序，把 DP、TP、PP 和 EP 放到同一组条件下比较，而不是只按策略名称做选择。
+你将按“容量约束 → 互连条件 → 工作负载结构 → 风险验证”的顺序，比较训练状态、层、张量、序列、专家和请求六类切分对象。
 
-**关键词：** `DP`, `TP`, `PP`
+**关键词：** `DP`, `TP`, `PP`, `CP`, `EP`, `Replica`
 
 ![本节概念关系](../public/01_Hardware_Math_and_Systems/26_parallel_strategy_decision_map.svg)
 ## 前置阅读
@@ -38,25 +38,24 @@
 2. **Interconnect gate**：互连带宽能不能承受切分后的高频同步
 3. **Structure gate**：模型结构是不是天然支持层内、层间或专家级切分
 
-从这个角度看，四种策略的职责并不一样：
+从这个角度看，不同策略处理的对象并不一样：
 - **DP** 解决“数据怎么铺开”，前提是模型至少接近能放下
 - **TP** 解决“单层怎么拆算”，前提是机内互连足够强
 - **PP** 解决“层怎么分段”，前提是模型足够深或单卡显存偏紧
 - **EP** 解决“专家怎么分发”，前提是路由和 token 交换能承受
+- **CP** 解决“长序列怎么切分”，前提是 Attention 状态交换可承受
+- **Replica** 解决“请求怎么分发”，前提是多副本容量、队列和缓存局部性可观测
 
 更准确地说，策略选择不是“谁更高级”，而是“哪个门先卡住，哪个切分层级就先上”。
 
-| 维度 | DP | TP | PP | EP |
-| --- | --- | --- | --- | --- |
-| 主要切分对象 | batch / data | tensor / layer 内维度 | layers / stages | experts |
-| 主要压力 | 梯度同步 | 层内 collective | pipeline bubble | dispatch / gather |
-| 最关键前提 | 模型能放下或接近能放下 | 机内互连强 | 模型太深或显存紧 | MoE 路由可承受 |
-
-粗略判断时可以把它理解为：
-- DP 先解决“数据怎么分散”
-- TP 先解决“单层怎么拆算”
-- PP 先解决“层怎么分段”
-- EP 先解决“专家怎么分发”
+| 策略 | 主要切分对象 | 主要压力 | 最关键前提 |
+| --- | --- | --- | --- |
+| DP / ZeRO | batch、参数、梯度或优化器状态 | 梯度同步与状态聚合 | 模型与训练状态有明确分片方案 |
+| TP | 层内张量与激活 | 高频 collective | 机内互连强 |
+| PP | layers / stages | pipeline bubble 与 stage 传输 | 模型足够深且 stage 可平衡 |
+| CP | sequence / context | Attention 状态交换 | 长上下文收益覆盖通信代价 |
+| EP | experts / tokens | dispatch、combine 与负载不均 | MoE 路由与容量可控 |
+| Replica | serving requests | 队列、缓存局部性与尾延迟 | 多副本状态可观测 |
 </details>
 
 ### Q1小验证
@@ -128,6 +127,8 @@ $$\text{cost} \approx \text{latency} \times \text{次数} + \frac{\text{data vol
 - **TP** 的层内通信频率高，单次量通常不大，但每层都要碰一次
 - **PP** 的通信发生在 stage 边界，频率低一些，但切不好就会放大气泡和等待
 - **EP** 不只看 volume，还要看 token 路由和负载均衡是否稳定
+- **CP** 随上下文长度交换 Attention 状态，需要同时记录序列长度和通信轮数
+- **Replica** 不交换模型内部张量，但路由失衡会放大排队和尾延迟
 
 所以，判断并行策略时，真正要问的是：
 - 这个通信是不是高频出现
@@ -165,7 +166,7 @@ print('high frequency amplifies latency, weak bandwidth amplifies payload cost')
 
 ```
 
-## Q3：如何按约束选择 DP、TP、PP、EP？
+## Q3：如何按约束筛选并行策略？
 
 <details>
 <summary>点击展开查看解析</summary>
@@ -179,6 +180,10 @@ print('high frequency amplifies latency, weak bandwidth amplifies payload cost')
 3. **Structure gate**：最后看模型是不是 dense 还是 MoE
    - dense 常见组合是 DP / TP / PP
    - MoE 需要把 EP 纳入主决策
+4. **Context gate**：上下文是否长到需要跨卡切分 Attention 状态
+   - 单卡 Attention 状态放不下时，CP 才进入候选
+5. **Serving gate**：目标是同步训练状态，还是分发独立请求
+   - 多副本 Serving 优先评估 Replica 路由，不把它误写成训练 DP
 
 ```mermaid
 flowchart TD
@@ -301,11 +306,9 @@ print('the mistake is not choosing a plan, but ignoring the risk it introduces')
 
 ## 相关阅读
 
-**导语：** 如果还想把并行策略放回系统语境里看，可以接着看并行调度和通信优化，把它和实际多卡训练一起理解。
+**导语：** 继续进入策略选择页、上下文切分页和 PyTorch 分布式文档，核对候选所需的真实证据。
 
-- [20. NCCL and AllReduce Basics | NCCL 与 AllReduce 基础](./20_NCCL_and_AllReduce_Basics.md)
-- [27. Communication Scheduling Optimization | 通信调度优化](./27_Communication_Scheduling_Optimization.md)
-- [28. Fault Tolerance and Checkpointing | 容错与检查点](./28_Fault_Tolerance_and_Checkpointing.md)
+- [Part 02 · 49 并行策略选择](../02_PyTorch_Algorithms/49_Parallelism_Strategy_Selection.md)
+- [Part 02 · PAR-CONTEXT 上下文与序列并行](../02_PyTorch_Algorithms/PAR-CONTEXT_Context_and_Sequence_Parallelism.md)
 - [PyTorch Distributed | PyTorch 分布式训练文档](https://pytorch.org/docs/stable/distributed.html)
-- [Megatron-LM | NVIDIA 开源大模型并行训练框架](https://github.com/NVIDIA/Megatron-LM)
 ---

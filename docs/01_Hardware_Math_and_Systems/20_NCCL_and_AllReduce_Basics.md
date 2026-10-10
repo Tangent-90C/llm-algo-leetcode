@@ -16,7 +16,7 @@
 
 多卡训练扩不动，很多时候不是算子不够快，而是同步点太重。梯度要不要聚合、聚合走哪条链路、等待会不会把 step time 重新拉长，这些问题一旦没想清楚，GPU 数量上去之后也可能只是在放大通信成本。
 
-本节把多卡通信放回一个可测量的训练步：先说明每张卡持有的局部梯度和参数状态，再追踪 collective 如何交换数据，最后用通信时间、step time 和扩展效率判断并行收益。它主要服务 `通信与并行专题`，也为分布式训练和系统优化提供通信指标。
+本节把多卡通信放回一个可解释的训练步：先区分局部结果与全局一致结果，再沿着 Ring 追踪 chunk 的所有权和两阶段传播，最后用通信轮数、每 rank 字节数与 alpha-beta 模型估算理论代价。真实 NCCL 算法选择和多卡性能证据由 Part 02 · 47 承接。
 
 
 **关键词：** `NCCL`, `AllReduce`, `DP`
@@ -28,8 +28,8 @@
 
 **导语：** 先把通信和并行层级对齐，再看 AllReduce 与 NCCL 如何影响同步、effective batch 和扩展效率。
 
-- [Group 1C: Distributed Communication and Memory Sharing | 1C: 多卡通信与显存共享](./1C.md)
-- [13. Profiling and Bottleneck Analysis | 性能分析与瓶颈定位](./13_Profiling_and_Bottleneck_Analysis.md)
+- [Group 1C: Communication, Parallelism and Fault Tolerance | 1C: 通信、并行与容错](./1C.md)
+- [05. Communication Topologies | 通信拓扑与分布式基石](./05_Communication_Topologies.md)
 ---
 ## Q1：NCCL 在分布式训练里到底解决什么问题？
 
@@ -42,17 +42,21 @@ NCCL 解决的是多 GPU 之间高效通信的问题。
 
 NCCL 的作用，就是给这些通信原语提供高效实现，让多卡之间的同步尽量接近硬件能力上限。它本质上不是“额外功能”，而是分布式训练能否真正扩展的基础设施。
 </details>
-### Q1小验证：为什么多卡离不开通信库
+### Q1小验证：同步等待如何进入训练步
 
-对照局部梯度、参数状态和设备间同步，说明通信库在训练步中的具体作用。
+计算时间与 collective 时间不能按 GPU 数量线性相乘；先扣除真正被计算覆盖的通信时间，再得到训练步关键路径。
 
 ```python
-def step_time(compute_ms, sync_ms, tasks):
-    # 多卡场景下，除了计算，还要付出同步成本。
-    return compute_ms + sync_ms * max(tasks - 1, 0)
+def training_step_time(compute_ms, collective_ms, overlap_ms=0.0):
+    """返回计算与 collective 共同形成的关键路径时间。"""
+    if min(compute_ms, collective_ms, overlap_ms) < 0:
+        raise ValueError('时间必须非负')
+    hidden_ms = min(overlap_ms, collective_ms, compute_ms)
+    exposed_ms = collective_ms - hidden_ms
+    return {'step_ms': compute_ms + exposed_ms, 'exposed_collective_ms': exposed_ms}
 
-for tasks in [1, 2, 8]:
-    print(tasks, 'GPUs ->', step_time(10, 3, tasks), 'ms/step')
+for overlap in [0.0, 1.5, 3.0]:
+    print('overlap=', overlap, '->', training_step_time(10.0, 3.0, overlap))
 
 ```
 
@@ -67,18 +71,23 @@ AllReduce 的核心是“每张卡都有一份数据，最后大家要得到同�
 
 AllReduce 之所以重要，是因为它几乎代表了“多卡协同”的基础动作。很多通信优化、拓扑设计和同步策略，本质上都在围绕它展开。
 </details>
-### Q2小验证：为什么梯度同步离不开 AllReduce
+### Q2小验证：AllReduce 的输出不变量是什么
 
 先把“局部结果 -> 全局一致”这件事想清楚。
 
 ```python
-def allreduce_mean(values):
-    total = sum(values)
-    return [total / len(values)] * len(values)
+def allreduce_sum(local_vectors):
+    """逐元素归约，并把相同的完整结果返回给每个 rank。"""
+    if not local_vectors or len({len(row) for row in local_vectors}) != 1:
+        raise ValueError('所有 rank 必须提供等长向量')
+    reduced = [sum(items) for items in zip(*local_vectors)]
+    return [reduced.copy() for _ in local_vectors]
 
-gradients = [0.8, 1.2, 1.0, 1.4]
-print('before:', gradients)
-print('after :', allreduce_mean(gradients))
+local_gradients = [[1.0, 2.0], [10.0, 20.0], [100.0, 200.0], [1000.0, 2000.0]]
+global_gradients = allreduce_sum(local_gradients)
+print('rank 0 local:', local_gradients[0])
+print('all ranks  :', global_gradients)
+assert all(row == global_gradients[0] for row in global_gradients)
 
 ```
 
@@ -93,20 +102,31 @@ print('after :', allreduce_mean(gradients))
 
 所以判断并行方案时，不能只看算力堆了多少卡，还要看通信是否会成为主瓶颈。拓扑、带宽、同步原语和调度策略共同决定了最终的扩展效率。
 </details>
-### Q3小验证：为什么拓扑会影响速度
+### Q3小验证：Ring 的理论通信量与 alpha-beta 成本
 
-先判断是带宽问题，还是路由和同步问题。
+对固定全量 payload，计算每个 rank 在两阶段中搬运的字节数，并把每轮启动延迟与传输成本分开。
 
 ```python
-def comm_time_ms(size_mb, bandwidth_gbps):
-    # 粗略估算：MB -> Mb，再除以 Gbps。
-    return size_mb * 8 / bandwidth_gbps
+def ring_cost(payload_bytes, world_size, alpha_ms, bandwidth_gbps):
+    """估算 Ring AllReduce 的轮数、每 rank 通信量和 alpha-beta 时间。"""
+    if payload_bytes < 0 or world_size < 2 or alpha_ms < 0 or bandwidth_gbps <= 0:
+        raise ValueError('检查 payload、world_size、alpha 和 bandwidth')
+    rounds = 2 * (world_size - 1)
+    bytes_per_rank = 2 * (world_size - 1) / world_size * payload_bytes
+    bandwidth_bytes_per_ms = bandwidth_gbps * 1e9 / 8 / 1000
+    latency_ms = rounds * alpha_ms
+    transfer_ms = bytes_per_rank / bandwidth_bytes_per_ms
+    return {
+        'rounds': rounds,
+        'bytes_per_rank': int(bytes_per_rank),
+        'latency_ms': latency_ms,
+        'transfer_ms': transfer_ms,
+        'total_ms': latency_ms + transfer_ms,
+    }
 
-payload_mb = 256
-cases = {'nvlink': 900, 'pcie': 64}
-for name, bw in cases.items():
-    print(name, '->', round(comm_time_ms(payload_mb, bw), 2), 'ms')
-print('slowdown:', round(comm_time_ms(payload_mb, 64) / comm_time_ms(payload_mb, 900), 1), 'x')
+payload_bytes = 256 * 1024 * 1024
+for name, bandwidth in {'NVLink-like': 900.0, 'PCIe-like': 64.0}.items():
+    print(name, ring_cost(payload_bytes, world_size=8, alpha_ms=0.01, bandwidth_gbps=bandwidth))
 
 ```
 
@@ -123,26 +143,59 @@ Ring AllReduce 的关键点，不是“名字里有 ring”，而是它把一次
 
 所以 NCCL 之所以重要，不只是因为它“能做 AllReduce”，而是因为它能把这些通信原语落成对拓扑更友好的实现。对于训练来说，真正的瓶颈常常不是有没有通信，而是通信是否能被拆成适合硬件链路的节奏。
 </details>
-### Q4小验证：AllReduce 为什么常拆成两段
+### Q4小验证：逐轮追踪 chunk 所有权与归约状态
+
+输入矩阵的第一个维度表示 rank，第二个维度表示 chunk。Reduce-Scatter 每轮只移动一个 partial chunk，All-Gather 再传播已经完成归约的 chunk。
 
 ```python
-def ring_rounds(world_size):
-    # Ring AllReduce 通常可拆成两个阶段，每阶段有 world_size - 1 轮。
-    return 2 * (world_size - 1)
+def ring_allreduce(local_chunks):
+    """用同步快照模拟 Ring Reduce-Scatter 与 All-Gather。"""
+    world_size = len(local_chunks)
+    if world_size < 2 or any(len(row) != world_size for row in local_chunks):
+        raise ValueError('需要 world_size × world_size 的 chunk 矩阵')
 
-for n in [2, 4, 8]:
-    print(n, 'ranks ->', ring_rounds(n), 'rounds')
-print('phases:', ['reduce-scatter', 'all-gather'])
+    partial = [list(row) for row in local_chunks]
+    trace = []
+    for step in range(world_size - 1):
+        snapshot = [row.copy() for row in partial]
+        transfers = []
+        for rank in range(world_size):
+            source = (rank - 1) % world_size
+            chunk = (rank - step - 1) % world_size
+            partial[rank][chunk] += snapshot[source][chunk]
+            transfers.append({'from': source, 'to': rank, 'chunk': chunk})
+        trace.append({'phase': 'reduce_scatter', 'step': step, 'transfers': transfers})
+
+    owned = {(rank + 1) % world_size: partial[rank][(rank + 1) % world_size] for rank in range(world_size)}
+    gathered = [{(rank + 1) % world_size: partial[rank][(rank + 1) % world_size]} for rank in range(world_size)]
+    for step in range(world_size - 1):
+        snapshot = [dict(items) for items in gathered]
+        transfers = []
+        for rank in range(world_size):
+            source = (rank - 1) % world_size
+            chunk = (rank - step) % world_size
+            gathered[rank][chunk] = snapshot[source][chunk]
+            transfers.append({'from': source, 'to': rank, 'chunk': chunk})
+        trace.append({'phase': 'all_gather', 'step': step, 'transfers': transfers})
+
+    outputs = [[items[index] for index in range(world_size)] for items in gathered]
+    expected = [sum(local_chunks[rank][chunk] for rank in range(world_size)) for chunk in range(world_size)]
+    assert all(row == expected for row in outputs)
+    return {'outputs': outputs, 'owned_after_reduce_scatter': owned, 'trace': trace}
+
+local_chunks = [[rank * 10 + chunk for chunk in range(4)] for rank in range(4)]
+result = ring_allreduce(local_chunks)
+print('reduce-scatter owners:', result['owned_after_reduce_scatter'])
+print('rank 0 output:', result['outputs'][0])
+print('rounds:', len(result['trace']))
 
 ```
 
 ---
 ## 相关阅读
-把 AllReduce 放回 ZeRO、流水线并行和训练性能分析里，更容易把通信原语和实际扩展效果连起来。
+本节只建立算法语义与理论代价。真实 NCCL 可能依据消息规模和拓扑选择 Ring、Tree 或其他实现；继续进入 Part 02 · 47 验证请求算法、实际算法和多卡时间。
 - [NCCL 官方文档](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/)：查阅集合通信原语、拓扑和通信环境。
 - [NCCL Tests](https://github.com/NVIDIA/nccl-tests)：用固定消息大小和 GPU 数量观察集合通信带宽。
-- [27. ZeRO Optimizer Sim | ZeRO 优化器模拟](../02_PyTorch_Algorithms/27_ZeRO_Optimizer_Sim.md)
-- [28. Pipeline Parallelism MicroBatch | Pipeline 并行微批次](../02_PyTorch_Algorithms/28_Pipeline_Parallelism_MicroBatch.md)
-- [73. Training Performance Analysis | 训练性能分析](../02_PyTorch_Algorithms/73_Training_Performance_Analysis.md)
+- [47. Communication Profiling with NCCL | NCCL 通信剖析](../02_PyTorch_Algorithms/47_Communication_Profiling_with_NCCL.md)
 
 ---

@@ -27,7 +27,7 @@
 ## 前置阅读
 **导语：** 先复习 GPU 内存层级和设备间连接，再用 DP、TP、PP 的示例回答三个问题：数据放在哪里、哪些数据需要交换、链路带宽如何改变并行收益。
 - [03. GPU Architecture and Memory | GPU 物理架构与内存层级](./03_GPU_Architecture_and_Memory.md)
-- [Group 1C: Distributed Communication and Memory Sharing | 1C: 多卡通信与显存共享](./1C.md)
+- [Group 1C: Communication, Parallelism and Fault Tolerance | 1C: 通信、并行与容错](./1C.md)
 
 ---
 ## Q1：DP、TP、PP 分别如何切分数据、张量和层？
@@ -227,11 +227,8 @@ assert {row['strategy'] for row in reports} == {'DP', 'TP', 'PP'}
 
 ---
 ## 相关阅读
-本节可以继续接到 NCCL 原语、并行策略选择和通信调度；论文与开源实现用于补充真实系统中的数据交换路径。
+本节可以继续接到 NCCL 原语、并行策略选择和通信调度。
 - [NCCL Documentation](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/)：查看 AllReduce、AllGather、ReduceScatter 和拓扑选择。
-- [Megatron-LM](https://github.com/NVIDIA/Megatron-LM)：观察张量并行、流水线并行和数据并行如何组合。
-- [Megatron-LM: Training Multi-Billion Parameter Language Models](https://arxiv.org/abs/1909.08053)：理解大模型并行训练中的通信组织。
 - [20. NCCL and AllReduce Basics | NCCL 与 AllReduce 基础](./20_NCCL_and_AllReduce_Basics.md)
 - [26. Parallel Strategy Decision Framework | 并行策略决策框架](./26_Parallel_Strategy_Decision_Framework.md)
-- [27. Communication Scheduling Optimization | 通信调度优化](./27_Communication_Scheduling_Optimization.md)
 ---

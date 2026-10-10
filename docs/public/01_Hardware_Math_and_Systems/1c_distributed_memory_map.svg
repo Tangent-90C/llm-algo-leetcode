@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="650" viewBox="0 0 1280 650" role="img" aria-labelledby="title desc">
-  <title id="title">1C 多卡通信与显存共享</title>
+  <title id="title">1C 通信、并行与容错</title>
   <desc id="desc">状态切分决定每张卡保留什么，拓扑和集合通信决定交换代价，最后比较显存收益与同步等待。</desc>
   <defs><marker id="a1c" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#64748b"/></marker><style>
     text{font-family:Arial,'Microsoft YaHei',sans-serif;fill:#172033}.title{font-size:28px;font-weight:700}.sub{font-size:15px;fill:#475569}.group{font-size:19px;font-weight:700}.head{font-size:17px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#475569}.panel{stroke:#94a3b8;stroke-width:2;rx:16}.item{stroke:#cbd5e1;stroke-width:1.5;rx:10}.flow{stroke:#64748b;stroke-width:2.5;fill:none;marker-end:url(#a1c)}.net{stroke:#38bdf8;stroke-width:3;fill:none}
   </style></defs>
   <rect width="1280" height="650" fill="#f8fafc"/>
-  <text x="640" y="42" text-anchor="middle" class="title">1C 多卡通信与显存共享：切分之后如何协作</text>
+  <text x="640" y="42" text-anchor="middle" class="title">1C 通信、并行与容错：切分之后如何协作</text>
   <text x="640" y="70" text-anchor="middle" class="sub">先决定状态如何分布，再观察设备如何交换，最后比较显存收益与通信代价</text>
 
   <rect x="40" y="150" width="270" height="350" fill="#e0f2fe" class="panel"/><text x="175" y="187" text-anchor="middle" class="group">状态切分</text>
