@@ -349,12 +349,10 @@ print('A high compute-time fraction does not by itself prove high MFU')
 ---
 
 ## 相关阅读
-本节可以继续接到显存预算、MoE 结构和微调成本；如果要把理论计算与真实硬件利用率连接起来，再看模型配置、性能分析和 scaling law。
+本节可以继续接到模型配置、显存预算和 MoE 参数—计算账本。
 - [Hugging Face Transformers 模型配置](https://huggingface.co/docs/transformers/main_classes/configuration)：查看 hidden size、层数、词表和 attention 配置如何落到参数估算。
-- [Training Compute-Optimal Large Language Models](https://arxiv.org/abs/2203.15556)：理解参数量、训练 token 数与计算预算之间的 scaling 关系。
 - [06. VRAM Calculation and ZeRO | 显存计算与 ZeRO 优化](./06_VRAM_Calculation_and_ZeRO.md)
 - [22. MoE Parameter and Compute | MoE 模型参数量计算](./22_MoE_Parameter_and_Compute.md)
-- [10. LoRA Tutorial | LoRA 教程](../02_PyTorch_Algorithms/10_LoRA_Tutorial.md)
 
   
 ---

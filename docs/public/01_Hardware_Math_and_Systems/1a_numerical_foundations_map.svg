@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="650" viewBox="0 0 1280 650" role="img" aria-labelledby="title desc">
-  <title id="title">1A 数值基础与算力估算</title>
+  <title id="title">1A 数值与规模</title>
   <desc id="desc">从 dtype、参数量和 FLOPs 建立资源账本，再分别分析量化与 MoE 改变的资源成本，最后进入固定 workload 验证。</desc>
   <defs><marker id="a1a" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#64748b"/></marker><style>
     text{font-family:Arial,'Microsoft YaHei',sans-serif;fill:#172033}.title{font-size:28px;font-weight:700}.sub{font-size:15px;fill:#475569}.group{font-size:20px;font-weight:700}.head{font-size:17px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#475569}.panel{stroke:#94a3b8;stroke-width:2;rx:16}.item{stroke:#cbd5e1;stroke-width:1.5;rx:10}.flow{stroke:#64748b;stroke-width:2.5;fill:none;marker-end:url(#a1a)}
   </style></defs>
   <rect width="1280" height="650" fill="#f8fafc"/>
-  <text x="640" y="42" text-anchor="middle" class="title">1A 数值基础与算力估算：从账本到资源判断</text>
+  <text x="640" y="42" text-anchor="middle" class="title">1A 数值与规模：从账本到资源判断</text>
   <text x="640" y="70" text-anchor="middle" class="sub">先计算模型需要多少资源，再观察量化和 MoE 改变了哪一项成本</text>
 
   <rect x="45" y="190" width="270" height="220" fill="#e0f2fe" class="panel"/><text x="180" y="230" text-anchor="middle" class="group">共同输入</text>
