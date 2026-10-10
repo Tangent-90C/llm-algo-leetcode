@@ -1,40 +1,71 @@
 # 反向传播与训练机制（Backpropagation and Training Mechanics）
 
-> 专题类型：基础支撑　主服务目标：计算图与训练状态理解
+> 专题类型：基础支撑　副标题：从梯度信号、训练状态到正确性与性能证据
 
-## 专题定位与 Infra 层定位
+一次训练更新先由前向传播建立依赖，再由损失给出监督信号，最后由反向传播生成梯度并写回参数。参数、激活值、反向保存张量、梯度和优化器状态在不同阶段产生、驻留和释放；这些关系共同决定更新是否正确、峰值显存出现在哪里，以及重算或搬运会增加多少代价。
 
-本专题串起训练机制主线：先看梯度怎么沿计算图回传，再看 attention backward、loss 对齐、activation 保存、checkpointing、offload 和梯度累积怎样一起影响训练节奏与显存代价。它主要连接 Infra-L2–Infra-L3：Infra-L2 解释算子、kernel 和自动求导如何执行，Infra-L3 解释框架如何构建计算图、保存 activation 并调度 backward；Infra-L1 的显存容量与带宽是边界，checkpoint、offload 和梯度累积是跨层策略。
+本专题维护预训练、持续预训练和后训练共用的训练机制，不单独偏向其中一条路线。不同阶段会改变数据来源、监督范围、参与模型和分布式规模，但都会复用计算图、局部反向、有效更新、数值稳定和训练状态生命周期。学习者完成核心任务后，应能画出训练依赖图，核对监督与更新口径，建立状态生命周期账本，并在比较性能之前验证梯度和数值行为。
 
-因此，学习者需要同时看计算、内存和通信代价，而不是把本专题当作独立优化方案。若问题进入 SFT、LoRA 或训练项目交付，应转到监督微调与训练工程；若重点是显存预算和策略选型，应转到显存优化。
+## 学习路线
 
-## 推荐入口
+按 Task 顺序学习时使用下表；需要连续理解一次训练更新时进入[训练机制问题链](./walkthrough.md)，遇到梯度为空、更新不一致或显存峰值异常时使用[训练机制问题索引](./casebook.md)，术语差异查询[专题术语表](./glossary.md)。Task0–4 建立共用训练机制，Task5 比较重算与搬运，Task6 将正确性、数值和性能证据收口为采用决策。
 
-推荐把本专题作为 [监督微调与训练工程](../post_training_optimization/sft_foundation/intro.md) 或 [显存优化](../memory_performance_tuning/intro.md) 的机制桥接。需要理解训练为什么变慢、爆显存或必须做 checkpointing 时，再进入对应的 Task，而不是把本专题当作独立项目线顺序完成。
+| Task / 主题 | 本阶段要回答的问题 | 学习入口与验证出口 | 学习顺序 | 主要正文入口 |
+|:---|:---|:---|:---|:---|
+| Task0 · 训练闭环与梯度信号 | 参数如何经过前向传播、损失、反向传播和更新形成一次完整训练闭环？ | 核心：[Part 00 · 09 模块与参数](../../00_Prerequisites/09_PyTorch_nn_Module_Basics.md) → [Part 00 · 12 训练生命周期](../../00_Prerequisites/12_PyTorch_Minimal_Training_Interface.md) | 参数初态 → 前向依赖 → 损失 → 梯度 → 更新后状态 | [01 训练闭环与计算图](./01_training_loop_and_computation_graph.md) |
+| Task1 · 计算图、VJP 与梯度边界 | 自动求导如何沿计算图传播上游梯度，计算图在何处被保留、累积或切断？ | 核心：[Part 00 · 07 自动求导](../../00_Prerequisites/07_PyTorch_Autograd_and_Backward.md) → [Part 00 · 08 梯度边界](../../00_Prerequisites/08_PyTorch_Grad_Hygiene_and_No_Grad.md) | 局部导数 → VJP → 分支汇合 → 累积 / 切断 | [02 自动求导与 Transformer 反向传播](./02_autograd_and_transformer_backward.md) |
+| Task2 · Transformer 局部反向与保存状态 | 激活、损失、Attention 与残差路径分别依赖哪些前向状态？ | 核心：[Part 02 · 09 激活与损失反向](../../02_PyTorch_Algorithms/09_Activation_and_Loss_Backward.md) → [Part 02 · 10 Attention 反向传播](../../02_PyTorch_Algorithms/10_Attention_Backward_and_Custom_Autograd.md) | 局部算子 → 保存状态 → 反向消费者 → 梯度对照 | [02 自动求导与 Transformer 反向传播](./02_autograd_and_transformer_backward.md) |
+| Task3 · 监督、梯度尺度与有效更新 | 损失归约、微批次、混合精度与更新时钟如何共同决定一次有效更新？ | 基础：[Part 01 · 12 Tensor Core 与混合精度](../../01_Hardware_Math_and_Systems/12_TensorCore_and_Mixed_Precision.md)；核心：[Part 02 · 11 梯度累积](../../02_PyTorch_Algorithms/11_Gradient_Accumulation.md) → [Part 02 · TRAIN-MIXED-PRECISION-BACKWARD 混合精度反向](../../02_PyTorch_Algorithms/TRAIN-MIXED-PRECISION-BACKWARD_Mixed_Precision_Backward.md) → [Part 02 · 12 优化器与调度](../../02_PyTorch_Algorithms/12_Optimizer_Updates_and_Learning_Rate_Scheduling.md)；扩展：[Part 02 · 13 SFT 监督范围](../../02_PyTorch_Algorithms/13_SFT_Training_Loop.md) | 监督范围 → 损失分母 → 梯度累积 / 缩放 → 有效更新 | [03 监督与有效更新](./03_supervision_gradient_scale_effective_update.md) |
+| Task4 · 训练状态生命周期与峰值账本 | 参数、梯度、优化器状态、激活和工作区在何时产生、驻留、消费与释放？ | 核心：[Part 00 · 18 显存账本](../../00_Prerequisites/18_Memory_Profiling_and_Optimization.md) → [Part 02 · 43 统一训练内存账本](../../02_PyTorch_Algorithms/43_Unified_Training_Memory_Ledger.md) | 状态分类 → 生命周期 → 阶段重叠 → 峰值贡献 | [04 训练状态生命周期](./04_training_state_lifecycle.md) |
+| Task5 · 重算、搬运与驻留策略 | 激活检查点和卸载分别改变什么状态，代价由计算还是传输承担？ | 核心：[Part 02 · 19 激活检查点](../../02_PyTorch_Algorithms/19_Activation_Checkpointing.md) → [Part 02 · 42 激活卸载](../../02_PyTorch_Algorithms/42_Activation_Offload.md)；项目：[Part 02 · 76 策略对照](../../02_PyTorch_Algorithms/76_Activation_Checkpoint_Offload_Benchmark.md) | 作用对象 → 正确性 → 容量收益 → 重算 / 搬运代价 | [05 激活检查点与卸载](./05_checkpointing_and_offload.md) |
+| Task6 · 正确性、数值稳定与性能证据 | 梯度和更新语义成立后，如何判断候选策略既正确又值得采用？ | 核心：[Part 00 · 19 异常定位](../../00_Prerequisites/19_Debugging_and_Anomaly_Localization.md) → [Part 00 · 20 实验设计](../../00_Prerequisites/20_Performance_Evidence_and_Experiment_Design.md)；项目：[Part 02 · 73 训练基线](../../02_PyTorch_Algorithms/73_Training_Performance_Analysis.md) → [Part 02 · 74 性能归因](../../02_PyTorch_Algorithms/74_Profiling_Driven_End_to_End_Optimization.md) → [Part 02 · 76 策略对照](../../02_PyTorch_Algorithms/76_Activation_Checkpoint_Offload_Benchmark.md) | 复用 Task3 数值证据 → 梯度正确 → 质量过门 → 性能复测 → 决策 | [06 正确性与性能证据](./06_correctness_and_performance_evidence.md) |
 
-## 前置阅读
+![反向传播与训练机制学习路线](../../public/topic_discussion/backpropagation_training_mechanism/backprop_training_roadmap.svg)
 
-建议先具备 PyTorch 张量与自动求导基础；如果要进入 attention backward、checkpointing 或 offload，可按 [Part 02 · 17 自动求导基础](../../02_PyTorch_Algorithms/17_Autograd_Basics.md) → [Part 02 · 18 激活与损失反向传播](../../02_PyTorch_Algorithms/18_Activation_and_Loss_Backward.md) → [Part 02 · 19 激活检查点](../../02_PyTorch_Algorithms/19_Activation_Checkpointing.md) → [Part 02 · 42 激活 Offload](../../02_PyTorch_Algorithms/42_Activation_Offload.md) 回看来源 Notebook。
+![反向传播与训练机制知识地图](../../public/topic_discussion/backpropagation_training_mechanism/backprop_training_knowledge_map.svg)
 
-## 主学习线
+## 扩展与跨专题入口
 
-`Task1-5` 是学习路线，指向 Part 02 的具体小节和项目；最后一列对应专题正文页，图册作为补充阅读。
+### 共同机制的应用路径
 
-| Task | 学习内容 | 主学习线 | 专题正文 |
-|:---|:---|:---|:---|
-| Task1 | backward 总览与计算图 | [Part 02 · 17 自动微分基础](../../02_PyTorch_Algorithms/17_Autograd_Basics.md) | [01 反向传播与计算图](./01_backpropagation_and_graph.md) |
-| Task2 | autograd 与 attention backward | [Part 02 · 17 自动微分基础](../../02_PyTorch_Algorithms/17_Autograd_Basics.md) → [Part 02 · 18 激活与损失反向传播](../../02_PyTorch_Algorithms/18_Activation_and_Loss_Backward.md) | [02 自动微分与 Attention 反向传播](./02_autograd_and_attention_backward.md) |
-| Task3 | loss 对齐与显存账本 | [Part 02 · 18 激活与损失反向传播](../../02_PyTorch_Algorithms/18_Activation_and_Loss_Backward.md) | [03 损失对齐与显存账本](./03_loss_alignment_memory_ledger.md) |
-| Task4 | checkpointing 与 offload | [Part 02 · 19 激活检查点](../../02_PyTorch_Algorithms/19_Activation_Checkpointing.md) → [Part 02 · 42 激活 Offload](../../02_PyTorch_Algorithms/42_Activation_Offload.md) | [04 Checkpointing 与 Offload](./04_checkpointing_and_offload.md) |
-| Task5 | 梯度累积、训练闭环与 profiling | [Part 02 · 12 梯度累积](../../02_PyTorch_Algorithms/12_Gradient_Accumulation.md) → [Part 02 · 73 训练性能分析](../../02_PyTorch_Algorithms/73_Training_Performance_Analysis.md) → [Part 02 · 74 Profiling 驱动的端到端优化](../../02_PyTorch_Algorithms/74_Profiling_Driven_End_to_End_Optimization.md) | [05 梯度累积、决策与性能分析](./05_accumulation_decision_profiling.md) |
+共同主干分别服务两条应用路径：预训练与持续预训练使用全序列监督和长周期训练，后训练引入 response-only mask、adapter、偏好对、rollout 与奖励信号。两条路径改变监督与系统规模，不改变计算图、有效更新和状态生命周期的基本语义。
 
-## 正文与跳转
+| 应用路径 | 主要变化 | 复用的共同机制 |
+| --- | --- | --- |
+| 预训练 / 持续预训练 | 全序列监督、长周期 checkpoint、较大的数据与并行规模 | 计算图、局部反向、梯度累积、混合精度、状态生命周期 |
+| 后训练 | response-only mask、adapter、偏好对、rollout、reward / value | 有效更新、有限值检查、梯度尺度、检查点与卸载、正确性证据 |
 
-先按上面的 `Task1-5` 走 notebook 主线；遇到“梯度到底怎么回去”“为什么 activation 要保存”“checkpointing 和 offload 本质差别是什么”时，再回来看对应的专题正文。想看汇总版就进 [反向传播与训练机制正文](./casebook.md)，想按连续故事线走一遍就进 [反向传播与训练机制深入阅读](./walkthrough.md)。工具层补充放在 [训练工具桥](./training_tooling_bridge.md)，图册补充放在 [06 视觉资产](./06_visual_assets.md)。
+### 按需回补
 
-如果问题已经跨到别的专题：
-[监督微调与训练工程](../post_training_optimization/sft_foundation/intro.md) 负责训练闭环与项目交付，[显存优化](../memory_performance_tuning/intro.md) 负责训练侧显存 trade-off，[性能分析](../profiling/intro.md) 负责证据链与热点定位。
+| 知识缺口 | 回补入口 | 使用时机 |
+| --- | --- | --- |
+| Attention 的前向表示 | [Part 02 · 04 Attention](../../02_PyTorch_Algorithms/04_Attention_MHA_GQA.md) | Task2 中需要回看 Q/K/V、Softmax 与残差路径的输入输出时 |
+| 参数更新与学习率节奏 | [Part 02 · 12 优化器与调度](../../02_PyTorch_Algorithms/12_Optimizer_Updates_and_Learning_Rate_Scheduling.md) | Task3 中需要核对学习率调度器与优化器更新步时 |
+| dtype、FP16 与 BF16 | [Part 01 · 01 数据格式与混合精度](../../01_Hardware_Math_and_Systems/01_Data_Types_and_Precision.md) | Task6 中分析梯度范围、缩放和有限值时 |
+| ZeRO 与多卡状态切分 | [Part 01 · 06 显存计算与 ZeRO](../../01_Hardware_Math_and_Systems/06_VRAM_Calculation_and_ZeRO.md) | Task4 账本扩展到多卡训练时 |
+| 梯度同步与通信 | [通信与并行](../communication_parallelism/intro.md) | 单卡梯度语义已经成立，需要分析 All-Reduce 或 Reduce-Scatter 时 |
 
-## 环境与验证
+### 跨专题入口
 
-计算图、loss 和小规模 backward 实验通常可用 CPU；长序列、checkpoint/offload 和真实训练性能比较建议使用 GPU。验证时应区分数值正确性、峰值显存和 step time，不能把单项指标改善直接当成整体优化结论。
+| 后续问题 | 进入专题 | 本专题提供的基础 |
+| --- | --- | --- |
+| SFT、DPO、GRPO 的训练目标和项目交付 | [后训练优化](../post_training_optimization/intro.md) | 监督信号、有效更新和梯度安全 |
+| 峰值显存、时间线追踪、吞吐和策略选择 | [性能优化](../performance_optimization/intro.md) | 状态生命周期、策略作用对象和正确性门槛 |
+| 反向传播内核、融合与重算 | [算子优化](../operator_optimization/intro.md) | 局部梯度依赖与反向保存张量 |
+| 状态切分、梯度同步和扩展效率 | [通信与并行](../communication_parallelism/intro.md) | 单卡梯度语义与训练状态账本 |
+
+## 实验与项目出口
+
+机制页先输出梯度、保存状态、有限值和更新边界；项目页再验证训练基线、策略归因与组合决策。稳定出口分别是 `TRAIN-BASELINE`（Part 02 · 73）、`TRAIN-PROFILING-DIAGNOSIS`（Part 02 · 74）和 `TRAIN-MEMORY-STRATEGY`（Part 02 · 76）。
+
+### 环境与验证
+
+| 实验层级 | 适用内容 | 可确认的结论 |
+| --- | --- | --- |
+| CPU 机制 | Task0–5 的计算图、局部梯度、监督、账本和策略逻辑 | 数值关系、状态转移与输入契约正确 |
+| 单卡 GPU | 梯度累积、混合精度、激活检查点与卸载 | 更新一致性、峰值显存与单步时间的真实代价 |
+| 训练性能项目 | Part 02 · 73、74、76 | 固定工作负载下候选策略是否值得采用 |
+
+单卡机制实验统一使用 `TRAIN-CUDA-MECHANISM`。Notebook 的 5.1 只保留 `RUN_MODE`、`RUN_LABEL`、Profile ID 和本页工作负载参数；安装命令、依赖互斥与故障处理集中在[实验 Quickstart](./quickstart.md)，页面与结果状态集中在[实验资产表](./experiment_assets.md)。
+
+项目实验固定模型、数据划分、有效批次、数据类型、优化器更新次数和随机种子。结果字段、Profile、页面状态和证据等级统一登记在[实验资产表](./experiment_assets.md)。
