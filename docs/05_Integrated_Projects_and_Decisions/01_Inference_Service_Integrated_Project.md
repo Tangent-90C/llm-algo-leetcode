@@ -78,7 +78,7 @@ baseline 和 candidate 必须使用同一模型、请求集、硬件、dtype、�
 
 - [推理优化](../topic_discussion/inference_optimization/intro.md)：请求生命周期、Prefill、Decode、KV Cache、Serving 和 backend；
 - [性能优化](../topic_discussion/performance_optimization/intro.md)：benchmark、profiling、显存、通信、I/O 和成本证据；
-- [量化与压缩](../topic_discussion/quantization/intro.md)：低比特表示、质量评估和部署格式；
+- [量化与压缩](../topic_discussion/quantization_compression/intro.md)：低比特表示、质量评估和部署格式；
 - [部署与异构系统](../topic_discussion/deployment_heterogeneous/intro.md)：模型产物、运行时、设备协同和交付约束。
 
 本项目不要求这些专题与项目章节一一对应；它们分别提供机制、方法和证据，项目负责把它们组合成一个可交付结论。
