@@ -1,0 +1,14 @@
+# Compatibility set for requirements/torch-cu128.txt + quantization.txt.
+# Constraints prevent capability packages from silently replacing cu128
+# PyTorch with the default CUDA 13 wheel from PyPI.
+torch==2.11.0
+cuda-bindings==12.9.4
+torchao==0.18.0
+llmcompressor==0.14.0
+compressed-tensors==0.19.0
+hqq==0.2.8.post1
+transformers==5.17.0
+datasets==5.0.1
+accelerate==1.15.0
+auto-round==0.15.1
+socksio==1.0.0

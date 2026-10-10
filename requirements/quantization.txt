@@ -1,0 +1,24 @@
+# Dedicated Q-CUDA-MECHANISM profile.
+# Install requirements/torch-cu128.txt first, then install this file in the
+# same fresh environment. Do not overlay it on inference-vllm.txt or
+# inference-sglang.txt environments.
+--index-url https://download.pytorch.org/whl/cu128
+--extra-index-url https://pypi.org/simple
+
+-c quantization-cu128-constraints.txt
+-r base.txt
+
+# PyTorch-native weight-only and FP8 mechanism experiments.
+torchao
+
+# Transformers QuantizedCache mechanism experiment (Part 02 · 54).
+hqq
+
+# PTQ recipes and deployable compressed-tensors artifacts for vLLM.
+llmcompressor
+compressed-tensors
+datasets
+
+# Hugging Face model/dataset downloads may inherit ALL_PROXY from Jupyter.
+# Keep SOCKS transport available without requiring learners to rewrite proxies.
+socksio

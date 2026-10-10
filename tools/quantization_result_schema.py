@@ -15,6 +15,12 @@ from typing import Any, Mapping
 
 SCHEMA_VERSION = "quantization-evidence/v1"
 EVIDENCE_STAGES = ("artifact_gate", "floating_baseline", "quantized_deployment", "serving_profile")
+STAGE_PRODUCERS = {
+    "artifact_gate": "QUANT-ARTIFACT-GATE",
+    "floating_baseline": "INF-FLOAT-BASELINE",
+    "quantized_deployment": "QUANT-INFERENCE-DEPLOY",
+    "serving_profile": "QUANT-SERVING-PROFILE",
+}
 
 
 def _mapping(value: Any) -> dict[str, Any]:
@@ -59,20 +65,27 @@ def artifact_gate_record(payload: Mapping[str, Any]) -> dict[str, Any]:
     decision = "accept" if gate.get("ready") else "reject"
     return {
         "schema_version": SCHEMA_VERSION,
+        "semantic_id": STAGE_PRODUCERS["artifact_gate"],
         "stage": "artifact_gate",
         "artifact": {
             "artifact_id": manifest.get("artifact_id") or manifest.get("id"),
+            "path": manifest.get("artifact_path"),
             "model": model.get("id"),
             "model_revision": model.get("revision"),
+            "method": quantization.get("method"),
             "format": quantization.get("format"),
             "bits": quantization.get("bits"),
             "group_size": quantization.get("group_size"),
             "manifest": manifest,
         },
         "quality": {
-            "metric": quality.get("metric"),
-            "baseline_metric": quality.get("baseline_metric"),
-            "threshold": quality.get("threshold"),
+            "metric_name": quality.get("metric_name") or quality.get("metric"),
+            "direction": quality.get("direction"),
+            "baseline_value": quality.get("baseline_value", quality.get("baseline_metric")),
+            "candidate_value": quality.get("candidate_value", quality.get("metric")),
+            "ratio_vs_baseline": quality.get("ratio_vs_baseline"),
+            "max_degradation_ratio": quality.get("max_degradation_ratio", quality.get("threshold")),
+            "passed": quality.get("passed"),
             "evaluation_split": quality.get("eval_split"),
         },
         "hardware": _mapping(payload.get("hardware")),
@@ -99,6 +112,7 @@ def floating_baseline_record(payload: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError("floating baseline must not use a quantized artifact format")
     return {
         "schema_version": SCHEMA_VERSION,
+        "semantic_id": STAGE_PRODUCERS["floating_baseline"],
         "stage": "floating_baseline",
         "artifact": {
             "artifact_id": source.get("artifact_id") or config.get("artifact_id"),
@@ -145,10 +159,12 @@ def quantized_deployment_record(payload: Mapping[str, Any]) -> dict[str, Any]:
     model_revision = artifact.get("model_revision") or source.get("model_revision") or config.get("model_revision")
     return {
         "schema_version": SCHEMA_VERSION,
+        "semantic_id": STAGE_PRODUCERS["quantized_deployment"],
         "stage": "quantized_deployment",
         "artifact": {
             **artifact,
             "artifact_id": artifact.get("artifact_id") or source.get("artifact_id") or config.get("artifact_id"),
+            "path": artifact.get("path") or source.get("artifact_path") or config.get("artifact_path"),
             "model": model,
             "model_revision": model_revision,
             "format": quantization_format,
@@ -169,6 +185,8 @@ def quantized_deployment_record(payload: Mapping[str, Any]) -> dict[str, Any]:
         "workload": _mapping(source.get("workload")) or config,
         "metrics": _mapping(source.get("metrics")),
         "quality": _mapping(source.get("quality")),
+        "comparison": _mapping(source.get("comparison")),
+        "lineage": _mapping(source.get("lineage")) or _mapping(source.get("upstream")),
         "status": source.get("status", "not_recorded"),
         "evidence_level": source.get("evidence_level", "not_recorded"),
         "failure": _failure(source.get("failure")),
@@ -191,6 +209,7 @@ def serving_profile_record(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
     return {
         "schema_version": SCHEMA_VERSION,
+        "semantic_id": STAGE_PRODUCERS["serving_profile"],
         "stage": "serving_profile",
         "artifact": {"artifact_id": payload.get("artifact_id")},
         "backend": {"name": payload.get("backend"), "version": payload.get("backend_version")},
@@ -198,6 +217,7 @@ def serving_profile_record(payload: Mapping[str, Any]) -> dict[str, Any]:
         "workload": {"id": payload.get("workload_id"), **workload},
         "profile": {"name": payload.get("profile"), "primary_metric": payload.get("primary_metric"), "slo": _mapping(payload.get("slo"))},
         "metrics": metrics,
+        "lineage": _mapping(payload.get("lineage")),
         "status": payload.get("status", "not_recorded"),
         "evidence_level": payload.get("evidence_level", "not_recorded"),
         "failure": _failure(payload.get("failure")),
