@@ -13,17 +13,17 @@
 
 ## 本节导读
 
-W8A16 建立了整数码、量化参数和粒度的基础；继续压缩到 4-bit 后，不同通道对层输出的影响差异会变得更重要。GPTQ 使用校准激活近似二阶敏感度，降低量化误差对层输出的影响；AWQ 使用激活统计识别显著通道，通过缩放或保护减少关键权重的损失。
+W8A16 建立了整数码、量化参数和粒度的基础；继续压缩到 4 位后，不同通道对层输出的影响差异会变得更重要。GPTQ 使用校准激活近似二阶敏感度，降低量化误差对层输出的影响；AWQ 使用激活统计识别显著通道，通过缩放或保护减少关键权重的损失。
 
-本节沿“校准统计 → group-wise 候选 → 层输出误差 → artifact metadata”分析两种方法。它负责说明产物必须保存什么，不代替 loader 兼容性、真实 kernel 和服务 benchmark。
+本节沿“校准统计 → 分组候选 → 层输出误差 → 量化产物”分析两种方法，重点判断校准信号如何改变权重保护策略，以及产物需要保留哪些信息才能复现量化结果。
 
-**关键词：** `GPTQ`, `AWQ`, `Hessian proxy`, `activation statistics`, `quantized artifact`
+**关键词：** `GPTQ`、`AWQ`、Hessian 对角代理、激活统计、量化产物
 
 ---
 
 ## 前置阅读
 
-**导语：** 先掌握独立校准协议和 group-wise 表示，再比较 GPTQ 与 AWQ 使用校准激活的不同方式。
+**导语：** 先掌握独立校准协议和逐组（per-group）表示，再比较 GPTQ 与 AWQ 使用校准激活的不同方式。
 
 - [52. Quantization Calibration and Error | 量化校准与误差控制](./52_Quantization_Calibration_and_Error.md)
 - [25. W8A16 Quantization | W8A16 表示基础](./25_Quantization_W8A16.md)
@@ -32,14 +32,14 @@ W8A16 建立了整数码、量化参数和粒度的基础；继续压缩到 4-bi
 
 ### Step 1：校准统计怎样变成权重量化产物
 
-权重量化产物不只是 packed weight。生成候选时需要固定源模型 revision、校准样本、bit width 和 group size；保存时还要记录 scale、zero point 或对称约定、packing layout、目标模块和方法专属统计。缺失这些信息，即使权重文件存在，也无法可靠恢复或交给 loader。
+权重量化产物不只是打包后的权重文件。生成候选时需要固定源模型版本标识、校准样本、位宽和分组大小；保存时还要记录缩放因子、零点或对称约定、打包布局、目标模块和方法专属统计。缺失这些信息，即使权重文件存在，也无法可靠恢复或交给加载器。
 
 | 阶段 | 输入 | 产生的状态 | 进入下一阶段的条件 |
 |---|---|---|---|
-| 校准 | 独立 calibration 样本、浮点权重 | 激活 RMS、Hessian 近似或显著通道 | 统计维度与目标层一致 |
-| 分组量化 | bit、group size、方法配置 | qweight、scale、保护/补偿状态 | 尾组完整、误差有限 |
+| 校准 | 独立校准样本、浮点权重 | 激活 RMS、Hessian 近似或显著通道 | 统计维度与目标层一致 |
+| 分组量化 | bit、分组大小、方法配置 | qweight、缩放因子、保护/补偿状态 | 尾组完整、误差有限 |
 | 层输出复核 | 同一校准输入与浮点输出 | 权重误差、加权误差、层输出误差 | 通过局部候选门槛 |
-| artifact 生成 | 量化状态与模型身份 | 权重文件、配置与 manifest | metadata 完整后进入 82 |
+| 量化产物生成 | 量化状态与模型身份 | 权重文件、配置与清单 | 元数据完整后进入 82 |
 
 ![权重量化统计、产物与验证路径](../public/02_PyTorch_Algorithms/40_quantization_landscape_cn.svg)
 
@@ -49,9 +49,9 @@ W8A16 建立了整数码、量化参数和粒度的基础；继续压缩到 4-bi
 
 | 统计或配置 | 机制意义 | 需要检查 |
 |---|---|---|
-| calibration matrix `X` | 代表目标 workload 的层输入 | 样本隔离、shape 与覆盖范围 |
+| 校准矩阵 `X` | 代表目标工作负载的层输入 | 样本隔离、形状与覆盖范围 |
 | `XᵀX / N` 或对角近似 | 描述输入方向的局部敏感度 | 数值稳定性与通道对应关系 |
-| `group_size` | 限制共享 scale 的权重范围 | 误差、元数据与 kernel 支持 |
+| `group_size` | 限制共享缩放因子的权重范围 | 误差、元数据与计算内核支持 |
 | 加权重构误差 | 估计权重误差对层输出的影响 | 仍需独立任务质量复核 |
 
 ### Step 3：AWQ 如何使用激活统计保护显著通道
@@ -60,21 +60,21 @@ AWQ 关注输入激活幅度较大的通道，因为这些通道对应的权重�
 
 | 方法 | 校准信号 | 决策重点 | 产物需要记录 |
 |---|---|---|---|
-| GPTQ | Hessian 或其近似 | 量化误差如何影响层输出 | bit、group size、scale、packing 与方法配置 |
-| AWQ | 激活幅度与显著通道 | 哪些通道需要缩放或保护 | scale、显著性/缩放配置与 packing |
-| 共同部分 | 独立校准输入 | 生成可复现的 group-wise 权重状态 | 模型 revision、目标模块与校准摘要 |
+| GPTQ | Hessian 或其近似 | 量化误差如何影响层输出 | bit、分组大小、缩放因子、打包与方法配置 |
+| AWQ | 激活幅度与显著通道 | 哪些通道需要缩放或保护 | 缩放因子、显著性/缩放配置与打包 |
+| 共同部分 | 独立校准输入 | 生成可复现的逐组权重状态 | 模型版本标识、目标模块与校准摘要 |
 
 ![GPTQ 与 AWQ 的校准信号](../public/02_PyTorch_Algorithms/40_gptq_awq_map_cn.svg)
 
-### Step 4：实现校准统计、显著通道与 artifact contract
+### Step 4：实现校准统计、显著通道与量化产物契约
 
-题目区实现三个机制：从校准激活得到 RMS 和 Hessian 对角近似；为 AWQ 路径标记显著通道；为每个 group 生成安全 scale。分组循环、恢复、加权误差和 artifact manifest 由骨架提供，使测试能够核对统计、方法差异和产物元数据。
+题目区实现三个机制：从校准激活得到 RMS 和 Hessian 对角近似；为 AWQ 路径标记显著通道；为每个分组生成安全缩放因子。分组循环、恢复、加权误差和产物清单由骨架提供，使测试能够核对统计、方法差异和产物元数据。
 
-| TODO | 机制责任 | 关键测试 |
-|:---|:---|:---|
-| TODO 1 | `_collect_statistics` 生成 activation RMS 与 Hessian 对角近似 | shape、有限值、通道语义 |
-| TODO 2 | `_awq_protection_mask` 标记 group 内显著通道 | 保护比例、局部下标、GPTQ/AWQ 差异 |
-| TODO 3 | `fit` 生成未保护权重的 group scale | 全零 group、尾组、INT4 范围 |
+| 任务 | 学习目的 | 已知条件 | 学习者完成 | 测试重点 |
+|:---|:---|:---|:---|:---|
+| TODO 1 | 建立 GPTQ 与 AWQ 共用的校准统计 | 校准激活已整理为二维矩阵 | 计算激活均方根（RMS）与 Hessian 对角代理 | 形状、平方关系与通道语义 |
+| TODO 2 | 把 AWQ 显著性排序转为保护状态 | 已给出组内 `topk` 下标 | 将显著通道写入布尔掩码 | 保护比例、局部下标与方法差异 |
+| TODO 3 | 为未保护权重建立逐组表示 | 已给出当前分组、位宽范围与数值下限 | 计算安全缩放因子 | 全零分组、尾组与 INT4 范围 |
 
 
 ```python
@@ -115,9 +115,9 @@ class WeightQuantizerSim(nn.Module):
         if flat.shape[-1] != in_features:
             raise ValueError("calibration activation dim does not match weight")
         # TODO 1（校准统计）：mean(X²) 是 Hessian 对角代理，RMS 是其平方根。
-        # hessian_diag = ???
-        # activation_rms = ???
-        return activation_rms, hessian_diag
+        # hessian_diag = ???  # 形状为 [in_features] 的 mean(X²)。
+        # activation_rms = ???  # 形状为 [in_features] 的 RMS。
+        raise NotImplementedError("TODO 1: collect activation RMS and Hessian diagonal proxy")
 
     def _awq_protection_mask(self, importance: torch.Tensor) -> torch.Tensor:
         """在当前 group 内按 activation RMS 标出需要保护的通道。"""
@@ -151,7 +151,7 @@ class WeightQuantizerSim(nn.Module):
                 protected_mask[row, start:end] = mask
                 protected_weight[row, start:end] = chunk * mask.to(chunk.dtype)
                 quantized_source = chunk[~mask] if (~mask).any() else chunk
-                # TODO 3（group scale）：按未保护权重的 absmax 生成安全 scale。
+                # TODO 3（分组缩放因子）：按未保护权重的 absmax 生成安全缩放因子。
                 # scale = ???
                 q_chunk = torch.zeros_like(chunk, dtype=torch.int8)
                 q_chunk[~mask] = torch.clamp(torch.round(chunk[~mask] / scale), -self.qmax, self.qmax).to(torch.int8)
@@ -186,7 +186,7 @@ class WeightQuantizerSim(nn.Module):
         return torch.mean(error * self.hessian_diag.reshape(1, -1))
 
     def artifact_manifest(self) -> dict[str, object]:
-        """返回 loader/backend 后续验证所需的最小量化 metadata。"""
+        """返回加载器/执行后端后续验证所需的最小量化元数据。"""
         if self.weight_shape is None:
             raise RuntimeError("Call fit() before artifact_manifest().")
         return {
@@ -207,9 +207,12 @@ class WeightQuantizerSim(nn.Module):
 
 ```
 
+### 测试
+
+测试分别验证校准统计、尾组、AWQ 显著通道、GPTQ 加权误差和产物清单；每个机制 TODO 都有独立验证入口。
 
 ```python
-# 机制测试：校准统计、分组边界、AWQ 显著通道、GPTQ 误差代理与 artifact contract。
+# 机制测试：校准统计、分组边界、AWQ 显著通道、GPTQ 误差代理与 量化产物契约。
 def test_calibration_statistics_contract():
     """RMS 与 Hessian 对角代理保持通道 shape 和平方关系。"""
     acts = torch.randn(3, 5, 8)
@@ -268,10 +271,19 @@ print("✅ GPTQ/AWQ 机制测试通过：统计、分组、显著通道、误差
 
 ```
 
+---
+
+🛑 **STOP HERE** 🛑
+<br><br><br><br><br><br><br><br><br><br>
+> 请先尝试自己完成代码并跑通测试。<br>
+> 如果遇到困难，再向下查看参考代码与解析。
+<br><br><br><br><br><br><br><br><br><br>
+
+---
+
 ## 参考代码与解析
 
 ### 代码
-
 
 ```python
 class WeightQuantizerSim(nn.Module):
@@ -339,7 +351,7 @@ class WeightQuantizerSim(nn.Module):
                 protected_mask[row, start:end] = mask
                 protected_weight[row, start:end] = chunk * mask.to(chunk.dtype)
                 quantized_source = chunk[~mask] if (~mask).any() else chunk
-                # TODO 3（group scale）：按未保护权重的 absmax 生成安全 scale。
+                # TODO 3（分组缩放因子）：按未保护权重的 absmax 生成安全缩放因子。
                 scale = (quantized_source.abs().max() / self.qmax).clamp_min(self.eps)
                 q_chunk = torch.zeros_like(chunk, dtype=torch.int8)
                 q_chunk[~mask] = torch.clamp(torch.round(chunk[~mask] / scale), -self.qmax, self.qmax).to(torch.int8)
@@ -374,7 +386,7 @@ class WeightQuantizerSim(nn.Module):
         return torch.mean(error * self.hessian_diag.reshape(1, -1))
 
     def artifact_manifest(self) -> dict[str, object]:
-        """返回 loader/backend 后续验证所需的最小量化 metadata。"""
+        """返回加载器/执行后端后续验证所需的最小量化元数据。"""
         if self.weight_shape is None:
             raise RuntimeError("Call fit() before artifact_manifest().")
         return {
@@ -401,117 +413,165 @@ class WeightQuantizerSim(nn.Module):
 
 **TODO 2：AWQ 显著通道。** `topk` 只在当前 group 内排序，保护比例不会跨 group 混用。教学实现用原值回填展示保护效果；真实 AWQ 更常通过缩放迁移量化难度。
 
-**TODO 3：group scale。** scale 来自当前 group 中未保护权重的局部范围；尾组和全零范围必须保持有效。恢复时只能使用同一行、同一 group 的 scale。
+**TODO 3：分组缩放因子。** 缩放因子来自当前 group 中未保护权重的局部范围；尾组和全零范围必须保持有效。恢复时只能使用同一行、同一 group 的缩放因子。
 
-`artifact_manifest` 保存恢复和兼容性检查所需 metadata，但 `packing_layout=teaching_int8_container` 明确表示它不是可直接部署的 GPTQ/AWQ artifact。真实 loader 与 backend 验证由 82、67 承担。
+`artifact_manifest` 保存恢复和兼容性检查所需元数据，但 `packing_layout=teaching_int8_container` 明确表示它不是可直接部署的 GPTQ/AWQ 量化产物。真实加载器与执行后端验证由 82、67 承担。
 
 ### Step 5：可选 GPU 实验——用 LLM Compressor 生成 GPTQ / AWQ 产物
 
-#### 5.1 环境、校准集与候选 recipe
+CPU 题目比较校准统计、分组误差和显著通道保护；GPU 实验从同一个 BF16 检查点生成 RTN、GPTQ 与 AWQ 三类 W4A16 产物，并用独立评测集比较质量和校准成本。实验回答的是“额外校准算法是否改善压缩产物”，不直接证明部署后端能够获得吞吐收益。
 
-实验让 GPTQ 与 AWQ 使用同一浮点 checkpoint、同一校准集和同一 W4A16 表示，再分别生成 compressed-tensors artifact。这样比较的是校准策略，而不是模型、数据或位宽差异。
-
-| 路径 | LLM Compressor recipe | 本节产物 |
+| 学习问题 | CPU 已确认 | GPU 要确认 |
 |---|---|---|
-| GPTQ | `GPTQModifier(W4A16)` | GPTQ 校准后的 W4A16 artifact |
-| AWQ | `AWQModifier` + `QuantizationModifier(W4A16)` | 激活感知缩放后的 W4A16 artifact |
-| 浮点参考 | Transformers BF16 | 固定 greedy 输出基线 |
+| 校准算法能否改善真实权重量化产物 | 校准统计、分组误差和保护策略 | RTN/GPTQ/AWQ 产物、独立评测 NLL、校准成本与产物完整性 |
 
+#### 5.1 固定环境、数据划分与候选矩阵
+
+本实验使用 `Q-CUDA-MECHANISM`。首次运行先完成[量化机制 GPU 环境 Quickstart](../topic_discussion/quantization_compression/quickstart.md#q-cuda-mechanism-quickstart)，已有环境执行 Profile 预检后再启动 JupyterLab。下载失败或检测到环境污染时，再查看[GPU 环境资产表](../gpu_environment_assets.md)。
+
+RTN、GPTQ 和 AWQ 固定使用同一个模型 commit、W4A16 表示、校准样本、评测样本和随机种子。校准集只产生压缩统计，validation 只比较候选质量；产物进入 Serving 前仍需独立测试集和目标加载器验收。
+
+| 配置层 | 本节固定口径 | 修改规则 |
+|---|---|---|
+| 环境 | `Q-CUDA-MECHANISM`；单张 NVIDIA GPU；BF16 基线 | 不与 vLLM/SGLang 环境混装 |
+| 模型与数据 | `Qwen/Qwen2.5-0.5B-Instruct`；WikiText-2 train/validation | 模型或数据改变后新建运行记录 |
+| 工作负载 | 校准 64 条、评测 64 条、最大长度 256 Token | 样本数或长度改变后使用新的运行标签 |
+| 配对变量 | BF16 → RTN、GPTQ、AWQ；统一 W4A16 与目标模块 | 每次只改变校准算法，不混入位宽或粒度变化 |
+| 测量指标 | Token 加权 NLL、困惑度、校准时间、增量峰值 | 共享进程绝对显存不参与候选排序 |
+| 结果资产 | JSON 与三个独立产物目录 | 正式复测使用唯一 `RUN_LABEL` |
 
 ```python
-# 5.1 只定义模型、校准文本与 artifact 目录；默认不下载模型、不占用 GPU。
-from pathlib import Path
+# 5.1 只定义学习者入口、模型来源与固定实验协议；默认不下载模型、不占用 GPU。
+# 学习者入口：普通复测通常只修改这两项。
+RUN_MODE = "dry_run"  # 默认值 dry_run：只登记计划；改为 real_gpu 才执行完整产物矩阵。
+RUN_LABEL = "default"  # 默认值 default；正式复测改为唯一标签，避免覆盖旧产物。
 
-RUN_MODE = "dry_run"  # dry_run / real_gpu
-MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
-CALIBRATION_TEXTS = [
-    "GPTQ uses calibration activations to reduce output reconstruction error.",
-    "AWQ uses activation statistics to protect salient weight channels.",
-    "Group size controls the sharing range of quantization parameters.",
-    "Calibration data and evaluation prompts must remain separate.",
-    "A quantized artifact needs a compatible loader and inference kernel.",
-    "Weight-only quantization keeps runtime activations in floating point.",
-    "Quantization quality must be checked on an independent workload.",
-    "The same model and bit width are required for an algorithm comparison.",
-]
-EVAL_PROMPT = "Compare GPTQ and AWQ in one concise paragraph."
-NUM_CALIBRATION_SAMPLES = len(CALIBRATION_TEXTS)
-MAX_SEQ_LENGTH = 256
-MAX_NEW_TOKENS = 32
-SCHEME = "W4A16"
-SEED = 42
-RUN_LABEL = "default"  # 修改标签可保留多次复测产物，避免覆盖旧结果
-ARTIFACT_ROOT = Path("benchmarks/artifacts/40_gptq_awq") / RUN_LABEL
-OUTPUT_PATH = Path("benchmarks/results/40_llmcompressor_gptq_awq_artifacts.json")
+# 模型来源：main 会在 5.2 自动解析为本次运行使用的不可变 commit。
+MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"  # 单卡机制基线；换模型后不得合并旧结果。
+MODEL_REVISION = "main"  # 可填写分支、标签或 commit hash。
 
+# 固定实验身份：协议改变时递增版本，不把版本编码进稳定 ID。
+ENVIRONMENT_PROFILE = "Q-CUDA-MECHANISM"  # 运行前必须通过同名 Profile 预检。
+WORKLOAD_ID = "quant-weight-ptq"  # RTN / GPTQ / AWQ 权重量化候选矩阵。
+WORKLOAD_VERSION = "v4"  # v4 使用 Token 加权 NLL、不可变 commit 与完整产物清单。
+
+# 数据协议：校准集产生压缩统计，评测集只比较候选质量。
+DATA_SOURCE = "huggingface"  # huggingface 使用 Hub 数据；local_jsonl 使用登记后的离线副本。
+DATASET_ID = "Salesforce/wikitext"  # 固定数据集身份。
+DATASET_CONFIG = "wikitext-2-raw-v1"  # 使用原始文本配置。
+DATASET_REVISION = "f776294184f13b8ff2337b3841cf9269a6216d1e"  # 固定 Hub commit。
+CALIBRATION_SPLIT = "train"  # 只生成压缩统计。
+EVALUATION_SPLIT = "validation"  # 不参与量化参数生成。
+CALIBRATION_SAMPLES = 64  # 校准文本数；增大会提高覆盖并增加压缩时间。
+EVALUATION_SAMPLES = 64  # Token 加权 NLL 文本数。
+GENERATION_SAMPLES = 8  # 贪心前缀一致率样本数，只作辅助诊断。
+DATA_SEED = 42  # 固定非空文本抽样；结果保存样本 ID 哈希。
+LOCAL_DATA_FILES = None  # 仅在 DATA_SOURCE=local_jsonl 时填写 split 到 JSONL 的映射。
+
+# 候选与决策协议：普通复测保持不变。
+MAX_SEQ_LENGTH = 256  # 分词截断上限，单位为 Token。
+MAX_NEW_TOKENS = 32  # 仅影响生成一致率的计算成本。
+SCHEME = "W4A16"  # 三个候选共享的权重 4-bit、激活 16-bit 表示。
+MAX_NLL_RATIO_VS_BF16 = 1.10  # 候选 NLL / BF16 NLL 的接受上限。
+SEED = 42  # 固定 PyTorch 与压缩过程随机状态。
+
+# 结果资产：5.1 只声明仓库相对路径，5.2 负责定位仓库和创建目录。
+ARTIFACT_RELATIVE_PATH = f"02_PyTorch_Algorithms/benchmarks/artifacts/40_gptq_awq/{RUN_LABEL}"  # 每个候选的量化产物根目录。
+OUTPUT_RELATIVE_PATH = f"02_PyTorch_Algorithms/benchmarks/results/40_llmcompressor_gptq_awq_{RUN_LABEL}.json"  # 本轮候选矩阵 JSON。
 ```
 
+#### 5.2 生成 RTN / GPTQ / AWQ 产物并执行独立评测
+
+执行单元先解析不可变模型 commit 和固定数据样本，再从同一个 BF16 检查点分别生成三类候选。每个候选记录 Token 加权 NLL、校准时间、增量峰值和完整产物清单；失败结果同时保存发生阶段，便于区分下载、依赖、压缩和评测问题。
 
 ```python
-# 5.2 使用 LLM Compressor 在同一校准集上分别生成 GPTQ 与 AWQ artifact。
+# 5.2 使用 LLM Compressor 生成 RTN / GPTQ / AWQ 量化产物，并在独立文本上评估。
+from tools.notebook_runtime import hash_ids, package_version, proxy_transport_status, resolve_model_commit, stable_sample
+from tools.project_runtime import resolve_project_root
+from tools.quantization_runtime import (
+    artifact_manifest, build_candidate_bundle, mean_prefix_agreement, save_candidate_bundle,
+)
+
+import gc
+import hashlib
 import importlib.metadata
+import importlib.util
 import json
+import math
+import os
 import platform
+import random
 import time
+from pathlib import Path
 
 import torch
 
 
-def package_version(name):
-    """读取依赖版本；缺失时返回 None。"""
-    try:
-        return importlib.metadata.version(name)
-    except importlib.metadata.PackageNotFoundError:
-        return None
+REPO_ROOT = resolve_project_root()
+ARTIFACT_ROOT = REPO_ROOT / ARTIFACT_RELATIVE_PATH
+OUTPUT_PATH = REPO_ROOT / OUTPUT_RELATIVE_PATH
 
 
-def directory_bytes(path):
-    """统计 artifact 目录中的文件总字节数。"""
-    return sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
-
-
-def token_prefix_agreement(reference, candidate):
-    """计算固定 greedy 输出的公共前缀比例。"""
-    width = max(1, min(len(reference), len(candidate)))
-    matched = 0
-    for left, right in zip(reference, candidate):
-        if left != right:
-            break
-        matched += 1
-    return matched / width
-
+network_status = proxy_transport_status()
+model_cache_dir = os.getenv("HF_HUB_CACHE") or None
+data_cache_dir = os.getenv("HF_DATASETS_CACHE") or None
+local_files_only = os.getenv("HF_HUB_OFFLINE") == "1"
+execution_stage = "environment_preflight"
 
 result = {
-    "schema_version": "quantization-mechanism-gpu/v2",
+    "schema_version": "quantization-mechanism-gpu/v5",
     "chapter": "40",
+    "environment_profile": ENVIRONMENT_PROFILE,
     "run_mode": RUN_MODE,
+    "run_label": RUN_LABEL,
     "framework": {
         "python": platform.python_version(),
         "torch": torch.__version__,
         "transformers": package_version("transformers"),
         "llmcompressor": package_version("llmcompressor"),
         "compressed_tensors": package_version("compressed-tensors"),
+        "datasets": package_version("datasets"),
     },
+    "network": network_status,
     "hardware": {
         "cuda_available": torch.cuda.is_available(),
         "cuda": torch.version.cuda,
         "device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "total_memory_bytes": int(torch.cuda.get_device_properties(0).total_memory) if torch.cuda.is_available() else None,
+        "compute_capability": list(torch.cuda.get_device_capability(0)) if torch.cuda.is_available() else None,
+        "bf16_supported": bool(torch.cuda.is_bf16_supported()) if torch.cuda.is_available() else False,
+    },
+    "dataset": {
+        "source": DATA_SOURCE,
+        "dataset_id": DATASET_ID,
+        "config": DATASET_CONFIG,
+        "revision": DATASET_REVISION,
+        "calibration_split": CALIBRATION_SPLIT,
+        "evaluation_split": EVALUATION_SPLIT,
+        "calibration_samples": CALIBRATION_SAMPLES,
+        "evaluation_samples": EVALUATION_SAMPLES,
+        "generation_samples": GENERATION_SAMPLES,
+        "selection_seed": DATA_SEED,
     },
     "workload": {
+        "id": WORKLOAD_ID,
+        "version": WORKLOAD_VERSION,
         "model_id": MODEL_ID,
-        "calibration_samples": NUM_CALIBRATION_SAMPLES,
+        "requested_model_revision": MODEL_REVISION,
+        "resolved_model_commit": None,
+        "loader_revision": None,
+        "revision_resolution_source": None,
+        "revision_is_pinned": False,
         "max_seq_length": MAX_SEQ_LENGTH,
-        "eval_prompt": EVAL_PROMPT,
         "max_new_tokens": MAX_NEW_TOKENS,
         "scheme": SCHEME,
+        "max_nll_ratio_vs_bf16": MAX_NLL_RATIO_VS_BF16,
         "seed": SEED,
         "run_label": RUN_LABEL,
     },
     "baseline": {"name": "bf16"},
-    "candidates": {
-        "gptq": {"recipe": "GPTQModifier(W4A16)"},
-        "awq": {"recipe": "AWQModifier + QuantizationModifier(W4A16)"},
-    },
+    "candidates": {},
+    "mechanism_metrics": None,
     "failure": None,
     "evidence_level": "environment_preflight",
     "decision": "ready_to_measure",
@@ -521,113 +581,312 @@ if RUN_MODE == "real_gpu":
     try:
         if not torch.cuda.is_available():
             raise RuntimeError("RUN_MODE=real_gpu 但 CUDA 不可用")
-        if ARTIFACT_ROOT.exists():
-            raise FileExistsError(
-                f"artifact 目录已存在：{ARTIFACT_ROOT}；请修改 RUN_LABEL 后复测"
-            )
+        if not torch.cuda.is_bf16_supported():
+            raise RuntimeError("本实验使用 BF16 基线，但当前 GPU 不支持 BF16")
 
-        from compressed_tensors.offload import dispatch_model
-        from datasets import Dataset
-        from llmcompressor import oneshot
+        execution_stage = "download_preflight"
+        if (
+            network_status["proxy_scheme"] in {"socks", "socks4", "socks4a", "socks5", "socks5h"}
+            and not network_status["socks_support_available"]
+        ):
+            raise ModuleNotFoundError(
+                "检测到 SOCKS ALL_PROXY，但当前环境缺少 socksio。"
+                "请安装 requirements/quantization.txt 后重启 Jupyter；"
+                "如果不需要 SOCKS，可使用 `env -u all_proxy -u ALL_PROXY python -m jupyter lab` 启动。"
+            )
+        if ARTIFACT_ROOT.exists():
+            raise FileExistsError(f"产物目录已存在：{ARTIFACT_ROOT}；请修改 RUN_LABEL 后复测")
+
+        execution_stage = "dependency_import"
+        from datasets import load_dataset
+        from llmcompressor import oneshot, reset_session
         from llmcompressor.modifiers.gptq import GPTQModifier
         from llmcompressor.modifiers.quantization import QuantizationModifier
         from llmcompressor.modifiers.transform.awq import AWQModifier
+        from torch.nn import functional as F
+        from torch.utils.data import DataLoader, Dataset as TorchDataset
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
+        execution_stage = "model_revision_resolution"
+        resolved_commit, resolution_source = resolve_model_commit(
+            MODEL_ID, MODEL_REVISION, model_cache_dir, local_files_only
+        )
+        result["workload"].update({
+            "resolved_model_commit": resolved_commit,
+            "loader_revision": resolved_commit,
+            "revision_resolution_source": resolution_source,
+            "revision_is_pinned": True,
+        })
+
+        execution_stage = "model_and_dataset_download"
         torch.manual_seed(SEED)
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, use_fast=True)
-        eval_inputs = tokenizer(EVAL_PROMPT, return_tensors="pt")
-        calibration = Dataset.from_dict({"text": CALIBRATION_TEXTS})
-        calibration = calibration.map(
+        tokenizer = AutoTokenizer.from_pretrained(
+            MODEL_ID,
+            revision=resolved_commit,
+            cache_dir=model_cache_dir,
+            local_files_only=local_files_only,
+            use_fast=True,
+        )
+        if DATA_SOURCE == "huggingface":
+            raw = load_dataset(
+                DATASET_ID,
+                DATASET_CONFIG,
+                revision=DATASET_REVISION,
+                cache_dir=str(data_cache_dir) if data_cache_dir else None,
+            )
+        elif DATA_SOURCE == "local_jsonl":
+            if not LOCAL_DATA_FILES:
+                raise ValueError("DATA_SOURCE=local_jsonl 时必须配置 LOCAL_DATA_FILES")
+            raw = load_dataset("json", data_files=LOCAL_DATA_FILES)
+        else:
+            raise ValueError(f"未知 DATA_SOURCE：{DATA_SOURCE}")
+
+        calibration_rows, calibration_ids = stable_sample(
+            raw[CALIBRATION_SPLIT], CALIBRATION_SAMPLES, DATA_SEED
+        )
+        evaluation_rows, evaluation_ids = stable_sample(
+            raw[EVALUATION_SPLIT], EVALUATION_SAMPLES, DATA_SEED + 1
+        )
+        result["dataset"].update({
+            "calibration_ids_hash": hash_ids(calibration_ids),
+            "evaluation_ids_hash": hash_ids(evaluation_ids),
+            "filter": "non_empty_text",
+            "evaluation_shuffle": False,
+        })
+        calibration = calibration_rows.map(
             lambda row: tokenizer(
-                row["text"],
-                padding=False,
-                truncation=True,
-                max_length=MAX_SEQ_LENGTH,
-                add_special_tokens=False,
+                row["text"], padding=False, truncation=True,
+                max_length=MAX_SEQ_LENGTH, add_special_tokens=False,
             ),
             remove_columns=["text"],
         )
 
+        class EvaluationTextDataset(TorchDataset):
+            """为全部候选提供相同顺序的独立评测文本。"""
+
+            def __init__(self, texts):
+                self.texts = list(texts)
+
+            def __len__(self):
+                return len(self.texts)
+
+            def __getitem__(self, index):
+                return self.texts[index]
+
+        evaluation_loader = DataLoader(
+            EvaluationTextDataset(evaluation_rows["text"]),
+            batch_size=1,
+            shuffle=False,
+            collate_fn=lambda batch: batch,
+        )
+
         def load_model():
-            """每条路径从同一浮点 checkpoint 独立加载。"""
+            """每个候选从同一个 BF16 commit 独立加载。"""
             return AutoModelForCausalLM.from_pretrained(
                 MODEL_ID,
-                torch_dtype=torch.bfloat16,
+                revision=resolved_commit,
+                cache_dir=model_cache_dir,
+                local_files_only=local_files_only,
+                dtype=torch.bfloat16,
                 device_map="auto",
             ).eval()
 
-        def generate_tokens(model):
-            """执行固定 prompt 的 greedy 生成。"""
-            dispatch_model(model)
-            device = next(model.parameters()).device
-            inputs = {key: value.to(device) for key, value in eval_inputs.items()}
-            with torch.inference_mode():
-                output = model.generate(
-                    **inputs,
-                    max_new_tokens=MAX_NEW_TOKENS,
-                    do_sample=False,
-                    pad_token_id=tokenizer.eos_token_id,
+        def model_device(model):
+            """返回模型首个参数所在设备。"""
+            return next(model.parameters()).device
+
+        def evaluate_model(model):
+            """返回 Token 加权 NLL、perplexity 与固定子集的贪心输出。"""
+            total_nll = 0.0
+            total_tokens = 0
+            generated = []
+            for index, text_batch in enumerate(evaluation_loader):
+                batch = tokenizer(
+                    text_batch[0], return_tensors="pt",
+                    truncation=True, max_length=MAX_SEQ_LENGTH,
                 )
-            return output[0, inputs["input_ids"].shape[1]:].detach().cpu().tolist()
+                batch = {key: value.to(model_device(model)) for key, value in batch.items()}
+                with torch.inference_mode():
+                    logits = model(**batch).logits
+                    shift_logits = logits[:, :-1, :].float()
+                    shift_labels = batch["input_ids"][:, 1:]
+                    token_mask = batch["attention_mask"][:, 1:].bool()
+                    token_losses = F.cross_entropy(
+                        shift_logits.reshape(-1, shift_logits.shape[-1]),
+                        shift_labels.reshape(-1), reduction="none",
+                    ).reshape_as(shift_labels)
+                    total_nll += float(token_losses[token_mask].sum())
+                    total_tokens += int(token_mask.sum())
+                    if index < GENERATION_SAMPLES:
+                        output = model.generate(
+                            **batch, max_new_tokens=MAX_NEW_TOKENS,
+                            do_sample=False, pad_token_id=tokenizer.eos_token_id,
+                        )
+                        generated.append(
+                            output[0, batch["input_ids"].shape[1]:].detach().cpu().tolist()
+                        )
+            mean_nll = total_nll / max(1, total_tokens)
+            return {
+                "token_weighted_nll": mean_nll,
+                "perplexity": math.exp(min(20.0, mean_nll)),
+                "evaluated_tokens": total_tokens,
+                "greedy_outputs": generated,
+            }
 
-        baseline_model = load_model()
-        baseline_tokens = generate_tokens(baseline_model)
-        result["baseline"]["generated_tokens"] = len(baseline_tokens)
-        del baseline_model
+        gc.collect()
         torch.cuda.empty_cache()
+        baseline_before = int(torch.cuda.memory_allocated())
+        torch.cuda.reset_peak_memory_stats()
+        baseline_model = load_model()
+        baseline_eval = evaluate_model(baseline_model)
+        baseline_peak = int(torch.cuda.max_memory_allocated())
+        del baseline_model
+        gc.collect()
+        torch.cuda.empty_cache()
+        result["baseline"].update({
+            "memory_isolation": "shared_process",
+            "memory_comparison_valid": False,
+            "allocated_before_bytes": baseline_before,
+            "peak_allocated_bytes": baseline_peak,
+            "peak_incremental_bytes": max(0, baseline_peak - baseline_before),
+            "allocated_after_cleanup_bytes": int(torch.cuda.memory_allocated()),
+            "token_weighted_nll": baseline_eval["token_weighted_nll"],
+            "perplexity": baseline_eval["perplexity"],
+            "evaluated_tokens": baseline_eval["evaluated_tokens"],
+        })
 
-        recipes = {
-            "gptq": [GPTQModifier(targets="Linear", scheme=SCHEME, ignore=["lm_head"])],
-            "awq": [
-                AWQModifier(),
-                QuantizationModifier(targets="Linear", scheme=SCHEME, ignore=["lm_head"]),
-            ],
-        }
+        candidate_specs = ("rtn", "gptq", "awq")
         metrics = {}
-        for name, recipe in recipes.items():
+        for name in candidate_specs:
+            if name == "rtn":
+                recipe = [QuantizationModifier(targets="Linear", scheme=SCHEME, ignore=["lm_head"])]
+            elif name == "gptq":
+                recipe = [GPTQModifier(targets="Linear", scheme=SCHEME, ignore=["lm_head"])]
+            else:
+                recipe = [
+                    AWQModifier(),
+                    QuantizationModifier(targets="Linear", scheme=SCHEME, ignore=["lm_head"]),
+                ]
+
             artifact_dir = ARTIFACT_ROOT / name
-            model = load_model()
+            gc.collect()
+            torch.cuda.empty_cache()
+            allocated_before = int(torch.cuda.memory_allocated())
             torch.cuda.reset_peak_memory_stats()
+            model = load_model()
             started = time.perf_counter()
             oneshot(
                 model=model,
                 tokenizer=tokenizer,
                 dataset=calibration,
                 recipe=recipe,
-                num_calibration_samples=NUM_CALIBRATION_SAMPLES,
+                num_calibration_samples=CALIBRATION_SAMPLES,
+                shuffle_calibration_samples=False,
                 max_seq_length=MAX_SEQ_LENGTH,
                 output_dir=str(artifact_dir),
                 clear_sparse_session=True,
             )
             calibration_seconds = time.perf_counter() - started
-            candidate_tokens = generate_tokens(model)
+            candidate_eval = evaluate_model(model)
+            manifest = artifact_manifest(artifact_dir)
+            peak_allocated = int(torch.cuda.max_memory_allocated())
             metrics[name] = {
-                "artifact_path": str(artifact_dir),
-                "artifact_bytes": directory_bytes(artifact_dir),
                 "calibration_seconds": calibration_seconds,
-                "peak_allocated_bytes": int(torch.cuda.max_memory_allocated()),
-                "generated_tokens": len(candidate_tokens),
-                "greedy_prefix_agreement": token_prefix_agreement(
-                    baseline_tokens, candidate_tokens
+                "memory_isolation": "shared_process",
+                "memory_comparison_valid": False,
+                "allocated_before_bytes": allocated_before,
+                "peak_allocated_bytes": peak_allocated,
+                "peak_incremental_bytes": max(0, peak_allocated - allocated_before),
+                "artifact_path": str(artifact_dir),
+                "artifact_manifest": manifest,
+                "token_weighted_nll": candidate_eval["token_weighted_nll"],
+                "perplexity": candidate_eval["perplexity"],
+                "evaluated_tokens": candidate_eval["evaluated_tokens"],
+                "nll_ratio_vs_bf16": candidate_eval["token_weighted_nll"] / max(
+                    1e-9, baseline_eval["token_weighted_nll"]
+                ),
+                "mean_greedy_prefix_agreement": mean_prefix_agreement(
+                    baseline_eval["greedy_outputs"], candidate_eval["greedy_outputs"]
                 ),
             }
-            del model
+            reset_session()
+            del model, recipe
+            gc.collect()
             torch.cuda.empty_cache()
+            metrics[name]["allocated_after_cleanup_bytes"] = int(torch.cuda.memory_allocated())
 
+        manifests_complete = all(
+            item["artifact_manifest"]["has_config"]
+            and item["artifact_manifest"]["has_weight_file"]
+            and item["artifact_manifest"]["quantization_config"] is not None
+            for item in metrics.values()
+        )
+        quality_candidates = {
+            name: item for name, item in metrics.items()
+            if item["nll_ratio_vs_bf16"] <= MAX_NLL_RATIO_VS_BF16
+        }
+        selected_name = min(
+            quality_candidates or metrics,
+            key=lambda name: (quality_candidates or metrics)[name]["token_weighted_nll"],
+        )
+        decision = (
+            "accept_weight_ptq_candidate"
+            if manifests_complete and selected_name in quality_candidates
+            else "tune_or_reject_candidates"
+        )
         result.update({
             "candidates": metrics,
-            "evidence_level": "matched_llmcompressor_gptq_awq_artifact_experiment",
-            "decision": "accept" if all(
-                item["greedy_prefix_agreement"] >= 0.8 for item in metrics.values()
-            ) else "tune",
+            "mechanism_metrics": {
+                "selected_candidate": selected_name,
+                "selected_nll_ratio_vs_bf16": metrics[selected_name]["nll_ratio_vs_bf16"],
+                "quality_candidates": sorted(quality_candidates),
+                "artifact_manifests_complete": manifests_complete,
+                "candidate_matrix_complete": len(metrics) == len(candidate_specs),
+            },
+            "evidence_level": "artifact_generation",
+            "decision": decision,
         })
     except Exception as exc:
         result.update({
-            "failure": {"type": type(exc).__name__, "message": str(exc)},
+            "failure": {
+                "stage": execution_stage,
+                "type": type(exc).__name__,
+                "message": str(exc),
+            },
             "evidence_level": "failed_real_gpu_attempt",
             "decision": "reject_until_environment_fixed",
         })
+
+# 只把本轮质量最优且通过门槛的候选交给项目链；其他候选仍保留原始产物与指标。
+result["handoff"] = {"status": "not_created", "candidate_bundle_path": None, "failure": None}
+if result.get("decision") == "accept_weight_ptq_candidate":
+    selected_candidate = result["mechanism_metrics"]["selected_candidate"]
+    selected_artifact_dir = ARTIFACT_ROOT / selected_candidate
+    try:
+        candidate_bundle = build_candidate_bundle(
+            result,
+            candidate_name=selected_candidate,
+            artifact_dir=selected_artifact_dir,
+            project_root=REPO_ROOT,
+            source_result_path=OUTPUT_PATH,
+        )
+        candidate_bundle_path = save_candidate_bundle(
+            selected_artifact_dir / "candidate_bundle.json", candidate_bundle
+        )
+        result["handoff"] = {
+            "status": "ready",
+            "candidate": selected_candidate,
+            "artifact_id": candidate_bundle["artifact_id"],
+            "candidate_bundle_path": str(candidate_bundle_path),
+            "consumer": "QUANT-ARTIFACT-GATE",
+            "failure": None,
+        }
+    except Exception as exc:
+        result["handoff"] = {
+            "status": "failed",
+            "candidate_bundle_path": None,
+            "failure": {"type": type(exc).__name__, "message": str(exc)},
+        }
 
 OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 OUTPUT_PATH.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -635,47 +894,84 @@ print(json.dumps(result, ensure_ascii=False, indent=2))
 
 ```
 
-#### 5.3 读取 artifact 与校准结果
+#### 5.3 读取候选矩阵
 
-读取单元集中检查两类 artifact 的路径、大小、校准成本、输出稳定性和失败状态，不重新运行量化。
-
+读取单元汇总模型快照、数据哈希、候选质量与产物完整性，并显示本轮选中候选的 `candidate_bundle.json`。该候选包是 82 的唯一交接入口；读取单元不会重新下载模型或运行压缩。
 
 ```python
-# 5.3 只读取 5.2 保存的 JSON。
+# 5.3 只读取 5.2 保存的 JSON，并按运行身份、候选矩阵、产物状态分层展示。
 if OUTPUT_PATH.exists():
     saved = json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
-    keys = (
-        "framework",
-        "hardware",
-        "workload",
-        "baseline",
-        "candidates",
-        "failure",
-        "evidence_level",
-        "decision",
-    )
-    print({key: saved.get(key) for key in keys})
+    workload = saved.get("workload", {})
+    dataset = saved.get("dataset", {})
+    identity = {
+        "run_mode": saved.get("run_mode"),
+        "run_label": saved.get("run_label"),
+        "model_id": workload.get("model_id"),
+        "resolved_model_commit": workload.get("resolved_model_commit"),
+        "calibration_ids_hash": dataset.get("calibration_ids_hash"),
+        "evaluation_ids_hash": dataset.get("evaluation_ids_hash"),
+        "failure": saved.get("failure"),
+        "evidence_level": saved.get("evidence_level"),
+        "decision": saved.get("decision"),
+    }
+    print("运行身份与决策")
+    print(json.dumps(identity, ensure_ascii=False, indent=2))
+    candidates = saved.get("candidates", {})
+    print(f"\nRTN / GPTQ / AWQ 候选摘要（{len(candidates)} 个）")
+    if not candidates:
+        print("尚未生成候选；请结合 run_mode、failure.stage 与 decision 判断原因。")
+    for name, metrics in candidates.items():
+        manifest = metrics.get("artifact_manifest", {})
+        print({
+            "candidate": name,
+            "token_weighted_nll": metrics.get("token_weighted_nll"),
+            "nll_ratio_vs_bf16": metrics.get("nll_ratio_vs_bf16"),
+            "greedy_prefix_agreement": metrics.get("mean_greedy_prefix_agreement"),
+            "calibration_seconds": metrics.get("calibration_seconds"),
+            "peak_incremental_bytes": metrics.get("peak_incremental_bytes"),
+            "memory_comparison_valid": metrics.get("memory_comparison_valid"),
+            "artifact_bytes": manifest.get("total_bytes"),
+            "artifact_complete": bool(
+                manifest.get("has_config")
+                and manifest.get("has_weight_file")
+                and manifest.get("quantization_config") is not None
+            ),
+        })
+    mechanism_metrics = saved.get("mechanism_metrics", {})
+    print("\n产物与显存证据")
+    print({
+        "selected_candidate": mechanism_metrics.get("selected_candidate"),
+        "candidate_matrix_complete": mechanism_metrics.get("candidate_matrix_complete"),
+        "artifact_manifests_complete": mechanism_metrics.get("artifact_manifests_complete"),
+        "memory_comparison_valid": mechanism_metrics.get("memory_comparison_valid"),
+    })
+    print({"handoff": saved.get("handoff", {})})
 else:
-    print(f"等待 GPTQ/AWQ artifact 结果：{OUTPUT_PATH}")
+    print(f"等待 RTN / GPTQ / AWQ 产物结果：{OUTPUT_PATH}")
 
 ```
 
-#### 5.4 解释校准策略与产物证据
+#### 5.4 解释校准算法与产物证据
 
-两条路径只有在模型、校准集、位宽和评测 prompt 全部一致时才可比较。本节确认算法能够产生可追踪 artifact，并用固定 greedy 输出做最小质量门槛；是否命中高效 kernel、是否提升端到端吞吐，应交给兼容 backend 继续验证。
+先检查模型 commit、数据划分哈希和三类产物清单，再比较 Token 加权 NLL。RTN 是直接量化基线；GPTQ 或 AWQ 只有在相同 W4A16 表示下取得更低 NLL，才能说明额外校准统计带来了可观察价值。贪心前缀一致率只作小样本辅证，不能替代独立任务质量。通过门槛的最优候选会生成 `quantization-artifact-candidate/v1` 候选包；40 不判断 vLLM 是否可加载，真实加载与往返检查由 82 完成。
 
-| 观察项 | 读取字段 | 判断问题 |
-|---|---|---|
-| 校准策略 | `recipe`、`calibration_seconds` | GPTQ 与 AWQ 付出了什么校准成本 |
-| 产物契约 | `artifact_path`、`artifact_bytes` | 是否生成可加载、可版本化的压缩产物 |
-| 最小质量门槛 | `greedy_prefix_agreement` | 固定输出是否出现明显退化 |
-| 证据可信度 | `failure`、`evidence_level` | 是否真实执行成熟库 recipe |
-| 下一步 | `decision` | accept / tune / reject_until_environment_fixed |
+`default11` 在 RTX 5070 Ti Laptop GPU、Qwen2.5-0.5B 和固定 WikiText-2 划分上得到：BF16 的 Token 加权 NLL 为 3.393920；GPTQ、AWQ、RTN 的 NLL 比值分别为 1.039188、1.058645、1.094336，校准时间约为 9.21、22.12、2.67 秒。三类产物清单均完整，因此本地结果接受 GPTQ 作为后续加载器与后端验收的首选候选。这个结论只说明同一 W4A16 口径下的质量—校准代价，不代表已经命中量化计算内核或获得 Serving 加速。
 
+本实验在同一个 Jupyter 进程中依次生成候选，因此 `memory_comparison_valid=false`。增量峰值和清理后驻留量只用于诊断压缩过程，不能作为 RTN、GPTQ 与 AWQ 的绝对显存排名。严格比较校准显存时，应把每个候选放入独立进程。
+
+| 观察项 | 读取字段 | 本地结论 | 不能外推到 |
+|---|---|---|---|
+| 身份与数据 | `resolved_model_commit`、两个 `ids_hash` | 三类候选共享模型快照和固定数据划分 | 其他模型、语料或长度分布 |
+| 算法价值 | `token_weighted_nll`、`nll_ratio_vs_bf16` | GPTQ 的局部质量优于 AWQ 与 RTN | 独立任务集的最终质量 |
+| 校准代价 | `calibration_seconds`、`peak_incremental_bytes` | GPTQ 比 RTN 慢，但低于本次 AWQ 时间 | 独立进程下的绝对显存排名 |
+| 产物契约 | `artifact_manifest`、`artifact_manifests_complete` | 三类配置、量化元数据和权重文件完整 | 加载器兼容与量化内核命中 |
+| 质量辅证 | `perplexity`、`mean_greedy_prefix_agreement`、`evaluated_tokens` | 困惑度与 NLL 支持候选排序，前缀一致率仅作辅证 | 开放式生成质量与业务正确率 |
+| 决策 | `selected_candidate`、`failure`、`evidence_level`、`decision` | 接受 GPTQ 进入后续后端验收 | Serving 吞吐、延迟与部署可用性 |
 ## 相关阅读
 
 - [GPTQ 原论文](https://arxiv.org/abs/2210.17323)
 - [AWQ 原论文](https://arxiv.org/abs/2306.00978)
 - [LLM Compressor：GPTQ W4A16 示例](https://github.com/vllm-project/llm-compressor/tree/main/examples/quantization_w4a16)
 - [LLM Compressor：AWQ 说明与示例](https://github.com/vllm-project/llm-compressor/tree/main/examples/awq)
-- [82. Quantization Artifact Evaluation Project | 量化产物评估](./82_Quantization_Artifact_Evaluation_Project.md)
+- [82. Quantization 量化产物评测 Project | 量化产物评估](./82_Quantization_Artifact_Evaluation_Project.md)
