@@ -1,25 +1,53 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="560" viewBox="0 0 1400 560" role="img" aria-labelledby="title desc">
-  <title id="title">Profiling 时间证据图</title><desc id="desc">从一次运行经过主机调用、设备执行和同步搬运，形成可复查的阶段热点证据。</desc>
+  <title id="title">性能剖析中的主机、设备与时间线证据</title>
+  <desc id="desc">固定 workload 并重复测量后，主机活动、设备活动以及搬运同步作为并列时间线被采集，再分别汇总成聚合表与 trace，最后映射回训练阶段。</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8fafc"/><stop offset="1" stop-color="#eff6ff"/></linearGradient>
-    <style>text{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;fill:#172033}.title{font-size:29px;font-weight:700}.sub{font-size:15px;fill:#475569}.label{font-size:18px;font-weight:700}.small{font-size:13px;fill:#475569}.node{stroke-width:2.5;rx:16;ry:16}.panel{stroke-width:2;rx:18;ry:18}.flow{stroke:#52606d;stroke-width:3;stroke-linecap:round;fill:none}.branch{stroke:#94a3b8;stroke-width:3;fill:none}</style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker>
+    <style>
+      text{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;fill:#172033}.title{font-size:28px;font-weight:700}.sub{font-size:15px;fill:#475569}.head{font-size:17px;font-weight:700}.body{font-size:13px;fill:#475569}.panel{stroke-width:2;rx:15}.node{fill:#fff;stroke:#cbd5e1;stroke-width:2;rx:12}.line{stroke:#64748b;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+    </style>
   </defs>
-  <rect width="1400" height="560" fill="url(#bg)"/>
-  <text x="58" y="55" class="title">Profiling：把一次运行拆成时间证据</text>
-  <text x="58" y="85" class="sub">先看调用如何进入设备，再区分计算、等待和搬运，最后定位真正占时的阶段。</text>
+  <rect width="1400" height="560" fill="#f8fafc"/>
+  <text x="55" y="48" class="title">性能剖析：并列采集主机、设备与搬运时间线</text>
+  <text x="55" y="77" class="sub">主机调用、设备 kernel 和搬运同步不是固定的串行步骤；汇总表与 trace 回答的问题也不同</text>
 
-  <rect x="60" y="135" width="250" height="100" class="node" fill="#e0f2fe" stroke="#38bdf8"/><text x="185" y="175" text-anchor="middle" class="label">一次运行</text><text x="185" y="207" text-anchor="middle" class="small">固定输入与测量条件</text>
-  <rect x="380" y="135" width="250" height="100" class="node" fill="#dcfce7" stroke="#4ade80"/><text x="505" y="175" text-anchor="middle" class="label">主机调用</text><text x="505" y="207" text-anchor="middle" class="small">排队、调用与等待</text>
-  <rect x="700" y="135" width="250" height="100" class="node" fill="#fef3c7" stroke="#f59e0b"/><text x="825" y="175" text-anchor="middle" class="label">设备执行</text><text x="825" y="207" text-anchor="middle" class="small">Kernel 与阶段耗时</text>
-  <rect x="1020" y="135" width="320" height="100" class="node" fill="#ede9fe" stroke="#8b5cf6"/><text x="1180" y="175" text-anchor="middle" class="label">同步与搬运</text><text x="1180" y="207" text-anchor="middle" class="small">复制、同步与收尾</text>
-  <line x1="310" y1="185" x2="380" y2="185" class="flow"/><path d="M372 177L380 185L372 193Z" fill="#52606d"/>
-  <line x1="630" y1="185" x2="700" y2="185" class="flow"/><path d="M692 177L700 185L692 193Z" fill="#52606d"/>
-  <line x1="950" y1="185" x2="1020" y2="185" class="flow"/><path d="M1012 177L1020 185L1012 193Z" fill="#52606d"/>
+  <rect x="50" y="155" width="285" height="220" fill="#e0f2fe" stroke="#38bdf8" class="panel"/>
+  <text x="192" y="193" text-anchor="middle" class="head">固定 workload 与重复测量</text>
+  <text x="192" y="232" text-anchor="middle" class="body">模型 · 输入 · batch · dtype</text>
+  <text x="192" y="264" text-anchor="middle" class="body">预热 · 原始延迟样本</text>
+  <text x="192" y="296" text-anchor="middle" class="body">中位数 · P95 · 吞吐</text>
+  <text x="192" y="338" text-anchor="middle" class="body">先建立可比较条件</text>
 
-  <rect x="355" y="350" width="300" height="120" class="panel" fill="#ffffff" stroke="#93c5fd"/><text x="505" y="392" text-anchor="middle" class="label">主机时间</text><text x="505" y="422" text-anchor="middle" class="small">调用与排队的 CPU 时间</text><text x="505" y="447" text-anchor="middle" class="small">回答“是否卡在调度”</text>
-  <rect x="675" y="350" width="300" height="120" class="panel" fill="#ffffff" stroke="#86efac"/><text x="825" y="392" text-anchor="middle" class="label">设备时间</text><text x="825" y="422" text-anchor="middle" class="small">Kernel 与阶段耗时</text><text x="825" y="447" text-anchor="middle" class="small">回答“时间花在哪里”</text>
-  <rect x="1030" y="350" width="300" height="120" class="panel" fill="#ffffff" stroke="#c4b5fd"/><text x="1180" y="392" text-anchor="middle" class="label">Trace 证据</text><text x="1180" y="422" text-anchor="middle" class="small">顺序、等待与重叠</text><text x="1180" y="447" text-anchor="middle" class="small">支持复查阶段热点</text>
-  <line x1="505" y1="235" x2="505" y2="350" class="flow"/><path d="M497 342L505 350L513 342Z" fill="#52606d"/>
-  <line x1="825" y1="235" x2="825" y2="350" class="flow"/><path d="M817 342L825 350L833 342Z" fill="#52606d"/>
-  <line x1="1180" y1="235" x2="1180" y2="350" class="flow"/><path d="M1172 342L1180 350L1188 342Z" fill="#52606d"/>
+  <rect x="430" y="120" width="380" height="92" fill="#dcfce7" stroke="#4ade80" class="panel"/>
+  <text x="620" y="155" text-anchor="middle" class="head">主机活动</text>
+  <text x="620" y="184" text-anchor="middle" class="body">输入准备 · 算子调用 · 调度与等待</text>
+  <rect x="430" y="235" width="380" height="92" fill="#fef3c7" stroke="#f59e0b" class="panel"/>
+  <text x="620" y="270" text-anchor="middle" class="head">设备活动</text>
+  <text x="620" y="299" text-anchor="middle" class="body">GPU 环境采集 kernel 与设备阶段</text>
+  <rect x="430" y="350" width="380" height="92" fill="#f5f3ff" stroke="#a78bfa" class="panel"/>
+  <text x="620" y="385" text-anchor="middle" class="head">搬运与同步</text>
+  <text x="620" y="414" text-anchor="middle" class="body">数据传输 · 事件依赖 · 显式等待</text>
+
+  <path d="M335 230H390V166H420" class="line"/>
+  <path d="M335 265H420" class="line"/>
+  <path d="M335 300H390V396H420" class="line"/>
+
+  <rect x="905" y="155" width="440" height="220" fill="#fce7f3" stroke="#f472b6" class="panel"/>
+  <rect x="945" y="195" width="165" height="115" class="node"/>
+  <text x="1027" y="230" text-anchor="middle" class="head">汇总表</text>
+  <text x="1027" y="260" text-anchor="middle" class="body">累计时间与热点</text>
+  <text x="1027" y="284" text-anchor="middle" class="body">回答“时间集中在哪”</text>
+  <rect x="1140" y="195" width="165" height="115" class="node"/>
+  <text x="1222" y="230" text-anchor="middle" class="head">trace</text>
+  <text x="1222" y="260" text-anchor="middle" class="body">顺序、等待与重叠</text>
+  <text x="1222" y="284" text-anchor="middle" class="body">回答“何时发生”</text>
+  <text x="1125" y="345" text-anchor="middle" class="body">两类证据需要放回同一训练步骤解释</text>
+
+  <path d="M810 166H855V225H895" class="line"/>
+  <path d="M810 281H895" class="line"/>
+  <path d="M810 396H855V305H895" class="line"/>
+
+  <rect x="430" y="485" width="915" height="55" fill="#fff" stroke="#94a3b8" class="panel"/>
+  <text x="887" y="519" text-anchor="middle" class="head">阶段标签：输入 → 前向 → 损失 → 反向 → 参数更新</text>
+  <path d="M1125 375V475" class="line"/>
 </svg>

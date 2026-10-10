@@ -19,12 +19,12 @@
 
 
 ## 前置阅读
-**导语：** 先完成 18 的显存观察，再把 shape、dtype、device、数值和梯度问题分成可验证的故障类型。
-- [18. Memory Profiling and Optimization | 显存分析与优化](./18_Memory_Profiling_and_Optimization.md)
+**导语：** 先从 0E 组页判断当前现象属于结构、数值还是梯度问题，再进入对应检查路径。
+- [0E 组页](./0E.md)
 
 ## Q1：异常先归到哪几类，才能开始排查？
 
-先从常见现象开始分类：维度不匹配通常是结构问题，CPU / CUDA 混用通常是设备问题，loss 变成 NaN 是数值问题，grad 为 None 则要检查梯度链路。分类不是结论，而是帮助你决定第一项检查；如果没有发现异常，应返回空列表，而不是强行指定一个原因。
+先按现象选择第一项检查：维度不匹配检查结构契约，CPU / CUDA 混用检查设备，loss 变成 NaN 检查首个非有限值，grad 为 None 检查梯度链路。若所有检查均通过，应返回空列表并继续收集证据。
 
 
 | 异常类别 | 典型表现 | 第一项检查 |
@@ -57,9 +57,19 @@ sample = classify_issue(shape_ok=False, dtype_ok=True, device_ok=False, has_nonf
 primary = sample[0] if sample else 'ok'
 print('issues:', sample)
 print('primary:', primary)
-
 # 输出示例: issues -> ['shape', 'device', 'numerical', 'gradient']; primary -> shape
 
+```
+
+## Q1 验证：异常分类是否保持固定检查顺序？
+
+同时覆盖多种异常与完全正常两条路径。
+
+```python
+assert sample == ['shape', 'device', 'numerical', 'gradient']
+assert primary == 'shape'
+assert classify_issue(True, True, True, False, True) == []
+print('✅ 异常分类与正常输入路径通过')
 ```
 
 ## Q2：什么时候先看 shape、dtype、device 和 layout？
@@ -94,14 +104,24 @@ expected = {'shape': (2, 8, 4), 'dtype': 'torch.float32', 'device': 'cpu', 'cont
 report = audit_tensor_contract(actual, expected)
 print('contract:', report)
 print('must_fix:', [k for k, v in report['checks'].items() if not v])
-
 # 输出示例: contract 中 contiguous_ok=False, must_fix=['contiguous_ok']
 
 ```
 
+## Q2 验证：张量契约能否定位首个失败字段？
+
+构造只违反连续性要求的视图，避免多个错误同时掩盖定位结果。
+
+```python
+assert report['first_failure'] == 'contiguous_ok'
+assert report['checks']['shape_ok'] and report['checks']['dtype_ok'] and report['checks']['device_ok']
+assert not report['checks']['contiguous_ok']
+print('✅ 张量契约的首个失败字段定位通过')
+```
+
 ## Q3：什么时候先查 NaN / Inf，如何找到第一个异常来源？
 
-如果 loss 最后变成 NaN，真正的问题可能更早出现在 activation 或梯度中。沿着 loss → activation → gradient 的计算顺序检查，并记录第一个 NaN / Inf 的阶段和对象；第一个异常位置通常比最后看到的 NaN 更接近原因。这里的记录已经按执行顺序排列，函数只负责定位，不负责解释根因。
+如果 loss 最后变成 NaN，真正的问题可能更早出现在 activation 或梯度中。沿着 loss → activation → gradient 的计算顺序检查，并记录第一个 NaN / Inf 的阶段和对象；第一个异常位置通常比最后看到的 NaN 更接近原因，也能直接指向下一项验证。
 
 
 ```python
@@ -120,9 +140,17 @@ failure = first_nonfinite_step(trace)
 print('trace:', trace)
 print('first_nonfinite_step:', failure)
 print('source:', failure['source'] if failure else 'ok')
-
 # 输出示例：first_nonfinite_step -> 3, source -> gradient
 
+```
+
+## Q3 验证：第一处非有限值与正常路径是否都能识别？
+
+```python
+assert failure['index'] == 3 and failure['source'] == 'gradient'
+assert failure['value'] != failure['value']
+assert first_nonfinite_step([('loss', 1.0), ('activation', 0.5)]) is None
+print('✅ 第一处非有限值定位通过')
 ```
 
 ## Q4：梯度为什么会一直是 `None`，如何区分断开的原因？
@@ -164,6 +192,14 @@ class BrokenModule(nn.Module):
         self.raw_weight = torch.randn(2, 2, requires_grad=True)
 
 broken = BrokenModule()
+# 输出示例: detach/no_grad/leaf/unregistered 对应各自的原因
+print('next_check:', '先复现对应 case，再检查计算图或模块注册')
+
+```
+
+## Q4 验证：四类梯度为空的机制能否被复现？
+
+```python
 assert detached.grad_fn is None
 assert not no_grad_value.requires_grad
 with warnings.catch_warnings():
@@ -172,15 +208,11 @@ with warnings.catch_warnings():
 assert non_leaf_grad is None
 assert not any(name == 'raw_weight' for name, _ in broken.named_parameters())
 print('✅ detach、no_grad、非叶子 Tensor 和未注册参数机制通过')
-
-# 输出示例: detach/no_grad/leaf/unregistered 对应各自的原因
-print('next_check:', '先复现对应 case，再检查计算图或模块注册')
-
 ```
 
 ## Q5：多个异常同时出现时，排查顺序怎么定才最省事？
 
-先做最便宜、影响面最大的结构性检查，再查数值，最后查梯度链路：shape / dtype / device → NaN / Inf → gradient。这样可以先排掉输入契约问题，再判断是否需要修改模型或训练逻辑；这一步关注的是排查成本和优先级，不是重新分类异常。
+完成现象分类后，再按排查成本安排检查顺序：shape / dtype / device → NaN / Inf → gradient。先排除输入契约问题，再进入数值和梯度链路，可以更快缩小需要修改的模型或训练逻辑。
 
 
 ```python
@@ -212,6 +244,15 @@ print('report:', report)
 
 ```
 
+## Q5 验证：优先级函数能否先处理结构问题？
+
+```python
+assert report['primary'] == 'shape'
+assert report['checked'] == ['shape']
+assert debug_priority(True, True, True, False, True)['primary'] == 'ok'
+print('✅ 结构、数值与梯度检查顺序通过')
+```
+
 ## Q6：如何定位 loss、activation、gradient 中最先失败的阶段？
 
 Q3 找到的是记录中的第一个非有限值，Q6 要进一步回答它出现在训练流程的哪个阶段，并给出下一步动作。依次检查 loss、activation、gradient；如果失败点落在 gradient，再回到 Q4 区分是 detach、no_grad、非叶子 Tensor 还是参数注册导致的计算图断开。
@@ -232,19 +273,31 @@ def locate_failure_zone(records):
     return {'zone': 'ok', 'step': None, 'next_check': 'continue_monitoring'}
 
 
-for records in [
+cases = [
     [{'stage': 'loss', 'finite': False}, {'stage': 'activation', 'finite': True}, {'stage': 'gradient', 'finite': True}],
     [{'stage': 'loss', 'finite': True}, {'stage': 'activation', 'finite': False}, {'stage': 'gradient', 'finite': False}],
     [{'stage': 'loss', 'finite': True}, {'stage': 'activation', 'finite': True}, {'stage': 'gradient', 'finite': False}],
-]:
-    print('records:', records, '->', locate_failure_zone(records))
+]
+results = [locate_failure_zone(records) for records in cases]
+for records, result in zip(cases, results):
+    print('records:', records, '->', result)
 # 输出示例：zone、step 和 next_check 一起返回
 
+```
+
+## Q6 验证：不同失败阶段能否映射到下一项检查？
+
+```python
+assert [result['zone'] for result in results] == ['loss', 'activation', 'gradient']
+assert results[2]['next_check'] == 'return_to_Q4_gradient_chain'
+assert locate_failure_zone([{'stage': 'loss', 'finite': True}])['zone'] == 'ok'
+print('✅ 失败阶段与下一项检查映射通过')
 ```
 
 ## 相关阅读
 **导语：** 完成本节后，可以继续学习 Autograd 的梯度语义，并把异常定位结果带入显存策略和真实项目验证。
 - [PyTorch Autograd 官方文档](https://docs.pytorch.org/docs/stable/notes/autograd.html)
 - [PyTorch 异常检测官方文档](https://docs.pytorch.org/docs/stable/autograd.html#debugging-and-anomaly-detection)
-- [20. Profiling and Memory Ledger | 性能剖析与显存账本](./20_Profiling_and_Memory_Ledger.md)
+- [18. Memory Profiling and Optimization | 显存分析与优化](./18_Memory_Profiling_and_Optimization.md)
+- [20. Performance Evidence and Experiment Design | 性能证据汇总与实验设计](./20_Performance_Evidence_and_Experiment_Design.md)
 - [76. Activation / Checkpoint / Offload Benchmark | 激活检查点与卸载对比](../02_PyTorch_Algorithms/76_Activation_Checkpoint_Offload_Benchmark.md)
