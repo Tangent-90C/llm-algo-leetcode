@@ -371,6 +371,7 @@ def run_backend_benchmark(
     dtype: str = "unknown",
     batch: int = 1,
     cache_policy: str = "default",
+    role: str | None = None,
 ) -> dict[str, Any]:
     """Run the common OpenAI-compatible benchmark and load its JSON output."""
 
@@ -389,6 +390,7 @@ def run_backend_benchmark(
         "--dtype", dtype,
         "--batch", str(batch),
         "--cache-policy", cache_policy,
+        "--role", role or "candidate",
         "--workload", str(root / workload),
         "--num-prompts", str(num_prompts),
         "--max-tokens", str(max_tokens),

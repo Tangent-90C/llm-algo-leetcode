@@ -1,0 +1,10 @@
+# Dedicated vLLM MTP mechanism profile for CUDA 12.9.
+# Install in a fresh environment. The direct wheel and PyTorch index keep the
+# vLLM native extensions, PyTorch and CUDA runtime on the same backend variant.
+# Do not combine this file with torch-cu128.txt or a historical vLLM profile.
+-c inference-vllm-mtp-constraints.txt
+-r base.txt
+--extra-index-url https://download.pytorch.org/whl/cu129
+
+vllm @ https://wheels.vllm.ai/db9527a46873454610df6dbedf79a36d6bf1a7f6/vllm-0.31.0%2Bcu129-cp38-abi3-manylinux_2_28_x86_64.whl
+httpx[socks]

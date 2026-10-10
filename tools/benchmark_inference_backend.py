@@ -176,11 +176,14 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "request_throughput_per_s": round(len(successful) / duration_s, 4) if duration_s else 0.0,
             "output_token_throughput_per_s": round(output_tokens / duration_s, 4) if duration_s else 0.0,
             "ttft_ms": {"mean": round(statistics.mean(ttft), 3) if ttft else None,
-                        "p50": _percentile(ttft, 50), "p99": _percentile(ttft, 99)},
+                        "p50": _percentile(ttft, 50), "p95": _percentile(ttft, 95),
+                        "p99": _percentile(ttft, 99)},
             "tpot_ms": {"mean": round(statistics.mean(tpot), 3) if tpot else None,
-                        "p50": _percentile(tpot, 50), "p99": _percentile(tpot, 99)},
+                        "p50": _percentile(tpot, 50), "p95": _percentile(tpot, 95),
+                        "p99": _percentile(tpot, 99)},
             "e2e_ms": {"mean": round(statistics.mean(e2e), 3) if e2e else None,
-                       "p50": _percentile(e2e, 50), "p99": _percentile(e2e, 99)},
+                       "p50": _percentile(e2e, 50), "p95": _percentile(e2e, 95),
+                       "p99": _percentile(e2e, 99)},
             "output_tokens": output_tokens,
             "prompt_tokens_mean": round(statistics.mean(prompt_token_values), 3)
             if prompt_token_values else None,
@@ -228,6 +231,7 @@ def main() -> None:
     parser.add_argument("--dtype", default="unknown")
     parser.add_argument("--batch", type=int, default=1)
     parser.add_argument("--cache-policy", default="default")
+    parser.add_argument("--role", choices=("baseline", "candidate"))
     parser.add_argument("--peak-memory-mb", type=float)
     parser.add_argument("--workload", help="JSONL file with prompt or messages fields")
     parser.add_argument("--prompt", default="Explain KV cache in one sentence.")
@@ -252,6 +256,7 @@ def main() -> None:
         dtype=args.dtype,
         batch=args.batch,
         cache_policy=args.cache_policy,
+        role=args.role,
         peak_memory_mb=args.peak_memory_mb,
     )
     # Keep the raw report for compatibility with earlier result files while

@@ -119,6 +119,7 @@ def from_backend_report(
     dtype: str = "unknown",
     batch: int = 1,
     cache_policy: str = "default",
+    role: str | None = None,
     peak_memory_mb: float | None = None,
     quality: Mapping[str, Any] | None = None,
     decision: Mapping[str, Any] | None = None,
@@ -159,6 +160,7 @@ def from_backend_report(
         "batch": batch,
         "concurrency": workload.get("concurrency", 1),
         "cache_policy": cache_policy,
+        "role": role,
         "workload": workload.get("source"),
     }
     return make_result(

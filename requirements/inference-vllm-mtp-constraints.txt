@@ -1,0 +1,4 @@
+# Fixed backend identity for the native-MTP mechanism benchmark.
+# The local version labels prevent pip from selecting the default CUDA 13 wheel.
+vllm==0.31.0+cu129
+torch==2.13.0+cu129
