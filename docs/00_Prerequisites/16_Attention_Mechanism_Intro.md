@@ -1,6 +1,6 @@
 # 16. Attention Mechanism Intro | Attention 机制导论
 
-**难度：** Medium | **环境：** CPU-first | **标签：** `PyTorch`, `注意力`, `mask` | **目标人群：** Part 2-4 前置补课者
+**难度：** Medium | **环境：** CPU-first | **标签：** `PyTorch`, `注意力`, `mask` | **目标人群：** 准备进入 Transformer 结构与优化内容的学习者
 
 > 🚀 **云端运行环境**
 >
@@ -10,36 +10,33 @@
 > [![Open In Studio](https://img.shields.io/badge/Open%20In-ModelScope-blueviolet?logo=alibabacloud)](https://modelscope.cn/my/mynotebook) *(国内推荐：魔搭社区免费实例)*
 
 
-本页聚焦：理解 Q / K / V 的维度职责；理解 causal mask 的作用；能写出最小的 scaled dot-product attention。前面已经看过训练、激活和归一化，现在来到把 token 关系串起来的核心模块。对不熟 NLP / Transformer / LLM 的学习者来说，可以先把它理解成“序列模型里让 token 彼此建立联系的核心模块”：Embedding 先把 token id 变成向量，Attention 再决定每个 token 应该关注哪些位置。
+Attention 用 Q/K 的匹配分数决定从 V 中聚合哪些信息。理解这条数据流后，还要能判断 causal mask 与 padding mask 如何组合、mask 怎样广播到多头分数，以及自注意力和交叉注意力的形状契约有何不同。本页用小张量验证这些机制，为后续模型架构、显存模型和算子优化建立共同基础。
 
-这一页先看最小闭环：语义、mask、score、value 聚合。
+**关键词：** `Q`, `K`, `V`, `mask`, `shape contract`
 
-如果你把前面的 block 看成“Norm + Attention + MLP + Residual”的组合，这一页就是第一次把其中最核心的 token 交互部分单独拆出来。
-
-**关键词：** `Q`, `K`, `V`
-
-**显存路线视角：** Q / K / V 和 attention score 的 shape 决定中间张量规模；标准实现中的 attention score 通常接近 `[batch, heads, seq_len, seq_len]`，长序列下可能带来随 `seq_len²` 增长的临时空间压力。本文的 CPU 示例不代表真实 GPU 峰值。推理侧还要进一步区分 attention 临时空间与自回归生成过程中跨 decoding step 保留的 KV Cache。
+![Attention 的表示、可见性与聚合数据流](../public/00_Prerequisites/16_attention_dataflow_map.svg)
 
 ## 前置阅读
-**导语：** 先看 0D 组页，把归一化和训练稳定性的边界对齐，再进入这一页会更顺。
+**导语：** Embedding 提供 token 表示，归一化稳定 block 内的数据尺度；具备这两个背景后再进入 token 间的信息聚合。
 - [15. Normalization Techniques | 归一化技术](./15_Normalization_Techniques.md)
 - [0D 组页](./0D.md)
+
 ## 相关阅读
-**导语：** 本页先把 Q / K / V 和 causal mask 的最小判断讲清楚；如果想继续看注意力实现和显存模型，再顺着看下面这一页。
+**导语：** 掌握最小 Attention 语义后，可以分别沿显存模型、FlashAttention 和 KV Cache 管理继续深入。
 - [P1: 04. Attention Memory Optimization | Attention 显存优化](../01_Hardware_Math_and_Systems/04_Attention_Memory_Optimization.md)
-- [17. PyTorch Profiling Basics | PyTorch 性能分析基础](./17_PyTorch_Profiling_Basics.md)
 - [P1: 14. FlashAttention Memory Model | FlashAttention 显存模型](../01_Hardware_Math_and_Systems/14_FlashAttention_Memory_Model.md)
+- [03. RoPE 旋转位置编码](../02_PyTorch_Algorithms/03_RoPE_Tutorial.md)
 - [22. vLLM PagedAttention | vLLM PagedAttention](../02_PyTorch_Algorithms/22_vLLM_PagedAttention.md)
-- [34. Prefix Cache Matching and Reuse | Prefix Cache 匹配与复用](../02_PyTorch_Algorithms/34_Prefix_Cache_Matching_and_Reuse.md)
 
 ## Q1：Q / K / V 分别承担什么职责？
 
-Attention 的核心不是公式，而是三组向量的分工：Q 提出查询，K 提供可匹配的信息，V 提供被聚合的内容。先把这三个职责分开，后面看代码才不会混。对于没有大模型基础的人，可以先把它理解成“token 之间如何互相问答”：Q 负责问，K 负责被比对，V 负责被取回。
+Attention 用三组向量完成匹配与聚合：Q 表示当前 token 的查询，K 表示可被匹配的索引，V 表示命中后参与聚合的内容。可以把它理解成 token 之间的问答：Q 负责提出问题，K 参与匹配，V 提供取回内容。
 
 
 ```python
 import math
 import torch
+import torch.nn.functional as F
 
 
 def build_causal_mask(seq_len):
@@ -85,7 +82,7 @@ print(output)
 
 ```
 
-## Q1验证：最小 attention 输出是否可见？
+## Q1 验证：最小 attention 输出是否可见？
 
 这里直接把权重和输出打印出来，确认 Q/K/V 的最小流程已经跑通。
 
@@ -103,21 +100,35 @@ print('✅ attention_weights 通过')
 
 ## Q2：什么时候必须先看 causal mask 的语义？
 
-只要是自回归场景，就必须遮住未来 token。mask 不是附加项，而是保证语义正确的必要条件。这里可以先把它理解成“只允许看见历史，不允许偷看未来”。
+自回归 Attention 的当前位置只能读取历史和自身，causal mask 因而遮蔽所有未来 token；padding mask 则排除批处理中补齐的无效 key。两类约束组合后形成可广播到 `[batch, heads, query_length, key_length]` 的可见性 mask。
 
 
 ```python
+def build_attention_mask(key_padding_mask, query_length, causal):
+    """构造可广播到多头分数的 [B, 1, S_q, S_k] 可见性 mask。"""
+    batch_size, key_length = key_padding_mask.shape
+    visible = key_padding_mask[:, None, None, :].expand(batch_size, 1, query_length, key_length)
+    if causal:
+        if query_length != key_length:
+            raise ValueError('causal self-attention requires query_length == key_length')
+        visible = visible & build_causal_mask(query_length)[None, None, :, :]
+    return visible
+
+
 mask = build_causal_mask(4)
+key_padding_mask = torch.tensor([[1, 1, 1, 0], [1, 1, 0, 0]], dtype=torch.bool)
+self_mask = build_attention_mask(key_padding_mask, query_length=4, causal=True)
+cross_mask = build_attention_mask(key_padding_mask, query_length=2, causal=False)
 print('causal mask：')
 print(mask.int())
-print('最后一行：', mask[-1].int().tolist())
-print('第一行：', mask[0].int().tolist())
+print('self mask shape:', tuple(self_mask.shape))
+print('cross mask shape:', tuple(cross_mask.shape))
 
 ```
 
-## Q2验证：causal mask 是否真的是下三角？
+## Q2 验证：causal 与 padding 约束能否正确组合？
 
-这里直接确认上三角被遮住，未来位置不会参与当前 token 的聚合。
+验证下三角可见性、padding 屏蔽和 self/cross attention 的 shape contract。
 
 
 ```python
@@ -129,13 +140,18 @@ expected = torch.tensor([
     [True, True, True, True],
 ])
 assert torch.equal(mask, expected)
-print('✅ causal mask 通过')
+assert self_mask.shape == (2, 1, 4, 4)
+assert cross_mask.shape == (2, 1, 2, 4)
+assert not self_mask[0, 0, 0, 1]
+assert not self_mask[0, 0, 3, 3]
+assert cross_mask[0, 0, 0].tolist() == [True, True, True, False]
+print('✅ causal 与 padding mask 组合通过')
 
 ```
 
 ## Q3：什么时候必须先看 softmax 的数值稳定性？
 
-Attention 里 score 常常会先减去最大值再做 softmax，目的不是“多写一步”，而是避免数值爆掉。对于序列很长的模型，这一步会直接影响训练是否稳定。
+对 score 执行 softmax 前先减去行最大值，可以避免指数计算溢出，同时不改变归一化结果。序列变长或分数幅度增大时，这项处理直接影响训练和推理的数值稳定性。
 
 
 ```python
@@ -148,19 +164,25 @@ print('row sum：', probs.sum(dim=-1))
 
 ```
 
-## Q3验证：softmax 和 mask 的稳定性是否正确？
+## Q3 验证：softmax 和 mask 的稳定性是否正确？
 
 这里直接确认：被 mask 的位置会变成 0，未被 mask 的位置行和为 1。
 
 
 ```python
-scores = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-mask = torch.tensor([[True, True, False], [True, True, True]])
+scores = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [9.0, 8.0, 7.0]])
+mask = torch.tensor([
+    [True, True, False],
+    [True, True, True],
+    [False, False, False],
+])
 probs = masked_softmax(scores, mask=mask)
-assert torch.allclose(probs.sum(dim=-1), torch.ones(2), atol=1e-6, rtol=1e-6)
-assert torch.allclose(probs[0, 2], torch.tensor(0.0))
-print('✅ masked_softmax 通过')
 
+assert torch.allclose(probs[:2].sum(dim=-1), torch.ones(2), atol=1e-6, rtol=1e-6)
+assert torch.allclose(probs[0, 2], torch.tensor(0.0))
+assert torch.equal(probs[2], torch.zeros(3))
+assert torch.isfinite(probs).all()
+print('✅ masked_softmax 与全遮蔽行通过')
 ```
 
 ## Q4：如何把 QK^T、mask、softmax 和 V 串成 Attention 闭环？
@@ -181,7 +203,7 @@ print(output)
 
 ```
 
-## Q4验证：Attention 的最小闭环是否可见？
+## Q4 验证：Attention 的最小闭环是否可见？
 
 这里直接检查权重和输出 shape，确认最小 attention 流程已经完整闭合。
 
@@ -198,81 +220,118 @@ print('✅ Attention 闭环通过')
 
 ```
 
-## Q5：Attention 闭环中的 Q / K / V shape contract 如何检查？
+## Q5：自注意力与交叉注意力的 shape contract 有什么不同？
 
-先检查 batch、head、seq、hidden 四个维度是否拆对，再判断 Attention 是否能对齐。对刚接触架构的学习者，可以先把它理解成：Q、K、V 必须在批次和 head 维度上对应，矩阵乘法只发生在约定的序列和特征维度上。
-
+两者都要求 batch、head 和 Q/K 特征维可以完成矩阵乘法，K 与 V 还必须共享来源序列长度。自注意力通常满足 `S_q = S_k = S_v`；交叉注意力允许查询序列长度 `S_q` 与来源序列长度 `S_k` 不同，因此不能把“所有序列长度相同”写成通用契约。
 
 ```python
-def attention_contract_ok(q_shape, k_shape, v_shape):
+def attention_contract_ok(q_shape, k_shape, v_shape, mode):
+    """检查 [B, H, S, D] 形式的自注意力或交叉注意力契约。"""
     same_batch = q_shape[0] == k_shape[0] == v_shape[0]
     same_head = q_shape[1] == k_shape[1] == v_shape[1]
-    seq_match = q_shape[2] == k_shape[2] and v_shape[2] >= q_shape[2]
-    return same_batch and same_head and seq_match
+    score_feature_match = q_shape[3] == k_shape[3]
+    source_length_match = k_shape[2] == v_shape[2]
+    self_length_match = q_shape[2] == k_shape[2] if mode == 'self' else True
+    return same_batch and same_head and score_feature_match and source_length_match and self_length_match
 
 
-print('ok:', attention_contract_ok((2, 4, 8, 16), (2, 4, 8, 16), (2, 4, 8, 16)))
-print('bad:', attention_contract_ok((2, 4, 8, 16), (2, 4, 7, 16), (2, 4, 8, 16)))
-# 输出示例: ok -> True, bad -> False
-
+print('self contract：', attention_contract_ok((2, 4, 8, 16), (2, 4, 8, 16), (2, 4, 8, 32), mode='self'))
+print('cross contract：', attention_contract_ok((2, 4, 3, 16), (2, 4, 8, 16), (2, 4, 8, 32), mode='cross'))
 ```
 
-## Q6：mask 放在 softmax 前还是后，为什么？
+## Q5 验证：Self / cross attention 的合法与非法 shape 能否区分？
 
-mask 必须先作用在 logits 上，再做 softmax；如果先 softmax，再 mask，概率归一化就会被破坏。这里可以先记成一句最小规则：先遮住不该看的位置，再把剩下的位置归一化。
+Self-attention 要求查询与来源序列长度一致；cross-attention 允许二者不同，但 K/V 的来源长度必须一致。
 
 
 ```python
-def mask_before_softmax(mask_first):
-    if mask_first:
-        return 'stable_logits_then_softmax'
-    return 'probability_broken'
-
-
-print('case1:', mask_before_softmax(True))
-print('case2:', mask_before_softmax(False))
-# 输出示例: stable_logits_then_softmax / probability_broken
+assert attention_contract_ok((2, 4, 8, 16), (2, 4, 8, 16), (2, 4, 8, 32), mode='self')
+assert attention_contract_ok((2, 4, 3, 16), (2, 4, 8, 16), (2, 4, 8, 32), mode='cross')
+assert not attention_contract_ok((2, 4, 3, 16), (2, 4, 8, 16), (2, 4, 7, 32), mode='cross')
+print('✅ self / cross attention shape contract 通过')
 
 ```
 
-## Q7：attention 里最常见的错误是逻辑错还是布局错？
+## Q6：多头 Attention 怎样在 head 维和 hidden 维之间转换？
 
-先分清是 mask / softmax / 聚合逻辑错，还是 head / seq / hidden 的布局错；这两类错的修法完全不同。对于刚接触 Transformer 的人，逻辑错更像“算错了该看谁”，布局错更像“维度排错了”。
+多头 Attention 把 `[B, S, D]` 拆成 `[B, H, S, D_h]`，让不同 head 独立计算，再把结果合回 hidden 维。拆分与合并必须保持元素顺序和总维度不变；这一布局契约也是后续阅读 GQA、FlashAttention 和 fused kernel 的基础。
 
 
 ```python
-def classify_attention_bug(logic_ok, layout_ok):
-    if not logic_ok and not layout_ok:
-        return {'bug': 'both', 'next': 'fix_logic_then_layout'}
-    if not logic_ok:
-        return {'bug': 'logic', 'next': 'check_mask_softmax_value_path'}
-    if not layout_ok:
-        return {'bug': 'layout', 'next': 'check_shape_contract_and_stride'}
-    return {'bug': 'ok', 'next': 'profile_and_compare'}
+def split_heads(x, num_heads):
+    """把 [B, S, D] 转成 [B, H, S, D_h]。"""
+    batch_size, seq_len, hidden_size = x.shape
+    if hidden_size % num_heads != 0:
+        raise ValueError('hidden_size must be divisible by num_heads')
+    head_dim = hidden_size // num_heads
+    return x.view(batch_size, seq_len, num_heads, head_dim).transpose(1, 2)
 
 
-print(classify_attention_bug(False, True))
-print(classify_attention_bug(True, False))
-# 输出示例: logic / layout / both
+def merge_heads(x):
+    """把 [B, H, S, D_h] 合回 [B, S, D]。"""
+    batch_size, num_heads, seq_len, head_dim = x.shape
+    return x.transpose(1, 2).contiguous().view(batch_size, seq_len, num_heads * head_dim)
+
+
+x = torch.arange(24, dtype=torch.float32).reshape(1, 3, 8)
+heads = split_heads(x, num_heads=2)
+restored = merge_heads(heads)
+print('head shape:', tuple(heads.shape))
+print('round trip:', torch.equal(restored, x))
 
 ```
 
-## Q8：什么时候该停在最小 attention，什么时候该继续看优化实现？
+## Q6 验证：手写多头数据流是否与 PyTorch 参考实现一致？
 
-当最小 attention 已经能解释语义，但性能或显存成了主问题时，再去看 fused softmax、FlashAttention 或更底层实现。这里的分界很简单：先保证你看得懂语义，再考虑让它更快更省。
+除布局往返外，还应比较每个 head 的手写 Attention 与 `scaled_dot_product_attention`，确认分数缩放、softmax 和 V 聚合没有发生语义偏差。
 
 
 ```python
-def next_attention_step(correctness_ok, perf_ok, memory_ok):
-    if not correctness_ok:
-        return 'fix_minimal_attention_first'
-    if not perf_ok or not memory_ok:
-        return 'study_fused_or_flashattention'
-    return 'stay_with_minimal_model'
+x = torch.arange(24, dtype=torch.float32).reshape(1, 3, 8) / 10
+q = split_heads(x, num_heads=2)
+k = split_heads(x + 0.1, num_heads=2)
+v = split_heads(x - 0.2, num_heads=2)
+manual_output, _ = scaled_dot_product_attention(q, k, v)
+reference_output = F.scaled_dot_product_attention(q, k, v)
+
+assert q.shape == (1, 2, 3, 4)
+assert torch.equal(merge_heads(split_heads(x, 2)), x)
+assert torch.allclose(manual_output, reference_output, atol=1e-6, rtol=1e-6)
+print('✅ 多头布局与 PyTorch SDPA 对照通过')
+
+```
+
+## Q7：序列长度和位置信息怎样限制标准 Attention？
+
+每个 query 都与全部 key 形成分数，因此分数矩阵随序列长度按平方增长。另一方面，若不加入位置编码或位置偏置，自注意力只根据内容匹配；同步打乱 token 顺序只会同步打乱输出，模型无法仅凭 Attention 区分原始次序。
 
 
-print(next_attention_step(True, False, True))
-print(next_attention_step(True, True, True))
-# 输出示例: study_fused_or_flashattention / stay_with_minimal_model
+```python
+def attention_score_elements(batch_size, num_heads, seq_len):
+    """返回标准自注意力分数张量 [B, H, S, S] 的元素数。"""
+    return batch_size * num_heads * seq_len * seq_len
+
+
+short_scores = attention_score_elements(batch_size=2, num_heads=4, seq_len=8)
+long_scores = attention_score_elements(batch_size=2, num_heads=4, seq_len=16)
+
+tokens = torch.tensor([[[1.0, 0.0], [0.0, 2.0], [1.0, 1.0]]])
+permutation = torch.tensor([2, 0, 1])
+output, _ = scaled_dot_product_attention(tokens, tokens, tokens)
+permuted = tokens[:, permutation]
+permuted_output, _ = scaled_dot_product_attention(permuted, permuted, permuted)
+print('score elements：', short_scores, '->', long_scores)
+
+```
+
+## Q7 验证：长度翻倍和顺序置换是否符合机制预期？
+
+序列长度翻倍时分数元素数应变为四倍；没有位置机制时，置换输入后输出只发生同样的置换。
+
+
+```python
+assert long_scores == 4 * short_scores
+assert torch.allclose(permuted_output, output[:, permutation], atol=1e-6)
+print('✅ Attention 二次增长与位置缺失特性通过')
 
 ```
