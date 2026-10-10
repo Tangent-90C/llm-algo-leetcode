@@ -139,6 +139,7 @@ def audit_chapter0_1() -> None:
 
 
 def verify_chapter2(*, build_docs: bool) -> None:
+    run_python("tools/check_svg_layout.py")
     run_python("tools/convert_notebook.py", "--dir", "02_PyTorch_Algorithms")
     run_python("tools/check_source_docs_mirror.py")
     if has_cuda():
