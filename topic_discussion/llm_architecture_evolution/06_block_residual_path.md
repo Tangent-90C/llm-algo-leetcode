@@ -1,33 +1,34 @@
-# 06 Block 与残差主干（Block and Residual Stream）
+# 06 Transformer 块与残差主干（Block and Residual Stream）
 
-## 页面导语
+## 学习问题
 
-单个算子并不能解释模型深度。Decoder Block 通过残差流把 Attention 与 MLP 的增量写回主干；Norm 位置、分支尺度和层数共同决定状态能否稳定传播。本页关注“多个 Block 如何连续更新”，而不是重复介绍各个组件公式。
+单个算子不能解释模型深度。解码器块通过残差流把注意力与 MLP 的增量写回主干；归一化位置、分支尺度和层数共同决定状态能否稳定传播。连续堆叠时，每个块都必须保持主状态形状，并控制分支增量的尺度。
 
-## 1. 设计压力：为什么需要一条稳定的主干状态？
+## 核心机制
 
-如果每个子层都直接覆盖 hidden state，深层模型难以保留已有信息，也更容易出现梯度衰减或放大。残差流让子层学习增量更新，Pre-Norm 则在分支读取主干前控制尺度。
+### 设计压力：为什么需要一条稳定的主干状态？
 
-![多个 Block 的残差更新：主干状态、分支增量与深度稳定性](../../docs/public/topic_discussion/llm_architecture_evolution/block_residual_stability.svg)
+如果每个子层都直接覆盖隐状态，深层模型难以保留已有信息，也更容易出现梯度衰减或放大。残差流让子层学习增量更新，前置归一化则在分支读取主干前控制尺度。
 
-## 2. 结构机制：一个 Block 是两次受控状态更新
+![多个 Transformer 块的残差更新：主干状态、分支增量与深度稳定性](../../docs/public/topic_discussion/llm_architecture_evolution/block_residual_stability.svg)
 
-| 阶段 | 主干状态变化 | 关键约束 |
-|:---|:---|:---|
-| Attention 更新 | `h ← h + Attention(Norm(h))` | 上下文访问、位置机制、Attention 表示 |
-| MLP 更新 | `h ← h + MLP(Norm(h))` | 通道扩张、门控激活、Dense 或 MoE |
-| 多层堆叠 | 重复两次增量更新 | 残差尺度、深度、初始化和数值范围 |
+### 结构机制：一个 Transformer 块是两次受控状态更新
 
-## 3. 取舍与证据：深度增加不保证有效容量增加
+设进入第 $l$ 个块的主干状态为 $h_l$，Pre-Norm 块先形成注意力增量 $a_l$，再形成 MLP 增量 $m_l$：$a_l=\mathrm{Attn}(\mathrm{Norm}(h_l))$，$m_l=\mathrm{MLP}(\mathrm{Norm}(h_l+a_l))$，最终 $h_{l+1}=h_l+a_l+m_l$。形状保持不变并不代表数值稳定；增量相对主干的比例会随深度累积。
 
-Block 变体要同时检查结构合法性、参数量/FLOPs、激活与梯度尺度、训练稳定性和目标任务质量。残差缩放或额外 Norm 只有在相同训练口径下，才能形成较强的稳定性证据。
+残差缩放、分支初始化和额外归一化都在控制增量写入速度。比较块变体时应固定深度、隐藏维度、参数预算和训练批次，再观察稳定性；只跑单个块无法暴露深度累积问题。
 
-## 4. 代码与项目入口
+| 阶段 | 主干状态变化 | 应观察的量 | 关键约束 |
+|:---|:---|:---|:---|
+| 注意力更新 | `h ← h + a` | `‖a‖ / ‖h‖`、注意力输出范围 | 上下文访问、位置机制、注意力表示 |
+| MLP 更新 | `h ← h + m` | `‖m‖ / ‖h+a‖`、门控激活范围 | 通道扩张、门控激活、稠密 FFN 或 MoE |
+| 多层堆叠 | 重复两次增量更新 | 层间激活 RMS、梯度范数、非有限值 | 残差缩放、深度、初始化和数值精度 |
 
-- [Part 00 · 13 Transformer Block 数据流](../../00_Prerequisites/13_Transformer_Block_Dataflow_and_Residual_Stream.ipynb)：建立组件到 Block 的映射。
-- [Part 02 · 05 LLaMA3 Block](../../02_PyTorch_Algorithms/05_LLaMA3_Block_Tutorial.ipynb)：实现两条残差更新。
-- [Part 02 · 08 架构技巧](../../02_PyTorch_Algorithms/08_Architecture_Tricks.ipynb)：读取配置并审计参数归属。
-- [Part 02 · 60 Decoder Block 稳定性项目](../../02_PyTorch_Algorithms/60_Decoder_Block_Stability_Benchmark.ipynb)：比较 Block 变体。
+## 选择条件与验证证据
+
+Transformer 块变体要同时检查结构合法性、参数量/FLOPs、激活与梯度尺度、训练稳定性和目标任务质量。残差缩放或额外归一化只有在相同训练口径下，才能形成较强的稳定性证据。
+
+组件到 Transformer 块的映射见 [Part 00 · 13](../../00_Prerequisites/13_Transformer_Block_Dataflow_and_Residual_Stream.ipynb)，两次残差更新和配置审计分别进入 [Part 02 · 05](../../02_PyTorch_Algorithms/05_LLaMA3_Block_Tutorial.ipynb)与 [Part 02 · 08](../../02_PyTorch_Algorithms/08_Architecture_Tricks.ipynb)；多层稳定性证据由 [Part 02 · 60](../../02_PyTorch_Algorithms/60_Decoder_Block_Stability_Benchmark.ipynb)承接。
 
 ## 相关阅读
 

@@ -1,45 +1,67 @@
-# 架构审计 Casebook
+# 架构问题排查手册
 
-本页用于把模型卡、论文或配置文件中的结构描述转成可复查的判断。先定位替换发生在 Block 的哪个位置，再判断它改变了什么状态、计算或通信；不要从模型名称直接推导结论。
+第一次系统学习架构演进时，从[架构演进问题链](./walkthrough.md)进入；遇到配置冲突、容量异常或长序列质量问题时，先在症状索引定位，再补充结构证据。
+
+## 使用方式
+
+1. 先定位变化发生在输入、Transformer 块、注意力、FFN、MoE 还是记忆接口。
+2. 再区分模型声明、模块实例化与实际运行路径。
+3. 根据症状补齐结构、质量和成本证据；证据完整后进入 Part 02 · 61 作采用判断。
 
 ![架构审计跨模块地图：从结构差异进入专项证据](../../docs/public/topic_discussion/llm_architecture_evolution/cross_module_map.svg)
 
-## 结构审计顺序
+## 症状索引
+
+| 现象 | 优先检查 | 缺少的证据 | 回查入口 |
+|:---|:---|:---|:---|
+| 配置声明与模块树不一致 | 模型版本、远程代码、权重键与实际模块 | 固定版本的配置、模块树和加载日志 | [08 代表模型与结构审计](./08_representative_models.md) |
+| KV 容量高于估算 | KV 注意力头、单头维度、潜在维度、数据类型与层数 | 表示账本和真实缓存分配 | [04 注意力表示](./04_attention_evolution.md) |
+| 长度增加后质量骤降 | RoPE 缩放、训练长度、访问范围 | 长度阶梯质量和失败样例 | [05 RoPE](./05_rope_position_encoding.md)、[Part 02 · 44](../../02_PyTorch_Algorithms/44_Local_Sliding_and_Sparse_Attention.ipynb) |
+| MoE 吞吐或负载异常 | Top-k、专家容量、容量溢出、分发 | 专家负载、丢弃量和通信时间 | [09 MoE](./09_moe_sparsity_evolution.md) |
+| 混合模型状态成本不清 | 注意力/SSM 层分布和状态形状 | 分层状态账本、质量与延迟 | [10 混合记忆](./10_linear_attention_ssm_and_hybrid.md) |
+
+## 排查路径
+
+### 先按结构位置审计
 
 | 审计顺序 | 要确认的问题 | 记录的证据 |
 |:---|:---|:---|
-| 输入与主干 | token、embedding、position、residual 的路径是什么？ | 配置字段、张量形状、权重共享关系 |
-| Attention 表示 | head、KV head 或 latent KV 如何变化？ | head 数、KV head 数、latent 维度、Cache 形式 |
-| 位置与访问范围 | 位置如何进入 Q/K，哪些历史 token 可见？ | RoPE / scaling、mask、窗口或稀疏模式 |
-| Norm 与 FFN | 归一化放在哪里，通道如何扩展？ | norm 类型、激活、intermediate size、残差顺序 |
-| 容量与记忆机制 | token 是否路由；历史是否显式保存？ | top-k、capacity、expert 数、递推状态形状 |
+| 输入与主干 | 词元、嵌入、位置和残差的路径是什么？ | 配置字段、张量形状、权重共享关系 |
+| 注意力表示 | 注意力头、KV 注意力头或潜在 KV 如何变化？ | 注意力头数、KV 注意力头数、潜在维度、缓存形式 |
+| 位置与访问范围 | 位置如何进入 Q/K，哪些历史词元可见？ | RoPE 缩放、掩码、窗口或稀疏模式 |
+| 归一化与 FFN | 归一化放在哪里，通道如何扩展？ | 归一化类型、激活、中间维度、残差顺序 |
+| 容量与记忆机制 | 词元是否路由；历史是否显式保存？ | Top-k、专家容量、专家数、递推状态形状 |
 | 系统影响 | 这项替换可能影响什么，需要怎样验证？ | 参数 / 计算 / 状态 / 通信估算与真实测量 |
 
-## 常见现象与回查路径
+### 再按术语回查机制
 
 | 看到的描述 | 先判断什么 | 回查入口 | 下一步证据 |
 |:---|:---|:---|:---|
-| “GQA / MQA / MLA” | Q head 与 KV 表示是否真的改变 | [04 Attention](./04_attention_evolution.md) | KV 状态大小、上下文质量、真实延迟 |
-| “sliding window / sparse attention” | 每个 token 的可见范围是什么 | [Part 02 · 44](../../02_PyTorch_Algorithms/44_Local_Sliding_and_Sparse_Attention.ipynb) | 理论连接数、长上下文任务质量 |
-| “RMSNorm / SwiGLU” | 归一化位置、门控通道和参数量 | [03 Norm](./03_norm_evolution.md)、[07 MLP](./07_mlp_ffn_evolution.md) | 梯度稳定性、参数和计算量 |
-| “MoE / shared expert” | Router、capacity、overflow 与 dispatch 如何定义 | [09 MoE](./09_moe_sparsity_evolution.md) | 负载、All-to-All、有效激活参数 |
-| “linear attention / SSM” | 是显式检索历史，还是递推压缩状态 | [10 线性 Attention、SSM 与混合记忆](./10_linear_attention_ssm_and_hybrid.md)；[Part 02 · 77](../../02_PyTorch_Algorithms/77_Long_Sequence_Memory_Architecture_Benchmark.ipynb) | 状态大小、并行条件、长序列质量与成本 |
+| “GQA / MQA / MLA” | Q 注意力头与 KV 表示是否真的改变 | [04 注意力](./04_attention_evolution.md) | KV 状态大小、上下文质量、真实延迟 |
+| “滑动窗口 / 稀疏注意力” | 每个词元的可见范围是什么 | [Part 02 · 44](../../02_PyTorch_Algorithms/44_Local_Sliding_and_Sparse_Attention.ipynb) | 理论连接数、长上下文任务质量 |
+| “RMSNorm / SwiGLU” | 归一化位置、门控通道和参数量 | [03 归一化](./03_norm_evolution.md)、[07 MLP](./07_mlp_ffn_evolution.md) | 梯度稳定性、参数和计算量 |
+| “MoE / 共享专家” | 路由器、专家容量、容量溢出与分发如何定义 | [09 MoE](./09_moe_sparsity_evolution.md) | 负载、All-to-All、有效激活参数 |
+| “线性注意力 / SSM” | 是显式检索历史，还是递推压缩状态 | [10 线性注意力、SSM 与混合记忆](./10_linear_attention_ssm_and_hybrid.md)；[Part 02 · 77](../../02_PyTorch_Algorithms/77_Long_Sequence_Memory_Architecture_Benchmark.ipynb) | 状态大小、并行条件、长序列质量与成本 |
 
-## 最小结构审计卡
+### 最后填写结构审计卡
 
 每次阅读一个模型至少填写下列字段；未知项保留为待验证，而不是用经验补全。
 
 | 字段 | 记录内容 |
 |:---|:---|
-| 基线组件 | 以 Decoder Block、MHA、Dense FFN 或显式 KV 为基线写明 |
+| 基线组件 | 以解码器块、MHA、稠密 FFN 或显式 KV 为基线写明 |
 | 实际替换 | 模型实际使用的结构、配置值与来源 |
 | 目标 | 它主要针对质量、上下文、参数容量、状态成本还是通信 |
 | 代价 | 可能增加的计算、显存、通信、实现复杂度或质量风险 |
-| 证据等级 | 理论估算 / CPU 机制测试 / 单卡测量 / 多卡或线上 benchmark |
+| 证据等级 | 理论估算 / CPU 机制测试 / 单卡测量 / 多卡或线上基准测试 |
 | 结论 | 采用、继续验证或不采用，以及下一项需要的证据 |
+
+## 何时进入最终决策
+
+只有模型与分词器版本、配置和模块实例化证据、目标工作负载的质量与成本结果、失败记录和适用范围都已登记，才进入 [Part 02 · 61 模型架构审计](../../02_PyTorch_Algorithms/61_Model_Architecture_Exploration.ipynb)。只读到模型卡或论文时，应保留为结构假设；只完成 CPU 机制实验时，不得写成目标执行后端收益。
 
 ## 相关阅读
 
-- [LLaMA](https://arxiv.org/abs/2302.13971)：用完整配置阅读现代 Decoder Block。
+- [LLaMA](https://arxiv.org/abs/2302.13971)：用完整配置阅读现代解码器块。
 - [DeepSeek-V2](https://arxiv.org/abs/2405.04434)：用 MLA、MoE 与负载策略阅读架构协同选择。
-- [Mamba](https://arxiv.org/abs/2312.00752)：用递推状态与 Attention 的差异阅读另一类长序列记忆路径。
+- [Mamba](https://arxiv.org/abs/2312.00752)：用递推状态与注意力的差异阅读另一类长序列记忆路径。
