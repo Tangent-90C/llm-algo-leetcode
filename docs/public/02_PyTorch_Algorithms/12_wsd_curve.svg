@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 760" role="img" aria-labelledby="title desc">
+  <title id="title">WSD learning rate curve</title>
+  <desc id="desc">Shows warmup, stable, and cosine decay phases for a learning rate schedule across optimizer update steps.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#eff6ff"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 30px "Inter", "Noto Sans SC", sans-serif; fill: #0f172a; }
+      .sub { font: 500 16px "Inter", "Noto Sans SC", sans-serif; fill: #475569; }
+      .label { font: 700 18px "Inter", "Noto Sans SC", sans-serif; fill: #111827; }
+      .small { font: 500 14px "Inter", "Noto Sans SC", sans-serif; fill: #334155; }
+      .axis { stroke: #475569; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .grid { stroke: #cbd5e1; stroke-width: 1.5; }
+      .curve { stroke: #2563eb; stroke-width: 7; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .box { fill: #ffffff; stroke-width: 2.5; rx: 14; ry: 14; }
+    </style>
+  </defs>
+  <rect width="1600" height="760" fill="url(#bg)"/>
+  <text x="64" y="66" class="title">WSD: warmup -> stable -> cosine decay</text>
+  <text x="64" y="96" class="sub">The schedule is stepped by optimizer updates, not by micro-batches.</text>
+
+  <line x1="140" y1="630" x2="1460" y2="630" class="axis"/>
+  <line x1="140" y1="630" x2="140" y2="150" class="axis"/>
+  <line x1="140" y1="510" x2="1460" y2="510" class="grid"/>
+  <line x1="140" y1="390" x2="1460" y2="390" class="grid"/>
+  <line x1="140" y1="270" x2="1460" y2="270" class="grid"/>
+
+  <path d="M 140 630 L 220 595 L 300 560 L 380 525 L 460 490 L 540 455 L 620 420 L 700 390 L 820 390 L 940 390 L 1060 390 L 1180 390 L 1280 430 L 1360 500 L 1460 590" class="curve"/>
+
+  <rect x="220" y="140" width="260" height="92" class="box" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="350" y="174" text-anchor="middle" class="label">Warmup</text>
+  <text x="350" y="200" text-anchor="middle" class="small">0 -> base_lr</text>
+
+  <rect x="610" y="140" width="280" height="92" class="box" fill="#ecfccb" stroke="#65a30d"/>
+  <text x="750" y="174" text-anchor="middle" class="label">Stable</text>
+  <text x="750" y="200" text-anchor="middle" class="small">hold base_lr</text>
+
+  <rect x="1030" y="140" width="300" height="92" class="box" fill="#f5f3ff" stroke="#8b5cf6"/>
+  <text x="1180" y="174" text-anchor="middle" class="label">Cosine Decay</text>
+  <text x="1180" y="200" text-anchor="middle" class="small">base_lr -> min_lr</text>
+
+  <text x="112" y="636" class="small">0</text>
+  <text x="720" y="656" class="small">warmup_end</text>
+  <text x="1090" y="656" class="small">decay_start</text>
+  <text x="1410" y="656" class="small">total_steps</text>
+  <text x="58" y="185" class="small" transform="rotate(-90 58 185)">lr</text>
+  <text x="1310" y="170" class="small">min_lr</text>
+  <text x="1310" y="232" class="small">base_lr</text>
+
+  <rect x="80" y="680" width="1440" height="40" fill="none"/>
+  <text x="80" y="718" class="small">Use the curve as a training control surface: warmup stabilizes the start, stable keeps learning alive, and decay lets the model settle.</text>
+</svg>
