@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="520" viewBox="0 0 1240 520" role="img" aria-labelledby="title desc">
+  <title id="title">FP8 原生执行与回退判定</title>
+  <desc id="desc">候选配置依次通过硬件、执行后端与形状门槛，再根据实际计算内核区分原生 FP8 和高精度回退。</desc>
+  <defs>
+    <style>.title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.sub{font:15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.h{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.t{font:14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.blue{fill:#e8f3fb;stroke:#3978a8;stroke-width:2}.orange{fill:#fff1df;stroke:#c78335;stroke-width:2}.green{fill:#eaf7ef;stroke:#4c9870;stroke-width:2}.red{fill:#fdecec;stroke:#c75b5b;stroke-width:2}.purple{fill:#f1eafa;stroke:#8b6bb1;stroke-width:2}.flow{stroke:#3978a8;stroke-width:2.5;fill:none}.fallback{stroke:#c75b5b;stroke-width:2.5;fill:none;stroke-dasharray:7 6}</style>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#3978a8"/></marker>
+    <marker id="redArrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#c75b5b"/></marker>
+  </defs>
+  <rect width="1240" height="520" rx="24" fill="#f8fbfd"/>
+  <text x="620" y="45" text-anchor="middle" class="title">声明 FP8 之后，还要经过三道执行门槛</text>
+  <text x="620" y="73" text-anchor="middle" class="sub">只有实际计算内核命中，配对性能结果才属于原生 FP8 证据</text>
+  <rect x="65" y="125" width="210" height="82" rx="15" class="blue"/>
+  <text x="170" y="156" text-anchor="middle" class="h">候选配置</text><text x="170" y="180" text-anchor="middle" class="t">格式 · 缩放 · 累加精度</text>
+  <rect x="340" y="125" width="210" height="82" rx="15" class="orange"/>
+  <text x="445" y="156" text-anchor="middle" class="h">硬件能力</text><text x="445" y="180" text-anchor="middle" class="t">设备是否支持目标 FP8</text>
+  <rect x="615" y="125" width="210" height="82" rx="15" class="orange"/>
+  <text x="720" y="156" text-anchor="middle" class="h">后端与形状</text><text x="720" y="180" text-anchor="middle" class="t">算子 · 布局 · 对齐约束</text>
+  <rect x="890" y="125" width="285" height="82" rx="15" class="purple"/>
+  <text x="1032" y="156" text-anchor="middle" class="h">实际计算内核事件</text><text x="1032" y="180" text-anchor="middle" class="t">不能只读取配置或输出数据类型</text>
+  <path d="M275 166H340" class="flow" marker-end="url(#arrow)"/><path d="M550 166H615" class="flow" marker-end="url(#arrow)"/><path d="M825 166H890" class="flow" marker-end="url(#arrow)"/>
+
+  <rect x="180" y="300" width="360" height="105" rx="17" class="green"/>
+  <text x="360" y="334" text-anchor="middle" class="h">原生 FP8 路径</text>
+  <text x="360" y="359" text-anchor="middle" class="t">目标计算内核命中 · 无静默高精度回退</text>
+  <text x="360" y="382" text-anchor="middle" class="t">继续比较质量、显存、延迟与吞吐</text>
+  <rect x="700" y="300" width="360" height="105" rx="17" class="red"/>
+  <text x="880" y="334" text-anchor="middle" class="h">转换或高精度回退</text>
+  <text x="880" y="359" text-anchor="middle" class="t">格式可创建，但计算发生在其他数据类型</text>
+  <text x="880" y="382" text-anchor="middle" class="t">记录失败条件，不形成 FP8 加速结论</text>
+  <path d="M1032 207V240" class="flow"/>
+  <path d="M1032 240H360V300" class="flow" marker-end="url(#arrow)"/>
+  <path d="M1032 240V270H880V300" class="fallback" marker-end="url(#redArrow)"/>
+  <text x="550" y="275" text-anchor="middle" class="t">命中</text><text x="910" y="275" text-anchor="middle" class="t">未命中</text>
+  <rect x="355" y="446" width="530" height="48" rx="13" fill="#fff" stroke="#8b6bb1" stroke-width="2"/>
+  <text x="620" y="476" text-anchor="middle" class="h">结论 = 路径证据 × 数值门槛 × 配对工作负载</text>
+  <path d="M360 405V446" class="flow" marker-end="url(#arrow)"/>
+  <path d="M880 405V446" class="fallback" marker-end="url(#redArrow)"/>
+</svg>

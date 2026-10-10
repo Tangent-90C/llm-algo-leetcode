@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#486581"/></marker>
+    <style>.title{font:700 25px sans-serif;fill:#102a43}.head{fill:#dfeef8;stroke:#7ba1bd;stroke-width:2}.row{fill:#fff;stroke:#9fb9cf;stroke-width:1.8}.candidate{fill:#eaf7ef;stroke:#4e8a68;stroke-width:2}.limit{fill:#fff6e8;stroke:#c9852f;stroke-width:2}.label{font:700 16px sans-serif;fill:#17324d}.small{font:14px sans-serif;fill:#365269}.edge{fill:none;stroke:#486581;stroke-width:2.2;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect x="0" y="0" width="1200" height="520" fill="#f8fafc"/>
+  <text x="600" y="38" text-anchor="middle" class="title">融合候选同时携带收益来源与执行限制，识别候选不等于保证收益</text>
+
+  <rect x="34" y="70" width="1132" height="54" rx="12" class="head"/>
+  <text x="162" y="103" text-anchor="middle" class="label">原始算子模式</text>
+  <text x="438" y="103" text-anchor="middle" class="label">融合候选</text>
+  <text x="724" y="103" text-anchor="middle" class="label">可能减少的开销</text>
+  <text x="1010" y="103" text-anchor="middle" class="label">主要执行限制</text>
+
+  <rect x="34" y="138" width="1132" height="72" rx="12" class="row"/>
+  <text x="162" y="168" text-anchor="middle" class="label">Q/K/V 投影 → 旋转位置编码</text>
+  <text x="162" y="191" text-anchor="middle" class="small">多个投影结果继续变换</text>
+  <rect x="338" y="149" width="200" height="50" rx="10" class="candidate"/>
+  <text x="438" y="180" text-anchor="middle" class="label">投影与位置变换融合</text>
+  <text x="724" y="168" text-anchor="middle" class="small">减少中间张量写回</text>
+  <text x="724" y="191" text-anchor="middle" class="small">减少计算内核启动</text>
+  <text x="1010" y="168" text-anchor="middle" class="small">头布局与位置编码形式</text>
+  <text x="1010" y="191" text-anchor="middle" class="small">序列位置与数据类型</text>
+
+  <rect x="34" y="220" width="1132" height="72" rx="12" class="row"/>
+  <text x="162" y="250" text-anchor="middle" class="label">残差相加 → 均方根归一化</text>
+  <text x="162" y="273" text-anchor="middle" class="small">共享残差和归一化输入</text>
+  <rect x="338" y="231" width="200" height="50" rx="10" class="candidate"/>
+  <text x="438" y="262" text-anchor="middle" class="label">残差与归一化融合</text>
+  <text x="724" y="250" text-anchor="middle" class="small">复用一次输入读取</text>
+  <text x="724" y="273" text-anchor="middle" class="small">减少临时状态落地</text>
+  <text x="1010" y="250" text-anchor="middle" class="small">隐藏维度与数据类型</text>
+  <text x="1010" y="273" text-anchor="middle" class="small">归一化精度与残差布局</text>
+
+  <rect x="34" y="302" width="1132" height="72" rx="12" class="row"/>
+  <text x="162" y="332" text-anchor="middle" class="label">线性层 → SiLU → 门控相乘</text>
+  <text x="162" y="355" text-anchor="middle" class="small">门控 MLP 的连续数据流</text>
+  <rect x="338" y="313" width="200" height="50" rx="10" class="candidate"/>
+  <text x="438" y="344" text-anchor="middle" class="label">门控激活融合</text>
+  <text x="724" y="332" text-anchor="middle" class="small">减少中间激活写回</text>
+  <text x="724" y="355" text-anchor="middle" class="small">合并多个小计算内核</text>
+  <text x="1010" y="332" text-anchor="middle" class="small">形状、寄存器压力</text>
+  <text x="1010" y="355" text-anchor="middle" class="small">量化格式与计算内核能力</text>
+
+  <rect x="34" y="384" width="1132" height="72" rx="12" class="row"/>
+  <text x="162" y="414" text-anchor="middle" class="label">分数处理 → 采样</text>
+  <text x="162" y="437" text-anchor="middle" class="small">多个短小且动态的步骤</text>
+  <rect x="338" y="395" width="200" height="50" rx="10" class="candidate"/>
+  <text x="438" y="426" text-anchor="middle" class="label">分数处理与采样融合</text>
+  <text x="724" y="414" text-anchor="middle" class="small">减少短计算内核启动</text>
+  <text x="724" y="437" text-anchor="middle" class="small">减少分数张量往返</text>
+  <text x="1010" y="414" text-anchor="middle" class="small">动态策略与随机数状态</text>
+  <text x="1010" y="437" text-anchor="middle" class="small">候选数与采样语义</text>
+
+</svg>

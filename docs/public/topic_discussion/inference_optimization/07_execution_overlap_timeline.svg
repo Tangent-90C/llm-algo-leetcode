@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1160" height="620" viewBox="0 0 1160 620" role="img" aria-labelledby="title desc">
-  <title id="title">Serving 执行关键路径与重叠</title>
-  <desc id="desc">CPU 准备、GPU Prefill/Decode、KV handoff 和下一轮调度在时间线上重叠，显示通信暴露与隐藏的区别。</desc>
+  <title id="title">服务执行关键路径与重叠</title>
+  <desc id="desc">CPU 准备、GPU 预填充/解码、KV 状态交接和下一轮调度在时间线上重叠，显示通信暴露与隐藏的区别。</desc>
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
       <path d="M0,0 L0,6 L9,3 z" fill="#64748b"/>
@@ -36,7 +36,7 @@
   <text x="70" y="395" class="lane">通信 / 搬运</text>
   <line x1="180" y1="388" x2="1050" y2="388" stroke="#e2e8f0" stroke-width="2"/>
   <rect x="430" y="366" width="180" height="44" rx="10" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
-  <text x="520" y="393" text-anchor="middle" class="label" fill="#075985">H2D / KV handoff</text>
+  <text x="520" y="393" text-anchor="middle" class="label" fill="#075985">H2D / KV 状态交接</text>
   <rect x="820" y="366" width="170" height="44" rx="10" fill="#f3e8ff" stroke="#7c3aed" stroke-width="2"/>
   <text x="905" y="393" text-anchor="middle" class="label" fill="#5b21b6">通信 / 同步</text>
 

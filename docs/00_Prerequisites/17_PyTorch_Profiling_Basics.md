@@ -60,6 +60,11 @@ for _ in range(5):
 latency_ms = sum(latency_samples) / len(latency_samples)
 throughput_samples_s = inputs.shape[0] / (latency_ms / 1000)
 
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+trace_dir = TemporaryDirectory()
+trace_path = Path(trace_dir.name) / '17_profile_trace.json'
 with profile(activities=[ProfilerActivity.CPU]) as prof:
     output = model(inputs)
 
@@ -73,7 +78,7 @@ print(summary)
 
 ```
 
-### Q1 代码：用预热、重复采样和 CPU profiler 建立基线
+## Q1 验证：用预热、重复采样和 CPU profiler 建立基线
 
 这里验证前面的 summary 同时包含 latency、throughput 和热点报表；它是可比较的 CPU 基线，不代表稳定的 GPU benchmark。
 
@@ -99,19 +104,21 @@ print('✅ CPU 性能基线与热点记录通过')
 
 ```python
 # 这里先记录 CPU profiler 的算子时间；GPU kernel 时间在对应 GPU 实验中记录。
-with profile(activities=[ProfilerActivity.CPU]) as prof:
+with profile(activities=[ProfilerActivity.CPU]) as cpu_prof:
     _ = model(inputs)
-print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=5))
+cpu_time_table = cpu_prof.key_averages().table(sort_by='cpu_time_total', row_limit=5)
+print(cpu_time_table)
 
 ```
 
-### Q2 代码：验证 CPU 侧的调用时间基线
+## Q2 验证：检查 CPU 侧的调用时间基线
 
-这里确认 CPU 侧的 profiling 接口可以独立工作；真正的 CUDA 时间、同步和数据搬运需要在 Part02 的 GPU 实验中采集。
+该验证检查 CPU 侧 profiling 接口与阶段计时结果。CUDA kernel、同步和数据搬运时间应在 Part 02 的 GPU 实验中使用 CUDA 活动记录采集。
 
 
 ```python
-assert 'aten::linear' in hotspot_table or 'aten::addmm' in hotspot_table
+assert 'aten::linear' in cpu_time_table or 'aten::addmm' in cpu_time_table
+assert len(cpu_time_table) > 0
 print('✅ CPU profiling 基线通过；CUDA 实测在 Part02 GPU 实验中完成')
 
 ```
@@ -126,21 +133,22 @@ with profile(activities=[ProfilerActivity.CPU]) as prof:
     for _ in range(3):
         _ = model(inputs)
         prof.step()
-prof.export_chrome_trace('trace.json')
-print('trace 已导出到 trace.json')
+prof.export_chrome_trace(str(trace_path))
+print('trace 已导出到临时路径：', trace_path)
 
 ```
 
-### Q3 代码：检查可回看的 trace 文件
+## Q3 验证：检查可回看的 trace 文件
 
-这里不展开图形界面，只确认 trace 文件已经生成；TensorBoard 是后续查看这类 trace 的另一种入口。
+验证代码检查 trace 文件是否生成且包含事件记录；生成后可用 TensorBoard Profiler 查看时间线和算子活动。
 
 
 ```python
-from pathlib import Path
-trace_path = Path('trace.json')
 assert trace_path.exists() and trace_path.stat().st_size > 0
 print('✅ trace 导出通过:', trace_path)
+trace_dir.cleanup()
+assert not trace_path.exists()
+print('✅ 临时 trace 已清理')
 
 ```
 
@@ -169,7 +177,7 @@ print(training_table)
 
 ```
 
-### Q4 代码：检查训练阶段标签和热点结果
+## Q4 验证：检查训练阶段标签和热点结果
 
 这里复用前一个单元的结果，确认五个训练阶段都被标记，并且 loss 可以正常计算。
 
@@ -184,7 +192,7 @@ print('✅ 训练阶段标签、热点结果和 loss 检查通过')
 ## 相关阅读
 **导语：** 完成本节后，可以继续学习显存账本、硬件瓶颈模型和真实 profiling 项目。
 - [18. Memory Profiling and Optimization | 显存分析与优化](./18_Memory_Profiling_and_Optimization.md)
-- [20. Profiling and Memory Ledger | 性能剖析与显存账本](./20_Profiling_and_Memory_Ledger.md)
+- [20. Performance Evidence and Experiment Design | 性能证据汇总与实验设计](./20_Performance_Evidence_and_Experiment_Design.md)
 - [P1: 13. Profiling and Bottleneck Analysis | 性能分析与瓶颈定位](../01_Hardware_Math_and_Systems/13_Profiling_and_Bottleneck_Analysis.md)
 - [PyTorch Profiler 官方教程](https://docs.pytorch.org/tutorials/recipes/recipes/profiler_recipe.html)
 - [74. Profiling Driven End-to-End Optimization | Profiling 驱动的端到端优化](../02_PyTorch_Algorithms/74_Profiling_Driven_End_to_End_Optimization.md)

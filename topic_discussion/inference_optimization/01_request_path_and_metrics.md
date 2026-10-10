@@ -1,73 +1,84 @@
 # 01. Request Path and Metrics | 请求链路与指标口径
 
-## 页面目标
+## 学习问题
 
-从一次最小推理请求开始，沿着 `Prefill`、`KV Cache` 和 `Decode` 走一遍，认识 `TTFT`、`TPOT`、throughput、P99 和 peak memory。完成请求阶段与指标的映射后，你应该能够说明请求经过了哪些阶段，把阶段连接到可观察指标，并根据现象判断下一步该看哪类机制。需要补充 Attention 基础时，可先阅读 [04 Attention（MHA / GQA）](../../02_PyTorch_Algorithms/04_Attention_MHA_GQA.ipynb)。
+一次仅解码器自回归请求会经历排队、预填充、逐词元解码和终止。不同阶段读写的状态和处理的词元数量不同，因此首词元延迟（TTFT）、每输出词元时间（TPOT）、吞吐和峰值显存不能互相替代。
+
+学习本页后，你应能为一次请求标出阶段、状态与指标，并固定足以复现基线—候选对照的工作负载。可运行的状态转换与指标计算见 [INF-REQUEST 请求生命周期](../../02_PyTorch_Algorithms/INF-REQUEST-LIFECYCLE_Inference_Request_Lifecycle.ipynb)。
 
 ## 核心机制
 
-请求可以先拆成 `Prefill`、`Decode` 和输出三个主要处理阶段；`KV Cache` 不是独立的串行阶段，而是由 Prefill 写入、由 Decode 持续读取和追加的状态对象。`TTFT` 是首 token 延迟，`TPOT` 是后续 token 的平均生成间隔；吞吐、P99 和峰值显存分别帮助我们观察系统产出、尾部延迟和资源占用。下图把主要阶段、状态对象与指标放在同一条链路中。
+### 请求生命周期与阶段指标
 
-不同阶段关注的指标不同：
+输入词元先在预填充阶段共同参与计算并建立 KV Cache，随后解码阶段每轮追加少量词元，同时读取已有 KV 状态。KV Cache 不是独立的串行阶段，而是预填充写入、解码读取和追加的持久状态。
+
+| 阶段 | 主要动作 | 主要状态 | 优先指标 |
+|:---|:---|:---|:---|
+| 排队与接纳 | 等待资源并检查容量 | 请求队列、优先级、可用槽位 | 排队时间、拒绝率、P95/P99 |
+| 预填充 | 批量处理输入词元并建立 KV 状态 | 输入词元、激活、初始 KV Cache | TTFT、预填充时间、峰值显存 |
+| 解码 | 读取历史 KV，逐轮生成并追加状态 | KV Cache、活跃批次、终止条件 | TPOT、吞吐、P95/P99 |
+| 完成或失败 | 返回结果并释放请求状态 | 输出、失败原因、资源回收记录 | 端到端延迟、完成率、失败率 |
+
+阶段耗时和用户感知指标需要同时记录。TTFT 覆盖请求到达到首个输出词元返回的路径，TPOT 描述首个词元之后的平均生成间隔；吞吐反映单位时间产出，尾延迟反映慢请求，峰值显存则约束可服务的并发规模。
+
+| 指标 | 回答的问题 | 解释时必须同时固定 |
+|:---|:---|:---|
+| `TTFT` | 首个输出词元多久返回？ | 排队、输入长度、预填充路径 |
+| `TPOT` | 后续输出词元平均多久生成一个？ | 上下文长度、活跃批量、KV 读取 |
+| 吞吐 | 单位时间完成多少请求或生成多少词元？ | 并发、批量、输入和输出长度 |
+| `P50 / P95 / P99` | 典型请求和慢请求的延迟如何？ | 到达模式、排队策略、样本数 |
+| 峰值显存 | 当前模型和工作负载最高占用多少显存？ | 权重、激活、KV Cache、执行工作区 |
 
 ![请求链路与指标定位](../../docs/public/topic_discussion/inference_optimization/request_lifecycle_zh.svg)
 
-| 指标 | 它回答的问题 | 主要关联阶段 |
+### 模型架构怎样改变请求工作负载
+
+请求生命周期相同，不代表执行成本相同。模型配置决定一次前向读取哪些权重、建立什么历史状态，以及每个词元激活多少计算路径。推理实验必须记录这些结构条件，不能只登记参数量。
+
+| 架构条件 | 对请求状态或计算的影响 | 对照时需要记录 |
 |:---|:---|:---|
-| `TTFT` | 首个 token 多久返回？ | prefill、Attention、prompt length |
-| `TPOT` | 后续 token 多久生成一个？ | decode、KV Cache、调度 |
-| `throughput` | 单位时间生成多少 token？ | batching、调度、生成策略 |
-| `peak memory` | 运行期间最高占用多少显存？ | 权重、KV Cache、batch、量化 |
-| `P50 / P95 / P99` | 典型请求和慢请求的延迟是多少？ | 排队、batch、调度、系统抖动 |
+| 仅解码器自回归结构 | 预填充建立历史状态，解码逐词元读取并追加 | 模型类型、上下文上限、生成长度 |
+| MHA / GQA / MLA | 改变 KV 头数或历史状态表示 | 注意力类型、KV 头数、潜在状态维度 |
+| Dense / MoE | 稠密模型每层激活全部前馈参数，MoE 只激活被路由专家 | 层数、专家数、每词元激活专家数 |
+| 滑动窗口或混合记忆 | 不同层读取的历史范围和状态形式不同 | 窗口大小、层级模式、状态容量 |
 
-把指标放回请求链路时，先区分“阶段耗时”和“用户看到的结果”。`TTFT` 主要覆盖请求进入系统后到首 token 返回的路径，`TPOT` 主要反映首 token 之后的 Decode 循环；排队、数据传输和调度可能同时影响两者。因此一次实验至少要同时记录阶段时间、端到端延迟和请求条件，避免只用一个平均值解释整个系统。
+更多结构变化见[模型架构演进专题](../llm_architecture_evolution/intro.md)。推理基线需要登记会改变工作负载和状态容量的架构条件；MHA / GQA 的表示与实际注意力执行见[预填充与注意力计算](./02_prefill_and_attention_kernel.md)。
 
-| 证据层 | 需要记录的内容 | 用途 |
+### 固定可比较的工作负载
+
+一次可归因的对照需要固定模型、分词器、输入、生成长度、到达方式、并发和数据类型。基线与候选共用这些条件，只改变一个主要机制；超时、拒绝、显存不足、错误输出和未完成请求同样属于结果。
+
+| 契约对象 | 必须记录 | 作用 |
 |:---|:---|:---|
-| 请求条件 | prompt tokens、generated tokens、batch、concurrency、模型和 dtype | 判断两次测量是否可比较 |
-| 阶段表现 | prefill 时间、decode 时间、TTFT、TPOT | 定位请求链路中的主要阶段 |
-| 服务表现 | E2E latency、throughput、P50/P99、排队时间 | 判断优化是否改善用户可见结果 |
-| 资源表现 | peak memory、GPU 利用率、Cache 使用量 | 判断收益来自计算、访存还是容量变化 |
+| 模型与输入 | 模型和分词器版本、输入文本或词元 ID、输入/输出长度 | 保证两次运行处理相同语义和规模 |
+| `workload` | 到达方式、批量、并发、缓存策略、随机种子 | 固定请求压力与资源条件 |
+| `baseline / candidate` | 参考路径、候选路径、唯一变化项 | 判断收益是否来自目标机制 |
+| 阶段与服务指标 | 预填充/解码时间、TTFT、TPOT、端到端延迟、吞吐和尾延迟 | 区分局部改善与用户可见收益 |
+| `failure` | 失败阶段、错误类型、受影响请求和复测条件 | 防止只保留成功运行 |
+| `evidence_level / decision` | 证据等级、采用/调参/拒绝和下一动作 | 限定结论强度和适用范围 |
 
-同一个模型在不同请求形态下，瓶颈可能完全不同。因此进入后续机制前，先给 workload 标注请求长度、到达方式和服务目标，而不是只记录一个平均 Prompt 长度。
+同一个模型在不同请求形态下可能遇到不同瓶颈，因此不能用单一平均长度代表全部负载。
 
-| workload 类型 | 典型请求形态 | 优先关注的指标 | 主要进入方向 |
+| 工作负载 | 典型请求形态 | 优先观察 |
+|:---|:---|:---|
+| 交互式短请求 | 输入和输出较短，关注首词元体验 | TTFT、P99、超时率 |
+| 长上下文 | 输入很长或历史持续增长 | TTFT、峰值显存、KV Cache 使用量 |
+| 离线批处理 | 请求可以等待，追求单位时间产出 | 吞吐、每秒词元数、资源成本 |
+| 突发并发 | 到达率在短时间快速上升 | 排队时间、P95/P99、拒绝率 |
+
+## 选择条件与验证证据
+
+请求性能由模型结构、执行后端、调度器和硬件共同决定。先用阶段指标定位异常发生的位置，再检查对应对象的状态和执行证据。
+
+| 观察到的现象 | 优先检查 | 需要补充的证据 | 下一入口 |
 |:---|:---|:---|:---|
-| 交互式短请求 | Prompt 和输出都较短，关注首 token 体验 | TTFT、P99、超时率 | Prefill、队列和调度 |
-| 长上下文 | Prompt 很长或上下文持续增长 | TTFT、peak memory、Cache 使用量 | Attention、Chunked Prefill、KV Cache |
-| 批处理 | 请求可等待，追求单位时间产出 | throughput、tokens/s、成本 | batching、kernel、量化 |
-| 突发并发 | 到达率短时间快速上升 | 排队时间、P95/P99、拒绝率 | 接纳控制、调度、扩缩容 |
+| 输入变长时 TTFT 明显升高 | 预填充与注意力工作集 | 预填充时间、注意力算子时间、峰值显存 | [预填充与注意力计算](./02_prefill_and_attention_kernel.md) |
+| TPOT 高且生成阶段占比大 | 解码推进、KV 读取与活跃批量 | 单轮解码时间、上下文长度、KV 字节数 | [解码策略](./03_decoding_strategies.md)、[KV Cache 管理](./04_kv_cache_lifecycle_and_reuse.md) |
+| 峰值显存接近预算，并发无法增加 | 权重、KV Cache 与执行工作区 | 各类状态字节数、缓存容量、失败位置 | [KV Cache 管理](./04_kv_cache_lifecycle_and_reuse.md)、[低精度部署](./05_quantized_inference_and_deployment.md) |
+| 并发增加后 P99 或排队时间快速上升 | 接纳、批次组织与阶段调度 | 到达时间、队列事件、批次成员和迭代耗时 | [服务调度与预填充—解码分离](./07_serving_scheduling_and_pd.md) |
+| 局部指标改善但端到端收益不稳定 | 瓶颈转移或工作负载不一致 | 完整请求指标、失败记录和固定条件复测 | [端到端基准与决策](./06_benchmark_and_decision.md) |
 
-一次推理请求还要经过多个系统对象。模型决定计算图和状态结构，运行时或 backend 负责把模型映射到设备，调度器组织请求和 Cache，硬件执行 kernel 并提供显存与互联能力。性能问题应先定位到对象，再选择机制；否则容易把模型结构问题误判成 backend 问题，或把调度等待误判成 kernel 变慢。
+## 相关阅读
 
-| 系统对象 | 主要负责什么 | 可观察证据 |
-|:---|:---|:---|
-| 模型与权重 | 层结构、dtype、权重和 KV 表示 | 参数量、dtype、模型 revision |
-| Runtime / backend | loader、kernel、Cache 实现和请求执行 | backend 版本、kernel、执行路径 |
-| Scheduler | 批次、队列、接纳、暂停与服务池 | batch、queue time、调度事件 |
-| 硬件与互联 | 计算、显存、带宽和跨设备传输 | GPU 利用率、显存、带宽、通信时间 |
-
-Attention 的架构变化会沿着请求链路影响不同成本：MHA、GQA 和 MQA 主要改变 KV Cache 的规模，MLA 改变 Cache 的内部表示，FlashAttention 则改变 Attention 的执行和访存路径。它们属于不同层次，应该分别观察架构、状态和 kernel 证据。
-
-| Attention 方向 | 主要改变 | 影响的推理成本 | 后续正文 |
-|:---|:---|:---|:---|
-| MHA → GQA / MQA | KV heads 数量 | KV Cache 显存、Decode 访存 | 04 |
-| MHA / GQA → MLA | KV 状态表示 | Cache 容量、恢复或重构计算 | 04、71 |
-| 标准 Attention → FlashAttention | 中间矩阵与访存路径 | Prefill 时间、工作集、带宽 | 02 |
-| 单请求 Cache → Paged / Prefix Cache | 状态分配与复用 | 并发容量、TTFT、碎片 | 04、07 |
-
-MoE 是另一类架构变量：总参数量不等于每个 token 的实际计算量。推理时还要观察 Router 选择的专家数、专家负载、容量因子和 token dispatch 通信；这些因素会在多 GPU Serving 中进一步影响负载均衡和吞吐。
-
-参考入口：指标定义可看 [vLLM Metrics](https://github.com/vllm-project/vllm/blob/main/docs/design/metrics.md)；Serving 实现可看 [vLLM](https://github.com/vllm-project/vllm)。
-
-## 判断框架
-
-比较前先固定 `workload`，也就是一组可复现的输入和运行条件：模型、backend（实际执行推理的框架或服务）、Prompt（输入文本）、generated tokens（输出长度）、batch（一次并行处理的请求数）、并发、dtype（计算数据类型）和 cache policy（缓存管理方式）。然后根据现象选择下一步：
-
-| 观察到的现象 | 优先怀疑的瓶颈 | 下一步 |
-|:---|:---|:---|
-| 长 prompt 使 `TTFT` 明显升高 | `prefill-bound`（输入处理受限）或 Attention 访存 | 进入 `02` |
-| `TPOT` 高、生成阶段占比大 | `decode-bound`（逐 token 生成受限）、KV Cache 或调度 | 进入 `03` / `04` |
-| peak memory 接近预算、batch 上不去 | `memory-bound`（显存或访存受限）或 Cache 容量 | 进入 `04` / `05` |
-| 多请求时 P99 明显升高 | 排队、batch 组织或调度 | 进入 `04` / `06` |
-| 没有明显单点瓶颈 | 需要端到端比较 | 进入 `06` |
+- [vLLM Metrics](https://github.com/vllm-project/vllm/blob/main/docs/design/metrics.md)
+- [vLLM](https://github.com/vllm-project/vllm)

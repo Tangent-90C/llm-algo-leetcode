@@ -16,7 +16,7 @@
 
 基础 stream 概念回答的是“能不能并起来”，而高级调度回答的是“怎么并才不乱”。只要事件依赖、优先级和任务回放没有排好，多 stream 不但不能提升吞吐，反而会把等待链变得更难分析。
 
-这一页在整个教程的纵向主线里属于 `Part 01` 的高级调度基础页，优先服务 `推理优化路线` 的吞吐编排判断，也给后续 CUDA 系统优化页建立任务依赖前置。学完这里，后面再看 `30 / 31` 以及 `66 / 67` 这类 benchmark 和部署页时，你会更容易先画出一条任务依赖链，再判断哪里该并、哪里必须等；如果这里没学明白，后面很容易把多 stream、event 和 graph 只当成调度技巧清单，却说不清真实瓶颈到底来自依赖排法、优先级冲突，还是动态工作负载让编排本身失控。按专题归类，这一页主要属于 `推理优化专题` 的系统执行前置，也和 `Profiling 专题`、`编译与图优化专题` 共享调度视角。
+本节沿着“依赖关系 → event 同步 → stream 优先级 → graph 回放”组织执行时间线。完成后，你应能区分可并行工作与必须等待的依赖，并判断通信或搬运中有多少时间真正暴露在关键路径上。
 
 **关键词：** `stream`, `event`, `graph`
 
@@ -31,11 +31,11 @@
 
 ## 相关阅读
 
-**导语：** 如果还想把调度和实现细节连起来，可以继续看图编译、动态 shape 和执行模型，把调度和代码落地一起理解。
+**导语：** 将 stream 与 event 的依赖判断继续接到真实 collective 和通信重叠实验。
 
-- [19. Operator Fusion Introduction | 算子融合导论](./19_Operator_Fusion_Introduction.md)
-- [30. Dynamic Shape Handling | 动态 Shape 处理](./30_Dynamic_Shape_Handling.md)
-- [31. GPU Virtualization and MIG | GPU 虚拟化与 MIG](./31_GPU_Virtualization_and_MIG.md)
+- [Part 02 · 47 NCCL 通信剖析](../02_PyTorch_Algorithms/47_Communication_Profiling_with_NCCL.md)
+- [Part 02 · 48 通信热点与缓解](../02_PyTorch_Algorithms/48_Communication_Hotspots_and_Mitigation.md)
+- [CUDA C Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/)
 ---
 ## Q1：CUDA Stream 为什么能做并行调度？
 

@@ -1,11 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" role="img" aria-labelledby="t d">
-<title id="t">统一内存管理总览</title><desc id="d">参数、激活、KV Cache 和临时对象进入统一账本，再依据访问热度和迁移代价决定驻留或移动。</desc>
-<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><style>.h{font:700 26px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.s{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.l{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.b{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:3;rx:16}.f{stroke:#475569;stroke-width:4;fill:none;marker-end:url(#a)}</style></defs>
-<rect width="1200" height="500" fill="#f8fafc"/><text x="50" y="55" class="h">统一内存管理：工作集、层次与策略</text><text x="50" y="83" class="s">统一账本把单项优化放回同一个峰值和迁移代价模型中。</text>
-<rect x="55" y="190" width="225" height="110" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="167" y="232" text-anchor="middle" class="l">工作集对象</text><text x="167" y="263" text-anchor="middle" class="b">参数 · 激活 · KV · 临时量</text>
-<rect x="350" y="190" width="225" height="110" class="box" fill="#fef3c7" stroke="#d97706"/><text x="462" y="232" text-anchor="middle" class="l">统一账本</text><text x="462" y="263" text-anchor="middle" class="b">大小 · 峰值阶段 · 热度</text>
-<rect x="645" y="115" width="225" height="100" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="757" y="155" text-anchor="middle" class="l">GPU 驻留</text><text x="757" y="185" text-anchor="middle" class="b">高频访问路径</text>
-<rect x="645" y="260" width="225" height="100" class="box" fill="#fff1f2" stroke="#e11d48"/><text x="757" y="300" text-anchor="middle" class="l">迁移或重算</text><text x="757" y="330" text-anchor="middle" class="b">容量换带宽或计算</text>
-<rect x="940" y="190" width="205" height="110" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="1042" y="232" text-anchor="middle" class="l">预算决策</text><text x="1042" y="263" text-anchor="middle" class="b">峰值 · 步时 · 带宽</text>
-<path d="M280 245H350M575 235L645 165M575 265L645 310M870 165L940 225M870 310L940 265" class="f"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-labelledby="t d">
+  <title id="t">训练状态生命周期与峰值重叠</title><desc id="d">沿 forward、backward 和 update 展示参数、普通激活、saved tensors、梯度和优化器状态的生命周期。</desc>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker><style>.t{font:700 27px sans-serif;fill:#0f172a}.s{font:14px sans-serif;fill:#475569}.n{font:700 16px sans-serif;fill:#0f172a}.p{stroke:#64748b;stroke-width:2}.axis{stroke:#94a3b8;stroke-width:3;marker-end:url(#a)}</style></defs>
+  <rect width="1200" height="560" rx="24" fill="#f8fafc"/><text x="600" y="44" text-anchor="middle" class="t">训练峰值来自不同状态在同一阶段重叠</text><text x="600" y="72" text-anchor="middle" class="s">普通 activation 不一定活到反向；saved tensors 是 autograd 明确保留给 VJP 的子集</text>
+  <line x1="250" y1="485" x2="1130" y2="485" class="axis"/><text x="375" y="520" class="n">Forward</text><text x="660" y="520" class="n">Backward</text><text x="955" y="520" class="n">Update</text>
+  <text x="45" y="145" class="n">参数 / master weights</text><rect x="250" y="118" width="850" height="38" rx="10" fill="#dbeafe" stroke="#60a5fa" class="p"/>
+  <text x="45" y="220" class="n">普通 activation</text><rect x="250" y="193" width="260" height="38" rx="10" fill="#dcfce7" stroke="#4ade80" class="p"/><text x="520" y="219" class="s">最后一个前向消费者后可释放</text>
+  <text x="45" y="295" class="n">saved tensors</text><rect x="250" y="268" width="545" height="38" rx="10" fill="#fef3c7" stroke="#f59e0b" class="p"/><text x="805" y="294" class="s">局部 VJP 完成后释放</text>
+  <text x="45" y="370" class="n">梯度</text><rect x="560" y="343" width="425" height="38" rx="10" fill="#fee2e2" stroke="#ef4444" class="p"/><text x="995" y="369" class="s">zero_grad</text>
+  <text x="45" y="445" class="n">优化器状态</text><rect x="250" y="418" width="850" height="38" rx="10" fill="#ede9fe" stroke="#8b5cf6" class="p"/>
+  <rect x="545" y="95" width="270" height="385" rx="18" fill="none" stroke="#dc2626" stroke-width="3" stroke-dasharray="9 7"/><text x="680" y="108" text-anchor="middle" class="s">典型峰值候选：saved tensors、梯度与长期状态重叠</text>
 </svg>

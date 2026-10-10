@@ -25,8 +25,8 @@
 
 **导语：** 先把 GPU 上的执行层级对齐，再看 kernel 为什么要按 block 组织会更顺。
 
-- [Group 1B: Single-GPU Hardware and Memory Optimization | 1B: 单卡硬件与访存优化](./1B.md)
-- [Group 1D: Heterogeneous Scheduling and Operator Programming | 1D: 异构调度与算子编程](./1D.md)
+- [Group 1B: Single-Device Execution, Memory and Data Access | 1B: 单设备执行、内存与访存](./1B.md)
+- [Group 1D: Execution Models, Asynchrony and Operator Mapping | 1D: 执行模型、异步调度与算子映射](./1D.md)
 - [13. Profiling and Bottleneck Analysis | 性能分析与瓶颈定位](./13_Profiling_and_Bottleneck_Analysis.md)
 
 ## 相关阅读

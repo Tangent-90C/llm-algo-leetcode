@@ -20,14 +20,14 @@
 **关键词：** `heterogeneous PD`, `KV handoff`, `routing`, `SLO`, `fallback`
 ## 前置阅读
 
-**导语：** 先理解 Chunked Prefill 如何减少批次内阻塞、PD 分离如何形成两类服务池；再进入本节比较资源能力和状态交接是否足以支撑跨池执行。
+**导语：** 先理解 Chunked Prefill 和 PD 分池怎样改变请求的执行位置；再比较计算、显存与链路条件如何决定跨池交接、重算或保持同池。
 
-- [37. KV Cache Scheduling | KV Cache 调度](./37_KV_Cache_Scheduling.md)
 - [38. Prefill/Decode Scheduling | Prefill/Decode 调度](./38_Prefill_Decode_Scheduling.md)
-- [70. Serving Scheduler Benchmark | 服务调度基准](./70_Serving_Scheduler_Benchmark.md)
+- [INF-SERVING-OVERLAP. Serving Overlap and State Handoff | Serving 重叠与状态交接](./INF-SERVING-OVERLAP_Serving_Overlap_and_State_Handoff.md)
+
 ### Step 1: 请求压力如何匹配异构资源
 
-异构 PD 的起点不是“有两张不同 GPU 就拆分”，而是请求阶段与资源能力确实不同：Prefill 更需要突发计算和输入带宽，Decode 更依赖持续 KV 容量、稳定读带宽与低排队。先将请求压力和资源画像写成同一张账本，才能判断是否存在合理的路由。本节承接前两层调度，进入服务池与通信级：关注“请求进入哪个池，以及状态如何跨池交接”。
+异构 PD 从请求阶段与资源能力的匹配开始：Prefill 更需要突发计算和输入带宽，Decode 更依赖持续 KV 容量、稳定读带宽与低排队。先将请求压力和资源画像写成同一张账本，才能判断哪种路由更合适。
 
 | 对象 | 需要记录的特征 | 它影响的决策 |
 |---|---|---|
@@ -36,9 +36,11 @@
 | 资源池 | 计算能力、可用显存、链路和 backend 支持 | 能否承接对应阶段 |
 | 服务等级 | P95/P99、超时与质量约束 | 是否允许排队、降级或回退 |
 
+![异构 PD 总览：请求压力、资源画像、交接与服务动作](../public/02_PyTorch_Algorithms/39_hetero_pd_overview.svg)
+
 ### Step 2: KV 状态交接应传输、重算还是同池执行
 
-Prefill 完成后，Decode 不能脱离已形成的 KV 状态独立开始。交接方式至少要比较传输、重算和保持同池三种选择；不同链路与状态大小会改变它们的代价。
+Prefill 完成后，Decode 需要已有的 KV 状态。跨池执行时，系统可传输状态、在目标池重算 Prefill，或继续留在原池；状态大小、链路带宽和资源空闲程度会改变三种选择的代价。这里的路由决策读取完整 transfer time 与 exposed time，但 overlap 时间线和交接依赖由前置机制页统一定义。
 
 | 交接方式 | 适合条件 | 主要代价 | 必须验证 |
 |---|---|---|---|
@@ -50,7 +52,7 @@ Prefill 完成后，Decode 不能脱离已形成的 KV 状态独立开始。交�
 
 ### Step 3: 服务分层与回退如何保护 SLO
 
-资源压力、链路退化或某个池持续饱和时，系统不应仍按同一条路由执行。它需要根据请求等级和当前风险选择继续路由、排队、限流、降级或回到同池；这些动作保护的目标不同，必须保留可复查记录。
+资源压力、链路退化或某个池持续饱和时，路由需要随当前风险改变。执行兼容性先检查阶段、模型版本、健康状态和可用显存；KV 兼容性再检查 dtype 与布局。目标池不能直接接收 KV 但仍可运行模型时，系统可以改为重算；目标池不可执行时，才继续寻找回退池。
 
 | 触发信号 | 首选动作 | 保护目标 | 需要记录 |
 |---|---|---|---|
@@ -58,17 +60,19 @@ Prefill 完成后，Decode 不能脱离已形成的 KV 状态独立开始。交�
 | 交接超过预算 | 选择重算或同池执行 | P95/P99 | handoff、recompute、尾延迟 |
 | 队列超出 SLO | 路由、限流或扩容 | 等待时间与公平性 | queue delay、超时率 |
 | 两池均稳定 | 保持当前异构路由 | 吞吐与资源利用率 | pool utilization、throughput |
+| KV dtype / layout 不兼容 | 保留可执行目标池并重算 Prefill | 可运行性 | incompatibility reason、recompute ms |
+| 目标池不健康或显存不足 | 改路由到兼容回退池；无候选则拒绝 | SLO 与故障隔离 | rejected pool、fallback pool、decision |
 
 ### Step 4: 实现资源路由、交接与服务动作
 
-题目区使用最小 CPU 账本验证四件事：请求属于哪类压力、交接应传输还是重算、资源压力下选择什么服务动作，以及最终路由记录是否可解释。真实 GPU 或 backend 实验需要在统一 workload 下补充链路与池利用率证据。
+题目区提供请求、资源池和服务压力输入，并保留服务动作与路由记录骨架。学习者只需完成资源分类、交接成本比较、能力门槛和失败路由四个机制；测试分别覆盖阈值边界、快慢链路、KV 不兼容、主池失效与无池可用。
 
-| 实现阶段 | 机制责任 | 验证重点 |
-|---|---|---|
-| 请求分类 | 根据 prompt / decode 长度区分资源需要 | 阈值边界清楚 |
-| 交接选择 | 比较传输时间与重算时间 | 慢链路不会错误选择传输 |
-| 服务动作 | 根据显存、队列和 SLO 选择动作 | 风险优先级正确 |
-| 路由记录 | 汇总阶段、交接和服务动作 | 决策理由可追踪 |
+| 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
+|---|---|---|---|
+| `classify_resource_need` | 根据 prompt / decode 长度识别主要资源压力 | 长 prompt、长 decode 与 shared 三类互斥 | 三类请求与阈值边界 |
+| `choose_handoff_mode` | 将状态大小和链路带宽换算为传输时间 | 统一单位后再与重算时间比较 | 快链路选择传输，慢链路选择重算 |
+| `evaluate_pool_capability` | 分离执行兼容与 KV 兼容 | KV 不兼容不能等同于资源池不可执行 | 正常、布局不匹配与不健康资源池 |
+| `plan_route_with_fallback` | 在主池、回退池与拒绝之间重规划 | 能执行但不能接收 KV 时改为重算 | KV 重算、换池与拒绝三条路径 |
 
 ```python
 from typing import Dict, List
@@ -78,64 +82,136 @@ from typing import Dict, List
 
 ```python
 def classify_resource_need(request: Dict[str, int], long_prompt_threshold: int, long_decode_threshold: int) -> str:
-    """根据请求长度返回 prefill、decode 或 shared 的资源需求。"""
-    # ==========================================
-    # TODO 1: 区分请求主要压力
-    # prompt_tokens = ???
-    # decode_tokens = ???
-    # return ???
-    # ==========================================
-    raise NotImplementedError
+    """根据 prompt 与 decode 长度返回 prefill、decode 或 shared 资源需求。"""
+    # TODO 1（请求分类）：长 prompt 进入 prefill，长 decode 进入 decode，其余请求保持 shared。
+    # resource_need = ???
+    raise NotImplementedError('TODO 1：请完成资源需求分类')
 
 
 def choose_handoff_mode(link_gbps: float, cache_transfer_mb: float, recompute_ms: float) -> Dict[str, object]:
-    """比较 KV 传输与重算的教学成本模型，并选择较低代价的交接方式。"""
-    # ==========================================
-    # TODO 2: 估算传输时间并选择 transfer / recompute
-    # transfer_ms = ???
+    """比较 KV 传输与重算的教学成本，并选择耗时较低的路径。"""
+    if link_gbps <= 0 or cache_transfer_mb < 0 or recompute_ms < 0:
+        raise ValueError('链路、状态大小和重算时间必须合法')
+    # TODO 2（状态交接）：计算 transfer_ms，并选择 transfer 或 recompute。
+    # transfer_ms = ???  # cache_transfer_mb 转为 Gb 后除以 link_gbps，再换算为 ms。
     # mode = ???
-    # ==========================================
-    raise NotImplementedError
+    raise NotImplementedError('TODO 2：请完成交接方式选择')
+
+
+def evaluate_pool_capability(request: Dict[str, object], pool: Dict[str, object]) -> Dict[str, object]:
+    """检查资源池能否执行请求，以及能否直接接收已有 KV 状态。"""
+    # TODO 3（能力门槛）：分别判断 execution compatibility 与 KV compatibility，并返回失败原因。
+    # capability = ???
+    raise NotImplementedError('TODO 3：请完成资源池能力检查')
+
+
+def plan_route_with_fallback(request: Dict[str, object], primary_pool: Dict[str, object], fallback_pools: List[Dict[str, object]], preferred_handoff: str) -> Dict[str, object]:
+    """先尝试主池，再按顺序寻找可执行的回退池，并重规划 transfer 或 recompute。"""
+    # TODO 4（失败路由）：不可执行时换池；KV 不兼容但可执行时改为 recompute；无池可用时 reject。
+    # route = ???
+    raise NotImplementedError('TODO 4：请完成失败路由与回退重规划')
 
 
 def select_serving_action(memory_pressure: float, queue_delay_ms: float, slo_queue_budget_ms: float) -> Dict[str, str]:
-    """按可运行性、SLO 与稳定运行的优先级选择服务动作。"""
-    # ==========================================
-    # TODO 3: 返回 route、fallback 或 throttle 对应的服务动作
-    # if ???:
-    #     return ???
-    # ==========================================
-    raise NotImplementedError
+    """在资源压力和队列等待之间选择路由、回退或限流动作。"""
+    if memory_pressure > 0.9:
+        return {'action': 'fallback_to_shared', 'protect': 'residency'}
+    if queue_delay_ms > slo_queue_budget_ms:
+        return {'action': 'route_or_throttle', 'protect': 'latency'}
+    return {'action': 'keep_heterogeneous_route', 'protect': 'throughput'}
 
 
-def build_route_record(request: Dict[str, int], handoff: Dict[str, object], action: Dict[str, str]) -> Dict[str, str]:
-    """把请求阶段、状态交接和服务动作收成可复查的路由记录。"""
-    # ==========================================
-    # TODO 4: 组合路由决策，不遗漏关键字段
-    # resource_need = ???
-    # return ???
-    # ==========================================
-    raise NotImplementedError
+def build_route_record(request: Dict[str, object], route: Dict[str, object], action: Dict[str, str]) -> Dict[str, str]:
+    """将资源需求、实际路由和服务动作整理为可复查记录。"""
+    return {
+        'resource_need': str(request.get('resource_need', 'shared')),
+        'selected_pool': str(route['selected_pool']),
+        'execution_mode': str(route['execution_mode']),
+        'route_decision': str(route['decision']),
+        'service_action': action['action'],
+        'protect': action['protect'],
+    }
+
 ```
 
 
 ```python
+# 机制测试：分别检查资源分类、handoff、能力门槛、失败路由和服务动作。
+REQUEST = {'stage': 'decode', 'model_revision': 'rev-a', 'kv_dtype': 'float16', 'kv_layout': 'paged-v1', 'required_memory_gb': 8}
+PRIMARY_POOL = {'pool_id': 'decode-a', 'supported_stages': ['decode'], 'model_revision': 'rev-a', 'kv_dtype': 'float16', 'kv_layout': 'paged-v1', 'available_memory_gb': 16, 'healthy': True}
+
+def test_resource_need_classification():
+    """验证请求压力标签的阈值边界。"""
+    assert classify_resource_need({'prompt_tokens': 3000, 'decode_tokens': 64}, 2048, 256) == 'prefill'
+    assert classify_resource_need({'prompt_tokens': 128, 'decode_tokens': 512}, 2048, 256) == 'decode'
+    assert classify_resource_need({'prompt_tokens': 800, 'decode_tokens': 128}, 2048, 256) == 'shared'
+
+
+def test_handoff_mode_selection():
+    """验证传输成本与重算成本的选择。"""
+    fast_link = choose_handoff_mode(link_gbps=200, cache_transfer_mb=100, recompute_ms=12)
+    assert fast_link == {'mode': 'transfer', 'transfer_ms': 4.0, 'recompute_ms': 12}
+    slow_link = choose_handoff_mode(link_gbps=25, cache_transfer_mb=100, recompute_ms=12)
+    assert slow_link['mode'] == 'recompute'
+
+
+def test_pool_capability_matrix():
+    """验证执行兼容与 KV 兼容是两层不同门槛。"""
+    compatible = evaluate_pool_capability(REQUEST, PRIMARY_POOL)
+    assert compatible['can_execute'] is True and compatible['can_accept_kv'] is True
+
+    layout_mismatch = evaluate_pool_capability(REQUEST, {**PRIMARY_POOL, 'kv_layout': 'contiguous'})
+    assert layout_mismatch['can_execute'] is True
+    assert layout_mismatch['can_accept_kv'] is False
+    assert 'kv_layout_mismatch' in layout_mismatch['reasons']
+
+    unhealthy = evaluate_pool_capability(REQUEST, {**PRIMARY_POOL, 'healthy': False})
+    assert unhealthy['can_execute'] is False
+
+
+def test_fallback_replanning():
+    """验证 KV 不兼容触发重算，主池失效触发换池，无可用池时拒绝。"""
+    recompute = plan_route_with_fallback(REQUEST, {**PRIMARY_POOL, 'kv_layout': 'contiguous'}, [], 'transfer')
+    assert recompute['selected_pool'] == 'decode-a'
+    assert recompute['execution_mode'] == 'recompute'
+    assert recompute['decision'] == 'primary'
+
+    fallback = {**PRIMARY_POOL, 'pool_id': 'decode-b'}
+    rerouted = plan_route_with_fallback(REQUEST, {**PRIMARY_POOL, 'healthy': False}, [fallback], 'transfer')
+    assert rerouted['selected_pool'] == 'decode-b'
+    assert rerouted['decision'] == 'reroute'
+
+    rejected = plan_route_with_fallback(REQUEST, {**PRIMARY_POOL, 'available_memory_gb': 2}, [], 'transfer')
+    assert rejected['decision'] == 'reject'
+    assert rejected['selected_pool'] == 'none'
+
+
+def test_serving_action_policy():
+    """验证显存压力优先于队列延迟的服务动作。"""
+    memory_action = select_serving_action(memory_pressure=0.92, queue_delay_ms=20, slo_queue_budget_ms=80)
+    assert memory_action == {'action': 'fallback_to_shared', 'protect': 'residency'}
+    latency_action = select_serving_action(memory_pressure=0.4, queue_delay_ms=120, slo_queue_budget_ms=80)
+    assert latency_action == {'action': 'route_or_throttle', 'protect': 'latency'}
+
+
+def test_route_record_contract():
+    """验证路由记录保留目标池、执行方式和保护目标。"""
+    route = plan_route_with_fallback(REQUEST, PRIMARY_POOL, [], 'transfer')
+    action = select_serving_action(memory_pressure=0.4, queue_delay_ms=120, slo_queue_budget_ms=80)
+    record = build_route_record({'resource_need': 'decode'}, route, action)
+    assert record == {'resource_need': 'decode', 'selected_pool': 'decode-a', 'execution_mode': 'transfer', 'route_decision': 'primary', 'service_action': 'route_or_throttle', 'protect': 'latency'}
+
+
 def test_heterogeneous_pd_policy():
+    """汇总异构 PD 的分类、兼容、回退与服务动作测试。"""
     try:
-        assert classify_resource_need({'prompt_tokens': 3000, 'decode_tokens': 64}, 2048, 256) == 'prefill'
-        assert classify_resource_need({'prompt_tokens': 128, 'decode_tokens': 512}, 2048, 256) == 'decode'
-        assert classify_resource_need({'prompt_tokens': 800, 'decode_tokens': 128}, 2048, 256) == 'shared'
-        fast_link = choose_handoff_mode(link_gbps=200, cache_transfer_mb=100, recompute_ms=12)
-        assert fast_link == {'mode': 'transfer', 'transfer_ms': 4.0, 'recompute_ms': 12}
-        slow_link = choose_handoff_mode(link_gbps=25, cache_transfer_mb=100, recompute_ms=12)
-        assert slow_link['mode'] == 'recompute'
-        memory_action = select_serving_action(memory_pressure=0.92, queue_delay_ms=20, slo_queue_budget_ms=80)
-        assert memory_action == {'action': 'fallback_to_shared', 'protect': 'residency'}
-        latency_action = select_serving_action(memory_pressure=0.4, queue_delay_ms=120, slo_queue_budget_ms=80)
-        assert latency_action == {'action': 'route_or_throttle', 'protect': 'latency'}
-        record = build_route_record({'resource_need': 'prefill'}, fast_link, latency_action)
-        assert record == {'resource_need': 'prefill', 'handoff_mode': 'transfer', 'service_action': 'route_or_throttle', 'protect': 'latency'}
-        print('✅ 异构 PD 路由测试通过')
+        test_resource_need_classification()
+        test_handoff_mode_selection()
+        test_pool_capability_matrix()
+        test_fallback_replanning()
+        test_serving_action_policy()
+        test_route_record_contract()
+        print('✅ 异构 PD 路由机制测试通过：资源分类、handoff、能力门槛、失败路由和服务动作均通过。')
     except NotImplementedError:
         raise
     except (NameError, AttributeError, TypeError, ValueError, AssertionError) as error:
@@ -143,17 +219,8 @@ def test_heterogeneous_pd_policy():
 
 
 test_heterogeneous_pd_policy()
+
 ```
-
----
-
-🛑 **STOP HERE** 🛑
-<br><br><br><br><br><br><br><br><br><br>
-> 请先尝试自己完成代码并跑通测试。<br>
-> 如果你正在 Colab 中运行，并且遇到困难没有思路，可以向下滚动查看参考答案。
-<br><br><br><br><br><br><br><br><br><br>
-
----
 
 ## 参考代码与解析
 
@@ -162,8 +229,8 @@ test_heterogeneous_pd_policy()
 
 ```python
 def classify_resource_need(request: Dict[str, int], long_prompt_threshold: int, long_decode_threshold: int) -> str:
-    """根据请求长度返回 prefill、decode 或 shared 的资源需求。"""
-    # TODO 1: 区分请求主要压力
+    """根据 prompt 与 decode 长度返回 prefill、decode 或 shared 资源需求。"""
+    # TODO 1：根据两类长度选择请求主要压力。
     prompt_tokens = request.get('prompt_tokens', 0)
     decode_tokens = request.get('decode_tokens', 0)
     if prompt_tokens > long_prompt_threshold and decode_tokens <= long_decode_threshold:
@@ -174,18 +241,80 @@ def classify_resource_need(request: Dict[str, int], long_prompt_threshold: int, 
 
 
 def choose_handoff_mode(link_gbps: float, cache_transfer_mb: float, recompute_ms: float) -> Dict[str, object]:
-    """比较 KV 传输与重算的教学成本模型，并选择较低代价的交接方式。"""
-    # TODO 2: 估算传输时间并选择 transfer / recompute
+    """比较 KV 传输与重算的教学成本，并选择耗时较低的路径。"""
     if link_gbps <= 0 or cache_transfer_mb < 0 or recompute_ms < 0:
         raise ValueError('链路、状态大小和重算时间必须合法')
+    # TODO 2：将 MB 转为 Gb，估算 transfer_ms 后与 recompute_ms 比较。
     transfer_ms = (cache_transfer_mb * 8) / link_gbps
     mode = 'transfer' if transfer_ms <= recompute_ms else 'recompute'
     return {'mode': mode, 'transfer_ms': round(transfer_ms, 4), 'recompute_ms': recompute_ms}
 
 
+def evaluate_pool_capability(request: Dict[str, object], pool: Dict[str, object]) -> Dict[str, object]:
+    """检查资源池能否执行请求，以及能否直接接收已有 KV 状态。"""
+    # TODO 3：执行兼容性负责可运行性，KV 兼容性再检查 dtype 与布局。
+    reasons: List[str] = []
+    stage = str(request.get('stage', 'decode'))
+    supported_stages = set(pool.get('supported_stages', []))
+    if not bool(pool.get('healthy', False)):
+        reasons.append('unhealthy')
+    if stage not in supported_stages:
+        reasons.append('unsupported_stage')
+    if request.get('model_revision') != pool.get('model_revision'):
+        reasons.append('model_revision_mismatch')
+    if float(pool.get('available_memory_gb', 0.0)) < float(request.get('required_memory_gb', 0.0)):
+        reasons.append('insufficient_memory')
+
+    can_execute = not reasons
+    kv_reasons: List[str] = []
+    if request.get('kv_dtype') != pool.get('kv_dtype'):
+        kv_reasons.append('kv_dtype_mismatch')
+    if request.get('kv_layout') != pool.get('kv_layout'):
+        kv_reasons.append('kv_layout_mismatch')
+    can_accept_kv = can_execute and not kv_reasons
+    return {
+        'pool_id': str(pool.get('pool_id', 'unknown')),
+        'can_execute': can_execute,
+        'can_accept_kv': can_accept_kv,
+        'reasons': reasons + kv_reasons,
+    }
+
+
+def plan_route_with_fallback(request: Dict[str, object], primary_pool: Dict[str, object], fallback_pools: List[Dict[str, object]], preferred_handoff: str) -> Dict[str, object]:
+    """先尝试主池，再按顺序寻找可执行的回退池，并重规划 transfer 或 recompute。"""
+    # TODO 4：能力失败时换池；只有 KV 不兼容时保留目标池并改为重算。
+    if preferred_handoff not in {'transfer', 'recompute'}:
+        raise ValueError('preferred_handoff 必须是 transfer 或 recompute')
+    candidates = [primary_pool, *fallback_pools]
+    rejected_reasons: Dict[str, List[str]] = {}
+    for index, pool in enumerate(candidates):
+        capability = evaluate_pool_capability(request, pool)
+        pool_id = capability['pool_id']
+        if not capability['can_execute']:
+            rejected_reasons[pool_id] = list(capability['reasons'])
+            continue
+        execution_mode = preferred_handoff
+        if preferred_handoff == 'transfer' and not capability['can_accept_kv']:
+            execution_mode = 'recompute'
+        return {
+            'selected_pool': pool_id,
+            'execution_mode': execution_mode,
+            'decision': 'primary' if index == 0 else 'reroute',
+            'reasons': list(capability['reasons']),
+            'rejected_pools': rejected_reasons,
+        }
+    return {
+        'selected_pool': 'none',
+        'execution_mode': 'none',
+        'decision': 'reject',
+        'reasons': ['no_executable_pool'],
+        'rejected_pools': rejected_reasons,
+    }
+
+
 def select_serving_action(memory_pressure: float, queue_delay_ms: float, slo_queue_budget_ms: float) -> Dict[str, str]:
-    """按可运行性、SLO 与稳定运行的优先级选择服务动作。"""
-    # TODO 3: 返回 route、fallback 或 throttle 对应的服务动作
+    """在资源压力和队列等待之间选择路由、回退或限流动作。"""
+    # 骨架策略：显存压力优先于队列等待；两者正常时保持异构路由。
     if memory_pressure > 0.9:
         return {'action': 'fallback_to_shared', 'protect': 'residency'}
     if queue_delay_ms > slo_queue_budget_ms:
@@ -193,42 +322,46 @@ def select_serving_action(memory_pressure: float, queue_delay_ms: float, slo_que
     return {'action': 'keep_heterogeneous_route', 'protect': 'throughput'}
 
 
-def build_route_record(request: Dict[str, int], handoff: Dict[str, object], action: Dict[str, str]) -> Dict[str, str]:
-    """把请求阶段、状态交接和服务动作收成可复查的路由记录。"""
-    # TODO 4: 组合路由决策，不遗漏关键字段
-    resource_need = request.get('resource_need', 'shared')
-    return {'resource_need': resource_need, 'handoff_mode': str(handoff['mode']), 'service_action': action['action'], 'protect': action['protect']}
+def build_route_record(request: Dict[str, object], route: Dict[str, object], action: Dict[str, str]) -> Dict[str, str]:
+    """将资源需求、实际路由和服务动作整理为可复查记录。"""
+    return {
+        'resource_need': str(request.get('resource_need', 'shared')),
+        'selected_pool': str(route['selected_pool']),
+        'execution_mode': str(route['execution_mode']),
+        'route_decision': str(route['decision']),
+        'service_action': action['action'],
+        'protect': action['protect'],
+    }
+
 ```
 
 ### 解析
 
-**1. 异构 PD 的判断入口**
+四个 TODO 对应异构路由的主决策链；服务动作和路由记录由骨架提供，用于把机制结果放回统一的服务语境。
 
-请求分类不是硬件选择本身，而是先建立“哪一阶段更突出”的事实。只有 prefill-heavy 与 decode-heavy 请求长期存在、两类资源能力也确实不同，拆池与异构路由才值得继续测量。
+**TODO 1：分类资源压力**
 
-**2. 状态交接的三种处理**
+- 长 prompt 且生成较短时更需要 Prefill 资源；长生成且 prompt 较短时更需要 Decode 资源；其余请求保留在 shared 路径。
 
-`choose_handoff_mode` 用简化成本模型比较 KV 传输和重算：`transfer_ms = cache_transfer_mb × 8 / link_gbps`。真实系统还要考虑协议、序列化、拥塞、拓扑与 backend 兼容性；当交接代价过高时，保持同池也是合理候选，而非失败。
+**TODO 2：选择状态交接方式**
 
-**3. 服务动作的优先级**
+- `transfer_ms = cache_transfer_mb × 8 / link_gbps` 是把状态大小和链路带宽转成时间的教学估算。
+- 传输比重算快时选择 `transfer`，否则选择 `recompute`；测试分别覆盖快链路与慢链路。
 
-可运行性优先于延迟，延迟优先于吞吐：Decode 池接近 OOM 时先保护已有 KV；队列超过 SLO 时再路由、限流或扩容；只有资源稳定时才持续追求吞吐。
+**TODO 3：检查资源池能力**
 
-**4. 证据与项目出口**
+- `can_execute` 检查阶段、模型版本、健康状态和可用显存；`can_accept_kv` 在此基础上继续检查 KV dtype 与布局。后者失败不代表目标池完全不能运行。
 
-CPU 题目区验证路由与决策逻辑。真实异构 PD 需要记录每个池的 GPU / backend、链路、KV 传输量、交接时间、TTFT、TPOT、P95/P99、池利用率和失败状态；[70](./70_Serving_Scheduler_Benchmark.md) 与 79–81 负责补足这些实际证据。
-### Step 5: 可选多资源验证：把路由决策变成服务证据
+**TODO 4：执行失败路由与回退重规划**
 
-异构 PD 不能由单一 GPU 上的 CPU 模拟证明。真实验证需要分别记录两类资源池的 GPU / backend、可用显存、链路、模型与 dtype，并用同一请求分布对比“同池、KV 传输、重算 Prefill”三种路径。
+- 主池可执行但 KV 不兼容时，将 `transfer` 改为 `recompute`；主池不可执行时按顺序寻找回退池；没有可执行候选时明确返回 `reject`。
 
-| 对照项 | 必须固定或记录 | 用于判断 |
-|---|---|---|
-| workload 与 SLO | prompt / decode 分布、并发、质量门槛、P95/P99 目标 | 路由是否在同一服务目标下比较 |
-| 资源画像 | prefill / decode 池的 GPU、显存、backend 与链路 | 异构性是否真实存在 |
-| 状态交接 | KV transfer bytes、handoff ms、recompute ms、失败状态 | 传输、重算或同池哪条更可行 |
-| 服务结果 | TTFT、TPOT、吞吐、P95/P99、池利用率、回退率 | 收益是否覆盖交接和资源代价 |
+骨架中的 `select_serving_action` 先保护显存驻留，再处理超出 SLO 的队列等待；`build_route_record` 只负责汇总目标池、执行方式和保护目标，不增加新的机制判断。
+### 真实 GPU / backend 验证出口
 
-用 [70](./70_Serving_Scheduler_Benchmark.md) 建立统一 Serving workload，再用 79–81 的多卡项目补充通信与拓扑证据。没有两类资源池或状态交接能力时，本节保留 CPU 决策记录，不将其写成异构 PD 性能结论。
+本节 Step 4 验证资源分类、handoff 准入、能力门槛与失败回退。合成 KV 搬运与矩阵重算只是成本下界，无法表达真实网络、worker 队列、状态序列化和 backend 同步，因此不作为 GPU 证据。
+
+真实对照需要两类资源池和可观测的状态交接，在固定模型、请求清单和路由策略后，比较同构 shared pool 与异构 PD 的 TTFT、TPOT、吞吐、queue wait、handoff/exposed time、失败和回退路径。该证据由 [70 Serving 调度基准](./70_Serving_Scheduler_Benchmark.md) 与 [81 分布式推理项目](./81_Distributed_Inference_Project.md) 承接。
 ## 相关阅读
 
 完成资源画像、状态交接和服务动作判断后，可以继续阅读真实 PD 实现、多实例 Serving 与通信验证。

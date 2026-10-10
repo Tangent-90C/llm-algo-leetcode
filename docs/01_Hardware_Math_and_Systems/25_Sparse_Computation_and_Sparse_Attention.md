@@ -14,7 +14,7 @@
 
 ## 本节导读
 
-本节从稀疏对象和稀疏模式出发，构造 Sparse Attention 的 mask，比较保留连接数、理论计算量和输出差异。学习完成后，你应能判断稀疏结构改变了什么成本，以及它是否保持了可解释的计算结果。
+稀疏只有同时改变数据结构和执行路径，才可能转化为容量、计算或访存收益。本节先区分权重、激活与 Attention 连接，再比较随机、行列与块稀疏的执行条件，最后构造局部 Attention mask，核对保留连接数、理论计算量和输出差异。
 
 **关键词：** `sparsity`, `structure`, `density`
 
@@ -24,11 +24,10 @@
 
 ## 前置阅读
 
-**导语：** 先用 Tensor Core 的 tile 计算和 SRAM 复用解释密集执行，再把同一组输入改成稀疏对象、稀疏模式和 Attention mask，比较保留连接数、理论计算量与输出变化。
+**导语：** 先理解 Attention 的显存对象和 Tensor Core 的规则计算，再判断稀疏模式能否映射到执行路径。
 
-- [09. AI Compilers and Graph Optimization | AI 编译器与计算图优化](./09_AI_Compilers_and_Graph_Optimization.md)
+- [04. Attention Variants and Memory Optimization | 注意力变体与显存优化](./04_Attention_Memory_Optimization.md)
 - [23. TensorCore Deep Dive | Tensor Core 深度剖析](./23_TensorCore_Deep_Dive.md)
-- [24. SRAM Optimization Techniques | SRAM 优化技术](./24_SRAM_Optimization_Techniques.md)
 
 ## Q1：稀疏的对象、模式和密度分别是什么？
 
@@ -289,11 +288,9 @@ assert 0 < retained < dense_connections
 
 ## 相关阅读
 
-**导语：** 如果要继续分析稀疏结构如何进入调度、编译和执行路径，可以接着看这些页。
+**导语：** 继续进入稀疏 Attention 机制、规则块执行和成熟组件实现。
 
-- [09. AI Compilers and Graph Optimization | AI 编译器与计算图优化](./09_AI_Compilers_and_Graph_Optimization.md)
+- [Part 02 · 44 Local, Sliding and Sparse Attention](../02_PyTorch_Algorithms/44_Local_Sliding_and_Sparse_Attention.md)
 - [18. Triton Block Model | Triton Block 模型](./18_Triton_Block_Model.md)
-- [19. Operator Fusion Introduction | 算子融合导论](./19_Operator_Fusion_Introduction.md)
 - [xFormers | Meta 开源高效 Transformer 组件](https://github.com/facebookresearch/xformers)
-- [SparseGPT | 稀疏化论文](https://arxiv.org/abs/2301.00774)
 ---

@@ -25,8 +25,8 @@
 
 **导语：** 先把执行模型和 block 级编程对齐，再看算子融合为什么能减少中间结果开销会更顺。
 
-- [Group 1D: Heterogeneous Scheduling and Operator Programming | 1D: 异构调度与算子编程](./1D.md)
-- [Group 1E: Compiler Optimization and Hardware Ecosystem | 1E: 编译优化与硬件生态](./1E.md)
+- [Group 1D: Execution Models, Asynchrony and Operator Mapping | 1D: 执行模型、异步调度与算子映射](./1D.md)
+- [Group 1E: Compilers and Backends | 1E: 编译与后端](./1E.md)
 - [18. Triton Block Model | Triton Block 模型](./18_Triton_Block_Model.md)
 
 ## 相关阅读

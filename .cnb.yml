@@ -9,7 +9,7 @@ $:
         - docker
   vscode-gpu:
     - docker:
-        build: .ide/Dockerfile
+        build: .ide/Dockerfile.gpu
       runner:
         tags: cnb:arch:amd64:gpu
       services:
@@ -26,12 +26,12 @@ main:
             python -m pip install --upgrade pip
             pip install -r requirements/base.txt
             pip install -r requirements/dev.txt
-            pip install -r requirements/gpu.txt
+            pip install -r requirements/torch-cpu.txt
         - name: smoke-test
           script: |
             python --version
             python -c "import torch, einops, transformers, nbformat; print('python env ok')"
-            python -c "import triton; print('triton ok')"
+            python -c "import torch; print(f'CPU smoke: torch={torch.__version__}, cuda={torch.cuda.is_available()}')"
 
   pull_request:
     - name: commit-lint

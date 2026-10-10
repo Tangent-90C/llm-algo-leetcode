@@ -1,0 +1,48 @@
+<svg width="1500" height="470" viewBox="0 0 1500 470" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>长上下文微调机制链</title>
+  <desc>从样本长度分布出发，依次确定窗口预算、样本组织、长度课程并形成质量与资源证据。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0L10 5L0 10Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei","Droid Sans Fallback",sans-serif!important}</style>
+  <rect width="1500" height="470" rx="24" fill="#F8FAFC"/>
+  <text x="62" y="64" fill="#0F172A" font-family="Noto Sans CJK SC, sans-serif" font-size="30" font-weight="700">长上下文微调：先固定长度问题，再选择训练方案</text>
+  <text x="62" y="98" fill="#475569" font-family="Noto Sans CJK SC, sans-serif" font-size="18">长度不是单一超参数；它同时改变监督覆盖、样本组织、训练资源和最终评测口径。</text>
+
+  <rect x="62" y="152" width="236" height="126" rx="18" fill="#DBEAFE" stroke="#2563EB" stroke-width="2"/>
+  <text x="90" y="188" fill="#1E3A8A" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">长度分布</text>
+  <text x="90" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">P50 / P95 / 长尾比例</text>
+  <text x="90" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">提示与回答长度</text>
+
+  <rect x="352" y="152" width="236" height="126" rx="18" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
+  <text x="380" y="188" fill="#92400E" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">单样本准入</text>
+  <text x="380" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">模板 + 提示 + 真实回答</text>
+  <text x="380" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">监督回答必须完整保留</text>
+
+  <rect x="642" y="152" width="236" height="126" rx="18" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
+  <text x="670" y="188" fill="#166534" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">样本组织</text>
+  <text x="670" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">截断 / 分桶 / 样本拼接</text>
+  <text x="670" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">样本边界与利用率</text>
+
+  <rect x="932" y="152" width="236" height="126" rx="18" fill="#EDE9FE" stroke="#7C3AED" stroke-width="2"/>
+  <text x="960" y="188" fill="#5B21B6" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">长度课程</text>
+  <text x="960" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">短窗口 → 目标窗口</text>
+  <text x="960" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">阶段配比与 Token 预算</text>
+
+  <rect x="1222" y="152" width="216" height="126" rx="18" fill="#FCE7F3" stroke="#DB2777" stroke-width="2"/>
+  <text x="1250" y="188" fill="#9D174D" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">质量与资源证据</text>
+  <text x="1250" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">长样本质量</text>
+  <text x="1250" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">显存与每 Token 成本</text>
+
+  <path d="M298 215H340" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M588 215H630" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M878 215H920" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M1168 215H1210" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="240" y="340" width="1020" height="76" rx="18" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
+  <text x="278" y="374" fill="#0F172A" font-family="Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">采用条件</text>
+  <text x="398" y="374" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="18">覆盖率或长上下文质量改善，同时峰值显存、训练稳定性与每 Token 成本仍在预算内</text>
+  <text x="398" y="402" fill="#64748B" font-family="Noto Sans CJK SC, sans-serif" font-size="16">只扩大最大长度而不固定数据与证据口径，不能形成可比较结论。</text>
+</svg>

@@ -1,25 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650">
-  <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#486581"/></marker>
-    <style>
-      .title{font:700 28px sans-serif;fill:#17324d}.task{font:700 18px sans-serif;fill:#17324d}.text{font:16px sans-serif;fill:#334e68}.small{font:14px sans-serif;fill:#486581}.box{stroke:#829ab1;stroke-width:2;rx:14}.line{stroke:#486581;stroke-width:3;fill:none;marker-end:url(#arrow)}
-    </style>
-  </defs>
-  <rect width="1200" height="650" fill="#f7fafc"/>
-  <text x="600" y="44" text-anchor="middle" class="title">算子优化学习路线：从语义正确到端到端验证</text>
-  <rect x="45" y="95" width="250" height="150" fill="#e6f6f5" class="box"/><text x="70" y="130" class="task">Task 0 · 语义与执行</text><text x="70" y="170" class="text">算子输入输出、GPU 执行</text><text x="70" y="202" class="text">先建立性能指标</text>
-  <path d="M295 170 H330" class="line"/>
-  <rect x="330" y="95" width="250" height="150" fill="#e6f6f5" class="box"/><text x="355" y="130" class="task">Task 1 · Kernel 基础</text><text x="355" y="170" class="text">tile、load / store</text><text x="355" y="202" class="text">正确性与最小实现</text>
-  <path d="M580 170 H615" class="line"/>
-  <rect x="615" y="95" width="250" height="150" fill="#fff4e6" class="box"/><text x="640" y="130" class="task">Task 2 · 访存与布局</text><text x="640" y="170" class="text">带宽、layout、occupancy</text><text x="640" y="202" class="text">解释 kernel 代价</text>
-  <path d="M865 170 H900" class="line"/>
-  <rect x="900" y="95" width="255" height="150" fill="#fff4e6" class="box"/><text x="925" y="130" class="task">Task 3 · 融合与组件</text><text x="925" y="170" class="text">减少中间张量与访存</text><text x="925" y="202" class="text">连接模型组件</text>
-  <path d="M1027 245 V300 H900" class="line"/>
-  <rect x="615" y="300" width="250" height="150" fill="#eef2ff" class="box"/><text x="640" y="335" class="task">Task 4 · 硬件执行</text><text x="640" y="375" class="text">Tensor Core、stream</text><text x="640" y="407" class="text">计算与搬运重叠</text>
-  <path d="M615 375 H580" class="line"/>
-  <rect x="330" y="300" width="250" height="150" fill="#eef2ff" class="box"/><text x="355" y="335" class="task">Task 5 · 调优与分析</text><text x="355" y="375" class="text">autotune、trace、归因</text><text x="355" y="407" class="text">比较候选配置</text>
-  <path d="M330 375 H295" class="line"/>
-  <rect x="45" y="300" width="250" height="150" fill="#f0f4f8" class="box"/><text x="70" y="335" class="task">Task 6 · 项目收口</text><text x="70" y="375" class="text">Block、workload、决策</text><text x="70" y="407" class="text">回到端到端收益</text>
-  <path d="M170 450 V510 H1030 V450" class="line"/>
-  <rect x="300" y="510" width="600" height="75" fill="#ffffff" class="box"/><text x="600" y="542" text-anchor="middle" class="task">验证出口</text><text x="600" y="570" text-anchor="middle" class="small">正确性 → kernel 指标 → trace 证据 → 固定 workload 的端到端结论</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="610" viewBox="0 0 1200 610" role="img" aria-labelledby="title desc">
+  <title id="title">算子优化 Task0 到 Task6 路线</title><desc id="desc">路线先从硬件成本和图融合判断进入 Triton 实现与经典 kernel，再进入 Attention、调优和实现路径决策。</desc>
+  <style>.bg{fill:#f8fafc}.panel{stroke-width:2;rx:20}.box{stroke-width:2;rx:16}.blue{fill:#eff6ff;stroke:#60a5fa}.green{fill:#ecfdf5;stroke:#34d399}.orange{fill:#fff7ed;stroke:#fb923c}.slate{fill:#f1f5f9;stroke:#94a3b8}.line{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#a)}.title{font:700 25px sans-serif;fill:#0f172a}.h{font:700 18px sans-serif;fill:#0f172a}.s{font:14px sans-serif;fill:#475569}.tag{font:700 13px sans-serif;fill:#2563eb}</style>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L10 3L0 6z" fill="#64748b"/></marker></defs>
+  <rect class="bg" width="1200" height="610" rx="20"/><text x="55" y="55" class="title">算子优化：从成本判断到 kernel 实现与端到端证据</text>
+  <rect class="panel" x="35" y="85" width="1130" height="205" fill="#f1f5f9" stroke="#cbd5e1"/><text x="60" y="116" class="tag">建立判断与实现基础</text>
+  <rect class="box blue" x="60" y="140" width="240" height="110"/><text x="85" y="177" class="h">Task0 · 成本模型</text><text x="85" y="206" class="s">FLOPs、bytes、roofline</text><text x="85" y="230" class="s">计算 / 访存 / launch</text>
+  <rect class="box green" x="340" y="140" width="240" height="110"/><text x="365" y="177" class="h">Task1 · 图与融合</text><text x="365" y="206" class="s">rewrite、fusion、lowering</text><text x="365" y="230" class="s">减少中间张量与 launch</text>
+  <rect class="box orange" x="620" y="140" width="240" height="110"/><text x="645" y="177" class="h">Task2 · Triton 正确性</text><text x="645" y="206" class="s">block、mask、layout</text><text x="645" y="230" class="s">reference → kernel</text>
+  <rect class="box blue" x="900" y="140" width="240" height="110"/><text x="925" y="177" class="h">Task3 · 经典 Kernel</text><text x="925" y="206" class="s">GEMM、Softmax、Norm</text><text x="925" y="230" class="s">tile、归约、片上复用</text>
+  <path class="line" d="M300 195H340"/><path class="line" d="M580 195H620"/><path class="line" d="M860 195H900"/>
+  <rect class="panel" x="35" y="340" width="1130" height="205" fill="#f1f5f9" stroke="#cbd5e1"/><text x="60" y="371" class="tag">面向模型场景调优并证明收益</text>
+  <rect class="box orange" x="165" y="395" width="250" height="110"/><text x="190" y="432" class="h">Task4 · Attention 算子</text><text x="190" y="461" class="s">RoPE、FlashAttention、分页</text><text x="190" y="485" class="s">分块算法与读写路径</text>
+  <rect class="box green" x="475" y="395" width="250" height="110"/><text x="500" y="432" class="h">Task5 · 调优与下探</text><text x="500" y="461" class="s">profiling、autotune、CUDA</text><text x="500" y="485" class="s">occupancy、访存、MMA</text>
+  <rect class="box slate" x="785" y="395" width="250" height="110"/><text x="810" y="432" class="h">Task6 · 项目与决策</text><text x="810" y="461" class="s">PyTorch / compile / Triton / CUDA</text><text x="810" y="485" class="s">正确性 → microbench → workload</text>
+  <path class="line" d="M1020 250V395H290"/><path class="line" d="M415 450H475"/><path class="line" d="M725 450H785"/>
+  <text x="60" y="580" class="s">Part01 提供硬件与编译前置；Part03 提供主实现；Part04 在明确瓶颈后提供 CUDA 下探。</text>
 </svg>

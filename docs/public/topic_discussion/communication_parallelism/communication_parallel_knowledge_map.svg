@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc">
+  <title id="title">通信与并行知识地图</title>
+  <desc id="desc">输入约束分别进入训练状态、模型内部和动态路由三类并行对象，汇入通信证据，再从容量、通信、负载和恢复四方面形成采用决策。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#52606d"/></marker>
+    <marker id="dash" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7 Z" fill="#829ab1"/></marker>
+    <style>
+      .title{font:700 30px sans-serif;fill:#172b4d}.sub{font:16px sans-serif;fill:#486581}.group{font:700 19px sans-serif;fill:#172b4d}.head{font:700 18px sans-serif;fill:#172b4d}.text{font:15px sans-serif;fill:#243b53}.small{font:14px sans-serif;fill:#52606d}.box{stroke-width:2;rx:14}.band{stroke-width:2;rx:20}.flow{stroke:#52606d;stroke-width:2.2;fill:none;marker-end:url(#arrow)}.map{stroke:#829ab1;stroke-width:1.8;stroke-dasharray:7 5;fill:none;marker-end:url(#dash)}.bus{stroke:#829ab1;stroke-width:1.8;fill:none}
+    </style>
+  </defs>
+  <rect width="1500" height="900" fill="#f7fafc"/>
+  <text x="750" y="42" text-anchor="middle" class="title">通信与并行知识地图：分工如何转化为可靠证据</text>
+  <text x="750" y="72" text-anchor="middle" class="sub">先固定工作负载与拓扑，再区分切分对象，最后检查通信、负载和恢复条件。</text>
+
+  <rect x="24" y="96" width="1452" height="150" fill="#eef6ff" stroke="#8ab4df" class="band"/>
+  <text x="46" y="126" class="group">多卡问题的输入条件</text>
+  <rect x="52" y="148" width="320" height="72" fill="#e8f1fb" stroke="#4c8eda" class="box"/>
+  <text x="212" y="178" text-anchor="middle" class="head">训练或服务工作负载</text><text x="212" y="202" text-anchor="middle" class="small">batch、seq_len、并发、模型规模</text>
+  <rect x="405" y="148" width="320" height="72" fill="#e8f7ef" stroke="#45a36b" class="box"/>
+  <text x="565" y="178" text-anchor="middle" class="head">状态与计算压力</text><text x="565" y="202" text-anchor="middle" class="small">参数、梯度、激活、上下文、专家</text>
+  <rect x="758" y="148" width="320" height="72" fill="#fff5e6" stroke="#e0a23b" class="box"/>
+  <text x="918" y="178" text-anchor="middle" class="head">集群与链路条件</text><text x="918" y="202" text-anchor="middle" class="small">GPU、拓扑、带宽、延迟、world size</text>
+  <rect x="1111" y="148" width="320" height="72" fill="#f0eefb" stroke="#8069b5" class="box"/>
+  <text x="1271" y="178" text-anchor="middle" class="head">目标与约束</text><text x="1271" y="202" text-anchor="middle" class="small">容量、吞吐、长尾、质量、成本</text>
+
+  <rect x="24" y="274" width="1452" height="328" fill="#fff8eb" stroke="#e0a23b" class="band"/>
+  <text x="46" y="304" class="group">并列机制对象：不同切分产生不同通信与负载</text>
+  <rect x="80" y="332" width="340" height="148" fill="#e8f7ef" stroke="#45a36b" class="box"/>
+  <text x="250" y="363" text-anchor="middle" class="head">训练状态分片</text><text x="250" y="391" text-anchor="middle" class="text">DDP / FSDP / ZeRO</text><text x="250" y="420" text-anchor="middle" class="small">参数、梯度、优化器状态</text><text x="250" y="448" text-anchor="middle" class="small">归约、聚合与峰值生命周期</text>
+  <rect x="580" y="332" width="340" height="148" fill="#fff5e6" stroke="#e0a23b" class="box"/>
+  <text x="750" y="363" text-anchor="middle" class="head">模型与上下文切分</text><text x="750" y="391" text-anchor="middle" class="text">PP / TP / CP</text><text x="750" y="420" text-anchor="middle" class="small">层、矩阵、Head、序列状态</text><text x="750" y="448" text-anchor="middle" class="small">P2P、Gather、Reduce 与设备网格</text>
+  <rect x="1080" y="332" width="340" height="148" fill="#fce7f3" stroke="#db2777" class="box"/>
+  <text x="1250" y="363" text-anchor="middle" class="head">专家与服务副本路由</text><text x="1250" y="391" text-anchor="middle" class="text">EP / Replica</text><text x="1250" y="420" text-anchor="middle" class="small">token、请求、容量、局部性</text><text x="1250" y="448" text-anchor="middle" class="small">All-to-All、请求分发与长尾</text>
+
+  <path d="M212 220 V300 H250 V332" class="flow"/>
+  <path d="M565 220 V300 H750 V332" class="flow"/>
+  <path d="M918 220 V300 H1250 V332" class="flow"/>
+  <path d="M1271 220 V260 H1448 V546 H1020" class="flow"/>
+
+  <rect x="480" y="514" width="540" height="64" fill="#eef2f5" stroke="#829ab1" class="box"/>
+  <text x="750" y="540" text-anchor="middle" class="head">共同通信证据</text><text x="750" y="562" text-anchor="middle" class="small">集合通信、载荷、调用频率、最慢 rank、Trace 与暴露通信</text>
+  <path d="M250 480 V496 H600 V514" class="flow"/>
+  <path d="M750 480 V514" class="flow"/>
+  <path d="M1250 480 V496 H900 V514" class="flow"/>
+
+  <rect x="24" y="630" width="1452" height="242" fill="#f2effc" stroke="#a795d0" class="band"/>
+  <text x="46" y="660" class="group">采用证据：固定工作负载下检查收益、代价与恢复</text>
+  <rect x="50" y="690" width="230" height="66" fill="#eef6ff" stroke="#4c8eda" class="box"/>
+  <text x="165" y="716" text-anchor="middle" class="head">容量收益</text><text x="165" y="740" text-anchor="middle" class="small">峰值显存、可承载规模</text>
+  <rect x="330" y="690" width="230" height="66" fill="#e8f7ef" stroke="#45a36b" class="box"/>
+  <text x="445" y="716" text-anchor="middle" class="head">通信暴露</text><text x="445" y="740" text-anchor="middle" class="small">集合通信、等待、重叠</text>
+  <rect x="610" y="690" width="230" height="66" fill="#fff5e6" stroke="#e0a23b" class="box"/>
+  <text x="725" y="716" text-anchor="middle" class="head">负载与扩展</text><text x="725" y="740" text-anchor="middle" class="small">最慢 rank、吞吐、长尾</text>
+  <rect x="890" y="690" width="230" height="66" fill="#fce7f3" stroke="#db2777" class="box"/>
+  <text x="1005" y="716" text-anchor="middle" class="head">可靠性与恢复</text><text x="1005" y="740" text-anchor="middle" class="small">manifest、分片、恢复结果</text>
+
+  <path d="M750 578 V650" class="bus"/>
+  <circle cx="750" cy="650" r="5" fill="#829ab1"/>
+  <path d="M750 650 H165 V690" class="map"/>
+  <path d="M750 650 H445 V690" class="map"/>
+  <path d="M750 650 H725 V690" class="map"/>
+  <path d="M750 650 H1005 V690" class="map"/>
+
+  <rect x="565" y="796" width="370" height="54" fill="#f0eefb" stroke="#8069b5" class="box"/>
+  <text x="750" y="818" text-anchor="middle" class="head">采用决策</text><text x="750" y="839" text-anchor="middle" class="small">accept / tune / reject，并保留失败范围</text>
+  <path d="M165 756 V778" class="bus"/>
+  <path d="M445 756 V778" class="bus"/>
+  <path d="M725 756 V778" class="bus"/>
+  <path d="M1005 756 V778" class="bus"/>
+  <path d="M165 778 H1005" class="bus"/>
+  <path d="M750 778 V796" class="map"/>
+</svg>

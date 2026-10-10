@@ -62,7 +62,7 @@ Part 02 采用“基础包 + 平台 PyTorch + 项目能力包”的分层方式�
 | `qlora` | `fine-tuning` + `bitsandbytes` | 65 QLoRA 选型 | 建议 |
 | `reinforcement-learning` | `fine-tuning` + `trl` | 84–86、DPO / GRPO 等后训练项目 | 建议 |
 | `distributed` | `accelerate`、分布式指标工具 | 79–81、多卡训练和推理项目 | 是 |
-| `inference-vllm` | vLLM、backend 请求测试工具 | 66、68、69、70；71 的可选 backend 路径 | 是 |
+| `inference-vllm` | 固定 vLLM 0.11 CUDA 12.8 backend 栈 | 66、68、69、70；71 的可选 backend 路径 | 是；必须使用独立环境 |
 | `inference-sglang` | SGLang、backend 请求测试工具 | 66、69、70；71 的可选 backend 对照路径 | 是 |
 | `inference-quantized` | 与 GPTQ / AWQ / GGUF artifact 匹配的 backend | 67 量化推理与部署 | 是 |
 | `profiling` | CUDA PyTorch 的 `torch.profiler`，可选 TensorBoard | 74 Profiling 收口 | GPU trace 需要 |
@@ -81,6 +81,8 @@ requirements/inference-vllm.txt   # 66、68–71 的 vLLM 路径
 requirements/inference-sglang.txt # 66、69–71 的 SGLang 对照路径
 requirements/profiling.txt        # 74：TensorBoard 等可视化工具
 ```
+
+`base.txt` 同时提供 JupyterLab、ipykernel 与 Notebook 格式工具。能力 Profile 引用 `base.txt` 后，仍应为独立 Conda 环境注册自己的 Kernel；不要在全局 Jupyter 中误选 base、ROS 或其他专题的解释器。
 
 基础环境只安装通用包；CPU 和 CUDA PyTorch 必须二选一。Conda 文件负责创建 Python 和通用包环境，创建完成后再单独安装对应 PyTorch profile：
 
@@ -116,9 +118,10 @@ python -m pip install -r requirements/reinforcement-learning.txt
 # 分布式项目；需要 CUDA PyTorch 和多 GPU 或分布式运行时
 python -m pip install -r requirements/distributed.txt
 
-# 推理 backend 二选一，并建议使用独立环境
+# vLLM 0.11 使用独立环境；不要先安装 torch-cu128.txt
 python -m pip install -r requirements/inference-vllm.txt
-# 或
+
+# SGLang 使用另一个独立环境
 python -m pip install -r requirements/inference-sglang.txt
 
 # Profiling 工具按需追加
@@ -154,7 +157,7 @@ python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda
   ├─ 学习 QLoRA / NF4 项目 65？
   │    └─ base + qlora + GPU（推荐）
   ├─ 学习真实推理 backend 66、68、69、70？
-  │    └─ base + torch-cu128 + inference-vllm + GPU
+  │    └─ 独立 INF-VLLM-011-CU128 或 SGLang Profile + GPU
   ├─ 学习 67 GPTQ / AWQ / GGUF 部署？
   │    └─ 先确认 artifact 和 backend，再安装匹配的量化环境
   ├─ 学习 73 / 76 训练显存项目？

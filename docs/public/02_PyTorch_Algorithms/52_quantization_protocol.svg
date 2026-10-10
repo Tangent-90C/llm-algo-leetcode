@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="680" viewBox="0 0 1240 680" role="img" aria-labelledby="title desc">
+  <title id="title">量化校准范围与裁剪搜索</title>
+  <desc id="desc">不同校准分布生成多个分位数范围候选，在独立验证数据上比较饱和率和恢复误差后选择最佳范围。</desc>
+  <defs>
+    <style>
+      .title{font:700 28px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.sub{font:15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.group{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#35526b}.h{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.t{font:14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.frame{fill:#fff;stroke:#c7d9e7;stroke-width:1.5}.blue{fill:#e8f3fb;stroke:#3978a8;stroke-width:2}.green{fill:#eaf7ef;stroke:#4c9870;stroke-width:2}.orange{fill:#fff1df;stroke:#c78335;stroke-width:2}.purple{fill:#f1eafa;stroke:#8b6bb1;stroke-width:2}.flow{stroke:#3978a8;stroke-width:2.5;fill:none}
+    </style>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#3978a8"/></marker>
+  </defs>
+  <rect width="1240" height="680" rx="24" fill="#f8fbfd"/>
+  <text x="620" y="46" text-anchor="middle" class="title">校准范围不是常量：它需要在独立数据上搜索</text>
+  <text x="620" y="74" text-anchor="middle" class="sub">固定 INT8 与粒度，只比较校准分布和裁剪分位数</text>
+
+  <rect x="55" y="108" width="1130" height="118" rx="18" class="frame" fill="#ffffff" stroke="#c7d9e7"/>
+  <text x="78" y="134" class="group">校准分布决定候选范围</text>
+  <rect x="150" y="150" width="285" height="58" rx="14" class="blue" fill="#e8f3fb" stroke="#3978a8"/>
+  <text x="292" y="175" text-anchor="middle" class="h">常规样本</text><text x="292" y="196" text-anchor="middle" class="t">范围集中，缩放因子较小</text>
+  <rect x="805" y="150" width="285" height="58" rx="14" class="orange" fill="#fff1df" stroke="#c78335"/>
+  <text x="947" y="175" text-anchor="middle" class="h">含异常值样本</text><text x="947" y="196" text-anchor="middle" class="t">范围拉大，网格变粗</text>
+
+  <rect x="55" y="260" width="1130" height="118" rx="18" class="frame" fill="#ffffff" stroke="#c7d9e7"/>
+  <text x="78" y="286" class="group">生成裁剪候选</text>
+  <rect x="135" y="302" width="205" height="58" rx="14" class="purple" fill="#f1eafa" stroke="#8b6bb1"/>
+  <text x="237" y="327" text-anchor="middle" class="h">分位数 = 1.0</text><text x="237" y="348" text-anchor="middle" class="t">保留完整范围</text>
+  <rect x="395" y="302" width="205" height="58" rx="14" class="purple" fill="#f1eafa" stroke="#8b6bb1"/>
+  <text x="497" y="327" text-anchor="middle" class="h">分位数 = 0.999</text><text x="497" y="348" text-anchor="middle" class="t">轻度裁剪</text>
+  <rect x="655" y="302" width="205" height="58" rx="14" class="purple" fill="#f1eafa" stroke="#8b6bb1"/>
+  <text x="757" y="327" text-anchor="middle" class="h">分位数 = 0.99</text><text x="757" y="348" text-anchor="middle" class="t">中度裁剪</text>
+  <rect x="915" y="302" width="205" height="58" rx="14" class="purple" fill="#f1eafa" stroke="#8b6bb1"/>
+  <text x="1017" y="327" text-anchor="middle" class="h">分位数 = 0.95</text><text x="1017" y="348" text-anchor="middle" class="t">强裁剪</text>
+
+  <path d="M292 208V242H620" class="flow"/>
+  <path d="M947 208V242H620" class="flow"/>
+  <circle cx="620" cy="242" r="5" fill="#3978a8"/>
+  <path d="M620 242H237V302" class="flow" marker-end="url(#arrow)"/>
+  <path d="M620 242H497V302" class="flow" marker-end="url(#arrow)"/>
+  <path d="M620 242H757V302" class="flow" marker-end="url(#arrow)"/>
+  <path d="M620 242H1017V302" class="flow" marker-end="url(#arrow)"/>
+
+  <rect x="535" y="404" width="170" height="40" rx="12" class="purple"/>
+  <text x="620" y="430" text-anchor="middle" class="h">候选范围集合</text>
+  <path d="M237 360V386H620" class="flow"/>
+  <path d="M497 360V390H620" class="flow"/>
+  <path d="M757 360V390H620" class="flow"/>
+  <path d="M1017 360V386H620" class="flow"/>
+  <circle cx="620" cy="390" r="5" fill="#3978a8"/>
+  <path d="M620 395V404" class="flow" marker-end="url(#arrow)"/>
+
+  <rect x="55" y="480" width="1130" height="148" rx="18" class="frame" fill="#ffffff" stroke="#c7d9e7"/>
+  <text x="78" y="506" class="group">在独立验证数据上选择范围</text>
+  <rect x="135" y="532" width="245" height="68" rx="14" class="blue" fill="#e8f3fb" stroke="#3978a8"/>
+  <text x="257" y="559" text-anchor="middle" class="h">量化—恢复</text><text x="257" y="582" text-anchor="middle" class="t">缩放因子只来自校准数据</text>
+  <rect x="497" y="532" width="245" height="68" rx="14" class="orange" fill="#fff1df" stroke="#c78335"/>
+  <text x="619" y="559" text-anchor="middle" class="h">误差与饱和率</text><text x="619" y="582" text-anchor="middle" class="t">均方误差 · 最大误差 · 饱和率</text>
+  <rect x="860" y="532" width="245" height="68" rx="14" class="green" fill="#eaf7ef" stroke="#4c9870"/>
+  <text x="982" y="559" text-anchor="middle" class="h">最佳裁剪范围</text><text x="982" y="582" text-anchor="middle" class="t">先满足约束，再最小化误差</text>
+  <path d="M620 444V464H257V532" class="flow" marker-end="url(#arrow)"/>
+  <path d="M380 566H497" class="flow" marker-end="url(#arrow)"/>
+  <path d="M742 566H860" class="flow" marker-end="url(#arrow)"/>
+</svg>

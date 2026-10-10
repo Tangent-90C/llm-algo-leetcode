@@ -69,14 +69,15 @@ PagedAttention 的思路是把 KV Cache 像分页内存一样管理：物理显�
 
 ### Step 4: 实现并验证分页缓存管理器
 
-本 Step 把前面的布局和生命周期落到 `KVCacheManager`。输入是 Block 容量、请求长度和逻辑 token，输出是分配状态、Block Table 和恢复后的逻辑缓存。题目区先完成理论容量、Block 分配与回收、跨边界扩容和逻辑缓存拼装；`acquire_prefix` / `release_prefix` 的 Prefix Cache 共享只是可选扩展，不属于核心 TODO。
+本题用固定大小的张量池和请求块表复现分页缓存；请求状态、占用报告、释放校验和非核心控制流已经提供，学习者补全容量账本、Prefill 原子分配、Decode 跨块扩容和逻辑缓存恢复。测试覆盖正常增长、非连续映射、OOM 回滚与释放复用。
 
-| 实现对象 | 需要完成的机制 | 验证重点 |
-|---|---|---|
-| 输入契约 | 校验请求长度、物理块数量、Block 大小和 `head_dim` 为正数 | 非法参数应尽早拒绝，不污染缓存状态 |
-| 容量账本 | 计算单 token、单 Block 和总 KV Cache 容量 | K/V、层数、KV heads 和 dtype 字节数 |
-| Block 生命周期 | 实现 prefill 分配、decode 扩容、release 回收 | OOM 时状态不被部分修改 |
-| 逻辑缓存读取 | 按 Block Table 恢复逻辑 token 顺序 | 物理块不连续时仍能正确拼装 |
+| 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
+|---|---|---|---|
+| `estimate_kv_cache_bytes` | TODO 1：计算单 token、单 Block 和总容量 | 同时计入 K/V、层数、KV Head 和数据类型 | 容量账本测试 |
+| `allocate_for_prefill` | TODO 2：向上取整并选择待提交物理块 | OOM 与重复分配不改变请求和空闲池 | Prefill 与原子 OOM 测试 |
+| `allocate_for_decode` | TODO 3：识别追加 token 是否跨越 Block 边界 | 仅跨界时申请；失败时长度和块表不变 | Decode 边界与回滚测试 |
+| `get_physical_cache` | TODO 4：按 Block Table 恢复逻辑顺序 | 不按物理索引排序，并截断尾块 | 非连续物理块恢复测试 |
+
 
 
 ```python
@@ -86,16 +87,18 @@ from typing import Dict, List, Tuple
 
 
 ```python
-# TODO 1：计算 KV Cache 理论容量
 def estimate_kv_cache_bytes(num_blocks: int, block_size: int, num_layers: int, num_kv_heads: int, head_dim: int, dtype_bytes: int = 2) -> Dict[str, int]:
     """估算 KV Cache 理论容量；不代表 vLLM allocator 的实际峰值。"""
-    # TODO 1：计算单 token 的 K/V 字节数、单 block 字节数和总容量。
-    # kv_bytes_per_token = ???  # 单 token 的 K/V 字节数
-    # kv_bytes_per_block = ???  # 一个物理 Block 的 K/V 字节数
-    # total_cache_bytes = ???  # 全部物理 Block 的理论容量
-    # layout_shape 使用 [num_layers, 2(K/V), num_kv_heads, block_size, head_dim]，这里作为给定的布局描述。
+    values = (num_blocks, block_size, num_layers, num_kv_heads, head_dim, dtype_bytes)
+    if any(value <= 0 for value in values):
+        raise ValueError('所有容量维度和 dtype_bytes 都必须为正数')
+    # TODO 1（容量账本）：依次计算单 token、单 Block 和整个池的理论容量。
+    # kv_bytes_per_token = ???
+    # kv_bytes_per_block = ???
+    # total_cache_bytes = ???
+    raise NotImplementedError('TODO 1：请完成 KV Cache 容量账本')
     layout_shape = [num_layers, 2, num_kv_heads, block_size, head_dim]
-    raise NotImplementedError("请先完成 TODO 代码！")
+    return {'kv_bytes_per_token': kv_bytes_per_token, 'kv_bytes_per_block': kv_bytes_per_block, 'total_cache_bytes': total_cache_bytes, 'layout_shape': layout_shape}
 
 
 class Request:
@@ -128,87 +131,68 @@ class KVCacheManager:
         
         # 跟踪哪些物理块被占用了
         self.free_blocks: List[int] = list(range(num_blocks))
-        # 可选扩展：prefix_key -> {'block_ids': [...], 'refcount': n}
-        self.prefix_cache: Dict[Tuple[int, ...], dict] = {}
-
-    def acquire_prefix(self, prefix_tokens: List[int]) -> List[int]:
-        """可选扩展：为相同 token 前缀共享物理 Block。"""
-        # 扩展 A（Prefix Cache）：规范化 prefix_key，命中时增加引用计数；
-        # 未命中时按需申请 Block，并记录 block_ids 与 refcount。
-        raise NotImplementedError("请先完成 Prefix Cache 扩展！")
-
-    def release_prefix(self, prefix_tokens: List[int]):
-        # 扩展 B（Prefix Cache）：引用计数归零后归还物理 Block。
-        raise NotImplementedError("请先完成 Prefix Cache 扩展！")
-
     def allocate_for_prefill(self, req: Request):
         """
         请求刚进来时 (Prefill阶段)，为它的 Prompt 长度分配所需的全部 Block
         """
-        # ==========================================
-        # TODO 2: 计算需要的 block 数量
-        # 提示：按向上取整规则计算需要的 Block 数量。
-        # 已有 block_table 的请求不能重复 Prefill；prompt_len 必须为正数。
-        # 如果 block_table 非空，应明确拒绝重复分配，而不是继续追加。
-        # 先计算目标状态，再检查资源；失败时 free_blocks 和 block_table 都不能改变。
-        # 这是一个状态转换：先计算并检查资源，再一次性提交块表。
-        # ==========================================
+        if req.block_table:
+            raise ValueError('请求已经完成 Prefill，不能重复分配')
+        # TODO 2（Prefill 分配）：先计算目标块数，再选择待提交的物理块。
         # needed_blocks = ???
-        
-        # ==========================================
-        # TODO 3: 从 free_blocks 中弹出对应数量的 block 索引，
-        # 并追加到请求的 block_table 中
-        # 如果 free_blocks 不够了，抛出 RuntimeError("OOM")
-        # ==========================================
-        # allocated_blocks = ???  # 本次申请的物理 Block 列表；按顺序提交到 req.block_table
-        # 先确认空闲块足够，再修改 free_blocks 和 block_table，避免 OOM 后半分配。
-        # 物理块可以不连续，但逻辑顺序必须与 block_table 顺序一致。
-        pass
+        # allocated_blocks = ???
+        raise NotImplementedError('TODO 2：请完成 Prefill 原子分配')
+        if len(self.free_blocks) < needed_blocks:
+            raise RuntimeError('OOM')
+        del self.free_blocks[:needed_blocks]
+        req.block_table.extend(allocated_blocks)
 
     def allocate_for_decode(self, req: Request):
         """
         自回归生成时 (Decode阶段)，检查序列长度。
         如果当前最后一个 Block 满了，则按需分配 1 个新 Block。
         """
-        # ==========================================
-        # TODO 4: 判断是否刚好需要跨入新的一块 Block？
-        # 条件：加 1 后的 seq_len 除以 block_size 余数是多少？
-        # ==========================================
-        # new_seq_len 由 req.seq_len 加 1 得到；请填写 is_new_block_needed = ??? 以判断是否跨入新物理 Block。
-        # 先检查资源，再提交 seq_len 和 block_table；OOM 时请求状态必须保持不变。
-        
-        # 如果需要，尝试分配 1 个新的物理 Block 放入块表
-        # if is_new_block_needed:
-        #    if not self.free_blocks: ...
-        #    从 free_blocks 取出一个物理索引并追加到 req.block_table。
-        # 注意：OOM 时不能修改 req.seq_len 或 req.block_table。
-        pass
+        # TODO 3（Decode 扩容）：计算追加后的长度，并判断是否进入新 Block。
+        # new_seq_len = ???
+        # is_new_block_needed = ???
+        raise NotImplementedError('TODO 3：请判断 Decode 是否跨越 Block 边界')
+        if is_new_block_needed:
+            if not self.free_blocks:
+                raise RuntimeError('OOM')
+            req.block_table.append(self.free_blocks.pop(0))
+        req.seq_len = new_seq_len
 
-    # TODO 5：计算请求的 Block 占用报告
     def allocation_report(self, req: Request) -> Dict[str, float]:
         """报告逻辑 token、已分配 token、尾块浪费和利用率。"""
-        # TODO 5：分别计算以下变量：
-        # allocated_tokens = ???  # 已分配物理块可容纳的 token 数
-        # unused_tail_tokens = ???  # 尾块尚未使用的 token 数
-        # utilization = ???  # 逻辑 token / 已分配容量
-        raise NotImplementedError("请先完成 TODO 代码！")
+        allocated_tokens = len(req.block_table) * self.block_size
+        unused_tail_tokens = allocated_tokens - req.seq_len
+        utilization = req.seq_len / allocated_tokens if allocated_tokens else 0.0
+        return {'logical_tokens': req.seq_len, 'allocated_tokens': allocated_tokens, 'unused_tail_tokens': unused_tail_tokens, 'utilization': utilization}
 
     def release_request(self, req: Request):
         """释放请求占用的物理块，并清空其块表。"""
-        # TODO 6：先记录并校验 released_block_ids，再归还 free_blocks。
-        # released_block_ids = ???  # 本次释放的物理 Block 列表；释放后空闲池数量可直接由 free_blocks 得到
-        # 重复释放应报错或明确拒绝，不能把同一物理块加入 free_blocks 两次。
-        # 同时检查物理索引范围，避免非法状态污染空闲池。
-        pass
+        released_block_ids = list(req.block_table)
+        if not released_block_ids:
+            raise ValueError('请求没有可释放的物理块，可能已经释放')
+        if len(set(released_block_ids)) != len(released_block_ids):
+            raise ValueError('block_table 不能包含重复物理块')
+        if any(block_id < 0 or block_id >= self.num_blocks for block_id in released_block_ids):
+            raise ValueError('请求包含越界物理块')
+        if any(block_id in self.free_blocks for block_id in released_block_ids):
+            raise ValueError('请求包含已释放的物理块')
+        self.free_blocks.extend(released_block_ids)
+        self.free_blocks.sort()
+        req.block_table.clear()
 
-    # TODO 7：恢复逻辑连续 Cache
     def get_physical_cache(self, req: Request) -> torch.Tensor:
         """根据块表恢复逻辑连续的 KV Cache。"""
-        # TODO 7：只读取 req.block_table 中的物理块，并截断到 req.seq_len。
-        # ==========================================
-        # blocks = ???  # 按 block_table 顺序提取物理块
-        # cat_blocks = ???  # 沿 token 维拼接物理块，并在返回时截断到 req.seq_len
-        # 必须按 block_table 顺序读取并截断尾块，不能按物理索引排序。
+        if not req.block_table:
+            raise ValueError('请求没有可读取的物理块')
+        if any(block_id < 0 or block_id >= self.num_blocks for block_id in req.block_table):
+            raise ValueError('block_table 包含越界物理块')
+        # TODO 4（逻辑恢复）：按 Block Table 顺序读取并沿 token 维拼接。
+        # blocks = ???
+        # cat_blocks = ???
+        raise NotImplementedError('TODO 4：请恢复逻辑连续的 KV Cache')
         return cat_blocks[:req.seq_len]
 
 
@@ -219,8 +203,8 @@ class KVCacheManager:
 运行下面的测试单元，确认 prefill / decode / cache 拼装三段链路都正确。
 
 ```python
-# 运行此单元格以测试你的实现
-def test_paged_attention_manager():
+# 机制测试：按输入契约、生命周期、逻辑恢复、原子 OOM 和释放复用分别定位问题。
+def _legacy_paged_attention_manager():
     try:
         # Case 1: 典型 Prefill + Decode + Cache 拼装
         manager = KVCacheManager(num_blocks=10, block_size=4, head_dim=64)
@@ -359,22 +343,77 @@ def test_paged_attention_manager():
         raise
 
 
+def test_request_and_ledger_contract():
+    """验证请求输入契约与 KV Cache 容量账本。"""
+    for bad_request in ((-1, 2), (1, 0)):
+        try:
+            Request(request_id=bad_request[0], prompt_len=bad_request[1])
+        except ValueError:
+            continue
+        raise AssertionError('非法请求参数应被拒绝')
+    ledger = estimate_kv_cache_bytes(4, 4, 2, 8, 16, 2)
+    assert ledger['kv_bytes_per_token'] == 1024
+    assert ledger['total_cache_bytes'] == 16384
+
+def test_prefill_and_decode_growth():
+    """验证 Prefill 分配和 Decode 跨 Block 边界扩容。"""
+    manager = KVCacheManager(num_blocks=4, block_size=4, head_dim=8)
+    req = Request(request_id=1, prompt_len=4)
+    manager.allocate_for_prefill(req)
+    assert len(req.block_table) == 1
+    manager.allocate_for_decode(req)
+    assert req.seq_len == 5 and len(req.block_table) == 2
+
+def test_logical_cache_reconstruction():
+    """验证非连续物理块按逻辑 Block 顺序恢复。"""
+    manager = KVCacheManager(num_blocks=4, block_size=2, head_dim=2)
+    req = Request(request_id=2, prompt_len=3)
+    req.block_table = [3, 1]
+    manager.physical_kv_cache[3].fill_(3.0)
+    manager.physical_kv_cache[1].fill_(1.0)
+    cache = manager.get_physical_cache(req)
+    assert cache.shape == (3, 2)
+    assert torch.all(cache[:2] == 3.0) and torch.all(cache[2:] == 1.0)
+
+def test_oom_is_atomic():
+    """验证 Prefill OOM 不会留下半分配状态。"""
+    manager = KVCacheManager(num_blocks=1, block_size=4, head_dim=8)
+    req = Request(request_id=3, prompt_len=5)
+    free_before = list(manager.free_blocks)
+    try:
+        manager.allocate_for_prefill(req)
+    except RuntimeError as error:
+        assert 'OOM' in str(error)
+    else:
+        raise AssertionError('资源不足时应抛出 OOM')
+    assert req.block_table == [] and manager.free_blocks == free_before
+
+def test_release_and_reuse():
+    """验证尾块账本、释放和物理 Block 复用。"""
+    manager = KVCacheManager(num_blocks=3, block_size=4, head_dim=8)
+    req = Request(request_id=4, prompt_len=5)
+    manager.allocate_for_prefill(req)
+    report = manager.allocation_report(req)
+    assert report['unused_tail_tokens'] == 3
+    manager.release_request(req)
+    assert req.block_table == [] and manager.free_blocks == [0, 1, 2]
+
+def test_paged_attention_manager():
+    """汇总运行分页缓存的容量、扩容、映射、OOM 与释放测试。"""
+    test_request_and_ledger_contract()
+    test_prefill_and_decode_growth()
+    test_logical_cache_reconstruction()
+    test_oom_is_atomic()
+    test_release_and_reuse()
+    print('✅ PagedAttention 机制测试通过：账本、扩容、映射、OOM 和回收均通过。')
+
+
 test_paged_attention_manager()
 
 ```
 
----
 
-🛑 **STOP HERE** 🛑
-<br><br><br><br><br><br><br><br><br><br>
-> 请先尝试自己完成代码并跑通测试。<br>
-> 如果你正在 Colab 中运行，并且遇到困难没有思路，可以向下滚动查看参考答案。
-<br><br><br><br><br><br><br><br><br><br>
-
----
-## 参考代码与解析
-
-### 代码
+### 参考答案
 
 ```python
 class Request:
@@ -389,7 +428,6 @@ class Request:
         self.seq_len = prompt_len
         self.block_table: List[int] = []
 
-# TODO 1：计算 KV Cache 理论容量
 def estimate_kv_cache_bytes(num_blocks: int, block_size: int, num_layers: int, num_kv_heads: int, head_dim: int, dtype_bytes: int = 2) -> Dict[str, int]:
     """估算 KV Cache 理论容量；不代表 vLLM allocator 的实际峰值。"""
     values = (num_blocks, block_size, num_layers, num_kv_heads, head_dim, dtype_bytes)
@@ -418,47 +456,15 @@ class KVCacheManager:
         
         # 跟踪哪些物理块被占用了
         self.free_blocks: List[int] = list(range(num_blocks))
-        # prefix_key -> {'block_ids': [...], 'refcount': n}
-        self.prefix_cache: Dict[Tuple[int, ...], dict] = {}
-
-    def acquire_prefix(self, prefix_tokens: List[int]) -> List[int]:
-        """为相同 token 前缀共享物理 Block；这是简化的引用计数模型。"""
-        key = tuple(int(token) for token in prefix_tokens)
-        if not key:
-            raise ValueError('prefix_tokens 不能为空')
-        entry = self.prefix_cache.get(key)
-        if entry is not None:
-            entry['refcount'] += 1
-            return list(entry['block_ids'])
-        needed = (len(key) + self.block_size - 1) // self.block_size
-        if len(self.free_blocks) < needed:
-            raise RuntimeError('OOM')
-        block_ids = self.free_blocks[:needed]
-        del self.free_blocks[:needed]
-        self.prefix_cache[key] = {'block_ids': block_ids, 'refcount': 1}
-        return list(block_ids)
-
-    def release_prefix(self, prefix_tokens: List[int]):
-        key = tuple(int(token) for token in prefix_tokens)
-        entry = self.prefix_cache.get(key)
-        if entry is None:
-            raise KeyError('prefix 不存在或已释放')
-        entry['refcount'] -= 1
-        if entry['refcount'] == 0:
-            self.free_blocks.extend(entry['block_ids'])
-            self.free_blocks.sort()
-            del self.prefix_cache[key]
-
     def allocate_for_prefill(self, req: Request):
         """
         请求刚进来时 (Prefill阶段)，为它的 Prompt 长度分配所需的全部 Block
         """
         if req.block_table:
             raise ValueError('请求已经完成 Prefill，不能重复分配')
-        # TODO 2: 计算需要的 block 数量（向上取整）
+        # TODO 2（Prefill 分配）：先计算目标块数，再选择待提交的物理块。
         needed_blocks = (req.seq_len + self.block_size - 1) // self.block_size
         
-        # TODO 3: 从 free_blocks 中弹出对应数量的 block 索引
         if len(self.free_blocks) < needed_blocks:
             raise RuntimeError("OOM")
         
@@ -473,7 +479,7 @@ class KVCacheManager:
         """
         new_seq_len = req.seq_len + 1
         
-        # TODO 4: 判断是否需要新的 Block
+        # TODO 3（Decode 扩容）：计算追加后的长度，并判断是否进入新 Block。
         is_new_block_needed = (new_seq_len % self.block_size) == 1
         
         if is_new_block_needed:
@@ -483,7 +489,6 @@ class KVCacheManager:
             req.block_table.append(block_id)
         req.seq_len = new_seq_len
 
-    # TODO 5：计算请求的 Block 占用报告
     def allocation_report(self, req: Request) -> Dict[str, float]:
         allocated_tokens = len(req.block_table) * self.block_size
         unused_tail_tokens = allocated_tokens - req.seq_len
@@ -491,7 +496,6 @@ class KVCacheManager:
         return {'logical_tokens': req.seq_len, 'allocated_tokens': allocated_tokens, 'unused_tail_tokens': unused_tail_tokens, 'utilization': utilization}
 
     def release_request(self, req: Request):
-        # TODO 6：校验释放列表、归还物理块，并避免重复释放。
         released_block_ids = list(req.block_table)
         if not released_block_ids:
             raise ValueError('请求没有可释放的物理块，可能已经释放')
@@ -505,10 +509,9 @@ class KVCacheManager:
         self.free_blocks.sort()
         req.block_table.clear()
 
-    # TODO 7：恢复逻辑连续 Cache
     def get_physical_cache(self, req: Request) -> torch.Tensor:
         """根据块表恢复逻辑连续的 KV Cache。"""
-        # TODO 7: 根据 req.block_table 的索引，从物理池中提取对应的块
+        # TODO 4（逻辑恢复）：按 Block Table 顺序读取并沿 token 维拼接。
         if not req.block_table:
             raise ValueError('请求没有可读取的物理块')
         if any(block_id < 0 or block_id >= self.num_blocks for block_id in req.block_table):
@@ -519,144 +522,39 @@ class KVCacheManager:
         # 只截取真实 seq_len 长度返回
         return cat_blocks[:req.seq_len]
 
-def run_prefix_cache_extension_check():
-    """答案区扩展测试：验证相同前缀的 Block 共享和引用计数释放。"""
-    manager = KVCacheManager(num_blocks=4, block_size=4, head_dim=8)
-    prefix = [101, 102, 103, 104, 105]
-    first_ids = manager.acquire_prefix(prefix)
-    second_ids = manager.acquire_prefix(prefix)
-    assert first_ids == second_ids, '相同 prefix 应共享同一组物理 Block'
-    assert len(manager.free_blocks) == 2, 'Prefix Cache 命中不应重复申请 Block'
-    manager.release_prefix(prefix)
-    assert len(manager.free_blocks) == 2, '仍有引用时不能释放共享 Block'
-    manager.release_prefix(prefix)
-    assert manager.free_blocks == [0, 1, 2, 3], '引用计数归零后应归还 Block'
-    print('✅ Prefix Cache 扩展测试通过！')
 
-
-run_prefix_cache_extension_check()
 ```
 
 ### 解析
 
-**1. TODO 1：KV Cache 显存账本**
-- **实现方式**：单 token 的理论容量为 `2 * num_layers * num_kv_heads * head_dim * dtype_bytes`；再乘以 `block_size` 和 `num_blocks`。
-- **关键点**：前面的 `2` 表示 K、V 两份缓存；账本只描述容量，不包含 workspace、allocator reserved 或临时张量。
-- **证据边界**：这是 CPU 可验证的理论估算，不是 vLLM 的真实 GPU 显存峰值。
+题目把报告和释放校验作为给定骨架，解析只对应四个需要补全的分页机制。
 
-**2. TODO 2：Prefill 计算所需 Block 数**
-- **实现方式**：`needed_blocks = (req.seq_len + self.block_size - 1) // self.block_size`。
-- **关键点**：向上取整，确保最后一个不满的 Block 也能容纳剩余 token。
-- **关键点**：已有 `block_table` 的请求不能重复 Prefill；先检查空闲块数量，再修改请求和池状态。
+**TODO 1：KV Cache 容量账本**
+单 token 容量同时包含 K 和 V，并乘以层数、KV Head 数、Head 维度与元素字节数；再按 Block 大小和 Block 数逐级汇总。容量测试检查每一级结果。
 
-**3. TODO 3：分配物理 Block**
-- **实现方式**：从 `free_blocks` 取出 `allocated_blocks`，按顺序写入 `req.block_table`。
-- **关键点**：`block_table[i]` 表示第 `i` 个逻辑 Block 对应的物理索引；物理索引不要求连续。
-- **边界**：资源不足时抛出 OOM，且不能留下半分配状态；物理索引可以不连续。
+**TODO 2：Prefill 原子分配**
+请求长度按 Block 大小向上取整。候选物理块先从空闲池中选出，只有资源充足时才同时提交空闲池和块表，因此 OOM 不会留下半分配状态。
 
-**4. TODO 4：Decode 跨块扩容**
-- **实现方式**：长度增加后，使用 `is_new_block_needed = (new_seq_len % block_size) == 1` 判断是否进入新块。
-- **关键点**：只在跨过 Block 边界时申请一个物理块，体现按需增长。
-- **边界**：本题只模拟块表更新，不实现真实 KV 写入和 Attention kernel。
+**TODO 3：Decode 跨块扩容**
+追加 token 后只有进入新 Block 的第一个位置才需要申请物理块。测试同时检查普通增长、边界增长和无空闲块时的状态回滚。
 
-**5. TODO 5：占用报告**
-- **实现方式**：用 `len(req.block_table) * block_size` 得到已分配 token 容量，再计算尾块浪费和利用率。
-- **关键点**：报告同时保留逻辑 token 数和物理分配容量，不能把两者混成一个显存数字。
+**TODO 4：恢复逻辑缓存**
+物理索引可以不连续，读取顺序必须来自 `block_table`；拼接后按 `seq_len` 截断尾块。非连续映射测试用于防止错误地按物理索引排序。
 
-**6. TODO 6：请求释放与 Block 复用**
-- **实现方式**：复制 `req.block_table`，校验物理块没有重复、越界或已经回到空闲池，再归还 `free_blocks` 并清空块表。
-- **测试对应**：原子 OOM 测试检查失败不改变状态，释放复用测试检查池状态恢复。
+### 真实 GPU 验证出口
 
-**7. TODO 7：按块表恢复逻辑 Cache**
-- **实现方式**：按照 `req.block_table` 读取物理块，沿 token 维拼接，再截断到 `req.seq_len`。
-- **关键点**：这展示了逻辑地址与物理地址解耦；真实 PagedAttention 会在 kernel 中按块读取，不需要先拼成连续张量。
+本节不使用合成张量模拟 PagedAttention 的 GPU 收益。Step 4 已验证 block 分配、逻辑映射、尾块碎片与原子 OOM；真实 GPU 证据需要启动支持 PagedAttention 的 Serving backend，并在固定模型、请求长度、block size 和并发度后记录 KV 容量、失败请求、TTFT 与 TPOT。
 
-**本节能得出的结论**
-- 可以解释 Block Table、按需分配、跨块扩容、释放复用和尾块碎片。
-- 可以计算 KV Cache 的理论容量，并观察 block_size、dtype 和 KV heads 的影响。
-
-**本节不能得出的结论**
-- 不能根据 CPU 模拟推断 vLLM 的 TTFT、吞吐、GPU 峰值显存或 kernel 效率。
-- Continuous Batching、Prefix Cache 和真实 serving 调度分别在 70、69 及真实 backend 项目中验证。
-### Step 5: 可选 GPU 机制探针
-
-这一组实验只把 Block 池和连续预留策略放到 GPU 上，观察理论账本与 CUDA 分配结果的关系。它不启动 vLLM，也不代表真实 PagedAttention kernel、TTFT 或吞吐收益。
-
-| 对照 | GPU 上分配的对象 | 观察指标 |
-|---|---|---|
-| Block 池 | 按请求实际长度向上取整后的共享池 | 物理分配 token、尾块浪费、peak allocated |
-| 连续预留 | 每个请求都预留相同最大长度 | 预留 token、peak allocated |
-
-只有 `RUN_MODE = 'real_gpu'` 才会创建 CUDA 张量；默认 `dry_run` 只检查配置，不占用 GPU。
-
-```python
-# GPU 可选实验配置：先运行 dry_run 检查参数，再改为 real_gpu。
-RUN_MODE = 'dry_run'  # dry_run / real_gpu
-GPU_PROBE = {
-    'request_lengths': [17, 33, 65, 129],
-    'max_reserved_len': 256,
-    'block_size': 16,
-    'head_dim': 64,
-    'dtype': 'float16',
-}
-
-def run_paged_memory_probe(run_mode='dry_run', config=None):
-    """比较合成 Block 池和连续预留的 GPU 分配量。
-
-    这里的张量形状只有 [token, head_dim]，用于观察分配量差异；
-    它不是包含 layer/KV-head/block-table 的真实 vLLM cache layout。
-    """
-    import json
-    import torch
-    config = dict(config or GPU_PROBE)
-    lengths = config['request_lengths']
-    block_size = config['block_size']
-    dtype = getattr(torch, config['dtype'])
-    paged_tokens = sum((length + block_size - 1) // block_size * block_size for length in lengths)
-    contiguous_tokens = len(lengths) * config['max_reserved_len']
-    plan = {
-        'request_lengths': lengths,
-        'paged_allocated_tokens': paged_tokens,
-        'contiguous_reserved_tokens': contiguous_tokens,
-        'tail_waste_tokens': paged_tokens - sum(lengths),
-        'synthetic_tensor_shape': [paged_tokens, config['head_dim']],
-        'layout_note': '仅用于 CUDA 分配探针，不代表真实 PagedAttention kernel',
-        'evidence_level': 'synthetic_gpu_memory_probe',
-    }
-    if run_mode == 'dry_run':
-        print(json.dumps({'mode': run_mode, 'plan': plan}, ensure_ascii=False, indent=2))
-        return plan
-    if run_mode != 'real_gpu':
-        raise ValueError("RUN_MODE 只能是 dry_run 或 real_gpu")
-    if not torch.cuda.is_available():
-        raise RuntimeError('real_gpu 模式需要 CUDA')
-    device = torch.device('cuda')
-    results = {}
-    for name, tokens in [('paged', paged_tokens), ('contiguous', contiguous_tokens)]:
-        torch.cuda.empty_cache()
-        torch.cuda.reset_peak_memory_stats(device)
-        tensor = torch.empty((tokens, config['head_dim']), dtype=dtype, device=device)
-        torch.cuda.synchronize(device)
-        results[name] = {
-            'allocated_tokens': tokens,
-            'peak_allocated_mb': round(torch.cuda.max_memory_allocated(device) / 2**20, 2),
-        }
-        del tensor
-    torch.cuda.empty_cache()
-    result = {'mode': run_mode, 'plan': plan, 'results': results, 'device': torch.cuda.get_device_name(0)}
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    return result
-
-run_paged_memory_probe(RUN_MODE, GPU_PROBE)
-```
-
+需要观察缓存引用、驱逐与回收时，继续到 [37 KV Cache 生命周期与容量控制](./37_KV_Cache_Lifecycle_and_Capacity_Control.md)；需要端到端前缀复用证据时，使用 [69 前缀缓存基准](./69_Prefix_Caching_Benchmark.md)。
 ## 相关阅读
+
+**论文与官方实现**
 
 完成本节的 Block Table 和物理块管理模拟后，可以沿着“分页缓存机制 → 推理引擎实现 → 缓存复用与调度”继续阅读。
 
 - [Efficient Memory Management for Large Language Model Serving with PagedAttention 原论文](https://arxiv.org/abs/2309.06180)
 - [vLLM 官方仓库](https://github.com/vllm-project/vllm)
 - [vLLM 官方文档](https://docs.vllm.ai/en/latest/)
-- [24. SGLang RadixAttention | SGLang 基数注意力](./24_SGLang_RadixAttention.md)
-- [34. Prefix Cache Matching and Reuse | Prefix Cache 匹配与复用](./34_Prefix_Cache_Matching_and_Reuse.md)
-- [37. KV Cache Scheduling | KV Cache 调度](./37_KV_Cache_Scheduling.md)
+- [24. Prefix Cache Matching and Reuse | Prefix Cache 匹配与复用](./24_Prefix_Cache_Matching_and_Reuse.md)
+- [34. SGLang RadixAttention | SGLang 基数注意力](./34_SGLang_RadixAttention.md)
+- [37. KV Cache Lifecycle and Capacity Control | KV Cache 生命周期与容量控制](./37_KV_Cache_Lifecycle_and_Capacity_Control.md)

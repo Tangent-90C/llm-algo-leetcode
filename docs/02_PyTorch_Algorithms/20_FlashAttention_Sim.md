@@ -67,18 +67,15 @@
 ![Q 分块生命周期](../public/02_PyTorch_Algorithms/20_q_tile_lifecycle.svg)
 
 
-### Step 4: CPU 实现任务与验证标准
-本步才把前面的概念与状态流转成可执行任务：输入是形状为 `[seq_len, dim]` 的 Q、K、V，输出是形状相同的 Attention 结果。题目骨架保留双层分块循环，学习者只完成四个机制责任：初始化 `out/m/l` 状态、形成 score 与 causal mask、按 Online Softmax 更新 tile 状态、写回全局状态。答案区保持相同函数签名与控制流，只补全这些位置。
+### Step 4: 实现并验证分块 Attention
+本题用二维 Q、K、V 复现分块 Attention；双层分块循环、输入校验和状态写回已经提供，学习者补全跨分块状态、局部分数、因果掩码、Online Softmax 重标定和归一化输出。测试覆盖普通与因果路径、尾块、dtype、较大分数和非法输入。
 
-这里的 FlashAttention 可以看作 Attention 内部的数据流融合：它把 score、Softmax 和 value aggregation 的中间结果尽量留在片上，减少完整矩阵写回。但本节不展开通用算子融合的图级判断、Triton kernel 或 CUDA 实现；需要比较 RMSNorm、Softmax、Linear-Activation 等融合边界时，转入算子优化路线。
-
-测试不以“跑出一个输出”为终点：它会对齐标准 Attention，覆盖 causal、非整除尾块、dtype、数值稳定性与非法输入。完成 CPU 测试后，再由 Step 5 观察固定 workload 下的 GPU backend 延迟、显存和误差。
-
-| 实验对象 | 输入与输出 | 判断方式 | 结果用途 |
+| 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
 |---|---|---|---|
-| CPU 分块模拟 | 二维 Q/K/V → 同形状输出 | 与标准 Attention 的最大误差 | 检查 `m / l / O` 状态更新 |
-| causal 扩展 | `causal=True` 的二维 Q/K/V | 与带上三角 mask 的标准结果对齐 | 检查未来位置是否被屏蔽 |
-| dtype 与稳定性 | `float64` 和较大 Score 输入 | 输出 dtype 正确且无 NaN/Inf | 检查数值实现边界 |
+| `flash_attention_forward_sim` | TODO 1：初始化每行最大值与指数和 | 最大值以负无穷开始，指数和以零开始 | 普通路径与尾块等价测试 |
+| `flash_attention_forward_sim` | TODO 2：形成局部分数与因果掩码 | 使用全局 token 位置；未来位置权重为零 | 因果 Attention 等价测试 |
+| `flash_attention_forward_sim` | TODO 3：把历史与当前 tile 对齐到同一最大值 | 指数和与输出贡献使用相同重标定因子 | 大分数稳定性与 dtype 测试 |
+| `flash_attention_forward_sim` | TODO 4：合并归一化输出 | 与完整 Attention 在误差门槛内一致 | 多组形状与分块大小测试 |
 
 
 
@@ -89,10 +86,6 @@ import math
 
 
 ```python
-# 任务目标：在保留 Q/K/V 双层分块循环的前提下，实现 Online Softmax 的状态更新。
-# 题目设计：保留 Q/K/V 的双层分块循环，只让每个 TODO 对应一个可验证的状态责任。
-# TODO 1 初始化状态 → TODO 2 形成 score/mask → TODO 3 合并 Online Softmax → TODO 4 写回 tile。
-
 def flash_attention_forward_sim(q, k, v, block_size=2, causal=False):
     """计算二维输入上的 FlashAttention 前向模拟。
 
@@ -104,10 +97,6 @@ def flash_attention_forward_sim(q, k, v, block_size=2, causal=False):
     Returns:
         [seq_len, dim] 的 attention 输出。
 
-    Note:
-        只模拟 online softmax 和分块数据流，不实现真实 CUDA/Triton kernel、
-        batch/head、dropout 或 backward；本节包含可选 causal 路径。out、m、l 显式使用输入 dtype；
-        真实 kernel 常会使用更高精度累加器，不能由本模拟推断具体实现。
     """
     if q.ndim != 2 or k.ndim != 2 or v.ndim != 2:
         raise ValueError('q、k、v 必须是 [seq_len, dim] 二维张量')
@@ -122,13 +111,12 @@ def flash_attention_forward_sim(q, k, v, block_size=2, causal=False):
 
     seq_len, dim = q.shape
     
-    # TODO 1: 初始化输出 O，全局最大值 m，全局指数和 l
-    # 提示: out 与 q 同 device、同 dtype，形状为 [seq_len, dim]；m/l 形状为 [seq_len, 1]
-    # out = ???；m = ???；l = ???；m 初始为 -inf，l 初始为 0。
-    # out = ???
+    out = torch.zeros((seq_len, dim), device=q.device, dtype=q.dtype)
+    # TODO 1（跨分块状态）：初始化每一行的最大值基准与指数和。
+    # 最大值形状为 [seq_len, 1]，初始值为负无穷；指数和形状相同，初始值为零。
     # m = ???
     # l = ???
-    raise NotImplementedError("TODO 1：请初始化 out、m 与 l")
+    raise NotImplementedError("TODO 1：请初始化 m 与 l")
     
     scale = 1.0 / math.sqrt(dim)
     
@@ -144,36 +132,36 @@ def flash_attention_forward_sim(q, k, v, block_size=2, causal=False):
             k_block = k[j:j+block_size]
             v_block = v[j:j+block_size]
             
-            # TODO 2: 计算当前 tile 的 score，并在 causal 路径屏蔽未来 key。
-            # S_ij = (Q_i / sqrt(d)) @ K_j.T
-            # causal 时：用 query/key 的全局位置构造 mask，屏蔽 key_pos > query_pos。
-            # 提示：query_pos = arange(i, ...)，key_pos = arange(j, ...)。
-            raise NotImplementedError("TODO 2：请计算 score 并处理 causal mask")
+            # TODO 2（局部分数）：计算当前 tile，并在因果路径屏蔽未来位置。
+            # q_block 已完成缩放，scores 形状为 [Q_tile, K_tile]。
+            # scores = ???
+            if causal:
+                query_pos = torch.arange(i, i + q_block.shape[0], device=q.device)[:, None]
+                key_pos = torch.arange(j, j + k_block.shape[0], device=q.device)[None, :]
+                # key 的全局位置晚于 query 时，future_mask 为真。
+                # future_mask = ???
+                scores = scores.masked_fill(future_mask, -float('inf'))
+            raise NotImplementedError("TODO 2：请计算 scores 与 future_mask")
             
-            # TODO 3: 按 Online Softmax 公式更新 m、l 与 out 的 tile 状态。
-            # m_block = ???；m_new = ???
-            # m_new 是新的数值稳定基准；若 m_new 变化，旧 l_i 和 out_i 都必须重标定。
-            
-            # 先用 m_new 重标定旧状态，再累计当前 tile 的指数权重。
-            # exp_scores = exp(S_ij - m_new)
-            
-            # 只需补出以下状态：局部最大值、新最大值、指数权重和新分母。
-            # m_block = ???；m_new = ???
-            # exp_scores = ???；l_new = ???
-            
-            # out_i = ???  # 用旧状态和当前 V tile 合并
-            
-            # 更新全局状态
-            # m_i = ???
-            # l_i = ???
-            raise NotImplementedError("TODO 3：请完成 Online Softmax 的状态更新")
-            pass
+            # TODO 3（数值重标定）：把历史状态与当前 tile 对齐到同一最大值。
+            # 当前最大值保留列维；新基准取历史与当前最大值的逐元素较大值。
+            # tile_max = ???
+            # new_max = ???
+            # history_scale = ???
+            # tile_weights = ???
+            raise NotImplementedError("TODO 3：请完成最大值基准与指数权重的重标定")
+
+            # TODO 4（归一化合并）：更新指数和与当前 Q tile 的输出。
+            # new_l 汇总历史与当前指数和；out_i 使用同一归一化比例合并两部分贡献。
+            # new_l = ???
+            # out_i = ???
+            raise NotImplementedError("TODO 4：请更新指数和与归一化输出")
+            m_i = new_max
+            l_i = new_l
         
-        # TODO 4: 将当前 Q tile 的 out_i、m_i、l_i 写回全局状态。
-        # out[i:i+block_size] = ???
-        # m[i:i+block_size] = ???
-        # l[i:i+block_size] = ???
-        raise NotImplementedError("TODO 4：请将 tile 状态写回 out、m 与 l")
+        out[i:i+block_size] = out_i
+        m[i:i+block_size] = m_i
+        l[i:i+block_size] = l_i
             
     return out
 
@@ -267,7 +255,6 @@ run_flash_attention_sim_tests()
 ### 代码
 
 ```python
-# 参考实现与题目区使用相同函数签名、双层分块循环和四个 TODO 位置。
 def flash_attention_forward_sim(q, k, v, block_size=2, causal=False):
     """计算二维输入上的 FlashAttention 前向模拟。
 
@@ -279,10 +266,6 @@ def flash_attention_forward_sim(q, k, v, block_size=2, causal=False):
     Returns:
         [seq_len, dim] 的 attention 输出。
 
-    Note:
-        只模拟 online softmax 和分块数据流，不实现真实 CUDA/Triton kernel、
-        batch/head、dropout 或 backward；本节包含可选 causal 路径。out、m、l 显式使用输入 dtype；
-        真实 kernel 常会使用更高精度累加器，不能由本模拟推断具体实现。
     """
     if q.ndim != 2 or k.ndim != 2 or v.ndim != 2:
         raise ValueError('q、k、v 必须是 [seq_len, dim] 二维张量')
@@ -297,8 +280,8 @@ def flash_attention_forward_sim(q, k, v, block_size=2, causal=False):
 
     seq_len, dim = q.shape
     
-    # TODO 1: 初始化输出 O，全局最大值 m，全局指数和 l
     out = torch.zeros((seq_len, dim), device=q.device, dtype=q.dtype)
+    # TODO 1（跨分块状态）：初始化每一行的最大值基准与指数和。
     m = torch.full((seq_len, 1), -float('inf'), device=q.device, dtype=q.dtype)
     l = torch.zeros((seq_len, 1), device=q.device, dtype=q.dtype)
     
@@ -316,33 +299,26 @@ def flash_attention_forward_sim(q, k, v, block_size=2, causal=False):
             k_block = k[j:j+block_size]
             v_block = v[j:j+block_size]
             
-            # TODO 2: 计算当前 tile 的 score，并在 causal 路径屏蔽未来 key。
-            S_ij = q_block @ k_block.transpose(-2, -1)
-            # TODO 2：使用全局 token 位置构造 causal mask。
+            # TODO 2（局部分数）：计算当前 tile，并在因果路径屏蔽未来位置。
+            scores = q_block @ k_block.transpose(-2, -1)
             if causal:
                 query_pos = torch.arange(i, i + q_block.shape[0], device=q.device)[:, None]
                 key_pos = torch.arange(j, j + k_block.shape[0], device=q.device)[None, :]
-                S_ij = S_ij.masked_fill(key_pos > query_pos, -float('inf'))
+                future_mask = key_pos > query_pos
+                scores = scores.masked_fill(future_mask, -float('inf'))
             
-            # TODO 3: 按 Online Softmax 公式更新 m、l 与 out 的 tile 状态。
-            m_block = torch.max(S_ij, dim=-1, keepdim=True)[0]
-            m_new = torch.maximum(m_i, m_block)
-            
-            # TODO 3：以 m_new 为基准计算当前 tile 的指数权重。
-            exp_scores = torch.exp(S_ij - m_new)
-            
-            # TODO 3：将旧 l_i 重标定到 m_new，再累加 l_block。
-            l_block = torch.sum(exp_scores, dim=-1, keepdim=True)
-            l_new = l_i * torch.exp(m_i - m_new) + l_block
-            
-            # TODO 3：修正旧输出并吸收当前 V tile 的贡献。
-            out_i = out_i * (l_i * torch.exp(m_i - m_new) / l_new) + (exp_scores @ v_block) / l_new
-            
-            # TODO 3：提交本轮 tile 的在线状态。
-            m_i = m_new
-            l_i = l_new
+            # TODO 3（数值重标定）：把历史状态与当前 tile 对齐到同一最大值。
+            tile_max = torch.max(scores, dim=-1, keepdim=True)[0]
+            new_max = torch.maximum(m_i, tile_max)
+            history_scale = torch.exp(m_i - new_max)
+            tile_weights = torch.exp(scores - new_max)
+
+            # TODO 4（归一化合并）：更新指数和与当前 Q tile 的输出。
+            new_l = l_i * history_scale + tile_weights.sum(dim=-1, keepdim=True)
+            out_i = out_i * (l_i * history_scale / new_l) + (tile_weights @ v_block) / new_l
+            m_i = new_max
+            l_i = new_l
         
-        # TODO 4: 将当前 Q tile 的 out_i、m_i、l_i 写回全局状态。
         out[i:i+block_size] = out_i
         m[i:i+block_size] = m_i
         l[i:i+block_size] = l_i
@@ -352,81 +328,64 @@ def flash_attention_forward_sim(q, k, v, block_size=2, causal=False):
 
 ### 解析
 
-**1. TODO 1：初始化全局状态**
-- **实现方式**：`out = torch.zeros((seq_len, dim), device=q.device, dtype=q.dtype)`，`m = torch.full((seq_len, 1), -float('inf'), device=q.device, dtype=q.dtype)`，`l = torch.zeros((seq_len, 1), device=q.device, dtype=q.dtype)`
-- **关键点**：m 初始化为负无穷，确保第一个块的最大值能正确更新；l 初始化为 0，用于累加指数和
-- **技术细节**：使用 `keepdim=True` 保持二维列向量形状，便于后续广播运算；这里显式沿用输入 dtype，真实 kernel 可能采用 FP32 累加器。
+题目保留分块循环和写回位置，只让学习者完成会改变数值等价性的状态更新。
 
-**2. TODO 2：计算当前块的 score 与 causal mask**
-- **实现方式**：`S_ij = q_block @ k_block.transpose(-2, -1)`
-- **关键点**：这是标准的 Attention Score 计算，但只针对当前的 Q 块和 K 块
-- **技术细节**：q_block 已经在外层循环中乘以了 scale，避免重复缩放
+**TODO 1：初始化跨分块状态**
+最大值以负无穷开始，保证第一个分块能建立有效基准；指数和以零开始，避免引入额外权重。二者保留列维，后续可以按行广播。
 
-**补充：causal mask 的位置约束**
-- 对每个 Q/K block 使用全局 token 位置构造 `key_pos > query_pos` 的屏蔽条件。
-- 被屏蔽的 score 设为负无穷，使其指数权重为 0；这不会改变 Online Softmax 的状态更新方式。
-- 该扩展只验证因果约束下的数值一致性，不涉及真实 decoder kernel 的 mask 融合性能。
+**TODO 2：形成局部分数与因果约束**
+`q_block` 已经乘过缩放系数，因此只需与当前 `k_block` 相乘。因果掩码使用全局位置比较，不能用 tile 内部下标代替，否则跨 tile 时会错误开放未来 token。
 
-**3. TODO 3：合并当前 tile 的 Online Softmax 状态**
-- **实现方式**：先取得局部最大值与新的共同基准，再计算相对该基准的指数权重。
-- **关键点**：共同基准变化时，历史指数和与历史输出必须使用同一个重标定因子；随后再加入当前 tile 的贡献。
-- **验证重点**：状态更新后，结果应与完整 Attention 数值等价，并在较大 score 下保持有限。题目区只要求补全状态合并表达式，分块循环、输入校验和写回位置已经给出。
+**TODO 3：重标定历史状态**
+新最大值同时覆盖历史分块与当前分块。`history_scale` 把旧指数和与旧输出搬到这个新基准，`tile_weights` 则表示当前分块相对新基准的贡献。
 
-**4. TODO 4：写回当前 Q tile 的最终状态**
-- **实现方式**：将当前 Q tile 的输出和跨分块摘要写回对应位置。
-- **关键点**：只有吸收全部 K/V tile 后，当前 Q tile 才能作为完整 Attention 的一部分输出。
+**TODO 4：合并归一化输出**
+新指数和由重标定后的历史部分与当前分块相加得到。输出也必须使用相同权重合并；只更新分母而不缩放历史输出，会破坏与完整 Softmax 的等价性。
 
-**工程优化要点**
-- **中间工作集**：不再物化完整的 O(N²) Attention Score 矩阵；单个 tile 的临时 score 约为 O(Bq × Bk)，Q/K/V、输出和状态仍需占用存储。
-- **数值稳定性**：通过动态更新最大值 m，确保指数运算不会溢出
-- **分块策略**：block_size 是关键超参数，需要根据硬件的 SRAM 大小调优
-- **在线更新**：无需等待所有块计算完成，每个块处理后立即更新全局状态
-- **工业实现**：真实的 FlashAttention 使用 CUDA/Triton 实现，利用共享内存和寄存器优化访存
+### Step 5：可选 GPU 实验——显式 Attention 与 PyTorch SDPA
 
-**进阶思考**
-- 如果把未归一化的加权和统一保存到循环结束，再一次性除以最终 `l`，会如何影响实现复杂度和数值稳定性？
+CPU 题目验证分块数据流和 Online Softmax 的数值等价；GPU 实验在同一组 Q/K/V 上比较显式物化 score 的 baseline 与 PyTorch SDPA candidate，记录输出误差、延迟和峰值显存。SDPA 会按设备、dtype、形状和运行时能力选择 backend，因此本实验验证“当前环境实际选择的 SDPA 路径”，不把结果直接命名为某一代 FlashAttention kernel。
 
-### Step 5: GPU 可选对照实验
-
-#### 5.1 环境检查与实验配置
-
-完成 Step 4 的 CPU 函数和测试后，再运行本步 GPU 对照。本步只回答一个问题：在相同 Q/K/V workload 下，显式 Attention 与 PyTorch SDPA 的延迟、峰值显存和数值误差有什么差异？
-
-SDPA 是 PyTorch 的统一 Attention API；它会依设备、dtype、shape 与 backend 条件选择 math、memory-efficient 或 flash 等实现路径。本单元比较显式物化 score 的 naive Attention 与当前环境中 SDPA 选择的路径，不把 SDPA 结果直接命名为 FlashAttention-2/3/4。若要验证特定 `flash-attn` kernel，需另行准备对应 backend、GPU 与 profiler 证据。环境与配置由后面的代码自动记录。
-结果表用于记录相同 workload 下的延迟、峰值显存和误差；它不把一次运行外推为通用 kernel 结论。
-
-| 实验部分 | 学习者需要做什么 | 输出与证据 |
+| 学习问题 | CPU 已确认 | GPU 要确认 |
 |---|---|---|
-| 环境与 workload | 设置 GPU、dtype、batch、head、seq_len、causal、warmup 和 iters | 自动记录 GPU、PyTorch、CUDA 与 workload |
-| 两条执行路径 | 在同一组 Q/K/V 上运行显式 Attention 和 SDPA | 比较两种实现的延迟、峰值显存和最大误差 |
-| 结果与解释 | 将 JSON 结果登记到最后的表格 | 形成当前 GPU 与固定 workload 下的对照结论 |
+| 分块算法的机制收益能否落到当前执行路径 | Online Softmax、causal mask 与完整 Attention 数值等价 | 相同输入下的正确性、延迟、峰值显存和可用 backend 能力 |
 
+#### 5.1 环境、输入形状与配对条件
 
-![GPU Attention 对照实验流程图](../public/02_PyTorch_Algorithms/20_gpu_attention_experiment_flow.svg)
+本实验使用 `INF-CUDA-MECHANISM`。首次运行先完成[推理机制 GPU 环境 Quickstart](../topic_discussion/inference_optimization/quickstart.md#inf-cuda-mechanism-quickstart)，通过 Profile 预检后再把 `RUN_MODE` 改为 `real_gpu`。
+
+| 配置层 | 固定口径 | 修改规则 |
+|---|---|---|
+| 环境 | `INF-CUDA-MECHANISM`；单张 NVIDIA GPU | 不与 vLLM/SGLang 环境混装 |
+| 输入 | 相同 Q/K/V、dtype、causal 与形状 | baseline/candidate 只改变 Attention 执行路径 |
+| 测量 | 相同 warmup/repeat；CUDA 同步计时 | 改变形状或测量协议后递增 workload version |
+| 结果 | 正确性优先，再比较延迟与峰值显存 | SDPA 能力开关不是实际 kernel 命中证明 |
 
 ```python
-# 本单元只配置实验条件；执行单元负责环境检查、测量和 JSON 输出。
-RUN_GPU_EXPERIMENT = False  # 改为 True 才会启动真实 GPU；False 只做跳过提示。
+# 5.1 只定义学习者入口与固定配对协议；安装规则由环境 Profile 维护。
+RUN_MODE = "dry_run"  # 默认值 dry_run：只登记计划；改为 real_gpu 才执行真实 GPU 对照。
+RUN_LABEL = "default"  # 默认值 default；正式复测改为唯一标签，避免覆盖同名结果。
 
-# 数值与输入规模：auto 只选择原生 BF16，否则回退到 FP16。
-GPU_DTYPE = 'auto'          # 可选：auto / float16 / bfloat16
-GPU_BATCH_SIZE = 1
-GPU_NUM_HEADS = 8
-GPU_SEQ_LEN = 512
-GPU_HEAD_DIM = 64
-GPU_CAUSAL = False         # 是否启用因果 mask
+ENVIRONMENT_PROFILE = "INF-CUDA-MECHANISM"  # 固定环境身份；运行前必须通过同名 Profile 预检。
+WORKLOAD_ID = "inference-attention-sdpa"  # 稳定工作负载身份。
+WORKLOAD_VERSION = "v2"  # v2 使用统一推理机制结果字段和稳定输出路径。
 
-# 测量设置：warmup 不计入结果，iters 用于计算平均单次延迟。
-GPU_WARMUP = 5
-GPU_ITERS = 20
-GPU_SEED = 42
-GPU_RESULTS_DIR_RELATIVE_PATH = 'benchmarks/results/20_flashattention'
-GPU_RUN_LABEL = 'naive_vs_sdpa'  # 仅用于结果文件名；详细 workload 写入 JSON。
+GPU_DTYPE = "auto"  # auto 优先原生 BF16，否则使用 FP16；也可显式指定 float16 / bfloat16。
+GPU_BATCH_SIZE = 1  # batch 维度；baseline 与 candidate 保持一致。
+GPU_NUM_HEADS = 8  # Query head 数；两条路径共用。
+GPU_SEQ_LEN = 512  # 序列长度；增大后显式 score 的显存压力增长更快。
+GPU_HEAD_DIM = 64  # 单头维度。
+GPU_CAUSAL = False  # 是否启用因果 mask。
+
+GPU_WARMUP = 5  # 预热次数，不进入统计。
+GPU_ITERS = 20  # 正式重复次数，用于计算平均单次延迟。
+GPU_SEED = 42  # 固定 Q/K/V 随机输入。
+OUTPUT_RELATIVE_PATH = f"benchmarks/results/20_flashattention/{WORKLOAD_ID}_{RUN_LABEL}.json"  # 仓库相对结果路径。
 ```
 
-#### 5.2 执行对照并保存证据
+#### 5.2 执行显式 Attention / SDPA 配对实验
 
-先运行配置单元确认 workload，再运行执行单元。默认 `RUN_GPU_EXPERIMENT = False`，因此答案区测试不会启动 GPU；采集数据时只修改配置单元，不直接改执行逻辑。
+执行单元只读取 5.1 的配置。`dry_run` 不访问 GPU；`real_gpu` 才构造共享 Q/K/V，依次测量两条路径并保存 JSON。先检查输出误差，再比较延迟和显存；能力开关只记录运行时可用性，不能替代 profiler 的 kernel 命中证据。
 
 ```python
 """运行显式 Attention 与 PyTorch SDPA 的固定 workload GPU 对照。"""
@@ -492,12 +451,12 @@ def _measure_attention(fn, q, k, v, causal):
 
 def _run_gpu_attention_experiment():
     """执行两条 Attention 路径，并保存可复查的环境与结果记录。"""
-    if not RUN_GPU_EXPERIMENT:
-        print('已跳过 GPU 对照实验：将 RUN_GPU_EXPERIMENT 改为 True 后重新运行本单元。')
+    if RUN_MODE != 'real_gpu':
+        print("GPU 对照未启动：将 RUN_MODE 从 dry_run 改为 real_gpu 后重新运行。")
         return None
     # 先做环境和 workload 校验，避免在 CPU 环境中静默产生伪 GPU 结果。
     if not torch.cuda.is_available():
-        raise RuntimeError('RUN_GPU_EXPERIMENT=True，但当前环境没有可用 CUDA。')
+        raise RuntimeError('RUN_MODE=real_gpu，但当前环境没有可用 CUDA。')
     if min(GPU_BATCH_SIZE, GPU_NUM_HEADS, GPU_SEQ_LEN, GPU_HEAD_DIM, GPU_WARMUP, GPU_ITERS) <= 0:
         raise ValueError('batch、heads、seq_len、head_dim、warmup 和 iters 必须为正数。')
     torch.manual_seed(GPU_SEED)
@@ -535,8 +494,12 @@ def _run_gpu_attention_experiment():
         row['max_error'] = max_error
     # evidence_level 说明这是单 GPU、固定 workload 的对照，不是稳定 benchmark。
     result = {
-        'schema_version': 'attention-gpu-experiment/v1',
-        'experiment': '20_flashattention_sim',
+        'schema_version': 'inference-mechanism-gpu/v1',
+        'semantic_id': 'INF-SDPA-ATTENTION',
+        'environment_profile': ENVIRONMENT_PROFILE,
+        'run_mode': RUN_MODE,
+        'run_label': RUN_LABEL,
+        'workload': {'id': WORKLOAD_ID, 'version': WORKLOAD_VERSION},
         'created_at_utc': datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ'),
         'config': {
             'dtype': str(dtype), 'batch_size': GPU_BATCH_SIZE, 'num_heads': GPU_NUM_HEADS,
@@ -548,12 +511,24 @@ def _run_gpu_attention_experiment():
             'cuda': torch.version.cuda, 'python': platform.python_version(),
         },
         'results': rows,
-        'evidence_level': 'single_gpu_fixed_workload_comparison',
+        'baseline': next((row for row in rows if row['implementation'] == 'naive'), None),
+        'candidate': next((row for row in rows if row['implementation'] == 'SDPA'), None),
+        'evidence_level': 'local_mechanism_benchmark',
         'note': 'naive 与 SDPA 的对照不能直接命名为 FlashAttention-3/4；稳定结论需要重复运行。',
     }
-    output_dir = _find_project_root() / GPU_RESULTS_DIR_RELATIVE_PATH
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"gpu_{GPU_RUN_LABEL}_{result['created_at_utc']}.json"
+    output_path = _find_project_root() / OUTPUT_RELATIVE_PATH
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    result['artifact'] = {'result_path': str(output_path), 'artifact_type': 'json_result'}
+    result['failure'] = [
+        {'implementation': row['implementation'], 'status': row['status']}
+        for row in rows if row['status'] != 'ok'
+    ] or None
+    if result['failure']:
+        result['decision'] = {'decision': 'tune', 'reason': '至少一条执行路径未完成，不能比较性能'}
+    elif result['candidate']['max_error'] is not None and result['candidate']['max_error'] <= 1e-3:
+        result['decision'] = {'decision': 'tune', 'reason': 'SDPA 与显式 Attention 在当前 workload 下数值可比，保留为单 GPU 对照证据'}
+    else:
+        result['decision'] = {'decision': 'reject', 'reason': '当前 workload 的数值误差未通过对照门槛'}
     output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
     print(f'已保存 GPU 结果: {output_path}')
     print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -562,42 +537,40 @@ def _run_gpu_attention_experiment():
 gpu_result = _run_gpu_attention_experiment()
 ```
 
-#### 5.3 读取结果并解释对照
+#### 5.3 读取配对实验结果
 
-将执行单元输出的 JSON 与配置一起抄录到下表。每次改变序列长度、dtype、causal 或实现后新增一组行，不覆盖已有结果；没有运行或发生 OOM 时保留空值并填写状态。同一组 naive / SDPA 必须使用相同 Q/K/V 形状、dtype、causal、warmup 和迭代次数，`status` 使用 `ok` 或 `OOM`。该表记录固定 workload 的一次对照，不替代重复 benchmark。
-
-| GPU / PyTorch / CUDA | dtype | batch × heads × seq × dim | causal | 实现 | latency (ms) | peak allocated (MB) | peak reserved (MB) | max error | status |
-|---|---|---|---|---|---:|---:|---:|---:|---|
-|  |  |  |  | naive |  |  |  |  |  |
-|  |  |  |  | SDPA |  |  |  |  |  |
-|  |  |  |  | naive |  |  |  |  |  |
-|  |  |  |  | SDPA |  |  |  |  |  |
-
+读取单元只消费 5.2 保存的 JSON。先核对 Profile、workload 版本、形状和失败状态，再比较显式 Attention 与 SDPA；没有通过数值检查的结果不能进入性能判断。
 
 ```python
-# 读取本次或结果目录中最新的 GPU 对照记录。
+# 5.3 只读取固定运行标签对应的 JSON，不重复执行 Attention。
 import json
 from pathlib import Path
 
-result_dir = _find_project_root() / GPU_RESULTS_DIR_RELATIVE_PATH
-result_files = sorted(result_dir.glob("gpu_*.json")) if result_dir.exists() else []
-if not result_files:
-    print(f"未找到 GPU 结果；先将 RUN_GPU_EXPERIMENT=True 并运行 5.2。目录：{result_dir}")
+output_path = _find_project_root() / OUTPUT_RELATIVE_PATH
+if not output_path.exists():
+    print(f"等待 GPU 配对实验结果：{output_path}")
 else:
-    result_path = result_files[-1]
-    record = json.loads(result_path.read_text(encoding="utf-8"))
-    rows = {row["implementation"]: row for row in record["results"]}
-    naive, sdpa = rows.get("naive"), rows.get("SDPA")
-    print(f"结果文件: {result_path}")
-    print(f"环境: {record['environment']['device']} | torch={record['environment']['torch']} | CUDA={record['environment']['cuda']}")
-    if naive and sdpa and naive["status"] == sdpa["status"] == "ok":
-        print(f"SDPA - naive: latency={sdpa['latency_ms'] - naive['latency_ms']:.3f} ms, peak allocated={sdpa['peak_allocated_mb'] - naive['peak_allocated_mb']:.2f} MB, max_error={sdpa['max_error']:.3e}")
-        print("解读：先确认 max_error，再将相同 workload 下的延迟与峰值显存差异作为当前 GPU 的对照证据。")
-    else:
-        print(f"本次状态：naive={naive and naive['status']}，SDPA={sdpa and sdpa['status']}；OOM 结果不能用于延迟比较。")
-
+    record = json.loads(output_path.read_text(encoding="utf-8"))
+    print(json.dumps({
+        key: record.get(key)
+        for key in ("schema_version", "environment_profile", "workload", "config", "environment", "failure", "evidence_level", "decision")
+    }, ensure_ascii=False, indent=2))
+    print("\n实现路径摘要")
+    for row in record.get("results", []):
+        print(row)
 ```
 
+#### 5.4 解释正确性、显存与执行路径
+
+先检查 `failure` 和最大误差；只有两条路径都成功且输出可比，才读取延迟与峰值显存。SDPA 的收益依赖 GPU、dtype、形状和 backend 选择，本节结果只支持当前固定 workload 的局部判断。
+
+| 观察项 | 读取字段 | 判断问题 |
+|---|---|---|
+| 输入口径 | `config`、`workload` | 两条路径是否共享形状、dtype、causal 和测量次数 |
+| 正确性 | `max_error`、`status` | candidate 是否仍与显式 Attention 数值可比 |
+| 容量 | `peak_allocated_mb`、`peak_reserved_mb` | SDPA 是否减少中间工作集与缓存压力 |
+| 执行 | `latency_ms` | 当前形状下是否获得稳定局部收益 |
+| 证据 | `failure`、`evidence_level`、`decision` | 结果是可继续复测、需要调整，还是应拒绝 |
 ## 相关阅读
 
 以下资料按“核心论文与实现 → 推理系统延伸”排列，用于把本节的分块计算和 Online Softmax 连接到后续工程主题。
@@ -607,5 +580,5 @@ else:
 - [FlashAttention 官方实现（FlashAttention / FlashAttention-2）](https://github.com/Dao-AILab/flash-attention)
 - [PyTorch `scaled_dot_product_attention` 文档](https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention)
 - [Part 02 · 22 vLLM 分页注意力](./22_vLLM_PagedAttention.md)
-- [Part 02 · 34 Prefix Cache 匹配与复用](./34_Prefix_Cache_Matching_and_Reuse.md)
+- [Part 02 · 24 Prefix Cache 匹配与复用](./24_Prefix_Cache_Matching_and_Reuse.md)
 - [Part 02 · 66 推理性能对比项目](./66_Inference_Performance_Comparison.md)

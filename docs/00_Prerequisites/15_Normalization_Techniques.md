@@ -1,6 +1,6 @@
 # 15. Normalization Techniques | 归一化技术
 
-**难度：** Medium | **环境：** CPU-first | **标签：** `PyTorch`, `归一化`, `稳定性` | **目标人群：** Part 2-4 前置补课者
+**难度：** Medium | **环境：** CPU-first | **标签：** `PyTorch`, `归一化`, `稳定性` | **目标人群：** 准备理解深层网络统计路径的学习者
 
 > 🚀 **云端运行环境**
 >
@@ -10,31 +10,31 @@
 > [![Open In Studio](https://img.shields.io/badge/Open%20In-ModelScope-blueviolet?logo=alibabacloud)](https://modelscope.cn/my/mynotebook) *(国内推荐：魔搭社区免费实例)*
 
 
-本页聚焦：理解 BatchNorm 和 LayerNorm 的最小区别；知道训练态和推理态统计量为什么不同；会看最小归一化实现和输出分布。激活函数看完之后，下一步就是看数值为什么能稳住。对还不熟大模型结构的人来说，可以先把归一化理解成“帮模型把数值范围稳住”的工具：它会在深层网络、残差块和 Transformer block 里反复出现。
+归一化通过控制特征尺度改善深层网络的数值稳定性，但不同方法使用的统计维度并不相同。本页先比较 BatchNorm 与 LayerNorm 的统计来源和训练/推理行为，再比较现代 Transformer 常见的 LayerNorm 与 RMSNorm，观察“减均值”和“按均方根缩放”分别改变什么。
 
-如果你把 block 先想成“Embedding 之后反复堆叠的稳定单元”，那么 norm 的作用就是稳住每一层的输入分布，再让 Attention 和 MLP 更容易学到变化。
+**关键词：** `BatchNorm`, `LayerNorm`, `RMSNorm`, `Pre-Norm`, `running stats`
 
-**关键词：** `BatchNorm`, `LayerNorm`, `running stats`
-
-**显存路线视角：** 归一化会引入统计量和临时中间结果，训练态与推理态的保存需求也可能不同。BatchNorm 依赖运行统计量，而 LayerNorm / RMSNorm 通常按当前输入计算统计量；具体保存内容和 kernel workspace 仍取决于实现。本页验证统计行为和数值稳定性，不比较真实显存峰值；代价要由 73 / 76 在固定训练 workload 上测量。
+![归一化的统计来源、公式与残差位置](../public/00_Prerequisites/15_normalization_paths_map.svg)
 
 ## 前置阅读
-**导语：** 先看 0D 组页，把激活函数和训练稳定性的边界对齐，再进入这一页会更顺。
+**导语：** 先理解激活函数如何改变数值分布，再观察归一化如何控制进入后续层的尺度。
 - [14. Activation Functions | 激活函数](./14_Activation_Functions.md)
 - [0D 组页](./0D.md)
+
 ## 相关阅读
-**导语：** 本页先把 BatchNorm、LayerNorm 和训练态 / 推理态的最小判断讲清楚；如果想继续看 Attention 如何接上这些稳定性直觉，再顺着看下面这一页。
-- [P1: 12. TensorCore and Mixed Precision | TensorCore 与混合精度](../01_Hardware_Math_and_Systems/12_TensorCore_and_Mixed_Precision.md)
+**导语：** 建立统计轴与 residual 位置的直觉后，可以继续观察 RMSNorm 和 Attention 在 Transformer Block 中如何组合。
 - [16. Attention Mechanism Intro | Attention 机制导论](./16_Attention_Mechanism_Intro.md)
-- [20. Profiling and Memory Ledger | 性能剖析与显存账本](./20_Profiling_and_Memory_Ledger.md)
+- [Part 02 · 01 RMSNorm](../02_PyTorch_Algorithms/01_RMSNorm_Tutorial.md)
+- [Part 02 · 05 LLaMA3 Block](../02_PyTorch_Algorithms/05_LLaMA3_Block_Tutorial.md)
 
 ## Q1：BatchNorm 和 LayerNorm 分别解决什么问题？
 
-归一化的核心作用，是让训练中的数值分布更稳定。BatchNorm 更依赖 batch 统计，LayerNorm 更偏向样本内部统计。对于没有大模型基础的人，可以先把它们理解成两种“稳住数值范围”的方式，只是统计维度不同。
+BatchNorm 使用同一特征在 batch 中的统计量，LayerNorm 使用单个样本 hidden 维度上的统计量。统计轴不同，会改变它们对 batch 大小、序列位置和训练/推理模式的依赖。
 
 
 ```python
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 
@@ -68,7 +68,7 @@ print(layer_norm_last_dim(x, gamma, beta))
 
 ```
 
-## Q1验证：两种归一化的输出是否可见？
+## Q1 验证：两种归一化的输出是否可见？
 
 这里直接打印 BatchNorm 和 LayerNorm 的输出，先看它们对同一组输入会做什么。
 
@@ -90,148 +90,148 @@ print('✅ BatchNorm 基本验证通过')
 
 ## Q2：什么时候必须区分训练态和推理态？
 
-训练态和推理态可能用不同统计量。BatchNorm 在训练时看 batch，在推理时看 running stats；LayerNorm 通常不依赖 batch 统计。这里先把它当成“统计来源切换”来看，而不只是一个模式开关。
+BatchNorm 在训练时使用当前 batch 的统计量，并更新 running stats；推理时改用累计统计量。LayerNorm 沿样本内部维度计算，因此通常不依赖 batch 统计。
 
 
 ```python
-def update_running_stats(running_mean, running_var, batch_mean, batch_var, momentum=0.1):
-    new_mean = (1.0 - momentum) * running_mean + momentum * batch_mean
-    new_var = (1.0 - momentum) * running_var + momentum * batch_var
-    return new_mean, new_var
+batch_norm = nn.BatchNorm1d(3, affine=False, momentum=0.5, eps=1e-5)
+train_batch = torch.tensor([[1.0, 2.0, 3.0], [3.0, 6.0, 9.0]])
+batch_norm.train()
+train_output = batch_norm(train_batch)
+running_mean_after_train = batch_norm.running_mean.clone()
+running_var_after_train = batch_norm.running_var.clone()
 
-
-running_mean = torch.tensor([0.0, 0.0, 0.0])
-running_var = torch.tensor([1.0, 1.0, 1.0])
-batch_mean = torch.tensor([2.0, 4.0, 6.0])
-batch_var = torch.tensor([3.0, 5.0, 7.0])
-new_mean, new_var = update_running_stats(running_mean, running_var, batch_mean, batch_var, momentum=0.5)
-print('new_mean:', new_mean.tolist())
-print('new_var:', new_var.tolist())
+eval_batch = torch.tensor([[10.0, 20.0, 30.0]])
+batch_norm.eval()
+eval_output = batch_norm(eval_batch)
+print('running mean:', running_mean_after_train.tolist())
+print('eval output:', eval_output.tolist())
 
 ```
 
-## Q2验证：running stats 是否按预期更新？
+## Q2 验证：训练态与推理态是否使用了不同统计来源？
 
-这里直接检查 running_mean 和 running_var 是否按 momentum 更新。
+训练输出应使用当前 batch 统计量；running variance 按 PyTorch 的无偏方差口径更新，推理输出再使用累计统计量。
 
 
 ```python
-running_mean = torch.tensor([0.0, 0.0, 0.0])
-running_var = torch.tensor([1.0, 1.0, 1.0])
-batch_mean = torch.tensor([2.0, 4.0, 6.0])
-batch_var = torch.tensor([3.0, 5.0, 7.0])
-new_mean, new_var = update_running_stats(running_mean, running_var, batch_mean, batch_var, momentum=0.5)
-assert torch.allclose(new_mean, torch.tensor([1.0, 2.0, 3.0]))
-assert torch.allclose(new_var, torch.tensor([2.0, 3.0, 4.0]))
-print('✅ running stats 通过')
+expected_running_mean = 0.5 * train_batch.mean(dim=0)
+expected_running_var = 0.5 * torch.ones(3) + 0.5 * train_batch.var(dim=0, unbiased=True)
+expected_eval = (eval_batch - expected_running_mean) / torch.sqrt(expected_running_var + batch_norm.eps)
+assert torch.allclose(train_output.mean(dim=0), torch.zeros(3), atol=1e-6)
+assert torch.allclose(running_mean_after_train, expected_running_mean)
+assert torch.allclose(running_var_after_train, expected_running_var)
+assert torch.allclose(eval_output, expected_eval, atol=1e-6, rtol=1e-6)
+print('✅ BatchNorm 训练态 / 推理态统计通过')
 
 ```
 
-## Q3：什么时候必须把归一化和数值分布一起看？
+## Q3：`eps` 为什么是归一化公式的一部分？
 
-如果训练震荡严重，先别急着换架构，先看归一化和学习率是否合理。归一化本质上是在控制每层特征的统计范围。对没有大模型基础的人，可以先记住：norm 不是为了让数字“好看”，而是为了让后面的层更容易学。
+当一组特征完全相同或方差极小时，直接除以标准差会产生除零或放大误差。`eps` 给分母设置数值下限，使常量输入也能得到有限输出。
 
 
 ```python
-x = torch.tensor([[1.0, 2.0, 3.0], [2.0, 2.0, 2.0]])
-gamma = torch.tensor([1.0, 2.0, 3.0])
-beta = torch.tensor([0.5, 0.0, -0.5])
-y = layer_norm_last_dim(x, gamma, beta)
-print('LayerNorm 输出：')
-print(y)
-print('输入均值：', x.mean(dim=-1).tolist())
-print('输出均值：', y.mean(dim=-1).tolist())
+constant = torch.ones(2, 4)
+centered = constant - constant.mean(dim=-1, keepdim=True)
+variance = centered.pow(2).mean(dim=-1, keepdim=True)
+without_eps = centered / torch.sqrt(variance)
+with_eps = centered / torch.sqrt(variance + 1e-6)
+print('without eps：', without_eps)
+print('with eps：', with_eps)
 
 ```
 
-## Q3验证：LayerNorm 是否按最后一维归一化？
+## Q3 验证：`eps` 是否阻止了非有限输出？
 
-这里直接看每一行的输出均值是否被拉回到稳定范围。
+常量输入的方差为 0；不加 `eps` 会出现非有限值，加上 `eps` 后输出应为有限的 0。
 
 
 ```python
-x = torch.tensor([[1.0, 2.0, 3.0], [2.0, 2.0, 2.0]])
-gamma = torch.tensor([1.0, 2.0, 3.0])
-beta = torch.tensor([0.5, 0.0, -0.5])
-y = layer_norm_last_dim(x, gamma, beta)
-expected = F.layer_norm(x, x.shape[-1:], gamma, beta, eps=1e-5)
-assert torch.allclose(y, expected, atol=1e-6, rtol=1e-6)
-print('✅ LayerNorm 通过')
+assert variance.eq(0).all()
+assert not torch.isfinite(without_eps).all()
+assert torch.isfinite(with_eps).all()
+assert torch.equal(with_eps, torch.zeros_like(with_eps))
+print('✅ eps 数值稳定性通过')
 
 ```
 
-## Q4：什么时候必须同时看归一化、激活和残差？
+## Q4：LayerNorm 与 RMSNorm 分别保留了哪些操作？
 
-后面你看到 Transformer block、Pre-Norm、Post-Norm 时，归一化通常不是孤立出现的，而是和激活、残差一起控制稳定性。这里要把它看成一个小配件组，而不是单独的层。
+LayerNorm 先减去最后一维的均值，再按标准差缩放；RMSNorm 不做均值中心化，只按均方根缩放。两者都保持输入 shape，并通常沿 hidden 维使用一组缩放参数。RMSNorm 的输出不保证均值为 0，因此比较时应分别检查“零均值”和“单位均方根”，而不是把两者当作相同公式。`eps` 用来避免输入尺度接近 0 时除零。
+
+```python
+def rms_norm_last_dim(x, weight, eps=1e-6):
+    """沿最后一维做 RMSNorm，不执行均值中心化。"""
+    mean_square = x.pow(2).mean(dim=-1, keepdim=True)
+    normalized = x * torch.rsqrt(mean_square + eps)
+    return normalized * weight
+
+
+x = torch.tensor([[1.0, 2.0, 3.0], [-2.0, 0.0, 2.0]])
+weight = torch.ones(3)
+layer_output = layer_norm_last_dim(x, weight, torch.zeros(3), eps=1e-6)
+rms_output = rms_norm_last_dim(x, weight, eps=1e-6)
+
+print('LayerNorm row mean:', layer_output.mean(dim=-1).tolist())
+print('RMSNorm row mean:', rms_output.mean(dim=-1).tolist())
+print('RMSNorm row RMS:', rms_output.pow(2).mean(dim=-1).sqrt().tolist())
+```
+
+## Q4 验证：两种归一化的不变量是否符合各自定义？
+
+这里分别验证 LayerNorm 的零均值和 RMSNorm 的单位均方根，并与 `torch.nn.functional.rms_norm` 对照实现结果。
+
+```python
+x = torch.tensor([[1.0, 2.0, 3.0], [-2.0, 0.0, 2.0]])
+weight = torch.ones(3)
+layer_output = layer_norm_last_dim(x, weight, torch.zeros(3), eps=1e-6)
+rms_output = rms_norm_last_dim(x, weight, eps=1e-6)
+expected_rms = F.rms_norm(x, (x.shape[-1],), weight=weight, eps=1e-6)
+
+assert torch.allclose(layer_output.mean(dim=-1), torch.zeros(2), atol=1e-6)
+assert torch.allclose(rms_output, expected_rms, atol=1e-6, rtol=1e-6)
+assert torch.allclose(rms_output.pow(2).mean(dim=-1), torch.ones(2), atol=1e-5)
+assert not torch.allclose(rms_output[0].mean(), torch.tensor(0.0), atol=1e-6)
+print('✅ LayerNorm / RMSNorm 对照通过')
+```
+
+## Q5：Pre-Norm 与 Post-Norm 把统计控制放在什么位置？
+
+Pre-Norm 先归一化分支输入，再把分支输出加回原始 residual；Post-Norm 先合并 residual 与分支，再归一化结果。两者使用相同归一化公式，但 identity path 保留方式不同。
 
 
 ```python
-x = torch.tensor([[1.0, 2.0, 3.0], [3.0, 4.0, 5.0]])
-gamma = torch.ones(3)
-beta = torch.zeros(3)
-bn_y, bn_mean, bn_var = batch_norm_train(x, gamma, beta)
-ln_y = layer_norm_last_dim(x, gamma, beta)
-print('BatchNorm mean:', bn_mean.tolist())
-print('BatchNorm var:', bn_var.tolist())
-print('BatchNorm 输出：')
-print(bn_y)
-print('LayerNorm 输出：')
-print(ln_y)
+def pre_norm_block(x, branch_scale=0.5, eps=1e-6):
+    """先归一化分支输入，再保留原始 residual。"""
+    normalized = F.layer_norm(x, (x.shape[-1],), eps=eps)
+    return x + branch_scale * normalized
+
+
+def post_norm_block(x, branch_scale=0.5, eps=1e-6):
+    """先合并 residual 与分支，再归一化结果。"""
+    combined = x + branch_scale * x
+    return F.layer_norm(combined, (x.shape[-1],), eps=eps)
+
+
+x = torch.tensor([[1.0, 2.0, 4.0], [2.0, 3.0, 8.0]])
+print('Pre-Norm block：', pre_norm_block(x))
+print('Post-Norm block：', post_norm_block(x))
 
 ```
 
-## Q4验证：不同归一化的输出是否可以直接对照？
+## Q5 验证：两种放置方式是否保留不同的 residual 统计？
 
-这里直接把 BatchNorm 和 LayerNorm 的输出放在一起，确认它们解决的问题确实不同。
-
-
-```python
-x = torch.tensor([[1.0, 2.0, 3.0], [3.0, 4.0, 5.0]])
-gamma = torch.ones(3)
-beta = torch.zeros(3)
-bn_y, _, _ = batch_norm_train(x, gamma, beta)
-ln_y = layer_norm_last_dim(x, gamma, beta)
-assert bn_y.shape == x.shape
-assert ln_y.shape == x.shape
-print('✅ 归一化对照通过')
-
-```
-
-## Q5：什么时候先调归一化，再调激活或残差？
-
-如果问题主要来自层间统计漂移、训练震荡或不同层数值范围差异，先调归一化；如果统计本身已经稳了，再去看激活和残差。对于新手，可以简单记成：先稳数值，再调非线性，最后再看信息通路。
+Post-Norm 输出沿 hidden 维重新中心化；Pre-Norm 保留原始 residual 的行均值。两者 shape 相同，但统计结果不应被误认为相同。
 
 
 ```python
-def fix_norm_first(variance_shift, layer_drift, activation_saturation):
-    if variance_shift or layer_drift:
-        return {'first_fix': 'normalization', 'next': 'inspect_running_stats'}
-    if activation_saturation:
-        return {'first_fix': 'activation', 'next': 'inspect_non_linearity'}
-    return {'first_fix': 'residual_or_lr', 'next': 'profile_more'}
-
-
-print(fix_norm_first(True, False, False))
-print(fix_norm_first(False, False, True))
-# 输出示例: normalization / activation / residual_or_lr
-
-```
-
-## Q6：什么时候归一化会改变训练动态而不是只改输出值？
-
-只要归一化影响了梯度尺度、running stats 或不同 token / feature 的相对关系，它改变的就不只是输出值，而是训练动态本身。也就是说，norm 是训练行为的一部分，不只是前向里的一个公式。
-
-
-```python
-def norm_changes_dynamics(affects_gradient, updates_running_stats, changes_relative_scale):
-    score = sum([affects_gradient, updates_running_stats, changes_relative_scale])
-    if score >= 2:
-        return {'dynamic_change': True, 'next': 're-tune_lr_or_warmup'}
-    return {'dynamic_change': False, 'next': 'continue'}
-
-
-print(norm_changes_dynamics(True, True, False))
-print(norm_changes_dynamics(False, False, True))
-# 输出示例: dynamic_change=True 时通常要联动学习率或 warmup
+pre_output = pre_norm_block(x)
+post_output = post_norm_block(x)
+assert pre_output.shape == post_output.shape == x.shape
+assert torch.allclose(post_output.mean(dim=-1), torch.zeros(2), atol=1e-6)
+assert torch.allclose(pre_output.mean(dim=-1), x.mean(dim=-1), atol=1e-6)
+assert not torch.allclose(pre_output, post_output)
+print('✅ Pre-Norm / Post-Norm 放置差异通过')
 
 ```

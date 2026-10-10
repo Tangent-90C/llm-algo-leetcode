@@ -349,7 +349,5 @@ test_interconnect_model()
 ## 相关阅读
 **导语：** 如果想把硬件层级判断继续接到访存优化、attention kernel 和推理验证上，可以按“官方文档 → 开源实现 → 论文”顺序阅读；这些入口都是可选扩展。
 - [NVIDIA CUDA C Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/)：了解线程层级、内存层级、Shared Memory 和异步数据搬运。
-- [Triton](https://github.com/triton-lang/triton)：观察 block、tile 和 kernel 数据搬运如何被表达。
-- [NVIDIA CUTLASS](https://github.com/NVIDIA/cutlass)：查看矩阵乘法、Tensor Core 和 tile 化实现的工程组织方式。
 - [FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness](https://arxiv.org/abs/2205.14135)：理解 Attention 如何通过 IO 感知和分块减少 HBM 访问。
 - [Roofline: An Insightful Visual Performance Model for Multicore Architectures](https://doi.org/10.1145/1498765.1498785)：理解算术强度、计算上限和带宽上限之间的关系。

@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc">
+  <title id="title">通信与并行路线图</title>
+  <desc id="desc">从多卡约束与数据并行基础出发，分流到训练状态、模型内部和动态路由，再汇入通信剖析以及组合、恢复和采用决策。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#52606d"/></marker>
+    <marker id="blue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#4c8eda"/></marker>
+    <style>
+      .title{font:700 30px sans-serif;fill:#172b4d}.group{font:700 17px sans-serif;fill:#36526f}.task{font:700 18px sans-serif;fill:#172b4d}.text{font:15px sans-serif;fill:#243b53}.small{font:14px sans-serif;fill:#52606d}.box{stroke-width:2;rx:15}.band{stroke-width:2;rx:20}.flow{stroke:#52606d;stroke-width:2.2;fill:none;marker-end:url(#arrow)}.seq{stroke:#4c8eda;stroke-width:2.6;fill:none;marker-end:url(#blue)}.bus{stroke:#4c8eda;stroke-width:2.6;fill:none}
+    </style>
+  </defs>
+  <rect width="1500" height="900" fill="#f7fafc"/>
+  <text x="750" y="44" text-anchor="middle" class="title">通信与并行路线图：从多卡分工到可靠采用</text>
+
+  <rect x="28" y="76" width="1444" height="126" fill="#eef6ff" stroke="#8ab4df" class="band"/>
+  <text x="52" y="105" class="group">起点：单设备约束推动切分与通信</text>
+  <rect x="110" y="124" width="280" height="54" fill="#e8f1fb" stroke="#4c8eda" class="box"/>
+  <text x="250" y="148" text-anchor="middle" class="task">容量与工作负载</text><text x="250" y="169" text-anchor="middle" class="small">模型、状态、上下文或请求规模</text>
+  <rect x="610" y="124" width="280" height="54" fill="#e8f7ef" stroke="#45a36b" class="box"/>
+  <text x="750" y="148" text-anchor="middle" class="task">切分对象与拓扑</text><text x="750" y="169" text-anchor="middle" class="small">谁保存、计算、更新，放在哪里</text>
+  <rect x="1110" y="124" width="280" height="54" fill="#fff5e6" stroke="#e0a23b" class="box"/>
+  <text x="1250" y="148" text-anchor="middle" class="task">通信协同</text><text x="1250" y="169" text-anchor="middle" class="small">交换什么、多少、何时交换</text>
+  <path d="M390 151 H610" class="flow"/><path d="M890 151 H1110" class="flow"/>
+
+  <rect x="28" y="226" width="1444" height="382" fill="#f1f8f3" stroke="#8bc39c" class="band"/>
+  <text x="52" y="255" class="group">主学习线：共同基础分流到三类并行对象，再汇入通信关键路径</text>
+
+  <rect x="48" y="310" width="190" height="130" fill="#e8f7ef" stroke="#45a36b" class="box"/>
+  <text x="143" y="340" text-anchor="middle" class="task">Task0</text><text x="143" y="368" text-anchor="middle" class="text">约束、切分与拓扑</text><text x="143" y="397" text-anchor="middle" class="small">对象、路径、放置域</text><text x="143" y="419" text-anchor="middle" class="small">为什么需要多卡</text>
+  <rect x="278" y="310" width="210" height="130" fill="#e8f7ef" stroke="#45a36b" class="box"/>
+  <text x="383" y="340" text-anchor="middle" class="task">Task1</text><text x="383" y="368" text-anchor="middle" class="text">数据并行与集合通信</text><text x="383" y="397" text-anchor="middle" class="small">局部梯度、载荷、频率</text><text x="383" y="419" text-anchor="middle" class="small">形成一致更新</text>
+  <path d="M238 375 H278" class="seq"/>
+
+  <rect x="558" y="278" width="210" height="130" fill="#fff5e6" stroke="#e0a23b" class="box"/>
+  <text x="663" y="308" text-anchor="middle" class="task">Task2</text><text x="663" y="336" text-anchor="middle" class="text">训练状态分片</text><text x="663" y="365" text-anchor="middle" class="small">ZeRO / FSDP</text><text x="663" y="387" text-anchor="middle" class="small">常驻与临时聚合</text>
+  <rect x="798" y="278" width="210" height="130" fill="#fff5e6" stroke="#e0a23b" class="box"/>
+  <text x="903" y="308" text-anchor="middle" class="task">Task3</text><text x="903" y="336" text-anchor="middle" class="text">模型与上下文切分</text><text x="903" y="365" text-anchor="middle" class="small">PP / TP / CP</text><text x="903" y="387" text-anchor="middle" class="small">进程组与设备网格</text>
+  <rect x="1038" y="278" width="210" height="130" fill="#f0eefb" stroke="#8069b5" class="box"/>
+  <text x="1143" y="308" text-anchor="middle" class="task">Task4</text><text x="1143" y="336" text-anchor="middle" class="text">专家与副本路由</text><text x="1143" y="365" text-anchor="middle" class="small">EP / Replica</text><text x="1143" y="387" text-anchor="middle" class="small">容量、局部性、长尾</text>
+
+  <path d="M488 375 H520 V266 H1143" class="bus"/>
+  <path d="M663 266 V278" class="seq"/>
+  <path d="M903 266 V278" class="seq"/>
+  <path d="M1143 266 V278" class="seq"/>
+
+  <rect x="790" y="474" width="226" height="104" fill="#eef2f5" stroke="#829ab1" class="box"/>
+  <text x="903" y="505" text-anchor="middle" class="task">Task5</text><text x="903" y="533" text-anchor="middle" class="text">通信剖析与重叠</text><text x="903" y="558" text-anchor="middle" class="small">就绪、Trace、暴露通信</text>
+  <path d="M663 408 V446" class="bus"/>
+  <path d="M903 408 V446" class="bus"/>
+  <path d="M1143 408 V446" class="bus"/>
+  <path d="M663 446 H1143" class="bus"/>
+  <path d="M903 446 V474" class="seq"/>
+
+  <rect x="28" y="634" width="1444" height="210" fill="#f5f2fc" stroke="#a795d0" class="band"/>
+  <text x="52" y="663" class="group">Task6：组合约束、可靠恢复与采用决策</text>
+  <rect x="155" y="700" width="300" height="76" fill="#eef6ff" stroke="#4c8eda" class="box"/>
+  <text x="305" y="728" text-anchor="middle" class="task">组合硬门槛</text><text x="305" y="754" text-anchor="middle" class="small">设备数、每 rank 容量、拓扑域</text>
+  <rect x="600" y="700" width="300" height="76" fill="#fff8eb" stroke="#e0a23b" class="box"/>
+  <text x="750" y="728" text-anchor="middle" class="task">可靠性与恢复</text><text x="750" y="754" text-anchor="middle" class="small">manifest、分片覆盖、恢复验证</text>
+  <rect x="1045" y="700" width="300" height="76" fill="#f2effc" stroke="#8069b5" class="box"/>
+  <text x="1195" y="728" text-anchor="middle" class="task">基准与采用决策</text><text x="1195" y="754" text-anchor="middle" class="small">扩展效率、accept / tune / reject</text>
+  <path d="M903 578 V665 H305 V700" class="seq"/>
+  <path d="M455 738 H600" class="seq"/>
+  <path d="M900 738 H1045" class="seq"/>
+  <rect x="250" y="812" width="1000" height="42" fill="#fff" stroke="#c5d1de" class="box"/>
+  <text x="750" y="839" text-anchor="middle" class="small">采用条件：容量与性能收益成立，通信代价可解释，检查点能够一致恢复。</text>
+</svg>

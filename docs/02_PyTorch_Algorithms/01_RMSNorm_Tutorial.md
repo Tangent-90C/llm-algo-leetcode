@@ -16,7 +16,7 @@
 
 Transformer 层数一深，中间激活的尺度就会不断变化。如果不做归一化，后面的矩阵乘法和激活函数很容易面对不稳定的输入；但标准 LayerNorm 又要同时计算均值和方差，在大模型里会带来额外开销。
 
-RMSNorm 选择更直接的做法：不再减均值，只用均方根控制特征尺度。本节会实现一个最小 RMSNorm，重点看清归一化维度、`eps` 的数值稳定作用，以及为什么许多 LLaMA 系模型会采用这种更轻的归一化层。完成后，你可以把它接到后面的 MLP、Attention 和完整 Transformer 组件里。
+RMSNorm 选择更直接的做法：不再减均值，只用均方根控制特征尺度。本节会实现一个最小 RMSNorm，重点看清归一化维度、`eps` 的数值稳定作用，以及为什么许多 LLaMA 系模型会采用这种更轻的归一化层。完成后，你可以把它接到后面的 MLP、注意力和完整 Transformer 组件里。
 
 **关键词：** `RMSNorm`, `LayerNorm`, `normalization`
 
@@ -26,82 +26,64 @@ RMSNorm 选择更直接的做法：不再减均值，只用均方根控制特征
 **导语：** 先确认输入张量的归一化维度和训练接口，再比较 LayerNorm 与 RMSNorm 如何处理特征尺度。
 
 - [P0: 05. PyTorch Tensor Fundamentals | PyTorch 张量基础操作](../00_Prerequisites/05_PyTorch_Tensor_Fundamentals.md)
-- [P0: 13. Simple Neural Network Training | 简单神经网络训练循环](../00_Prerequisites/13_Simple_Neural_Network_Training.md)
+- [P0: 13. Transformer Block Dataflow and Residual Stream | Transformer Block 数据流与残差通路](../00_Prerequisites/13_Transformer_Block_Dataflow_and_Residual_Stream.md)
 - [P0: 15. Normalization Techniques | 归一化技术](../00_Prerequisites/15_Normalization_Techniques.md)
 
 ---
-### Step 1: 核心思想与痛点
+### Step 1：从 LayerNorm 到 RMSNorm 的结构选择
 
-RMSNorm 的核心洞察很朴素：既然大模型的中间层均值通常已接近0，何不干脆省掉"减去均值"这一步，只用均方根做归一化？
+归一化要解决的是残差流在多层变换后尺度漂移的问题。LayerNorm 同时执行重新居中与尺度归一；RMSNorm 只保留尺度归一。现代解码器通常把归一化放在子层之前，让残差主路径可以跨层直接传递，再用 RMSNorm 为注意力或 MLP 提供尺度受控的输入。
 
-> **为什么抛弃了 LayerNorm？**
-> 标准的 LayerNorm 需要计算均值（Mean）和方差（Variance）。
-> **RMSNorm 的本质：**
-> 假设输入的均值已经接近 0（在大型网络中通常成立），那么我们**直接去掉减去均值的操作**，只用均方根（RMS）去归一化特征。这减少了同步开销，显著提升了前向和反向传播的计算速度。
+从几何上看，LayerNorm 的减均值会移除向量在全 1 方向上的分量，随后再按方差缩放；RMSNorm 不做这个投影，只按向量的均方根缩放。它因此不是 LayerNorm 的数值近似，而是主动取消“重新居中”这一约束。是否适用仍由模型结构、初始化和训练结果共同决定，不能只凭算子更短就推导质量等价。
 
-### Step 2: 核心公式与张量维度
+| 结构 | 统计动作 | 在 Block 中的位置 | 主要取舍 |
+|---|---|---|---|
+| Post-LayerNorm | 居中并缩放 | 子层与残差合并之后 | 深层训练更依赖稳定技巧 |
+| Pre-LayerNorm | 居中并缩放 | 子层输入之前 | 残差主干更直接，但仍计算均值与方差 |
+| Pre-RMSNorm | 只按均方根缩放 | 子层输入之前 | 统计路径更短，不保证输出零均值 |
 
-明确了 RMSNorm 的设计取舍后，我们把它的数学公式摆出来。输入输出维度先理清楚，后面代码实现只是在把这组公式翻译成张量操作。
+![RMSNorm 在 Block 里的位置](../public/02_PyTorch_Algorithms/01_rmsnorm_diagram.svg)
 
-给定输入向量 $x \in \mathbb{R}^d$，RMSNorm 的输出 $y$ 为：
+### Step 2：公式、归一化轴与统计路径
 
-1. **计算均方根 (RMS)：**
-   $$ \text{RMS}(x) = \sqrt{\frac{1}{d} \sum_{i=1}^d x_i^2 + \epsilon} $$
-   其中 $\epsilon$ 是为了防止除以 0 的极小值（如 `1e-6`）。
+对每个 token 的隐藏向量 $x\in\mathbb{R}^d$，RMSNorm 沿最后一维计算
 
-2. **归一化并缩放 (Scale)：**
-   $$ y = \frac{x}{\text{RMS}(x)} \odot \gamma $$
-   其中 $\gamma \in \mathbb{R}^d$ 是可学习的权重参数（Weight）。**RMSNorm 没有偏置项 (Bias)**。
+$$
+\operatorname{RMS}(x)=\sqrt{\frac{1}{d}\sum_{i=1}^{d}x_i^2+\epsilon},\qquad
+y=\frac{x}{\operatorname{RMS}(x)}\odot\gamma.
+$$
 
-#### 图解：RMSNorm 在 Block 里归一化什么
+批次维和序列维保持不变，只有每个 token 内部的通道共同参与统计。可学习参数 $\gamma\in\mathbb{R}^d$ 恢复逐通道缩放能力，$\epsilon$ 防止零向量或极小输入导致除零。与 LayerNorm 对照时，应同时检查统计轴、是否减均值、可学习参数和输出数据类型，不能只比较公式中少了一项运算。
 
-RMSNorm 作用在每个 token 的 hidden dimension 上，输入输出形状不变。
+| 检查对象 | RMSNorm 契约 | 常见错误 |
+|---|---|---|
+| 统计轴 | 隐藏状态最后一维 | 跨批次或序列混合统计 |
+| 中心化 | 不减均值 | 误写成 LayerNorm |
+| 可学习状态 | 一份逐通道缩放参数 | 使用标量导致通道能力丢失 |
+| 形状 | 输入输出完全一致 | 统计轴被消除后无法正确广播 |
 
-```text
-x [B, T, D]
-│
-├─ token 0: [d0 d1 d2 ... dD] ──► RMS over D ──► scale by weight
-├─ token 1: [d0 d1 d2 ... dD] ──► RMS over D ──► scale by weight
-└─ token T: [d0 d1 d2 ... dD] ──► RMS over D ──► scale by weight
+### Step 3：混合精度下的数值路径
 
-output [B, T, D]
-```
+RMSNorm 的平方、均值和倒平方根属于数值敏感的归约路径。FP16/BF16 输入可以降低存储和矩阵计算成本，但较大激活在平方时可能溢出，较小激活也可能损失统计精度。将归约统计提升到 FP32，再把结果恢复为模型主状态的数据类型，可以在接口不变的条件下保护统计精度。单层数值一致性只能验证算子契约；深层稳定性还需要在固定模型、数据和训练预算下比较。
 
-![RMSNorm 在 Block 里的位置](/02_PyTorch_Algorithms/01_rmsnorm_diagram.svg)
+| 阶段 | 建议计算类型 | 原因 |
+|---|---|---|
+| 输入与模型主状态 | 模型 dtype | 保持模型接口与存储口径 |
+| 平方、均值、`rsqrt` | FP32 | 降低溢出和累计误差 |
+| 归一化与通道缩放 | FP32 或实现规定的安全路径 | 避免过早舍入 |
+| 输出 | 恢复输入数据类型 | 保持后续子层契约 |
 
-放回 LLaMA block 里看，RMSNorm 是 attention / MLP 前的稳定器：
+![RMSNorm 混合精度统计路径](../public/02_PyTorch_Algorithms/01_rmsnorm_statistics.svg)
 
-```text
-x ─► RMSNorm ─► Attention ─► residual add
-h ─► RMSNorm ─► MLP       ─► residual add
-```
+### Step 4：代码设计与 RMSNorm 契约
 
-它不改变 token 数，也不混合 token 之间的信息；它只让每个 token 自己的 hidden 向量尺度更稳定。
+题目区以一个最小模块承载三个机制责任：逐特征缩放参数、沿最后一维的 RMS 统计，以及 dtype 对齐。固定骨架处理模块接口；学习者只补全决定数值路径的变量。
 
-### Step 3: 代码实现与混合精度 (AMP) 陷阱
-
-数学公式翻译成代码并不难，真正需要小心的是混合精度训练时的数值稳定性——FP16 下平方运算极易溢出，这里给出标准处理方案。
-
-在 PyTorch 中，我们需要通过 `torch.mean` 计算均方，加上一个极小的 `eps` 防止除以零，最后乘以可学习的参数 `weight`。
-
-在代码实现时，有一个非常关键的工程细节需要处理：**数值溢出 (Numerical Overflow)**。
-
-> **工程经验：为什么要强制转换精度？**
-> 现代大模型训练与推理几乎都会使用混合精度 (AMP) 或半精度格式 (`FP16`) 以节省显存。但我们需要注意，`FP16` 的最大安全数值仅为 `65504`。
-> 
-> 在计算 RMSNorm 时，第一步是求输入张量的平方 ($x^2$)。如果输入特征中某个值大于 $256$（由于 $256^2 = 65536 > 65504$），该位置计算后就会溢出变为 `inf`（无穷大），进而导致损失函数出现 `NaN`，引发训练崩溃。
-> 
-> **标准处理方案 (Upcasting)：** 
-> 无论模型输入是什么精度格式，在执行平方和均值操作前，通常需要显式地将其转换为 `float32` 计算。待归一化计算完毕后，再将结果转换回原有精度。这是深度学习框架中处理该算子的标准做法。
-### Step 4: 动手实战
-
-这里开始把前面的公式和精度约束落到最小可运行代码里，重点看每一步为什么存在。
-
-**要求**：请补全下方 `RMSNorm` 的 `forward` 方法。
-**注意：**
-1. 先在 `float32` 下完成归一化，再乘以可学习的 `weight`，最后转回输入精度。
-2. 确保在浮点数精度较高的情况下计算 RMS，以防止半精度（FP16/BF16）溢出。即：强制转换 `x` 为 `float32` 计算 `pow(2).mean()`。
-
+| TODO / 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
+|---|---|---|---|
+| TODO 1：创建逐特征缩放参数<br>`RMSNorm.__init__` | 创建可学习的逐特征缩放参数 | 形状为 `[D]`、初值为 1、参与反向传播 | 参数形状、初值和梯度存在性正确 |
+| TODO 2：计算 RMS 归一化<br>`RMSNorm._norm` | 沿最后一维在 FP32 中计算均方根并归一化 | 保留统计轴，零输入结果有限 | 与显式 FP32 参考结果一致 |
+| TODO 3：恢复输出契约<br>`RMSNorm.forward` | 应用逐特征缩放并恢复输入数据类型 | 输出形状和数据类型与输入一致 | FP16 路径的数值、形状和梯度正确 |
 
 ```python
 import torch
@@ -111,87 +93,95 @@ import torch.nn as nn
 
 ```python
 class RMSNorm(nn.Module):
+    """沿最后一维归一化，并保留逐特征缩放参数。"""
+
     def __init__(self, hidden_size: int, eps: float = 1e-6):
         super().__init__()
+        if hidden_size <= 0:
+            raise ValueError('hidden_size 必须为正数')
         self.eps = eps
         # ==========================================
-        # TODO 1: 定义可学习参数 weight，并初始化为全 1
-        # 形状: [hidden_size]
-        # 提示: 使用 nn.Parameter 包装张量使其可学习
+        # TODO 1：创建逐特征缩放参数
         # ==========================================
-        # self.weight = ???
+        # self.weight = ???  # [D]；初值全为 1，并参与梯度更新。
+        raise NotImplementedError('TODO 1：请创建 RMSNorm 的缩放参数')
 
     def _norm(self, x: torch.Tensor) -> torch.Tensor:
+        """在 FP32 路径中计算 RMS 归一化，返回 FP32 结果。"""
+        if x.ndim < 1:
+            raise ValueError('x 至少需要包含一个特征维')
         # ==========================================
-        # TODO 2: 实现 RMSNorm 核心计算逻辑
-        # 提示: 
-        # 1. 为防止 FP16 溢出，需要在高精度下计算
-        # 2. 计算输入的均方值（平方后求均值），注意保持维度以便广播
-        # 3. 使用均方根的倒数进行归一化，torch.rsqrt 比 1/sqrt 更快
-        # 4. 返回归一化后的结果（保持高精度，便于后续操作）
+        # TODO 2：计算 RMS 归一化
         # ==========================================
-        # variance = ???
-        x_fp32 = x if x.dtype == torch.float32 else x.float()
-        return x_fp32 * torch.rsqrt(variance + self.eps)
+        # x_fp32 = ???  # 与 x 同形；统计路径使用 FP32。
+        # mean_square = ???  # [..., 1]；沿最后一维统计并保留该轴。
+        # normalized = ???  # 与 x 同形；零输入必须保持有限。
+        raise NotImplementedError('TODO 2：请完成 RMS 统计与归一化')
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """缩放归一化结果，并恢复输入 dtype。"""
         # ==========================================
-        # TODO 3: 先归一化，再缩放并转回输入精度
-        # 提示: 调用 _norm 进行归一化后，乘以可学习的 weight，最后转回输入精度
+        # TODO 3：恢复输出契约
         # ==========================================
-        # weight = ???
-        return (weight * self._norm(x)).to(x.dtype)
+        # weight = ???  # [D]；与输入数据类型对齐。
+        # normalized = ???  # FP32 归一化结果。
+        # output = ???  # 与 x 的形状和数据类型一致。
+        raise NotImplementedError('TODO 3：请完成缩放与 dtype 对齐')
 
 ```
 
 
 ```python
-# 运行此单元格以测试你的实现
-def test_rmsnorm():
-    try:
-        # 构造输入
-        hidden_size = 512
-        x = torch.randn(2, 16, hidden_size, dtype=torch.float16)  # FP16 输入模拟大模型
-        
-        # 测试你的实现
-        my_norm = RMSNorm(hidden_size)
-        # 将模型参数也转换为 FP16，对齐真实的工业半精度运行环境，防止发生隐式的 Type Promotion
-        my_norm.to(x.dtype)
-        my_out = my_norm(x)
-        
-        assert my_out.dtype == torch.float16, "输出类型必须与输入一致 (FP16)"
-        assert my_out.shape == x.shape, "输出形状改变了！"
-        
-        # LLaMA 原版实现作为标准答案 (HuggingFace 提取)
-        def hf_rmsnorm(hidden_states, weight, eps):
-            input_dtype = hidden_states.dtype
-            hidden_states = hidden_states.to(torch.float32)
-            variance = hidden_states.pow(2).mean(-1, keepdim=True)
-            hidden_states = hidden_states * torch.rsqrt(variance + eps)
-            return weight.to(torch.float32) * hidden_states.to(input_dtype)
-            
-        hf_out = hf_rmsnorm(x, my_norm.weight, my_norm.eps)
-        
-        # 检查容差
-        assert torch.allclose(my_out.float(), hf_out.float(), rtol=1e-3, atol=1e-4), "计算结果与 HuggingFace 不一致！"
-        
-        print("\n✅ All Tests Passed! RMSNorm 实现通过测试。")
-        
-    except NotImplementedError:
-        print("请先完成 TODO 部分的代码！")
-        raise
-    except (AttributeError, NameError, TypeError) as e:
-        if isinstance(e, AttributeError):
-            print("代码未完成，无法找到 Parameter")
-        elif isinstance(e, NameError):
-            print("代码可能未完成，导致了变量未定义")
-        else:
-            print("代码可能未完成，导致了类型错误")
-        raise NotImplementedError("请先完成 TODO 部分的代码！") from e
-    except Exception as e:
-        print(f"\n❌ 测试失败: {e}")
+# 测试设计：分别定位参数契约、RMS 数值路径和 dtype/梯度对齐。
 
-test_rmsnorm()
+def _rmsnorm_reference(x: torch.Tensor, weight: torch.Tensor, eps: float) -> torch.Tensor:
+    """使用显式 FP32 统计构造参考结果。"""
+    x_fp32 = x.float()
+    mean_square = x_fp32.pow(2).mean(dim=-1, keepdim=True)
+    return (x_fp32 * torch.rsqrt(mean_square + eps) * weight.float()).to(x.dtype)
+
+
+def test_rmsnorm_parameter_contract():
+    """验证缩放参数的类型、形状和单位初值。"""
+    norm = RMSNorm(hidden_size=4)
+    assert isinstance(norm.weight, nn.Parameter)
+    assert norm.weight.shape == (4,)
+    assert torch.equal(norm.weight.detach(), torch.ones(4))
+
+
+def test_rmsnorm_numeric_contract():
+    """验证普通输入与零输入的 RMS 数值路径。"""
+    x = torch.tensor([[[3.0, 4.0], [0.0, 0.0]]])
+    norm = RMSNorm(hidden_size=2, eps=1e-6)
+    output = norm(x)
+    expected = _rmsnorm_reference(x, norm.weight, norm.eps)
+    assert torch.allclose(output, expected, atol=1e-6)
+    assert torch.isfinite(output).all()
+
+
+def test_rmsnorm_dtype_and_gradient_contract():
+    """验证低精度输入的输出契约和两类梯度。"""
+    x = torch.randn(2, 3, 4, dtype=torch.float16, requires_grad=True)
+    norm = RMSNorm(hidden_size=4).to(dtype=torch.float16)
+    output = norm(x)
+    expected = _rmsnorm_reference(x, norm.weight, norm.eps)
+    assert output.shape == x.shape
+    assert output.dtype == x.dtype
+    assert torch.allclose(output.float(), expected.float(), rtol=1e-3, atol=1e-4)
+    output.float().sum().backward()
+    assert norm.weight.grad is not None
+    assert x.grad is not None
+
+
+def run_rmsnorm_tests():
+    """依次运行参数、数值和数据类型/梯度契约测试。"""
+    test_rmsnorm_parameter_contract()
+    test_rmsnorm_numeric_contract()
+    test_rmsnorm_dtype_and_gradient_contract()
+    print('✅ RMSNorm：参数、数值路径与 dtype/梯度契约测试通过')
+
+
+run_rmsnorm_tests()
 
 ```
 
@@ -200,11 +190,10 @@ test_rmsnorm()
 🛑 **STOP HERE** 🛑
 <br><br><br><br><br><br><br><br><br><br>
 > 请先尝试自己完成代码并跑通测试。<br>
-> 如果你正在 Colab 中运行，并且遇到困难没有思路，可以向下滚动查看参考答案。
+> 如果遇到困难，可以继续向下查看参考代码。
 <br><br><br><br><br><br><br><br><br><br>
 
 ---
-
 ## 参考代码与解析
 
 ### 代码
@@ -212,46 +201,52 @@ test_rmsnorm()
 
 ```python
 class RMSNorm(nn.Module):
+    """沿最后一维归一化，并保留逐特征缩放参数。"""
+
     def __init__(self, hidden_size: int, eps: float = 1e-6):
         super().__init__()
+        if hidden_size <= 0:
+            raise ValueError('hidden_size 必须为正数')
         self.eps = eps
-        # 先定义逐元素缩放参数，形状要和特征维一致。
-        # TODO 1
+        # TODO 1：创建逐特征缩放参数
         self.weight = nn.Parameter(torch.ones(hidden_size))
 
     def _norm(self, x: torch.Tensor) -> torch.Tensor:
-        # 先把输入提升到 FP32，再做平方均值和倒数平方根。
-        # TODO 2
-        x_fp32 = x if x.dtype == torch.float32 else x.float()
-        variance = x_fp32.pow(2).mean(dim=-1, keepdim=True)
-        return x_fp32 * torch.rsqrt(variance + self.eps)
+        """在 FP32 路径中计算 RMS 归一化，返回 FP32 结果。"""
+        if x.ndim < 1:
+            raise ValueError('x 至少需要包含一个特征维')
+        # TODO 2：计算 RMS 归一化
+        x_fp32 = x.float()
+        mean_square = x_fp32.pow(2).mean(dim=-1, keepdim=True)
+        normalized = x_fp32 * torch.rsqrt(mean_square + self.eps)
+        return normalized
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # 先按输入精度对齐 weight，再把归一化结果乘回原始 dtype。
-        # TODO 3
-        weight = self.weight.to(x.dtype)
-        return (weight * self._norm(x)).to(x.dtype)
+        """缩放归一化结果，并恢复输入 dtype。"""
+        # TODO 3：恢复输出契约
+        weight = self.weight.to(dtype=x.dtype)
+        normalized = self._norm(x)
+        output = (normalized * weight).to(dtype=x.dtype)
+        return output
+
 ```
 
-### 答案与直觉
+### 解析
 
-**1. TODO 1 (可学习参数)**
+#### TODO 1：创建逐特征缩放参数
 
-- **这一题要解决什么：** 给归一化后的特征加一个逐元素缩放参数，让模型能恢复部分表达能力。
-- **为什么这样定义：** `weight` 就是论文里的 $\gamma$，形状要和特征维度一致，初始化为全 1 才不会干扰初始归一化结果。
+- 每个特征通道需要独立恢复缩放能力，因此参数形状必须是 `[D]`，单位初值保持初始归一化尺度。
+- 答案将全 1 张量注册为可学习参数；参数契约测试检查类型、形状和初值，梯度测试确认它参与反向传播。
 
-**2. TODO 2 (核心计算逻辑)**
+#### TODO 2：计算 RMS 归一化
 
-- **这一题要解决什么：** 在保证数值稳定的前提下，算出 RMSNorm 的归一化分量。
-- **为什么先转 FP32：** 输入平方很容易在 FP16 下溢出，所以要先升级精度再算均方值。
-- **为什么保留最后一维：** `.mean(dim=-1, keepdim=True)` 是为了让结果能和原输入广播相乘。
-- **带走的直觉：** 这里的关键不是公式本身，而是“计算前先升精度”这个工程习惯。
+- 统计只沿最后一维进行，并保留单例轴用于广播；FP32 归约降低低精度平方和累计的数值风险。
+- 答案用均方值与 $\epsilon$ 形成倒均方根；数值测试与显式 FP32 参考结果比较，并检查零输入保持有限。
 
-**3. TODO 3 (类型恢复与权重缩放)**
+#### TODO 3：恢复输出契约
 
-- **这一题要解决什么：** 把归一化结果乘回可学习参数，并恢复到输入时的 dtype。
-- **为什么最后再转回原精度：** 前面的归一化已经用 FP32 算完了，最后只需要让输出和输入保持一致即可。
-- **带走的直觉：** 先保数值稳定，再做 dtype 对齐，是很多训练算子的通用写法。
+- 逐特征参数与归一化结果相乘后，输出必须恢复输入的数据类型和形状。
+- 答案显式形成输出并转换数据类型；测试同时验证数值、形状、数据类型以及输入和参数梯度。
 ## 相关阅读
 
 想把本节的公式与真实模型实现对照时，可以先读原论文，再查看开源 Decoder 实现中的归一化位置。

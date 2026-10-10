@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="520" viewBox="0 0 1280 520" role="img" aria-labelledby="title desc">
+<title id="title">Block 内共享内存复用链</title><desc id="desc">线程把数据协同搬入共享内存，在同步后重复消费，并检查容量、冲突和占用率代价。</desc>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker><style>text{font-family:Arial,'Microsoft YaHei',sans-serif;fill:#172033}.t{font-size:28px;font-weight:700}.s{font-size:15px;fill:#475569}.h{font-size:18px;font-weight:700}.b{font-size:14px;fill:#334155}.p{stroke-width:2}.f{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#a)}</style></defs>
+<rect width="1280" height="520" rx="24" fill="#f8fafc"/><text x="640" y="45" text-anchor="middle" class="t">共享内存：用块内协作换取数据复用</text><text x="640" y="73" text-anchor="middle" class="s">减少全局内存访问的同时，会引入同步、Bank 冲突和驻留资源代价</text>
+<rect x="45" y="135" width="260" height="240" rx="18" fill="#eff6ff" stroke="#60a5fa" class="p"/><text x="70" y="172" class="h">1. 全局内存数据</text><text x="70" y="220" class="b">多个线程需要同一 Tile</text><text x="70" y="255" class="b">重复读取成本高</text><text x="70" y="290" class="b">先确认复用次数</text>
+<rect x="355" y="135" width="260" height="240" rx="18" fill="#f0fdf4" stroke="#4ade80" class="p"/><text x="380" y="172" class="h">2. 协同搬入</text><text x="380" y="220" class="b">线程分担加载</text><text x="380" y="255" class="b">处理边界与布局</text><text x="380" y="290" class="b">同步后再消费</text>
+<rect x="665" y="135" width="260" height="240" rx="18" fill="#fffbeb" stroke="#f59e0b" class="p"/><text x="690" y="172" class="h">3. 块内重复消费</text><text x="690" y="220" class="b">Warp 共享 Tile</text><text x="690" y="255" class="b">减少设备内存往返</text><text x="690" y="290" class="b">保持访问连续</text>
+<rect x="975" y="135" width="260" height="240" rx="18" fill="#faf5ff" stroke="#a855f7" class="p"/><text x="1000" y="172" class="h">4. 检查代价</text><text x="1000" y="220" class="b">共享内存容量</text><text x="1000" y="255" class="b">同步与 Bank 冲突</text><text x="1000" y="290" class="b">Occupancy 是否下降</text>
+<path d="M305 255H355" class="f"/><path d="M615 255H665" class="f"/><path d="M925 255H975" class="f"/>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="500" viewBox="0 0 1240 500" role="img" aria-labelledby="title desc">
+  <title id="title">W8A16 反量化与计算路径</title>
+  <desc id="desc">同一份整数权重和缩放因子可走显式反量化、融合反量化或原生低精度计算路径，三者能够证明的性能结论不同。</desc>
+  <defs><style>.title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.sub{font:15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.h{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.t{font:14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.source{fill:#f1eafa;stroke:#8b6bb1;stroke-width:2}.path{fill:#e8f3fb;stroke:#3978a8;stroke-width:2}.result{fill:#eaf7ef;stroke:#4c9870;stroke-width:2}.flow{stroke:#3978a8;stroke-width:2.5;fill:none}</style><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#3978a8"/></marker></defs>
+  <rect width="1240" height="500" rx="24" fill="#f8fbfd"/>
+  <text x="620" y="44" text-anchor="middle" class="title">低比特存储相同，反量化位置可以完全不同</text>
+  <text x="620" y="72" text-anchor="middle" class="sub">路径决定浮点中间权重是否落地，以及低比特表示能否转化为真实执行收益</text>
+  <rect x="430" y="105" width="380" height="70" rx="15" class="source"/>
+  <text x="620" y="132" text-anchor="middle" class="h">INT8 整数权重 + 缩放因子 / 零点</text><text x="620" y="155" text-anchor="middle" class="t">相同量化状态，不预设计算内核</text>
+  <rect x="70" y="255" width="310" height="120" rx="17" class="path"/>
+  <text x="225" y="286" text-anchor="middle" class="h">显式反量化</text><text x="225" y="312" text-anchor="middle" class="t">先恢复完整浮点权重</text><text x="225" y="336" text-anchor="middle" class="t">再调用通用矩阵乘</text><text x="225" y="358" text-anchor="middle" class="t">证明表示与误差，不证明加速</text>
+  <rect x="465" y="255" width="310" height="120" rx="17" class="path"/>
+  <text x="620" y="286" text-anchor="middle" class="h">融合反量化与矩阵乘</text><text x="620" y="312" text-anchor="middle" class="t">计算内核按块读取并恢复</text><text x="620" y="336" text-anchor="middle" class="t">避免完整浮点权重落地</text><text x="620" y="358" text-anchor="middle" class="t">需要记录实际计算内核</text>
+  <rect x="860" y="255" width="310" height="120" rx="17" class="result"/>
+  <text x="1015" y="286" text-anchor="middle" class="h">原生低精度计算</text><text x="1015" y="312" text-anchor="middle" class="t">硬件直接消费受支持格式</text><text x="1015" y="336" text-anchor="middle" class="t">累加和输出仍需明确精度</text><text x="1015" y="358" text-anchor="middle" class="t">只对已测形状和硬件成立</text>
+  <path d="M620 175V215H225V255" class="flow" marker-end="url(#arrow)"/><path d="M620 175V255" class="flow" marker-end="url(#arrow)"/><path d="M620 215H1015V255" class="flow" marker-end="url(#arrow)"/>
+  <rect x="270" y="420" width="700" height="45" rx="13" fill="#fff" stroke="#c7d9e7"/>
+  <text x="620" y="449" text-anchor="middle" class="t">容量收益来自存储表示；速度收益还取决于反量化位置、计算内核、形状与工作负载</text>
+</svg>

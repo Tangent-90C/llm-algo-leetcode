@@ -1,20 +1,37 @@
 # 07. Serving Scheduling, PD, and Heterogeneous Routing | Serving 调度、PD 与异构路由
 
-## 页面目标
+## 学习问题
 
 从多个请求同时到达开始，观察 Prefill 和 Decode 如何争用计算、显存与队列资源；再逐层理解 Chunked Prefill、PD 分离、状态交接与异构资源路由如何共同影响服务质量。最后把调度决策放回 CPU 准备、GPU 计算和通信交接的时间线上，判断等待是否暴露在关键路径。
 
-## 调度问题的四个层次
+## 单轮成本与批次上界
 
-本节把“调度”按决策范围逐层展开。前一层决定当前一步做什么，后一层决定更多请求如何共享资源；因此 36、37、38 不是三个并列的 backend 名词，而是从执行单元走向服务拓扑的学习顺序。
+调度器每轮不仅要选请求，还要决定放入多少工作。理想重叠下，单轮时间可先近似为 `max(memory time, compute time) + scheduling / launch / exposed transfer`；实际可接纳批量则取五类上界的最小值。
+
+| 上界 | 主要约束 | 超过后首先出现的现象 |
+|:---|:---|:---|
+| slot | 最大活跃序列数 | 无法继续补入请求 |
+| KV | 每请求历史状态与可用显存 | OOM、抢占或驱逐 |
+| scheduled token | 本轮 Prefill chunk 与 Decode token 总量 | 单轮时间和 TPOT 上升 |
+| SLO | TTFT / TPOT / P99 目标 | 吞吐仍涨但用户等待恶化 |
+| backend | kernel、shape 与运行时能力 | 收益饱和、回退或执行失败 |
+
+[迭代成本与批量上界机制页](../../02_PyTorch_Algorithms/INF-ITERATION-BUDGET_Serving_Iteration_Cost_and_Batch_Bounds.md)负责定量计算；后续页面分别消费这些预算，不重复定义成本公式。
+
+## 调度问题的层次
+
+本节把“调度”按决策范围逐层展开。前一层决定当前一步做什么，后一层决定更多请求如何共享资源；因此迭代预算、36、37、Continuous Batching 和 38 不是并列的 backend 名词，而是从预算、请求选择走向批次与服务拓扑的机制链。
 
 | 层次 | 调度者在决定什么 | 主要输入 | 主要结果 | 对应入口 |
 |:---|:---|:---|:---|:---|
+| 迭代预算 | 本轮最多承载多少请求与 token | 带宽、算力、KV、SLO、backend 能力 | 五类上界与运行拐点 | INF-ITERATION-BUDGET |
 | 单步 Decode 调度 | 当前 Decode step 给哪些活跃请求分配 token 计算 | 请求状态、优先级、剩余长度 | 本轮执行顺序与步数 | 36 |
 | Cache 资源调度 | 请求能否继续占用 Cache，何时暂停、驱逐或恢复 | Cache 容量、Block、等待时间 | 可接纳请求数与公平性 | 37 |
-| 批次与队列调度 | 哪些 Prefill / Decode 请求组成下一批 | 到达时间、Prompt 长度、Decode 工作量 | 批次效率、排队和尾延迟 | 38 的前置机制、70 的实验 |
+| 迭代级组批 | 哪些请求和多少 scheduled tokens 进入下一轮 | 候选顺序、slot、KV、token budget | 实际批次成员与剩余预算 | Continuous Batching |
+| 批次与队列调度 | Prefill / Decode 如何分享本轮 token budget | Prompt suffix、Decode 请求、chunk size | 批次效率、排队和尾延迟 | 38、70 |
 | 服务池调度 | 请求进入哪个实例、Prefill 池或 Decode 池 | GPU 资源、链路、服务等级 | 服务吞吐、P99 和资源隔离 | 38、70 |
 | 异构 PD 路由 | 交接 KV、重算 Prefill，还是保持同池 | 两池能力、状态大小、链路、SLO | 交接代价、池利用率、回退动作 | 39；分布式扩展见 Task6 的 79–81 |
+| MoE 角色解耦 | Attention 与 FFN / 专家是否需要独立扩缩容 | 角色压力、激活载荷、连接器与同步模式 | 角色利用率、传输暴露时间、回退动作 | [INF-AFD](../../02_PyTorch_Algorithms/INF-AFD_Attention_FFN_Disaggregation.md)；实验性 backend 能力必须单独登记 |
 
 ## 执行关键路径与重叠
 
@@ -59,6 +76,7 @@ I/O 在本节中不是另一个独立优化对象，而是解释调度结果为�
 - **请求调度**决定“先服务谁、这一轮服务谁”；
 - **Cache 管理**决定“请求的状态放在哪里、能保留多久”；
 - **PD 分离**决定“Prefill 和 Decode 由哪个资源池执行”；
+- **AFD**决定 MoE Serving 中 Attention 与 FFN / 专家是否由不同 worker 组执行，并引入双向激活传输和角色间同步；
 - **异构路由**决定“两池能力不同时，状态怎样交接、何时回到同池”。
 
 三者可以协同，但改动一个对象并不等于同时完成另外两个对象的优化。例如扩大 Cache 容量可能提高可接纳并发，却不会自动改善队列公平性；把 Prefill 和 Decode 拆成两个池，也需要重新检查跨池通信和负载平衡。
@@ -92,6 +110,7 @@ vLLM 和 SGLang 都是 Serving backend，但它们适合观察的机制重点不
 | Chunked Prefill | 单次长 Prefill 阻塞其他请求 | TTFT、P99、Decode 抖动 |
 | Prefill / Decode 分离 | 两类计算互相争用资源 | TTFT、TPOT、P95、池利用率 |
 | 异构 PD 路由 | 两池能力、链路或 backend 不同 | handoff ms、传输量、重算时间、P99、失败状态 |
+| Attention–FFN 解耦 | Attention 与 FFN / 专家压力不对称，且 backend 明确支持角色连接器 | 角色利用率、双向载荷、暴露传输时间、同步模式、回退状态 |
 | 队列与资源调度 | 并发、容量和服务等级变化 | 排队时间、并发容量、SLA |
 
 把 Serving 调度看成一个闭环：请求进入队列后，系统根据可用 Cache、Prefill/Decode 计算预算和服务等级选择下一批请求；运行结果再反馈给下一轮调度。这样可以把“调度策略更好”拆成可观察的资源账本和服务结果，而不是只看 GPU 利用率。
@@ -114,13 +133,14 @@ vLLM 和 SGLang 都是 Serving backend，但它们适合观察的机制重点不
 | MoE Expert Parallel | token dispatch、专家容量和负载不均 | expert load、通信时间、空转、吞吐 | Task6：80；Part 01 · 22 |
 | PD 多实例 | 跨池传输和池间负载不均 | transfer time、池利用率、P99 | Task4 基础：38、70；Task6 扩展：79–81 |
 | 异构 PD | 资源能力、链路或 backend 不同 | handoff / recompute、路由命中、P99、回退率 | Task4 基础：39；Task6 扩展：79–81 |
+| Attention–FFN 解耦 | MoE 的 Attention 与 FFN / 专家资源需求不同 | 角色利用率、激活传输、连接器等待、失败回退 | Task4 分支：[INF-AFD](../../02_PyTorch_Algorithms/INF-AFD_Attention_FFN_Disaggregation.md)；EP 与通信证据转入通信与并行专题 |
 | 自动扩缩容 | 冷启动、迁移和容量预测 | 扩容延迟、恢复时间、拒绝率 | 性能分析与部署专题 |
 
 参考入口：开源项目 [vLLM](https://github.com/vllm-project/vllm) 与 [SGLang](https://github.com/sgl-project/sglang)；论文 [SGLang](https://arxiv.org/abs/2312.07104) 和官方文档 [PD Disaggregation](https://github.com/sgl-project/sglang/blob/main/docs_new/docs/advanced_features/pd_disaggregation.mdx)。
 
-## 判断框架
+## 选择条件与验证证据
 
-本节承接 `04` 的 Cache 资源边界，先阅读 [37 KV Cache Scheduling](../../02_PyTorch_Algorithms/37_KV_Cache_Scheduling.md)、[38 Prefill/Decode 调度](../../02_PyTorch_Algorithms/38_Prefill_Decode_Scheduling.md) 与 [39 异构 PD 与服务分层](../../02_PyTorch_Algorithms/39_Hetero_PD_and_Serving_Tiers.md)，再通过 [70 Serving Scheduler Benchmark](../../02_PyTorch_Algorithms/70_Serving_Scheduler_Benchmark.md) 观察真实请求 workload。阅读下表时，先固定请求分布、Prompt 长度、generated tokens、并发度、batch 策略和 Cache policy，再区分计算、排队、交接与资源分配问题。
+本节承接 `04` 的 Cache 资源边界，先阅读 [37 KV Cache 生命周期](../../02_PyTorch_Algorithms/37_KV_Cache_Lifecycle_and_Capacity_Control.md)、[38 Prefill/Decode 调度](../../02_PyTorch_Algorithms/38_Prefill_Decode_Scheduling.md) 与 [39 异构 PD 与服务分层](../../02_PyTorch_Algorithms/39_Hetero_PD_and_Serving_Tiers.md)，再通过 [70 Serving Scheduler Benchmark](../../02_PyTorch_Algorithms/70_Serving_Scheduler_Benchmark.md) 观察真实请求 workload。只有在 MoE 模型、角色压力不对称且 backend 明确支持连接器时，才进入 [AFD](../../02_PyTorch_Algorithms/INF-AFD_Attention_FFN_Disaggregation.md) 分支。阅读下表时，先固定请求分布、Prompt 长度、generated tokens、并发度、batch 策略和 Cache policy，再区分计算、排队、交接与资源分配问题。
 
 | 观察到的现象 | 优先判断 | 下一步 |
 |:---|:---|:---|

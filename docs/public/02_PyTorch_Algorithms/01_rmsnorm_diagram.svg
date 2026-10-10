@@ -1,55 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 720" role="img" aria-labelledby="title desc">
-  <title id="title">RMSNorm Block Diagram</title>
-  <desc id="desc">RMSNorm normalizes each token across the hidden dimension and sits before attention and MLP branches.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="title desc">
+  <title id="title">LayerNorm 与 RMSNorm 的结构选择及 Pre-Norm 残差路径</title>
+  <desc id="desc">输入状态可以选择 LayerNorm 或 RMSNorm 形成尺度受控表示，再进入 Attention 或 MLP；原输入沿残差路径直接到达相加节点。</desc>
   <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="#f8fafc"/>
-      <stop offset="100%" stop-color="#eef2ff"/>
-    </linearGradient>
-    <style>
-      .title { font: 700 30px "Inter", "Noto Sans SC", sans-serif; fill: #0f172a; }
-      .sub { font: 500 16px "Inter", "Noto Sans SC", sans-serif; fill: #475569; }
-      .box { fill: #ffffff; stroke-width: 3; rx: 18; ry: 18; }
-      .label { font: 700 18px "Inter", "Noto Sans SC", sans-serif; fill: #111827; }
-      .small { font: 500 13px "Inter", "Noto Sans SC", sans-serif; fill: #334155; }
-      .arrow { stroke: #475569; stroke-width: 4; fill: none; marker-end: url(#arrow); }
-      .accent { stroke: #2563eb; stroke-width: 4; fill: none; marker-end: url(#arrowBlue); }
-    </style>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
-    </marker>
-    <marker id="arrowBlue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/>
-    </marker>
+    <style>.title{font:700 28px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.head{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.body{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:2.5}.choice{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#gray)}.main{stroke:#2563eb;stroke-width:3.5;fill:none;marker-end:url(#blue)}.residual{stroke:#7c3aed;stroke-width:3.5;fill:none;marker-end:url(#purple)}</style>
+    <marker id="gray" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker>
+    <marker id="blue" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#2563eb"/></marker>
+    <marker id="purple" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#7c3aed"/></marker>
   </defs>
-  <rect width="1400" height="720" fill="url(#bg)"/>
-  <text x="64" y="66" class="title">RMSNorm: per-token hidden state normalization</text>
-  <text x="64" y="96" class="sub">Normalize per token across hidden dimension, then scale.</text>
+  <rect width="1500" height="470" fill="#f8fafc"/>
+  <text x="55" y="55" class="title">归一化选择改变统计动作，Pre-Norm 保留残差主干</text>
+  <text x="55" y="85" class="sub">LayerNorm 同时居中与缩放；RMSNorm 只控制尺度。两者是候选分支，不是连续执行步骤。</text>
 
-  <rect x="70" y="188" width="230" height="90" class="box" fill="#fff7ed" stroke="#f59e0b"/>
-  <text x="185" y="225" text-anchor="middle" class="label">Input hidden state</text>
-  <text x="185" y="250" text-anchor="middle" class="small">x [B, T, D]</text>
+  <rect x="55" y="190" width="230" height="100" rx="16" fill="#dbeafe" stroke="#2563eb" class="box"/><text x="170" y="229" text-anchor="middle" class="head">输入主状态</text><text x="170" y="260" text-anchor="middle" class="body">每个 token：D 维向量</text>
+  <rect x="370" y="115" width="265" height="100" rx="16" fill="#fff7ed" stroke="#d97706" class="box"/><text x="502" y="153" text-anchor="middle" class="head">LayerNorm</text><text x="502" y="184" text-anchor="middle" class="body">减均值 · 方差缩放 · γ、β</text>
+  <rect x="370" y="275" width="265" height="100" rx="16" fill="#ecfeff" stroke="#0891b2" class="box"/><text x="502" y="313" text-anchor="middle" class="head">RMSNorm</text><text x="502" y="344" text-anchor="middle" class="body">均方根缩放 · γ</text>
+  <rect x="735" y="190" width="250" height="100" rx="16" fill="#f0fdf4" stroke="#16a34a" class="box"/><text x="860" y="229" text-anchor="middle" class="head">尺度受控表示</text><text x="860" y="260" text-anchor="middle" class="body">形状仍为 [B, S, D]</text>
+  <rect x="1080" y="190" width="230" height="100" rx="16" fill="#fef3c7" stroke="#d97706" class="box"/><text x="1195" y="229" text-anchor="middle" class="head">Attention / MLP</text><text x="1195" y="260" text-anchor="middle" class="body">产生子层增量</text>
+  <circle cx="1410" cy="240" r="38" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2.5"/><text x="1410" y="247" text-anchor="middle" class="head">相加</text>
 
-  <rect x="370" y="172" width="260" height="122" class="box" fill="#eff6ff" stroke="#3b82f6"/>
-  <text x="500" y="208" text-anchor="middle" class="label">RMS over D</text>
-  <text x="500" y="236" text-anchor="middle" class="small">sqrt(mean(x^2) + eps)</text>
-  <text x="500" y="258" text-anchor="middle" class="small">no mean subtraction</text>
-
-  <rect x="690" y="188" width="230" height="90" class="box" fill="#ecfccb" stroke="#65a30d"/>
-  <text x="805" y="225" text-anchor="middle" class="label">Scale by weight</text>
-  <text x="805" y="250" text-anchor="middle" class="small">learned gamma</text>
-
-  <rect x="1020" y="172" width="300" height="122" class="box" fill="#f5f3ff" stroke="#8b5cf6"/>
-  <text x="1170" y="208" text-anchor="middle" class="label">Stable output</text>
-  <text x="1170" y="236" text-anchor="middle" class="small">same shape as input</text>
-  <text x="1170" y="258" text-anchor="middle" class="small">same token, stable scale</text>
-
-  <path d="M 300 233 L 370 233" class="arrow"/>
-  <path d="M 630 233 L 690 233" class="accent"/>
-  <path d="M 920 233 L 1020 233" class="arrow"/>
-
-  <rect x="160" y="390" width="1080" height="170" class="box" fill="#ffffff" stroke="#cbd5e1"/>
-  <text x="700" y="430" text-anchor="middle" class="label">Block position</text>
-  <text x="700" y="472" text-anchor="middle" class="small">x -> RMSNorm -> Attention -> residual</text>
-  <text x="700" y="512" text-anchor="middle" class="small">h -> RMSNorm -> MLP / SwiGLU -> residual</text>
+  <path d="M285 225H330V165H370" class="choice"/><path d="M285 255H330V325H370" class="choice"/>
+  <path d="M635 165H685V225H735" class="choice"/><path d="M635 325H685V255H735" class="choice"/>
+  <path d="M985 240H1080" class="main"/><path d="M1310 240H1372" class="main"/>
+  <path d="M170 290V420H1410V278" class="residual"/>
 </svg>

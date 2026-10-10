@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="520" viewBox="0 0 1240 520" role="img" aria-labelledby="title desc">
+  <title id="title">SmoothQuant 从异常通道到候选证据</title>
+  <desc id="desc">校准输入产生逐通道统计，多个 alpha 候选执行等价平滑，再比较 W8A8 输出质量和运行路径。</desc>
+  <defs><style>.title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.sub{font:15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.h{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.t{font:14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.blue{fill:#e8f3fb;stroke:#3978a8;stroke-width:2}.red{fill:#fdecec;stroke:#c75b5b;stroke-width:2}.orange{fill:#fff1df;stroke:#c78335;stroke-width:2}.green{fill:#eaf7ef;stroke:#4c9870;stroke-width:2}.purple{fill:#f1eafa;stroke:#8b6bb1;stroke-width:2}.flow{stroke:#3978a8;stroke-width:2.5;fill:none}</style><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#3978a8"/></marker></defs>
+  <rect width="1240" height="520" rx="24" fill="#f8fbfd"/>
+  <text x="620" y="44" text-anchor="middle" class="title">SmoothQuant：先识别异常通道，再迁移量化难度</text>
+  <text x="620" y="72" text-anchor="middle" class="sub">平滑保持浮点线性层等价，但不同 α 会重新分配激活与权重的量化误差</text>
+  <rect x="45" y="120" width="200" height="88" rx="15" class="blue"/><text x="145" y="151" text-anchor="middle" class="h">校准输入</text><text x="145" y="177" text-anchor="middle" class="t">固定样本与层输入</text>
+  <rect x="290" y="120" width="200" height="88" rx="15" class="red"/><text x="390" y="151" text-anchor="middle" class="h">逐通道范围</text><text x="390" y="177" text-anchor="middle" class="t">识别激活异常通道</text>
+  <rect x="535" y="120" width="200" height="88" rx="15" class="orange"/><text x="635" y="151" text-anchor="middle" class="h">α 候选与缩放因子</text><text x="635" y="177" text-anchor="middle" class="t">控制范围迁移强度</text>
+  <rect x="780" y="120" width="200" height="88" rx="15" class="orange"/><text x="880" y="151" text-anchor="middle" class="h">等价平滑</text><text x="880" y="177" text-anchor="middle" class="t">X / s，W × s</text>
+  <rect x="1025" y="120" width="170" height="88" rx="15" class="green"/><text x="1110" y="151" text-anchor="middle" class="h">W8A8 候选</text><text x="1110" y="177" text-anchor="middle" class="t">分别量化 X′ 与 W′</text>
+  <path d="M245 164H290" class="flow" marker-end="url(#arrow)"/><path d="M490 164H535" class="flow" marker-end="url(#arrow)"/><path d="M735 164H780" class="flow" marker-end="url(#arrow)"/><path d="M980 164H1025" class="flow" marker-end="url(#arrow)"/>
+  <rect x="115" y="310" width="280" height="100" rx="16" class="purple"/><text x="255" y="343" text-anchor="middle" class="h">等价性证据</text><text x="255" y="369" text-anchor="middle" class="t">平滑前后浮点输出一致</text><text x="255" y="391" text-anchor="middle" class="t">广播轴与缩放方向正确</text>
+  <rect x="480" y="310" width="280" height="100" rx="16" class="purple"/><text x="620" y="343" text-anchor="middle" class="h">量化质量证据</text><text x="620" y="369" text-anchor="middle" class="t">输出误差 · NLL · 任务质量</text><text x="620" y="391" text-anchor="middle" class="t">比较未平滑 W8A8 基线</text>
+  <rect x="845" y="310" width="280" height="100" rx="16" class="purple"/><text x="985" y="343" text-anchor="middle" class="h">执行路径证据</text><text x="985" y="369" text-anchor="middle" class="t">量化产物 · 加载器 · 计算内核</text><text x="985" y="391" text-anchor="middle" class="t">服务收益交给项目复测</text>
+  <path d="M850 208V246H255V310" class="flow" marker-end="url(#arrow)"/>
+  <path d="M1080 208V266H620V310" class="flow" marker-end="url(#arrow)"/>
+  <path d="M1140 208V286H985V310" class="flow" marker-end="url(#arrow)"/>
+  <rect x="365" y="448" width="510" height="44" rx="13" fill="#fff" stroke="#4c9870" stroke-width="2"/><text x="620" y="476" text-anchor="middle" class="h">选择通过等价性和质量门槛的 α 候选</text>
+  <path d="M255 410V430H500V448" class="flow" marker-end="url(#arrow)"/>
+  <path d="M620 410V448" class="flow" marker-end="url(#arrow)"/>
+</svg>

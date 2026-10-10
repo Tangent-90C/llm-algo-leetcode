@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 390" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="390" viewBox="0 0 1200 390" role="img" aria-labelledby="title desc">
   <title id="title">QLoRA GPU 复测流程</title>
   <desc id="desc">从固定训练环境到 LoRA 与 QLoRA 对照、结果记录、adapter manifest 和选型决策。</desc>
   <defs>

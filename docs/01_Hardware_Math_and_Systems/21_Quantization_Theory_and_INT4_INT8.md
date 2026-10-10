@@ -398,7 +398,7 @@ print('quantization fails when bitwidth, calibration, and hardware support are a
 **导语：** 学完本节后，可以沿权重量化、KV Cache 量化和部署验证继续学习。
 
 - [25. Quantization W8A16 | W8A16 量化](../02_PyTorch_Algorithms/25_Quantization_W8A16.md)
-- [41. FP8 and KV Cache Quantization | FP8 与 KV Cache 量化](../02_PyTorch_Algorithms/41_FP8_and_KV_Cache_Quantization.md)
+- [41. FP8 Runtime Low-Precision Paths | FP8 运行时低精度路径](../02_PyTorch_Algorithms/41_FP8_Runtime_Low_Precision_Paths.md)
 - [67. Quantized Inference and Deployment | 量化推理与部署](../02_PyTorch_Algorithms/67_Quantized_Inference_and_Deployment.md)
 
 **经典论文：**
@@ -408,5 +408,5 @@ print('quantization fails when bitwidth, calibration, and hardware support are a
 
 **开源实现：**
 - [llama.cpp](https://github.com/ggml-org/llama.cpp)：GGUF 文件与本地推理 backend。
-- [vLLM Quantization](https://docs.vllm.ai/en/latest/features/quantization/)：量化模型在推理 backend 中的加载与执行入口。
+- [vLLM Quantization](https://docs.vllm.ai/en/latest/features/quantization_compression/)：量化模型在推理 backend 中的加载与执行入口。
 ---

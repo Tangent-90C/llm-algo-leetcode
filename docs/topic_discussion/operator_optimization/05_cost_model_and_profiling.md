@@ -15,6 +15,17 @@
 | GPU 资源 | block、occupancy 和并发 | GPU 型号、编译目标 |
 | workload | 候选配置和最终结论 | batch、序列长度、重复次数 |
 
+## 为什么最优解会随 backend 分化
+
+同一张图可以有多个语义等价的实现，但不同 backend 对 layout、Tensor Core 路径、编译缓存、launch 和 runtime 调度的成本假设不同。成本模型的目标不是宣布某个 backend “更快”，而是解释当前硬件与 workload 下为什么某个候选更合适。
+
+| 分化来源 | 需要固定的条件 | 不能省略的记录 |
+|:---|:---|:---|
+| 硬件资源 | GPU 架构、显存与 SM 资源 | 设备型号、驱动、编译目标 |
+| backend 能力 | 算子覆盖、图捕获、fallback | backend 版本、实际执行路径 |
+| 输入分布 | shape、dtype、layout 与动态范围 | bucket 规则、输入分布 |
+| 编译与缓存 | 首次编译、缓存命中与重编译 | compile time、cache key、冷/热运行 |
+
 动态 Shape 需要单独记录。一个配置在固定 shape 上最优，不代表它适合其他 batch、序列长度或隐藏维度；autotune 还可能把编译时间、缓存命中和运行时间混在一起。
 
 | 动态因素 | 需要比较 | 建议记录 |
@@ -39,8 +50,4 @@
 
 你应能把一个 profiling 现象映射到可验证的优化动作，并说明为什么“某个 shape 上最快”不等于“所有 workload 上最优”。
 
-## 从 Part 02 · 44 迁移的自动调优机制
-
-原 [Part 02 · 44 通用预留](../../02_PyTorch_Algorithms/44_Reserved_44.md) 的自动调优内容已归入本页：先用显存和延迟约束筛掉不可行配置，再对候选配置评分，最后保留候选、约束、评分和推荐理由。这里的重点是把 autotune 当作受约束的搜索与证据记录，而不是只报告一次最快运行。
-
-迁移后的统一记录至少包括：shape、dtype、block 配置、num warps、num stages、显存上限、延迟上限、编译时间、重复运行结果和最终选择理由。原 Notebook 仅保留迁移入口；算子优化路线中的 [Task 5：成本模型与 Profiling](./05_cost_model_and_profiling.md) 负责完整机制，Task 6 负责把候选搜索接入端到端项目。
+统一记录至少包括：shape、dtype、block 配置、num warps、num stages、backend、显存上限、延迟上限、编译时间、重复运行结果和最终选择理由。算子优化路线中的 Task 5 负责成本模型与 Profiling，Task 6 把候选搜索接入端到端项目。

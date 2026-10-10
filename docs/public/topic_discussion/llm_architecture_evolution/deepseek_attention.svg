@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="760" viewBox="0 0 1600 760" role="img" aria-labelledby="title desc">
+  <title id="title">注意力的表示压缩与稀疏访问</title>
+  <desc id="desc">从 MHA、GQA 到 MLA 的历史状态压缩，再到索引选择与并行稀疏分支。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fdfbf7"/>
+      <stop offset="100%" stop-color="#eef6ff"/>
+    </linearGradient>
+    <style>
+      .title { font: 700 30px "Inter", "Noto Sans SC", sans-serif; fill: #0f172a; }
+      .sub { font: 500 16px "Inter", "Noto Sans SC", sans-serif; fill: #475569; }
+      .box { fill: #ffffff; stroke-width: 3; rx: 16; ry: 16; }
+      .label { font: 700 18px "Inter", "Noto Sans SC", sans-serif; fill: #111827; }
+      .small { font: 500 14px "Inter", "Noto Sans SC", sans-serif; fill: #334155; }
+      .arrow { stroke: #475569; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .accent { stroke: #2563eb; stroke-width: 4; fill: none; marker-end: url(#arrowBlue); }
+      .accent2 { stroke: #7c3aed; stroke-width: 4; fill: none; marker-end: url(#arrowPurple); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowBlue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="760" fill="url(#bg)"/>
+  <text x="64" y="64" class="title">注意力演进：压缩历史表示，再缩小访问范围</text>
+  <text x="64" y="96" class="sub">长上下文压力下，状态表示与词元访问是两条不同但可组合的结构轴</text>
+
+  <rect x="70" y="160" width="320" height="92" class="box" fill="#eff6ff" stroke="#2563eb"/>
+  <text x="230" y="196" text-anchor="middle" class="label">MHA / GQA</text>
+  <text x="230" y="222" text-anchor="middle" class="small">共享 KV 注意力头，减少重复状态</text>
+
+  <rect x="440" y="160" width="320" height="92" class="box" fill="#ecfccb" stroke="#65a30d"/>
+  <text x="600" y="196" text-anchor="middle" class="label">MLA</text>
+  <text x="600" y="222" text-anchor="middle" class="small">将历史 K/V 压缩为潜在状态</text>
+
+  <rect x="810" y="160" width="320" height="92" class="box" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text x="970" y="196" text-anchor="middle" class="label">索引器 + 选择器</text>
+  <text x="970" y="222" text-anchor="middle" class="small">精细注意力前先选 Top-k 词元</text>
+
+  <rect x="1180" y="160" width="320" height="92" class="box" fill="#fff1f2" stroke="#e11d48"/>
+  <text x="1340" y="196" text-anchor="middle" class="label">DSA / NSA</text>
+  <text x="1340" y="222" text-anchor="middle" class="small">面向硬件执行的稀疏注意力</text>
+
+  <path d="M 390 206 L 440 206" class="arrow"/>
+  <path d="M 760 206 L 810 206" class="accent"/>
+  <path d="M 1130 206 L 1180 206" class="accent2"/>
+
+  <rect x="90" y="360" width="430" height="240" class="box" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="305" y="398" text-anchor="middle" class="label">MLA：潜在 KV 状态</text>
+  <text x="120" y="438" class="small">1. 将完整 K/V 投影到低秩潜在空间</text>
+  <text x="120" y="470" class="small">2. 缓存紧凑状态，而非每个注意力头的完整 K/V</text>
+  <text x="120" y="502" class="small">3. 解码时按计算路径读取或重建所需表示</text>
+  <text x="120" y="534" class="small">结果：降低缓存容量与带宽，同时检查重建代价</text>
+
+  <rect x="575" y="360" width="430" height="240" class="box" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="790" y="398" text-anchor="middle" class="label">索引器 + 选择器</text>
+  <text x="605" y="438" class="small">1. 低成本索引器先为历史词元打分</text>
+  <text x="605" y="470" class="small">2. 选择器保留相关性最高的 Top-k 词元</text>
+  <text x="605" y="502" class="small">3. 精细注意力只读取被选中的子集</text>
+  <text x="605" y="534" class="small">结果：长上下文访问从“全读”变为“先扫后读”</text>
+
+  <rect x="1060" y="360" width="450" height="240" class="box" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="1285" y="398" text-anchor="middle" class="label">并行稀疏分支</text>
+  <text x="1090" y="438" class="small">压缩分支：保留粗粒度全局摘要</text>
+  <text x="1090" y="470" class="small">选择分支：精读高分词元</text>
+  <text x="1090" y="502" class="small">滑窗分支：保留局部细节与连续性</text>
+  <text x="1090" y="534" class="small">结果：在质量、访问量与硬件执行间取舍</text>
+
+  <path d="M 600 252 C 600 300 305 300 305 360" class="accent"/>
+  <path d="M 970 252 C 970 300 790 300 790 360" class="accent2"/>
+  <path d="M 1340 252 C 1340 300 1285 300 1285 360" class="arrow"/>
+</svg>

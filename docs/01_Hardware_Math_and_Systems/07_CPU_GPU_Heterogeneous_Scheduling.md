@@ -23,7 +23,7 @@
 ---
 ## 前置阅读
 **导语：** 这一页先把 CPU / GPU 协同、通信延迟和调度重叠讲清楚，再决定什么时候该把任务留在 CPU，什么时候该把任务交给 GPU。
-- [Group 1C: Distributed Communication and Memory Sharing | 1C: 多卡通信与显存共享](./1C.md)
+- [Group 1C: Communication, Parallelism and Fault Tolerance | 1C: 通信、并行与容错](./1C.md)
 - [15. CUDA Execution Model | CUDA 执行模型](./15_CUDA_Execution_Model.md)
 - [17. CUDA Stream and Asynchrony | CUDA Stream 与异步执行](./17_CUDA_Stream_and_Asynchrony.md)
 ## 相关阅读

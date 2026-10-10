@@ -25,7 +25,7 @@
 
 **导语：** 先把 block 和 shared memory 的关系对齐，再看 stream 和异步重叠会更顺。
 
-- [Group 1C: Distributed Communication and Memory Sharing | 1C: 多卡通信与显存共享](./1C.md)
+- [Group 1C: Communication, Parallelism and Fault Tolerance | 1C: 通信、并行与容错](./1C.md)
 - [15. CUDA Execution Model | CUDA 执行模型](./15_CUDA_Execution_Model.md)
 - [16. Warp Block SharedMemory Basics | Warp、Block 与 Shared Memory 基础](./16_Warp_Block_SharedMemory_Basics.md)
 

@@ -1,25 +1,55 @@
-# 性能优化问题链：从“变慢”到工程决策
+# 性能优化问题链：从现象到候选决策
 
-假设一个训练或推理系统出现了性能问题：运行变慢、显存接近上限、GPU 利用率不稳定，或者增加设备后收益很小。不要立即选择某个优化技巧，先沿着下面的问题链推进：
+性能优化从可复查的现象开始，并沿着固定顺序推进：建立可比较基线，确认主要约束，选择能够改变该约束的候选，再检查代价转移和瓶颈变化。任一步缺少证据，都应回到对应阶段补测，而不是继续叠加策略。
 
-```text
-定义 workload → 建立 baseline → 取得可观测证据
-→ 定位显存/计算/通信/I/O对象 → 比较候选策略
-→ 复测质量、成本和稳定性 → 形成项目决策
-```
+## 建立比较基线并提出候选
 
-## 第一段：先把问题变成可测量对象
+先在[01 性能问题与比较契约](./01_performance_problem_and_benchmark.md)固定模型、输入分布、硬件、数据类型、执行后端、预热、重复规则和守护条件。两次运行的工作量或质量门槛不同，就不能计算候选相对基线的收益。
 
-先明确运行阶段、输入规模、目标指标和质量门槛。训练关注 step time、throughput、peak memory；推理还要区分 TTFT、TPOT、P99、并发和生成质量。
+![性能候选比较契约](../../docs/public/topic_discussion/performance_optimization/performance_comparison_contract.svg)
 
-## 第二段：用证据而不是直觉定位
+随后使用[性能分析专题](../performance_analysis/intro.md)取得阶段时间、执行轨迹、对象驻留或回归证据，再进入[02 资源约束与候选代价](./02_observability_and_profiling.md)。候选记录必须写清作用对象、预期减少量、新增代价和证伪条件。
 
-从轻量计时和显存统计开始，再根据假设进入框架 profiler、trace、通信日志或 kernel 分析。一次 trace 可以提出假设，但不能自动证明优化有效。
+![从归因证据到候选假设](../../docs/public/topic_discussion/performance_optimization/attribution_to_candidate_hypothesis.svg)
 
-## 第三段：区分资源对象和代价转移
+## 根据主要约束选择分支
 
-Checkpoint 用计算换显存，Offload 用搬运和同步换显存，量化改变表示精度和存储，通信并行改变跨设备代价。比较方案时必须同时记录收益和新增成本。
+| 已确认的主要约束 | 需要继续解释的关系 | 正文入口 | 返回主线时带回的证据 |
+|:---|:---|:---|:---|
+| 输入等待或训练状态峰值 | 输入供给、状态生命周期与单步时间怎样相互影响 | [03 训练输入、状态与资源账本](./03_training_memory_ledger.md) | 取批等待、暴露 H2D、峰值对象、单步时间、吞吐与质量 |
+| 请求状态容量 | 长度、并发、KV 分配与复用怎样影响服务指标 | [04 推理状态容量与 KV Cache](./04_inference_memory_and_kv_cache.md) | 每 Token 状态、峰值、命中/驱逐、TTFT、TPOT、P99 与质量 |
+| 计算、搬运、通信或排队等待 | 哪个事件位于关键路径，依赖是否允许重叠 | [05 计算、通信与 I/O](./05_compute_communication_and_io.md) | 前驱关系、总时间、暴露时间、资源争用和失败状态 |
 
-## 第四段：从局部改善走向端到端结论
+### 训练输入与状态
 
-候选策略需要在相同 workload 下与 baseline 比较，并检查质量、稳定性、尾延迟和资源成本。最终结论应说明适用硬件、模型、输入分布和仍未验证的风险。
+训练分支先检查输入批次何时就绪，再观察参数、激活、梯度、优化器状态、工作区和通信缓冲区在什么阶段同时驻留。
+
+![训练输入供给与状态峰值时间线](../../docs/public/topic_discussion/performance_optimization/training_state_peak_overlap.svg)
+
+SFT、LoRA/QLoRA、偏好优化和强化学习具有不同的模型驻留与阶段路径，因此不能复用同一份静态显存估算。
+
+![不同训练形态的资源路径](../../docs/public/topic_discussion/performance_optimization/post_training_resource_paths.svg)
+
+### 推理状态容量
+
+推理分支把请求长度、共享前缀和并发分布传入 KV 表示、物理管理和容量准入，再观察延迟、吞吐与质量。
+
+![KV 容量、并发与服务延迟关系](../../docs/public/topic_discussion/performance_optimization/kv_capacity_concurrency_latency.svg)
+
+### 计算、通信与 I/O 关键路径
+
+关键路径分支按输入、模型产物、运行时状态和输出回写区分对象，只有暴露在依赖链上的等待才是当前候选需要减少的时间。
+
+![输入、产物、状态和输出的 I/O 关键路径](../../docs/public/topic_discussion/performance_optimization/io_critical_path.svg)
+
+训练算法本身由[训练机制](../backpropagation_training_mechanism/intro.md)和[后训练优化](../post_training_optimization/intro.md)解释；缓存、调度和解码机制由[推理优化](../inference_optimization/intro.md)解释；多卡切分与集合通信由[通信与并行](../communication_parallelism/intro.md)解释。返回性能优化主线时，需要使用相同工作负载重新测量候选，而不是复用不同条件下的局部结果。
+
+## 从单候选准入到组合复测
+
+[06 单候选执行与准入](./06_cost_model_and_production_decision.md)先检查候选是否命中目标产物、加载器、执行后端和计算内核，再检查正确性、质量、性能、容量与成本。只有结论为 `accept` 的候选才进入组合实验；`tune` 需要缩小适用范围或调整配置，`reject` 保存失败证据并恢复基线。
+
+![单候选执行与准入判断](../../docs/public/topic_discussion/performance_optimization/production_admission_gate.svg)
+
+[07 策略组合与瓶颈转移](./07_end_to_end_performance_engineering.md)比较基线、单项候选、组合顺序和回退方案。组合后重新检查关键路径与资源上界，确认收益是否保留，以及主要约束是否转移到输入、计算、容量、通信或调度。
+
+![局部候选到组合决策](../../docs/public/topic_discussion/performance_optimization/strategy_combination_decision.svg)

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="990" viewBox="0 0 1400 990" role="img" aria-labelledby="title desc">
+  <title id="title">量化与压缩 Task0–6 学习路线</title>
+  <desc id="desc">公共表示与校准机制分流到训练和推理，再分别经过产物或执行门槛，形成工作负载决策与性能归因。</desc>
+  <defs><style>.title{font:700 30px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.sub{font:16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.head{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.body{font:15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334e68}.small{font:14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.common{fill:#e6f0ff;stroke:#729dcc;stroke-width:2}.train{fill:#fff4d6;stroke:#d9a52f;stroke-width:2}.infer{fill:#e8f5ee;stroke:#62a980;stroke-width:2}.gate{fill:#f3edff;stroke:#8b72b0;stroke-width:2}.decision{fill:#edf3f8;stroke:#7691aa;stroke-width:2}.flow{stroke:#486581;stroke-width:2.5;fill:none}.trainFlow{stroke:#b88519;stroke-width:2.5;fill:none}.inferFlow{stroke:#3f8d66;stroke-width:2.5;fill:none}.cross{stroke:#8b72b0;stroke-width:2.2;fill:none;stroke-dasharray:8 6}</style>
+  <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#486581"/></marker>
+  <marker id="trainArrow" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#b88519"/></marker>
+  <marker id="inferArrow" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#3f8d66"/></marker>
+  <marker id="crossArrow" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#8b72b0"/></marker></defs>
+  <rect width="1400" height="990" fill="#fbfcfe"/>
+  <text x="700" y="48" text-anchor="middle" class="title">量化与压缩路线：公共机制分流到训练与推理决策</text>
+  <text x="700" y="78" text-anchor="middle" class="sub">Task0–2 建立共同口径，Task3/4 分支实践，Task5/6 分别验证资产、执行与目标工作负载</text>
+
+  <rect x="70" y="125" width="340" height="105" rx="17" class="common"/>
+  <text x="240" y="160" text-anchor="middle" class="head">Task0 · 量化对象与生命周期</text><text x="240" y="190" text-anchor="middle" class="body">权重 · 激活 · 训练状态 · KV Cache</text><text x="240" y="214" text-anchor="middle" class="small">先定位容量、带宽或质量约束</text>
+  <rect x="530" y="125" width="340" height="105" rx="17" class="common"/>
+  <text x="700" y="160" text-anchor="middle" class="head">Task1 · 表示、参数与粒度</text><text x="700" y="190" text-anchor="middle" class="body">位宽 · 缩放因子 · 零点</text><text x="700" y="214" text-anchor="middle" class="small">逐张量 · 逐通道 · 逐组</text>
+  <rect x="990" y="125" width="340" height="105" rx="17" class="common"/>
+  <text x="1160" y="160" text-anchor="middle" class="head">Task2 · 校准、裁剪与误差</text><text x="1160" y="190" text-anchor="middle" class="body">范围候选 · 独立验证 · 敏感度</text><text x="1160" y="214" text-anchor="middle" class="small">冻结量化参数和质量门槛</text>
+  <path d="M410 177H530" class="flow" marker-end="url(#arrow)"/><path d="M870 177H990" class="flow" marker-end="url(#arrow)"/>
+
+  <rect x="130" y="330" width="470" height="125" rx="18" class="train"/>
+  <text x="365" y="366" text-anchor="middle" class="head">Task3 · 低比特训练与误差适配</text><text x="365" y="398" text-anchor="middle" class="body">QLoRA：冻结低比特底座，更新适配器</text><text x="365" y="426" text-anchor="middle" class="body">QAT：在训练中适配伪量化误差</text>
+  <rect x="800" y="330" width="470" height="125" rx="18" class="infer"/>
+  <text x="1035" y="366" text-anchor="middle" class="head">Task4 · 推理量化与位宽分配</text><text x="1035" y="398" text-anchor="middle" class="body">权重 · 激活 · FP8 计算 · KV 状态</text><text x="1035" y="426" text-anchor="middle" class="body">PTQ · SmoothQuant · 混合位宽</text>
+  <path d="M1110 230V280H365V330" class="trainFlow" marker-end="url(#trainArrow)"/>
+  <path d="M1210 230V294H1035V330" class="inferFlow" marker-end="url(#inferArrow)"/>
+
+  <rect x="130" y="545" width="470" height="125" rx="18" class="gate"/>
+  <text x="365" y="581" text-anchor="middle" class="head">Task5 · 训练资产准入</text><text x="365" y="613" text-anchor="middle" class="body">适配器 / 合并模型 · 清单 · 哈希</text><text x="365" y="641" text-anchor="middle" class="body">保存—加载往返 · 恢复训练</text>
+  <rect x="800" y="545" width="470" height="125" rx="18" class="gate"/>
+  <text x="1035" y="581" text-anchor="middle" class="head">Task5 · 推理执行准入</text><text x="1035" y="613" text-anchor="middle" class="body">量化产物 · 加载器 · 执行后端</text><text x="1035" y="641" text-anchor="middle" class="body">计算内核命中 · 静默回退检测</text>
+  <path d="M365 455V545" class="trainFlow" marker-end="url(#trainArrow)"/><path d="M1035 455V545" class="inferFlow" marker-end="url(#inferArrow)"/>
+
+  <rect x="130" y="760" width="470" height="120" rx="18" class="train"/>
+  <text x="365" y="797" text-anchor="middle" class="head">Task6 · 训练工作负载决策</text><text x="365" y="829" text-anchor="middle" class="body">质量 · 收敛 · 峰值显存 · 训练吞吐</text><text x="365" y="855" text-anchor="middle" class="small">固定数据、更新步数与训练状态</text>
+  <rect x="800" y="760" width="470" height="120" rx="18" class="infer"/>
+  <text x="1035" y="797" text-anchor="middle" class="head">Task6 · 推理工作负载决策</text><text x="1035" y="829" text-anchor="middle" class="body">质量 · 容量 · TTFT / TPOT · 吞吐</text><text x="1035" y="855" text-anchor="middle" class="small">固定请求、并发、硬件与执行后端</text>
+  <path d="M365 670V760" class="trainFlow" marker-end="url(#trainArrow)"/><path d="M1035 670V760" class="inferFlow" marker-end="url(#inferArrow)"/>
+
+  <rect x="555" y="910" width="290" height="48" rx="14" class="decision"/>
+  <text x="700" y="940" text-anchor="middle" class="head">跨分支性能归因与回归</text>
+  <path d="M365 880V934H555" class="cross" marker-end="url(#crossArrow)"/><path d="M1035 880V934H845" class="cross" marker-end="url(#crossArrow)"/>
+</svg>

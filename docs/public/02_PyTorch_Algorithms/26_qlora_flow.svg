@@ -1,82 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1660 820" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="620" viewBox="0 0 1400 620" role="img" aria-labelledby="title desc">
   <title id="title">QLoRA：低比特底座与可训练适配器</title>
-  <desc id="desc">概念图展示冻结的 NF4 底座、反量化前向、LoRA 可训练分支以及只更新适配器的梯度路径。</desc>
+  <desc id="desc">冻结的 NF4 底座按需恢复为计算表示，输入同时经过 LoRA 适配器，两个前向结果汇合后计算损失，梯度只更新适配器。</desc>
   <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="#f8fafc"/>
-      <stop offset="100%" stop-color="#fff7ed"/>
-    </linearGradient>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
-    </marker>
-    <marker id="pink-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#db2777"/>
-    </marker>
-    <style>
-      .title { font: 700 30px "Noto Sans SC", "Inter", sans-serif; fill: #0f172a; }
-      .sub { font: 500 16px "Noto Sans SC", "Inter", sans-serif; fill: #475569; }
-      .group { font: 700 18px "Noto Sans SC", "Inter", sans-serif; fill: #334155; }
-      .label { font: 700 18px "Noto Sans SC", "Inter", sans-serif; fill: #111827; }
-      .small { font: 500 14px "Noto Sans SC", "Inter", sans-serif; fill: #334155; }
-      .box { stroke-width: 3; rx: 16; ry: 16; }
-      .arrow { stroke: #475569; stroke-width: 4; fill: none; marker-end: url(#arrow); }
-      .dash { stroke: #db2777; stroke-width: 4; fill: none; stroke-dasharray: 9 7; marker-end: url(#pink-arrow); }
-    </style>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#fff7ed"/></linearGradient>
+    <marker id="arrow" markerUnits="userSpaceOnUse" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" orient="auto"><path d="M0 0L12 6L0 12Z" fill="#475569"/></marker>
+    <marker id="pink-arrow" markerUnits="userSpaceOnUse" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="12" markerHeight="12" orient="auto"><path d="M0 0L12 6L0 12Z" fill="#db2777"/></marker>
+    <style>.title{font:700 28px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.group{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.label{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.small{font:14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:2.4}.line{stroke:#475569;stroke-width:3;fill:none;marker-end:url(#arrow)}.grad{stroke:#db2777;stroke-width:3;fill:none;stroke-dasharray:9 7;marker-end:url(#pink-arrow)}</style>
   </defs>
-  <rect width="1660" height="820" fill="url(#bg)"/>
-  <text x="70" y="64" class="title">QLoRA：低比特底座与可训练适配器</text>
-  <text x="70" y="96" class="sub">存储路径压缩底座，计算路径临时恢复精度，学习路径只更新 LoRA 适配器。</text>
+  <rect width="1400" height="620" fill="url(#bg)"/>
+  <text x="55" y="48" class="title">QLoRA：低比特底座与可训练适配器</text>
+  <text x="55" y="76" class="sub">底座以低比特存储，计算时按需恢复；训练只更新 LoRA 适配器。</text>
 
-  <rect x="55" y="135" width="1550" height="310" rx="24" fill="#eff6ff" stroke="#bfdbfe" stroke-width="2"/>
-  <text x="85" y="175" class="group">底座存储与前向计算</text>
+  <rect x="45" y="100" width="1310" height="225" rx="20" fill="#eff6ff" stroke="#bfdbfe" stroke-width="2"/>
+  <text x="70" y="132" class="group">底座存储与前向计算</text>
+  <rect x="80" y="165" width="230" height="100" rx="13" class="box" fill="#fff" stroke="#3b82f6"/>
+  <text x="195" y="202" text-anchor="middle" class="label">冻结底座</text><text x="195" y="230" text-anchor="middle" class="small">NF4 权重与缩放元数据</text>
+  <rect x="390" y="165" width="230" height="100" rx="13" class="box" fill="#fff" stroke="#65a30d"/>
+  <text x="505" y="202" text-anchor="middle" class="label">NF4 表示</text><text x="505" y="230" text-anchor="middle" class="small">非均匀 4-bit 码本</text>
+  <rect x="700" y="165" width="230" height="100" rx="13" class="box" fill="#fff" stroke="#8b5cf6"/>
+  <text x="815" y="202" text-anchor="middle" class="label">按需反量化</text><text x="815" y="230" text-anchor="middle" class="small">恢复为 FP16 / BF16 计算表示</text>
+  <rect x="1010" y="165" width="230" height="100" rx="13" class="box" fill="#fff" stroke="#0891b2"/>
+  <text x="1125" y="202" text-anchor="middle" class="label">底座前向</text><text x="1125" y="230" text-anchor="middle" class="small">产生冻结底座输出</text>
+  <path d="M310 215H390" class="line"/><path d="M620 215H700" class="line"/><path d="M930 215H1010" class="line"/>
 
-  <rect x="90" y="215" width="270" height="130" class="box" fill="#ffffff" stroke="#3b82f6"/>
-  <text x="225" y="254" text-anchor="middle" class="label">冻结底座</text>
-  <text x="225" y="282" text-anchor="middle" class="small">权重存储为 NF4</text>
-  <text x="225" y="308" text-anchor="middle" class="small">scale / codebook 元数据</text>
-
-  <rect x="430" y="215" width="270" height="130" class="box" fill="#ffffff" stroke="#65a30d"/>
-  <text x="565" y="254" text-anchor="middle" class="label">NF4 表示</text>
-  <text x="565" y="282" text-anchor="middle" class="small">非均匀 4-bit 编码</text>
-  <text x="565" y="308" text-anchor="middle" class="small">码本与缩放因子共同解释</text>
-
-  <rect x="770" y="215" width="270" height="130" class="box" fill="#ffffff" stroke="#8b5cf6"/>
-  <text x="905" y="254" text-anchor="middle" class="label">按需反量化</text>
-  <text x="905" y="282" text-anchor="middle" class="small">NF4 → FP16 / BF16</text>
-  <text x="905" y="308" text-anchor="middle" class="small">恢复到计算表示</text>
-
-  <rect x="1110" y="215" width="270" height="130" class="box" fill="#ffffff" stroke="#0891b2"/>
-  <text x="1245" y="254" text-anchor="middle" class="label">基座前向</text>
-  <text x="1245" y="282" text-anchor="middle" class="small">激活保持正常计算路径</text>
-  <text x="1245" y="308" text-anchor="middle" class="small">产生底座输出</text>
-
-  <path d="M 360 280 L 430 280" class="arrow"/>
-  <path d="M 700 280 L 770 280" class="arrow"/>
-  <path d="M 1040 280 L 1110 280" class="arrow"/>
-
-  <rect x="55" y="495" width="1550" height="235" rx="24" fill="#ecfeff" stroke="#a5f3fc" stroke-width="2"/>
-  <text x="85" y="535" class="group">可训练分支与输出合并</text>
-
-  <rect x="180" y="570" width="310" height="110" class="box" fill="#ffffff" stroke="#14b8a6"/>
-  <text x="335" y="607" text-anchor="middle" class="label">LoRA 适配器</text>
-  <text x="335" y="635" text-anchor="middle" class="small">低秩 rank-r · 高精度存储</text>
-  <text x="335" y="661" text-anchor="middle" class="small">唯一接收主要梯度更新</text>
-
-  <rect x="610" y="570" width="310" height="110" class="box" fill="#ffffff" stroke="#f59e0b"/>
-  <text x="765" y="607" text-anchor="middle" class="label">适配器增量</text>
-  <text x="765" y="635" text-anchor="middle" class="small">计算 ΔW x</text>
-  <text x="765" y="661" text-anchor="middle" class="small">与底座输出并行形成</text>
-
-  <rect x="1040" y="570" width="310" height="110" class="box" fill="#ffffff" stroke="#db2777"/>
-  <text x="1195" y="607" text-anchor="middle" class="label">输出与损失</text>
-  <text x="1195" y="635" text-anchor="middle" class="small">底座输出 + 适配器增量</text>
-  <text x="1195" y="661" text-anchor="middle" class="small">反向只更新 LoRA</text>
-
-  <path d="M 1245 345 C 1245 470 1195 470 1195 570" class="arrow"/>
-  <path d="M 490 625 L 610 625" class="arrow"/>
-  <path d="M 920 625 L 1040 625" class="arrow"/>
-  <path d="M 1195 570 C 1195 505 335 505 335 570" class="dash"/>
-
-  <text x="1375" y="608" class="small" fill="#be185d">虚线：梯度更新路径</text>
-  <text x="1375" y="635" class="small">实线：前向数据路径</text>
+  <rect x="45" y="350" width="1310" height="215" rx="20" fill="#ecfeff" stroke="#a5f3fc" stroke-width="2"/>
+  <text x="70" y="382" class="group">可训练分支与输出汇合</text>
+  <rect x="120" y="420" width="280" height="90" rx="13" class="box" fill="#fff" stroke="#14b8a6"/>
+  <text x="260" y="453" text-anchor="middle" class="label">LoRA 适配器</text><text x="260" y="481" text-anchor="middle" class="small">低秩参数，接收梯度更新</text>
+  <rect x="520" y="420" width="280" height="90" rx="13" class="box" fill="#fff" stroke="#f59e0b"/>
+  <text x="660" y="453" text-anchor="middle" class="label">适配器增量</text><text x="660" y="481" text-anchor="middle" class="small">计算 ΔWx</text>
+  <rect x="920" y="420" width="280" height="90" rx="13" class="box" fill="#fff" stroke="#db2777"/>
+  <text x="1060" y="453" text-anchor="middle" class="label">输出与损失</text><text x="1060" y="481" text-anchor="middle" class="small">底座输出 + 适配器增量</text>
+  <path d="M1125 265V390H1060V420" class="line"/>
+  <path d="M400 465H520" class="line"/><path d="M800 465H920" class="line"/>
+  <path d="M1060 510V540H260V510" class="grad"/>
+  <text x="1240" y="448" class="small" fill="#be185d">虚线：梯度路径</text>
+  <text x="1240" y="474" class="small">实线：前向路径</text>
 </svg>

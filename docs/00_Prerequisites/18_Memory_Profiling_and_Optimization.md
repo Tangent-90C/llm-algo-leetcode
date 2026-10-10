@@ -10,17 +10,15 @@
 > [![Open In Studio](https://img.shields.io/badge/Open%20In-ModelScope-blueviolet?logo=alibabacloud)](https://modelscope.cn/my/mynotebook) *(国内推荐：魔搭社区免费实例)*
 
 
-训练时，模型参数只是显存占用的一部分。反向传播还需要保存梯度、优化器状态、activation 和临时缓冲，因此“模型能够加载”不等于“一步训练能够完成”。本节先建立显存账本，再根据主导对象比较 batch、梯度累积、混合精度和 checkpoint 等策略。
-
-本节先用可运行的理论账本建立判断方法，再把账本中的对象映射到实际运行的 `allocated`、`reserved` 和 `peak`，为后续 GPU workload 测量准备记录口径。
+训练时，模型参数只是显存占用的一部分。反向传播还需要保存梯度、优化器状态、activation 和临时缓冲，因此“模型能够加载”不等于“一步训练能够完成”。你将先建立理论账本，找出主导对象，再比较 batch、梯度累积、混合精度和 checkpoint 等策略，并把账本映射到实际运行的 `allocated`、`reserved` 和 `peak`。
 
 **关键词：** `memory`, `checkpoint`, `accumulation`
 
 ![训练显存对象与策略图](../public/00_Prerequisites/18_memory_object_strategy_map.svg)
 
 ## 前置阅读
-**导语：** 先完成 17 的时间观察，再把同一次运行中的参数、梯度、activation 和临时张量放进显存账本。
-- [17. PyTorch Profiling Basics | PyTorch 性能分析基础](./17_PyTorch_Profiling_Basics.md)
+**导语：** 先从 0E 组页判断当前问题是否属于容量证据，再把参数、梯度、activation 和临时张量放进同一账本。
+- [0E 组页](./0E.md)
 
 ## Q1：显存账本先分哪几层？
 
@@ -89,6 +87,19 @@ print('ledger:', {name: round(value, 2) if isinstance(value, float) else value f
 
 ```
 
+## Q1 验证：训练状态与单步工作集是否分别可核对？
+
+账本各项应非负，单步估算应等于常驻状态与 activation 之和，主导对象必须来自已记录组件。
+
+
+```python
+assert ledger['one_step_estimate_mb'] == ledger['static_state_mb'] + ledger['activation_mb']
+assert ledger['dominant'] in components
+assert all(value >= 0 for value in components.values())
+print('✅ 训练状态与单步工作集账本通过')
+
+```
+
 ## Q2：常驻显存和动态显存，谁更像当前瓶颈？
 
 同样是 OOM，模型一加载就失败、反向传播时失败，以及运行多步后持续增长，原因可能完全不同。先比较账本中的对象大小，再把主导对象和现象对应起来，才能决定优先调整模型状态、单步 batch，还是 activation 保存策略。
@@ -130,6 +141,19 @@ print('dominant report:', dominant_report)
 
 ```
 
+## Q2 验证：主导对象、占比和总量是否一致？
+
+给定 optimizer state 最大的账本，结果应识别对应对象，并让各项之和与输入总量一致。
+
+
+```python
+assert dominant_report['dominant'] == 'optimizer_state'
+assert 0 < dominant_report['dominant_share_pct'] <= 100
+assert sum(dominant_report['items'].values()) == 9200
+print('✅ 主导内存对象识别通过')
+
+```
+
 ## Q3：什么时候该缩 batch，什么时候该做梯度累积？
 
 先区分两个 batch：`micro-batch` 是一次真正送入模型的样本数，`effective batch` 是累积若干次梯度后才更新一次参数的总样本数。缩小 micro-batch 会降低单次 activation 峰值；梯度累积可以近似保住 effective batch，但会增加前向 / 反向次数，不会减少参数、梯度或 optimizer state 的长期占用。
@@ -162,10 +186,18 @@ for cfg in configs:
     cfg['forward_backward_rounds'] = forward_backward_rounds
     print(cfg)
 
+```
+
+## Q3 验证：相同 effective batch 下，micro-batch 与累计轮数是否形成交换？
+
+缩小 micro-batch 应降低 activation 峰值；为了保持相同 effective batch，需要增加 forward/backward 轮数。
+
+
+```python
 assert configs[0]['effective_batch'] == configs[1]['effective_batch']
 assert configs[1]['activation_peak_mb'] < configs[0]['activation_peak_mb']
 assert configs[1]['forward_backward_rounds'] > configs[0]['forward_backward_rounds']
-print('✅ effective batch、activation 峰值和重算次数关系通过')
+print('✅ effective batch、activation 峰值和累计轮数关系通过')
 
 ```
 
@@ -200,6 +232,20 @@ for name, (memory, recompute_proxy) in rows:
     print(f"{name:<32} {memory:>6.2f} MB | recompute proxy: {recompute_proxy}")
 
 print("checkpointing mainly reduces saved activations; bf16 mainly cuts dtype bytes")
+
+```
+
+## Q4 验证：dtype 与 checkpoint 是否分别改变字节数和重算代价？
+
+低精度应减少单元素字节数，checkpoint 应减少保存层数并提高重算代理，两者可以叠加。
+
+
+```python
+assert rows[1][1][0] < rows[0][1][0]
+assert rows[2][1][0] < rows[0][1][0]
+assert rows[3][1][0] < rows[1][1][0]
+assert rows[2][1][1] > rows[0][1][1]
+print('✅ dtype 字节数与 checkpoint 重算代理关系通过')
 
 ```
 
@@ -240,12 +286,21 @@ print(f"keep tensor: type={type(loss_bucket[0]).__name__}, grad_fn={loss_bucket[
 print(f"keep scalar: type={type(scalar_bucket[0]).__name__}, value={scalar_bucket[0]:.4f}")
 print(f"no_grad output requires_grad={pred.requires_grad}")
 print(f"detach output requires_grad={detached.requires_grad}, grad_fn={detached.grad_fn}")
+print("store tensors only when you really need the graph")
+
+```
+
+## Q5 验证：保存 Tensor、标量和切断计算图是否产生不同状态？
+
+直接保存 loss Tensor 会保留 `grad_fn`；保存标量、使用 `no_grad()` 或 `detach()` 不应继续持有当前计算图。
+
+
+```python
 assert loss_bucket[0].grad_fn is not None
 assert isinstance(scalar_bucket[0], float)
 assert not pred.requires_grad
 assert not detached.requires_grad and detached.grad_fn is None
 print('✅ 计算图持有、标量保存、no_grad 和 detach 区分通过')
-print("store tensors only when you really need the graph")
 
 ```
 
@@ -287,10 +342,24 @@ print('decision:', decision)
 
 ```
 
+## Q6 验证：策略建议是否来自容量和主导对象？
+
+当单步工作集超过容量但常驻状态仍可容纳时，应优先比较 batch 或 checkpoint，并保留峰值显存与吞吐作为复测指标。
+
+
+```python
+assert decision['strategy'] == 'reduce_batch_or_checkpoint'
+assert decision['total_mb'] == 9000
+assert {'peak_memory_mb', 'throughput'} <= set(decision['metrics'])
+print('✅ 内存主导对象到策略建议的映射通过')
+
+```
+
 ## 相关阅读
 **导语：** 完成本节后，可以继续学习 PyTorch 的显存分配语义，并把理论账本与训练侧策略比较连接起来。
 - [PyTorch CUDA 显存管理文档](https://docs.pytorch.org/docs/stable/notes/cuda.html)
 - [PyTorch memory_snapshot 官方说明](https://docs.pytorch.org/docs/stable/torch_cuda_memory.html)
+- [17. PyTorch Profiling Basics | PyTorch 性能分析基础](./17_PyTorch_Profiling_Basics.md)
 - [19. Debugging and Anomaly Localization | 调试与异常定位](./19_Debugging_and_Anomaly_Localization.md)
-- [20. Profiling and Memory Ledger | 性能剖析与显存账本](./20_Profiling_and_Memory_Ledger.md)
+- [20. Performance Evidence and Experiment Design | 性能证据汇总与实验设计](./20_Performance_Evidence_and_Experiment_Design.md)
 - [76. Activation / Checkpoint / Offload Benchmark | 激活检查点与卸载对比](../02_PyTorch_Algorithms/76_Activation_Checkpoint_Offload_Benchmark.md)

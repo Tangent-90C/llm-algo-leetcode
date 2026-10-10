@@ -27,10 +27,11 @@ RUN conda create -y -n llm_algo_cnb_dev \
     && conda clean -afy
 
 RUN /opt/conda/envs/llm_algo_cnb_dev/bin/pip install --no-cache-dir \
+        --index-url https://download.pytorch.org/whl/cpu \
         torch \
+    && /opt/conda/envs/llm_algo_cnb_dev/bin/pip install --no-cache-dir \
         einops \
         transformers \
-        triton \
         termcolor \
         pytest
 

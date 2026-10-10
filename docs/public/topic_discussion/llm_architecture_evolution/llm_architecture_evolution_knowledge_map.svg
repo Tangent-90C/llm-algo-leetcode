@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="900" viewBox="0 0 1680 900" role="img" aria-labelledby="title desc">
+  <title id="title">大模型架构演进知识地图</title>
+  <desc id="desc">五类模型内部结构维度共同进入架构配置与状态接口审计，再分别向训练、后训练、推理、通信、性能和算子验证提供结构事实。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#f0fdfa"/></linearGradient>
+    <style>
+      text{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+      .title{font-size:34px;font-weight:700;fill:#0f172a}
+      .sub{font-size:17px;font-weight:500;fill:#475569}
+      .box{stroke-width:2.5}
+      .head{font-size:18px;font-weight:700;fill:#0f172a}
+      .body{font-size:14px;font-weight:500;fill:#334155}
+      .arrow{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#arrow)}
+      .dash{stroke:#94a3b8;stroke-width:2.8;fill:none;stroke-dasharray:9 8;marker-end:url(#grayArrow)}
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#64748b"/></marker>
+    <marker id="grayArrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#94a3b8"/></marker>
+  </defs>
+  <rect width="1680" height="900" fill="url(#bg)"/>
+  <text x="70" y="62" class="title">大模型架构知识地图：结构维度汇入审计，再进入下游验证</text>
+  <text x="70" y="94" class="sub">上层节点是并列的模型结构维度，不表示先后顺序；下层节点只消费结构事实，并在各自工作负载中验证影响。</text>
+
+  <rect x="55" y="150" width="270" height="132" rx="18" class="box" fill="#eff6ff" stroke="#2563eb"/>
+  <text x="82" y="190" class="head">块、残差与输入表示</text><text x="82" y="220" class="body">词元 / 嵌入 / 归一化</text><text x="82" y="246" class="body">残差主干与层堆叠</text>
+  <rect x="380" y="150" width="270" height="132" rx="18" class="box" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="407" y="190" class="head">注意力与 KV 表示</text><text x="407" y="220" class="body">MHA / MQA / GQA / MLA</text><text x="407" y="246" class="body">历史状态的保存与读取</text>
+  <rect x="705" y="150" width="270" height="132" rx="18" class="box" fill="#fff7ed" stroke="#d97706"/>
+  <text x="732" y="190" class="head">位置、访问与记忆</text><text x="732" y="220" class="body">RoPE / 窗口 / 稀疏访问</text><text x="732" y="246" class="body">递推状态与混合记忆</text>
+  <rect x="1030" y="150" width="270" height="132" rx="18" class="box" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text x="1057" y="190" class="head">归一化与前馈通道</text><text x="1057" y="220" class="body">Pre-Norm / RMSNorm</text><text x="1057" y="246" class="body">SwiGLU / 稠密 FFN</text>
+  <rect x="1355" y="150" width="270" height="132" rx="18" class="box" fill="#fff1f2" stroke="#e11d48"/>
+  <text x="1382" y="190" class="head">MoE 稀疏容量</text><text x="1382" y="220" class="body">路由 / Top-k / 专家容量</text><text x="1382" y="246" class="body">溢出、分发与负载</text>
+
+  <rect x="560" y="390" width="560" height="160" rx="22" class="box" fill="#f0fdf4" stroke="#15803d"/>
+  <text x="600" y="434" class="head">架构配置、状态接口与结构审计</text>
+  <text x="600" y="468" class="body">声明字段 → 实际模块 → 张量形状 → 状态生命周期 → 资源影响</text>
+  <text x="600" y="496" class="body">结构事实与专项证据共同形成可追踪的架构审计记录</text>
+  <rect x="600" y="514" width="230" height="24" rx="12" fill="#dcfce7"/><text x="616" y="532" class="body">输出：结构候选与证据等级</text>
+
+  <path d="M190 282 C190 342 650 330 650 390" class="arrow"/>
+  <path d="M515 282 C515 330 745 342 745 390" class="arrow"/>
+  <path d="M840 282 V390" class="arrow"/>
+  <path d="M1165 282 C1165 330 935 342 935 390" class="arrow"/>
+  <path d="M1490 282 C1490 342 1030 330 1030 390" class="arrow"/>
+
+  <rect x="45" y="690" width="220" height="110" rx="18" class="box" fill="#eff6ff" stroke="#2563eb"/>
+  <text x="72" y="730" class="head">训练机制</text><text x="72" y="758" class="body">稳定性、状态与梯度</text>
+  <rect x="315" y="690" width="220" height="110" rx="18" class="box" fill="#fdf2f8" stroke="#db2777"/>
+  <text x="342" y="730" class="head">后训练优化</text><text x="342" y="758" class="body">适配范围与行为质量</text>
+  <rect x="585" y="690" width="220" height="110" rx="18" class="box" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="612" y="730" class="head">推理优化</text><text x="612" y="758" class="body">缓存、调度与服务路径</text>
+  <rect x="855" y="690" width="220" height="110" rx="18" class="box" fill="#fefce8" stroke="#ca8a04"/>
+  <text x="882" y="730" class="head">通信与并行</text><text x="882" y="758" class="body">切分、分发与扩展效率</text>
+  <rect x="1125" y="690" width="220" height="110" rx="18" class="box" fill="#fff7ed" stroke="#d97706"/>
+  <text x="1152" y="730" class="head">性能优化</text><text x="1152" y="758" class="body">容量、时间、I/O 与成本</text>
+  <rect x="1395" y="690" width="220" height="110" rx="18" class="box" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text x="1422" y="730" class="head">算子与量化</text><text x="1422" y="758" class="body">计算内核与低精度执行</text>
+
+  <path d="M650 550 C650 615 155 625 155 690" class="dash"/>
+  <path d="M725 550 C725 620 425 620 425 690" class="dash"/>
+  <path d="M800 550 C800 620 695 620 695 690" class="dash"/>
+  <path d="M880 550 C880 620 965 620 965 690" class="dash"/>
+  <path d="M955 550 C955 620 1235 620 1235 690" class="dash"/>
+  <path d="M1030 550 C1030 615 1505 625 1505 690" class="dash"/>
+
+  <text x="70" y="858" class="sub">结构审计只确认模型实际采用什么；质量、延迟、显存、通信与成本必须回到对应专题的固定工作负载中验证。</text>
+</svg>

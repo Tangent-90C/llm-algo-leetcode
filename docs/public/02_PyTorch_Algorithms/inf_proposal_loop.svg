@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#486581"/>
+    </marker>
+    <style>
+      .title{font:700 25px sans-serif;fill:#102a43}.group{fill:#eef5fb;stroke:#9fb9cf;stroke-width:2}.node{fill:#fff;stroke:#477a9e;stroke-width:2}.draft{fill:#eaf7ef;stroke:#4e8a68;stroke-width:2}.verify{fill:#fff6e8;stroke:#c9852f;stroke-width:2}.accept{fill:#e9f6ee;stroke:#4e8a68;stroke-width:2}.reject{fill:#fff0ea;stroke:#c56f43;stroke-width:2}.control{fill:#f2edfb;stroke:#8066b3;stroke-width:2}.label{font:700 16px sans-serif;fill:#17324d}.small{font:14px sans-serif;fill:#365269}.edge{fill:none;stroke:#486581;stroke-width:2.4;marker-end:url(#arrow)}.feedback{fill:none;stroke:#8066b3;stroke-width:2.4;stroke-dasharray:7 5;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1200" height="520" fill="#f8fafc"/>
+  <text x="600" y="38" text-anchor="middle" class="title">动态候选闭环：先验证并提交状态，再用本轮证据调整下一轮预算</text>
+
+  <rect x="34" y="66" width="1132" height="250" rx="18" class="group"/>
+  <text x="58" y="94" class="label">本轮候选与验证</text>
+
+  <rect x="62" y="130" width="178" height="82" rx="13" class="node"/>
+  <text x="151" y="162" text-anchor="middle" class="label">已提交上下文</text>
+  <text x="151" y="187" text-anchor="middle" class="small">词元与缓存状态</text>
+
+  <rect x="286" y="130" width="190" height="82" rx="13" class="draft"/>
+  <text x="381" y="162" text-anchor="middle" class="label">草稿生成</text>
+  <text x="381" y="187" text-anchor="middle" class="small">按预算 k 提出候选</text>
+
+  <rect x="522" y="130" width="190" height="82" rx="13" class="verify"/>
+  <text x="617" y="162" text-anchor="middle" class="label">目标模型验证</text>
+  <text x="617" y="187" text-anchor="middle" class="small">逐位比较目标分布</text>
+
+  <rect x="758" y="104" width="180" height="72" rx="13" class="accept"/>
+  <text x="848" y="134" text-anchor="middle" class="label">连续接受</text>
+  <text x="848" y="157" text-anchor="middle" class="small">提交已通过前缀</text>
+
+  <rect x="758" y="206" width="180" height="72" rx="13" class="reject"/>
+  <text x="848" y="236" text-anchor="middle" class="label">拒绝与修正</text>
+  <text x="848" y="259" text-anchor="middle" class="small">在首个分歧处改写</text>
+
+  <rect x="984" y="130" width="150" height="82" rx="13" class="node"/>
+  <text x="1059" y="162" text-anchor="middle" class="label">提交状态</text>
+  <text x="1059" y="187" text-anchor="middle" class="small">进入下一轮上下文</text>
+
+  <path d="M240 171 H286" class="edge"/>
+  <path d="M476 171 H522" class="edge"/>
+  <path d="M712 154 L758 140" class="edge"/>
+  <path d="M712 188 L758 236" class="edge"/>
+  <path d="M938 140 L984 158" class="edge"/>
+  <path d="M938 242 L964 242 Q984 242 984 212" class="edge"/>
+
+  <rect x="62" y="348" width="430" height="118" rx="15" class="node"/>
+  <text x="277" y="378" text-anchor="middle" class="label">记录本轮证据</text>
+  <text x="88" y="407" class="small">接受长度 · 拒绝位置 · 草稿置信度</text>
+  <text x="88" y="434" class="small">草稿/验证/修正时间 · 队列与显存压力</text>
+
+  <rect x="570" y="348" width="330" height="118" rx="15" class="control"/>
+  <text x="735" y="378" text-anchor="middle" class="label">动态预算控制</text>
+  <text x="735" y="407" text-anchor="middle" class="small">在最小值与最大值之间</text>
+  <text x="735" y="434" text-anchor="middle" class="small">增大 · 保持 · 减小下一轮 k</text>
+
+  <rect x="978" y="366" width="156" height="82" rx="13" class="draft"/>
+  <text x="1056" y="398" text-anchor="middle" class="label">下一轮预算</text>
+  <text x="1056" y="423" text-anchor="middle" class="small">只控制候选数量</text>
+
+  <path d="M1059 212 V300 Q1059 326 1033 326 H277 V348" class="edge"/>
+  <path d="M492 407 H570" class="edge"/>
+  <path d="M900 407 H978" class="edge"/>
+  <path d="M1056 366 V328 Q1056 304 1032 304 H381 Q357 304 357 280 V212" class="feedback"/>
+</svg>

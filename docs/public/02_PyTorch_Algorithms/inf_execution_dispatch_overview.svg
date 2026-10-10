@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">从模型语义到实际执行路径</title>
+  <desc id="desc">模型图形成融合候选，候选依次检查模式、设备、数据类型和形状门槛，再进入优化或回退路径并汇总执行证据。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#486581"/>
+    </marker>
+    <style>
+      .title{font:700 25px sans-serif;fill:#102a43}.group{fill:#eef5fb;stroke:#9fb9cf;stroke-width:2}.node{fill:#fff;stroke:#477a9e;stroke-width:2}.candidate{fill:#eaf3fb;stroke:#5684aa;stroke-width:2}.pass{fill:#eaf7ef;stroke:#4e8a68;stroke-width:2}.fail{fill:#fff0ea;stroke:#c56f43;stroke-width:2}.gate{fill:#fff6e8;stroke:#c9852f;stroke-width:2}.label{font:700 16px sans-serif;fill:#17324d}.small{font:14px sans-serif;fill:#365269}.edge{fill:none;stroke:#486581;stroke-width:2.4;marker-end:url(#arrow)}.reject{fill:none;stroke:#c56f43;stroke-width:2.4;stroke-dasharray:7 5;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1200" height="520" fill="#f8fafc"/>
+  <text x="600" y="38" text-anchor="middle" class="title">从模型语义到实际执行：融合候选必须通过逐项能力门槛</text>
+
+  <rect x="30" y="68" width="244" height="318" rx="17" class="group"/>
+  <text x="152" y="98" text-anchor="middle" class="label">模型图与运行条件</text>
+  <rect x="62" y="126" width="180" height="66" rx="12" class="node"/>
+  <text x="152" y="154" text-anchor="middle" class="label">模型算子序列</text>
+  <text x="152" y="176" text-anchor="middle" class="small">注意力 · MLP · 归一化</text>
+  <rect x="62" y="238" width="180" height="86" rx="12" class="node"/>
+  <text x="152" y="267" text-anchor="middle" class="label">捕获计算图</text>
+  <text x="152" y="290" text-anchor="middle" class="small">节点、依赖与数据类型</text>
+  <text x="152" y="312" text-anchor="middle" class="small">设备、形状与动态性</text>
+  <path d="M152 192 V238" class="edge"/>
+
+  <rect x="306" y="68" width="244" height="318" rx="17" class="group"/>
+  <text x="428" y="98" text-anchor="middle" class="label">模式识别与候选形成</text>
+  <rect x="338" y="126" width="180" height="66" rx="12" class="candidate"/>
+  <text x="428" y="154" text-anchor="middle" class="label">识别连续模式</text>
+  <text x="428" y="176" text-anchor="middle" class="small">保持数据依赖与顺序</text>
+  <rect x="338" y="238" width="180" height="86" rx="12" class="candidate"/>
+  <text x="428" y="267" text-anchor="middle" class="label">登记融合候选</text>
+  <text x="428" y="290" text-anchor="middle" class="small">收益来源与所需能力</text>
+  <text x="428" y="312" text-anchor="middle" class="small">候选尚不等于实际命中</text>
+  <path d="M428 192 V238" class="edge"/>
+  <path d="M242 281 H338" class="edge"/>
+
+  <rect x="582" y="68" width="276" height="318" rx="17" class="group"/>
+  <text x="720" y="98" text-anchor="middle" class="label">后端能力门槛</text>
+  <rect x="614" y="122" width="108" height="58" rx="11" class="gate"/>
+  <text x="668" y="146" text-anchor="middle" class="label">模式</text>
+  <text x="668" y="166" text-anchor="middle" class="small">是否支持</text>
+  <rect x="738" y="122" width="88" height="58" rx="11" class="gate"/>
+  <text x="782" y="146" text-anchor="middle" class="label">设备</text>
+  <text x="782" y="166" text-anchor="middle" class="small">硬件能力</text>
+  <rect x="614" y="204" width="108" height="58" rx="11" class="gate"/>
+  <text x="668" y="228" text-anchor="middle" class="label">数据类型</text>
+  <text x="668" y="248" text-anchor="middle" class="small">计算内核</text>
+  <rect x="738" y="204" width="88" height="58" rx="11" class="gate"/>
+  <text x="782" y="228" text-anchor="middle" class="label">形状</text>
+  <text x="782" y="248" text-anchor="middle" class="small">范围与分桶</text>
+  <rect x="614" y="294" width="212" height="62" rx="12" class="node"/>
+  <text x="720" y="320" text-anchor="middle" class="label">逐项检查并保留原因</text>
+  <text x="720" y="342" text-anchor="middle" class="small">通过或拒绝当前后端</text>
+  <path d="M668 180 V204" class="edge"/>
+  <path d="M782 180 V204" class="edge"/>
+  <path d="M668 262 V294" class="edge"/>
+  <path d="M782 262 V294" class="edge"/>
+  <path d="M518 281 H582" class="edge"/>
+
+  <rect x="890" y="68" width="280" height="318" rx="17" class="group"/>
+  <text x="1030" y="98" text-anchor="middle" class="label">执行路径</text>
+  <rect x="930" y="126" width="200" height="76" rx="12" class="pass"/>
+  <text x="1030" y="156" text-anchor="middle" class="label">优化路径</text>
+  <text x="1030" y="179" text-anchor="middle" class="small">编译图或专用计算内核</text>
+  <rect x="930" y="248" width="200" height="86" rx="12" class="fail"/>
+  <text x="1030" y="278" text-anchor="middle" class="label">替代或回退路径</text>
+  <text x="1030" y="301" text-anchor="middle" class="small">下一后端 · 重新编译</text>
+  <text x="1030" y="322" text-anchor="middle" class="small">即时执行并保留拒绝原因</text>
+  <path d="M826 310 H874 V164 H930" class="edge"/>
+  <path d="M826 340 H910 V291 H930" class="reject"/>
+
+  <rect x="274" y="430" width="652" height="60" rx="13" class="node"/>
+  <text x="600" y="456" text-anchor="middle" class="label">执行证据</text>
+  <text x="600" y="478" text-anchor="middle" class="small">实际路径 · 拒绝原因 · 图数量与图中断 · 性能分析中的算子和计算内核</text>
+  <path d="M1130 164 H1162 V412 H880 V430" class="edge"/>
+  <path d="M1130 291 H1142 V398 H820 V430" class="reject"/>
+</svg>

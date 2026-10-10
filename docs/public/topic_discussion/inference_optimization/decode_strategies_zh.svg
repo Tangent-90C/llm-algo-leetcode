@@ -44,9 +44,9 @@
 
 <!-- 分：多请求组织 -->
 <rect x="1015" y="300" width="230" height="92" fill="#f0eefb" stroke="#8069b5" class="box"/>
-<text x="1130" y="337" text-anchor="middle" class="head">多请求组织</text><text x="1130" y="367" text-anchor="middle" class="text">请求进入 batch 与队列的方式</text>
+<text x="1130" y="337" text-anchor="middle" class="head">多请求组织</text><text x="1130" y="367" text-anchor="middle" class="text">请求进入批次与队列的方式</text>
 <rect x="1015" y="425" width="230" height="92" fill="#ffffff" stroke="#8069b5" class="box"/>
-<text x="1130" y="462" text-anchor="middle" class="head">代表方法</text><text x="1130" y="492" text-anchor="middle" class="text">Decode batch · 优先级</text>
+<text x="1130" y="462" text-anchor="middle" class="head">代表方法</text><text x="1130" y="492" text-anchor="middle" class="text">解码批次 · 优先级</text>
 <rect x="1015" y="550" width="230" height="92" fill="#ffffff" stroke="#8069b5" class="box"/>
 <text x="1130" y="587" text-anchor="middle" class="head">观察指标</text><text x="1130" y="617" text-anchor="middle" class="text">吞吐 · P99 · 排队时间</text>
 <path d="M1130 192 V300" class="link"/><path d="M1130 392 V425" class="link"/><path d="M1130 517 V550" class="link"/>

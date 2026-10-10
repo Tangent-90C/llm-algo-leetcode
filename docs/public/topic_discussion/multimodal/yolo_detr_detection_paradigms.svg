@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="480" viewBox="0 0 1200 480" role="img" aria-labelledby="title desc">
+  <title id="title">YOLO 与 DETR 的检测范式</title><desc id="desc">YOLO 从多尺度密集候选经筛选得到检测结果，DETR 从 object queries 经集合预测直接得到对象集合；两者都在同一标注和指标下评估。</desc>
+  <style>.bg{fill:#f8fafc}.box{stroke-width:2;rx:16}.blue{fill:#eff6ff;stroke:#60a5fa}.green{fill:#ecfdf5;stroke:#34d399}.orange{fill:#fff7ed;stroke:#fb923c}.slate{fill:#f1f5f9;stroke:#94a3b8}.line{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#a)}.title{font:700 24px sans-serif;fill:#0f172a}.h{font:700 18px sans-serif;fill:#0f172a}.s{font:14px sans-serif;fill:#475569}.tag{font:700 13px sans-serif;fill:#2563eb}</style>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L10 3L0 6z" fill="#64748b"/></marker></defs>
+  <rect class="bg" width="1200" height="480" rx="20"/><text x="55" y="55" class="title">检测范式：密集候选与 object query 都要回到同一标注评测</text>
+  <rect class="box blue" x="475" y="85" width="250" height="75"/><text x="500" y="118" class="h">图像 + bbox / 类别标注</text><text x="500" y="142" class="s">固定图像、预处理与 split</text>
+  <rect class="box green" x="105" y="240" width="245" height="100"/><text x="130" y="276" class="h">YOLO 类密集预测</text><text x="130" y="305" class="s">多尺度候选、类别与框</text><text x="130" y="329" class="s">筛选 / NMS 等后处理</text>
+  <rect class="box orange" x="850" y="240" width="245" height="100"/><text x="875" y="276" class="h">DETR 类集合预测</text><text x="875" y="305" class="s">object queries、decoder</text><text x="875" y="329" class="s">matching 与对象集合</text>
+  <path class="line" d="M540 160V240H227"/><path class="line" d="M660 160V240H972"/>
+  <rect class="box slate" x="395" y="390" width="410" height="55"/><text x="425" y="423" class="h">AP / AR、漏检、误检、延迟与显存</text>
+  <path class="line" d="M227 340V390H510"/><path class="line" d="M972 340V390H690"/>
+</svg>

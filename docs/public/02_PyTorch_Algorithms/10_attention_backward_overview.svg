@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="600" viewBox="0 0 1240 600" role="img" aria-labelledby="title desc">
+  <title id="title">Attention 前向状态与反向梯度总览</title>
+  <desc id="desc">前向由查询、键和值形成分数、概率和输出；反向从输出梯度分成值分支和概率分支，并读取前向保存的状态回到查询、键和值。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#eef2ff"/></linearGradient>
+    <marker id="blueArrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L12 6L0 12Z" fill="#2563eb"/></marker>
+    <marker id="redArrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L12 6L0 12Z" fill="#dc2626"/></marker>
+    <marker id="greenArrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L12 6L0 12Z" fill="#65a30d"/></marker>
+    <style>
+      .title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.group{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.label{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.small{font:500 13px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:2.5}.forward{stroke:#2563eb;stroke-width:3;fill:none;marker-end:url(#blueArrow)}.backward{stroke:#dc2626;stroke-width:3;stroke-dasharray:8 6;fill:none;marker-end:url(#redArrow)}.saved{stroke:#65a30d;stroke-width:2.5;stroke-dasharray:7 5;fill:none;marker-end:url(#greenArrow)}
+    </style>
+  </defs>
+  <rect width="1240" height="600" fill="url(#bg)"/>
+  <text x="48" y="48" class="title">Attention backward：前向状态决定反向路径</text>
+  <text x="48" y="76" class="sub">蓝色为前向数值流，绿色为保存关系，红色虚线为反向梯度流</text>
+
+  <text x="48" y="118" class="group">前向：建立输出与可复用状态</text>
+  <rect x="48" y="138" width="180" height="72" rx="14" fill="#fff7ed" stroke="#f59e0b" class="box"/>
+  <text x="138" y="168" text-anchor="middle" class="label">Query / Key</text><text x="138" y="192" text-anchor="middle" class="small">Q、K</text>
+  <rect x="276" y="138" width="180" height="72" rx="14" fill="#eff6ff" stroke="#3b82f6" class="box"/>
+  <text x="366" y="168" text-anchor="middle" class="label">缩放打分</text><text x="366" y="192" text-anchor="middle" class="small">S = QKᵀ / √d</text>
+  <rect x="504" y="138" width="180" height="72" rx="14" fill="#f5f3ff" stroke="#8b5cf6" class="box"/>
+  <text x="594" y="168" text-anchor="middle" class="label">概率矩阵</text><text x="594" y="192" text-anchor="middle" class="small">P = Softmax(S)</text>
+  <rect x="504" y="238" width="180" height="72" rx="14" fill="#fff7ed" stroke="#f59e0b" class="box"/>
+  <text x="594" y="268" text-anchor="middle" class="label">Value</text><text x="594" y="292" text-anchor="middle" class="small">V</text>
+  <rect x="748" y="138" width="180" height="72" rx="14" fill="#ecfccb" stroke="#65a30d" class="box"/>
+  <text x="838" y="168" text-anchor="middle" class="label">Attention 输出</text><text x="838" y="192" text-anchor="middle" class="small">O = PV</text>
+  <rect x="976" y="138" width="180" height="72" rx="14" fill="#f1f5f9" stroke="#64748b" class="box"/>
+  <text x="1066" y="168" text-anchor="middle" class="label">下游损失</text><text x="1066" y="192" text-anchor="middle" class="small">产生 dO</text>
+  <path d="M228 174H276" class="forward"/><path d="M456 174H504" class="forward"/>
+  <path d="M684 174H748" class="forward"/><path d="M928 174H976" class="forward"/>
+  <path d="M684 274H714Q732 274 732 256V192Q732 174 748 174" class="forward"/>
+
+  <rect x="276" y="244" width="180" height="66" rx="14" fill="#f7fee7" stroke="#65a30d" stroke-width="2.5" stroke-dasharray="7 5"/>
+  <text x="366" y="270" text-anchor="middle" class="label">保存状态</text><text x="366" y="293" text-anchor="middle" class="small">Q、K、V、P 与 scale</text>
+  <path d="M138 210V257Q138 277 158 277H276" class="saved"/>
+  <path d="M504 274H456" class="saved"/>
+  <path d="M594 210V224Q594 244 574 244H400" class="saved"/>
+
+  <text x="48" y="362" class="group">反向：dO 分支后重新汇入打分梯度</text>
+  <rect x="48" y="388" width="150" height="72" rx="14" fill="#fff1f2" stroke="#e11d48" class="box"/>
+  <text x="123" y="419" text-anchor="middle" class="label">输出梯度</text><text x="123" y="443" text-anchor="middle" class="small">dO</text>
+  <rect x="270" y="348" width="160" height="72" rx="14" fill="#eff6ff" stroke="#3b82f6" class="box"/>
+  <text x="350" y="379" text-anchor="middle" class="label">Value 梯度</text><text x="350" y="403" text-anchor="middle" class="small">dV</text>
+  <rect x="270" y="454" width="160" height="72" rx="14" fill="#eff6ff" stroke="#3b82f6" class="box"/>
+  <text x="350" y="485" text-anchor="middle" class="label">概率梯度</text><text x="350" y="509" text-anchor="middle" class="small">dP</text>
+  <rect x="520" y="454" width="160" height="72" rx="14" fill="#f5f3ff" stroke="#8b5cf6" class="box"/>
+  <text x="600" y="485" text-anchor="middle" class="label">打分梯度</text><text x="600" y="509" text-anchor="middle" class="small">dS</text>
+  <rect x="770" y="454" width="180" height="72" rx="14" fill="#ecfccb" stroke="#65a30d" class="box"/>
+  <text x="860" y="485" text-anchor="middle" class="label">输入梯度</text><text x="860" y="509" text-anchor="middle" class="small">dQ、dK</text>
+  <path d="M198 408Q224 384 270 384" class="backward"/><path d="M198 440Q224 490 270 490" class="backward"/>
+  <path d="M430 490H520" class="backward"/><path d="M680 490H770" class="backward"/>
+  <path d="M330 310V330Q330 348 350 348" class="saved"/>
+  <path d="M390 310V434Q390 454 370 454" class="saved"/>
+  <path d="M456 277H474Q494 277 494 297V434Q494 454 520 454" class="saved"/>
+  <text x="990" y="482" class="small">完整 backward 返回</text><text x="990" y="506" class="label">dQ、dK、dV</text>
+</svg>

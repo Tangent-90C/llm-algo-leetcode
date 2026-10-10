@@ -1,72 +1,48 @@
 # 后训练优化（Post-Training Optimization）
 
-> 专题类型：主学习路线　副标题：从 SFT、偏好优化到 RL 与后训练工程
+> 专题类型：主学习路线　主服务目标：从监督微调基线、偏好优化到强化学习与采用决策
 
-## 页面导语
+后训练优化研究如何在基础模型之上，利用监督数据、偏好反馈或可验证奖励改变模型行为。学习者需要判断问题是否值得通过参数更新解决，在监督微调基线之上选择离线偏好优化或在线策略优化，并依据独立评测、资源成本和回滚条件决定是否采用候选模型。
 
-预训练让模型获得通用能力，后训练决定这些能力能否变成可用、可控、可评估的产品能力。本专题把后训练组织成一条连续路线：先建立 SFT 数据和训练接口，再进入偏好优化与 RL，最后回到采样引擎、资源调度和项目评估。
+![完整训练生命周期中的后训练位置](../../docs/public/topic_discussion/post_training_optimization/training_lifecycle_context.svg)
 
-学习者需要逐步回答：数据是否足以支撑训练？模型是否已经具备进入偏好优化的基础？偏好信号如何转化为训练目标？RL 的奖励和资源代价是否可控？最终的能力提升是否经过可靠评估？
+## 学习路线
 
-## 如何开始
+按 Task 顺序学习时使用下表；需要连续理解因果关系时进入[后训练优化问题链](./walkthrough.md)，已有数据、训练日志或评测报告时使用[后训练优化判断手册](./casebook.md)，术语差异查询[专题术语表](./glossary.md)。
 
-建议按 Task0–6 顺序学习。Task0–2 建立 SFT 和训练基础，Task3–4 进入偏好优化与 RL 机制，Task5 处理训练—推理协同和工程效率，Task6 完成端到端项目评估。
-
-没有 GPU 时，可以先完成数据契约、loss、状态转移、奖励计算和评测逻辑；完整 SFT、DPO、GRPO 和在线 RL 实验需要根据硬件和 backend 条件复测。
-
-## 后训练优化 Task0–6
-
-| Task | 学习目标与核心问题 | 主要内容 | 交付物 | 现有入口 / 正文建设 |
+| Task / 主题 | 本阶段要回答的问题 | 学习入口与验证出口 | 学习顺序 | 主要正文入口 |
 |:---|:---|:---|:---|:---|
-| Task0 | 后训练全景与三阶段认知：预训练之后，模型还需要经历什么才能变成“有用”的？ | SFT（教格式）→ 偏好优化（对齐偏好）→ RL（探索和突破数据上限）；阶段顺序、适用条件与 prompt / RAG 的边界 | 一张从 base model 到可用模型的后训练流程图，标注每阶段输入、输出和目标 | [后训练全景](./00_post_training_landscape.md)；连接 Part02 · 2.3、2.4 |
-| Task1 | SFT 数据工程：数据从哪里来、怎么筛、怎么配比？ | 人工、开源和合成数据；多样性、难度、格式、推理质量；去重、泄漏、偏见、配比和数据诊断 | 一份面向具体场景的高质量 SFT 数据集，附来源、筛选标准和配比设计 | [SFT / LoRA 基础模块](./sft_foundation/intro.md)；补充 Part02 · 32、33、50 |
-| Task2 | SFT 训练实践：全参、LoRA、QLoRA 如何选择和控制？ | PEFT、LoRA 配置、QLoRA、DoRA / rsLoRA、学习率、框架选择、过拟合和早停 | 一次 LoRA 或 QLoRA 训练，附配置理由、loss 曲线和验证集结果 | [LoRA / PEFT 设计](./sft_foundation/02_lora_peft_design.md)；连接 Part02 · 09、10、60、65 |
-| Task3 | 偏好优化：DPO 为什么能去掉奖励模型？ | DPO 推导、手写 loss、β、偏好数据、DPO 变体及其局限 | 手写 DPO loss 并完成小规模偏好训练，比较训练前后的偏好变化 | [DPO 与偏好优化](./03_dpo_and_preference_optimization.md)；连接 Part02 · 15、50、84、86 |
-| Task4 | RL 对齐：GRPO 与 PPO 如何组织奖励和训练循环？ | PPO 四模型代价、GRPO 组内优势、可验证奖励、奖励设计、RLVR 和稳定化策略 | 用 TRL 完成一个可验证任务的 GRPO 训练，分析组内奖励分布 | [PPO 系统代价](./02_rlhf_and_ppo_system_cost.md)、[GRPO 机制](./04_grpo_and_groupwise_alignment.md)；连接 Part02 · 14、16、85 |
-| Task5 | RL 工程实现与效率：采样、训练和资源如何协同？ | verl / OpenRLHF / TRL；vLLM / SGLang rollout；Ray 编排；训练—推理资源调度、流水线重叠、多轮工具调用 RL | 跑通从采样到更新的 RL 流程，记录显存、吞吐、采样和更新代价 | 新建“RL 工程与效率”正文；连接 Part04 · 4.3、Part02 · 2.9 |
-| Task6 | 综合项目与评估：怎样证明后训练真的有效？ | 指令遵循、安全、诚实、鲁棒性、对齐冲突、reward hacking、端到端报告 | 一份包含数据、训练、评估、失败案例和 reward hacking 分析的后训练报告 | [项目决策与交付](./06_project_decision_and_delivery.md)；连接 Part02 · 2.10、50–52、84–86 |
+| Task0 · 目标诊断与阶段准入 | 当前失败能否由 Prompt、RAG 或工具解决；若必须更新参数，应停在 SFT、进入离线偏好，还是需要在线奖励与探索？ | 核心：[后训练问题链 · 阶段选择](./walkthrough.md#一先判断是否需要改变模型参数) → [Part 02 · 33 微调准入与最小干预](../../02_PyTorch_Algorithms/33_Fine_Tuning_Readiness.ipynb) | 稳定失败证据 → 知识 / 行为 / 偏好 / 探索根因 → 最小干预 → 数据、反馈与评测准入 → 训练分支 | [04 SFT 完成与阶段升级](./04_end_to_end_experiment.md#sft-何时完成何时升级) |
+| Task1 · 监督目标与最小 SFT 基线 | 样本怎样经过切分、模板和标签掩码变成有效监督 Token，并完成一次可复查的 SFT 基线？ | 核心：[Part 02 · 32 SFT 数据准入与长度审计](../../02_PyTorch_Algorithms/32_Data_Engineering_for_SFT.ipynb) → [Part 02 · 13 SFT 训练循环](../../02_PyTorch_Algorithms/13_SFT_Training_Loop.ipynb) → [Part 02 · 15 端到端微调](../../02_PyTorch_Algorithms/15_End_to_End_Fine_Tuning_Experiment.ipynb)；基础回补：[Part 02 · 11–12 训练控制](../../02_PyTorch_Algorithms/2_3.md)；项目链（待重构）：[Part 02 · 64 数据准入 → 62 训练交付](../../02_PyTorch_Algorithms/2_10.md) | 来源、切分与去污染 → 模板、分词与标签边界 → 有效监督词元与损失 → 有效更新 → 冻结验证 → 可复查基线 | [01 SFT 数据与监督契约](./01_sft_data_and_loss.md) → [04 SFT 基线与交付](./04_end_to_end_experiment.md) |
+| Task2 · 更新范围与参数高效适配 | 训练目标不变时，哪些参数需要更新，怎样在全参数、LoRA、QLoRA 和长上下文方案之间选择？ | 核心：[Part 02 · 14 LoRA](../../02_PyTorch_Algorithms/14_LoRA_Tutorial.ipynb)；扩展：[Part 02 · 26 QLoRA](../../02_PyTorch_Algorithms/26_QLoRA_and_4bit_Quantization.ipynb) / [30 长上下文微调](../../02_PyTorch_Algorithms/30_Long_Context_Fine_Tuning.ipynb) / [31 LoRA 变体](../../02_PyTorch_Algorithms/31_LoRA_Variants_Theory.ipynb)；项目链（待重构）：[Part 02 · 63 策略选择 → 62 训练交付](../../02_PyTorch_Algorithms/2_10.md)；交叉项目：[Part 02 · 65 QLoRA 选择](../../02_PyTorch_Algorithms/65_QLoRA_Selection_Project.ipynb) | 全参 / 适配器选择 → 目标模块、秩与缩放 → QLoRA / 长上下文 / LoRA 变体分支 → 固定口径比较 → 模型或适配器产物 | [02 LoRA / PEFT](./02_lora_peft_design.md) → [03 训练控制](./03_training_control.md) → [04 产物与交付](./04_end_to_end_experiment.md#最小实验闭环) |
+| Task3 · 偏好数据与离线策略优化 | 已有同提示的优选与非优选回答时，怎样固定参考策略、形成偏好边际并完成离线 DPO 更新？ | 核心：[Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb) → [Part 02 · 17 DPO](../../02_PyTorch_Algorithms/17_DPO_Loss_Tutorial.ipynb)；项目（待重构）：[Part 02 · 84 DPO](../../02_PyTorch_Algorithms/84_DPO_Preference_Project.ipynb) | 同提示偏好对 → 固定参考策略 → 偏好边际 → 离线更新与独立复测 | [05 DPO 与离线偏好优化](./05_dpo_and_preference_optimization.md) |
+| Task4 · 奖励信号与在线策略更新 | 偏好对或验证结果怎样形成可信奖励；当前策略生成的回答又怎样经过基线和优势估计，形成 PPO / GRPO 更新？ | 核心：[Part 02 · PT-REWARD-MODEL 奖励模型训练、校准与过度优化](../../02_PyTorch_Algorithms/PT-REWARD-MODEL_Reward_Model_Training_and_Calibration.ipynb) → [Part 02 · PT-REWARD-SIGNAL 奖励、价值与优势](../../02_PyTorch_Algorithms/PT-REWARD-SIGNAL_Reward_Model_Value_and_Advantage.ipynb)，再选择 [Part 02 · 16 PPO](../../02_PyTorch_Algorithms/16_RLHF_PPO_Memory.ipynb) 或 [Part 02 · 18 GRPO](../../02_PyTorch_Algorithms/18_GRPO_Loss_Tutorial.ipynb)；项目（待重构）：[Part 02 · 85 GRPO / RLVR](../../02_PyTorch_Algorithms/85_GRPO_Groupwise_Alignment_Project.ipynb) | 偏好或规则反馈 → 奖励训练与留出校准 → 在线采样 → 奖励、价值或组内基线 → 优势 → 受约束更新 → 隐藏质量审计 | [06 PPO / RLHF](./06_rlhf_and_ppo_system_cost.md) / [07 GRPO / RLVR](./07_grpo_and_groupwise_alignment.md) |
+| Task5 · 轨迹生命周期与在线训练系统 | 多轮在线更新中，怎样判断轨迹仍可用于当前策略、同步新权重，并在队列积压、工作进程失败或恢复后继续训练？ | 核心：[Part 02 · PT-ROLLOUT-LIFECYCLE 轨迹与策略新鲜度](../../02_PyTorch_Algorithms/PT-ROLLOUT-LIFECYCLE_Rollout_and_Policy_Freshness.ipynb)，再选择 [Part 02 · PT-RL-SYSTEM 采样、训练与奖励系统](../../02_PyTorch_Algorithms/PT-RL-SYSTEM_Rollout_Training_and_Reward_System.ipynb) 或 [Part 02 · 51 在线 DPO](../../02_PyTorch_Algorithms/51_Online_DPO.ipynb)；项目出口（待重构）：[Part 02 · 85–86](../../02_PyTorch_Algorithms/2_10.md) | 策略版本 → 轨迹身份与新鲜度 → 奖励状态 → 采样 / 奖励 / 训练拓扑 → 队列与更新交接 → 同步、检查点与恢复 | [08 RL 工程、轨迹采样与效率](./08_rl_engineering_and_efficiency.md) |
+| Task6 · 独立评测与采用决策 | 训练后的候选与固定基线相比，是否同时通过目标能力、通用能力、安全、鲁棒性、成本和回滚门槛？ | 机制回补：[Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb) / [Part 02 · 51 在线更新与回滚](../../02_PyTorch_Algorithms/51_Online_DPO.ipynb)；项目链（待重构）：[Part 02 · 84–86](../../02_PyTorch_Algorithms/2_10.md) | 冻结评测集与评分协议 → 基线 / 候选 → 目标增益与能力保持 → 安全、鲁棒性与评审一致性 → 资源、失败切片与回滚 → `accept / tune / reject` | [09 质量、在线反馈与项目决策](./09_preference_data_and_project_decision.md) |
 
-## 三阶段的顺序
+![后训练路线：共同训练基础分流到偏好、奖励和在线系统](../../docs/public/topic_discussion/post_training_optimization/post_training_roadmap.svg)
 
-```text
-Base model
-    ↓
-SFT：建立任务格式、行为接口和可用基线
-    ↓
-偏好优化：让模型在多个可行输出中更符合目标偏好
-    ↓
-RL / RLVR：通过探索、环境反馈或可验证奖励继续扩大能力
-    ↓
-评估、部署与迭代
-```
+![后训练知识地图：数据、信号、状态与证据如何连接](../../docs/public/topic_discussion/post_training_optimization/post_training_knowledge_map.svg)
 
-顺序不是绝对的训练配方，而是学习和诊断时的默认假设：SFT 基础不稳定时，偏好优化容易放大格式和数据问题；偏好信号、评测和奖励约束不清晰时，RL 容易把代理指标优化成 reward hacking。实际项目中，如果 prompt、RAG 或工具调用已经足够解决问题，不应为了使用训练方法而强行进入 SFT 或 RL。
+## 扩展与跨专题入口
 
-## 专题正文建设计划
-
-专题正文与 Task 不要求一一对应。正文负责解释概念、机制和决策关系，Notebook 负责实现和验证，项目页负责形成证据。
-
-| 正文职责 | 需要承载的内容 | 当前状态 |
+| 需要补齐的能力 | 首选入口 | 在本专题中的作用 |
 |:---|:---|:---|
-| 全景与阶段判断 | 三阶段输入 / 输出、顺序、prompt / RAG / SFT / 对齐 / RL 的选择 | 新增 `00_post_training_landscape.md` |
-| 数据工程 | 数据来源、筛选、合成、配比、泄漏和质量诊断 | 由 SFT 基础页扩展 |
-| SFT 训练 | LoRA / QLoRA、训练控制、过拟合和配置决策 | 复用 `sft_foundation` 并补充正文关系 |
-| 偏好优化 | DPO 数学、β、数据构造、变体和适用边界 | 已有 DPO 正文，需按新 Task3 归位 |
-| RL 对齐 | PPO、GRPO、RLVR、奖励设计和稳定性 | 已有 PPO / GRPO 正文，需合并为 Task4 机制链 |
-| RL 工程 | rollout、训练引擎、资源调度、通信和流水线重叠 | 新建 Task5 正文 |
-| 项目评估 | 质量、安全、鲁棒性、reward hacking、报告和采用决策 | 已有项目决策页，需扩展评估维度 |
+| 训练计算图、激活、检查点与卸载 | [反向传播与训练机制](../backpropagation_training_mechanism/intro.md) | 解释训练状态和策略代价 |
+| 数据生命周期、清洗质量与后训练接口 | [数据生命周期与契约](../data_engineering/00_data_lifecycle_and_contract.md) / [清洗与质量链](../data_engineering/02_cleaning_quality_chain.md) / [后训练数据接口](../data_engineering/05_post_training_data_interfaces.md) | 为 SFT、偏好和轨迹数据提供来源、去污染、版本与交付证据 |
+| 训练峰值、多模型驻留与轨迹采样吞吐 | [性能优化 Task2](../performance_optimization/03_training_memory_ledger.md) | 建立 SFT、QLoRA、DPO、PPO 和 GRPO 的资源账本 |
+| QLoRA、低比特产物与部署格式 | [量化与压缩](../quantization_compression/intro.md) | 解释低比特训练底座与产物约束 |
+| 多卡状态切分、轨迹通信与扩展 | [通信与并行](../communication_parallelism/intro.md) | 解释工作进程、通信与规模化代价 |
+| 工具轨迹、环境反馈与沙盒执行 | [Agent 工作负载与轨迹](../agent/00_agent_workload_and_trace.md) / [轨迹数据](../agent/01_agent_trajectory_data.md) / [沙盒环境](../agent/02_agent_sandbox_environment.md) | 仅为工具调用与环境交互轨迹补充任务、回放和执行证据；普通文本轨迹仍由本专题管理 |
 
-## 与其他专题的边界
+## 实验与项目出口
 
-- [SFT / LoRA 基础模块](./sft_foundation/intro.md)：提供 Task0–2 的训练前置和项目接口。
-- [性能优化](../performance_optimization/intro.md)：解释训练吞吐、显存、通信和稳定性证据。
-- [显存优化](../memory_performance_tuning/intro.md)：解释 PPO / GRPO 的模型驻留和预算约束。
-- [推理优化](../inference_optimization/intro.md)：提供 rollout、Serving、KV Cache 和 backend 机制。
-- [通信与并行](../communication_parallel/intro.md)：提供 RL 训练的多卡切分、通信和扩展效率方法。
-- [模型架构](../model_architecture/intro.md)：解释模型结构、MoE 和 reasoning 分支的基础。
+首次运行先按[实验 Quickstart](./quickstart.md)创建或恢复环境，再从[实验资产表](./experiment_assets.md)选择机制页、模型、候选和结果路径；跨专题的软件版本与硬件快照查询[GPU 环境资产表](../../docs/gpu_environment_assets.md)。
 
-## 项目证据
-
-后训练项目不能只比较训练 loss。至少需要同时记录数据口径、训练配置、偏好或奖励指标、任务质量、安全与鲁棒性、显存与吞吐、采样成本、失败案例和最终 `accept / tune / reject` 决策。
-
-推荐的项目闭环是：`SFT / LoRA 基线 → 偏好优化 → RL 或 RLVR → 独立评估 → 资源与成本判断 → 迭代或交付`。
+| 证据阶段 | 要回答的问题 | 输出与入口 |
+|:---|:---|:---|
+| CPU 机制 | 数据、目标、奖励和决策关系是否正确？ | 13–18、30–33、50–51 与四页 PT 机制页的 Step1–4 |
+| 单卡监督训练 | 参数更新、长度和适配器路径是否可执行？ | `PT-SFT-CUDA`；14、15、30、31 |
+| 单卡偏好与奖励 | 偏好边际、组内优势和奖励信号是否按预期变化？ | `PT-RL-CUDA`；17、18、PT-REWARD-SIGNAL |
+| 多工作进程闭环 | 轨迹采样、奖励、更新、通信和恢复能否协同？ | 项目指定的分布式环境；状态登记见实验资产表 |
+| 采用决策 | 候选是否通过质量、安全、资源与回滚门槛？ | 09 正文、50–51 机制页与后训练项目链 |

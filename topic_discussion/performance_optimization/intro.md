@@ -1,69 +1,59 @@
 # 性能优化（Performance Optimization）
 
-> 专题类型：主学习路线　副标题：从性能分析、显存管理、通信代价到端到端决策
+> 专题类型：主学习路线　能力出口：把瓶颈证据转化为候选策略、配对复测与工程决策
 
-## 页面导语
+性能优化从可复查的基线和瓶颈归因出发，选择能够改变主约束的候选，并检查代价是否转移到质量、容量、延迟、通信或成本。学习主线是“固定目标 → 读取归因 → 选择候选 → 配对复测 → 检查瓶颈转移 → 准入与组合决策”。
 
-性能问题很少只由一个算子或一个参数造成。一次训练或推理运行，可能同时受到计算、显存驻留、数据搬运、通信等待、请求排队和部署成本的影响。本专题把这些因素放到同一条证据链中：先定义可测量的问题，再定位瓶颈对象，最后用对照实验判断优化是否值得保留。
+[性能分析](../performance_analysis/intro.md)回答“时间和资源去了哪里”；本专题回答“应比较什么、改动后代价转移到哪里、候选是否值得保留”。具体机制仍由反向传播、推理、量化、通信与算子专题维护。
 
-本专题的主线不是记忆工具名称，而是学习如何回答三个问题：哪里慢或放不下？代价从哪里转移到了哪里？实验结果是否足以支持工程决策？原有的[显存优化专题](../memory_performance_tuning/intro.md)和[性能分析专题](../profiling/intro.md)仍然保留，分别作为资源机制和 profiling 方法的深入入口。
+## 学习路线
 
-## 如何开始
+按 Task 顺序学习时使用下表；需要沿一个性能问题连续走到决策时进入[性能优化问题链](./walkthrough.md)，已有瓶颈或候选时使用[性能优化判断手册](./casebook.md)。
 
-建议从 Task0 建立性能问题的共同语言，再按实际问题进入 Task1–Task6。没有 GPU 时可以先完成指标、账本、状态和决策逻辑；真实峰值显存、GPU 利用率、通信等待和 backend 收益需要在对应硬件上复测。
+![性能优化学习路线](../../docs/public/topic_discussion/performance_optimization/performance_optimization_roadmap.svg)
 
-## 主学习路线与验证出口
-
-| Task / 主题 | 本阶段要回答的问题 | 主要学习内容 | 主要验证出口 | 正文入口 |
+| Task / 主题 | 本阶段要回答的问题 | 学习入口与验证出口 | 学习顺序 | 主要正文入口 |
 |:---|:---|:---|:---|:---|
-| Task0 · 性能工程全景与 Benchmark 方法论 | 怎样把“变慢、爆显存或吞吐不足”改写成可比较的问题？ | 性能对象、指标语义、workload、baseline、证据等级和结果记录 | 一份固定条件下可复查的 benchmark 计划 | [01 性能问题与 Benchmark 基础](./01_performance_problem_and_benchmark.md) |
-| Task1 · 可观测性与 Profiling 工具链 | 怎样知道时间、显存和等待到底消耗在哪里？ | 轻量计时、框架 profiler、trace、显存时间线和证据归因 | 时间热点、驻留对象和待验证瓶颈假设 | [02 可观测性与 Profiling](./02_observability_and_profiling.md) |
-| Task2 · 显存账本与训练侧优化 | 训练显存由哪些对象构成，哪种策略值得采用？ | 参数、梯度、优化器状态、Activation、Checkpoint、Offload 和预算 | 显存账本、策略对照、峰值和 step time | [03 显存账本与训练优化](./03_training_memory_ledger.md) |
-| Task3 · 推理侧显存优化与 KV Cache 管理 | KV Cache 如何增长、复用和受到容量约束？ | KV Cache 生命周期、分页、前缀复用、量化、驱逐和并发容量；迁移入口：[显存优化 Task4](../memory_performance_tuning/intro.md) | cache 命中、峰值显存、TTFT / TPOT、并发和质量 | [04 推理显存与 KV Cache](./04_inference_memory_and_kv_cache.md) |
-| Task4 · 计算、通信与 I/O 瓶颈分析 | 性能损失来自计算、通信、数据搬运还是 I/O？ | Roofline 直觉、kernel 时间、CPU-GPU 搬运、collective、数据管道和 overlap | 阶段时间分解、通信等待、带宽证据和瓶颈归因 | [05 计算、通信与 I/O 瓶颈](./05_compute_communication_and_io.md) |
-| Task5 · 成本模型与生产级性能工程 | 一个优化方案的真实收益和工程成本如何估算？ | 成本模型、容量、吞吐、延迟、质量、稳定性、backend 和回归；迁移入口：[显存优化 Task5](../memory_performance_tuning/intro.md) | 候选方案比较、预算敏感性和 `accept / tune / reject` | [06 成本模型与生产决策](./06_cost_model_and_production_decision.md) |
-| Task6 · 端到端性能工程实战 | 如何把多个局部优化组合成可交付结论？ | 问题定义、profiling、策略组合、真实 benchmark、回归和项目报告 | 带环境、workload、证据和限制条件的项目结论 | [07 端到端性能工程实战](./07_end_to_end_performance_engineering.md) |
+| Task0 · 工作负载、指标与比较基线 | 当前固定工作负载要改善哪个指标，哪些正确性、质量、容量和成本条件不能被破坏？ | 核心：[Part 00 · 19 异常定位](../../00_Prerequisites/19_Debugging_and_Anomaly_Localization.ipynb) → [Part 00 · 20 性能证据与实验设计](../../00_Prerequisites/20_Performance_Evidence_and_Experiment_Design.ipynb)；扩展：[Part 00 · 17 性能分析基础](../../00_Prerequisites/17_PyTorch_Profiling_Basics.ipynb) | 确认运行有效 → 固定工作负载 → 选择目标指标 → 设置守护条件 → 建立基线与停止条件 | [专题正文 · 01 性能问题与比较契约](./01_performance_problem_and_benchmark.md) |
+| Task1 · 资源约束与候选代价 | 当前受计算、带宽还是容量约束，候选会减少哪类工作量并新增什么代价？ | 核心：[Part 01 · 02 参数量与 FLOPs](../../01_Hardware_Math_and_Systems/02_LLM_Params_and_FLOPs.ipynb) → [Part 01 · 03 GPU 架构与显存](../../01_Hardware_Math_and_Systems/03_GPU_Architecture_and_Memory.ipynb) → [Part 01 · 13 性能分析与瓶颈定位](../../01_Hardware_Math_and_Systems/13_Profiling_and_Bottleneck_Analysis.ipynb) → [Part 02 · PERF-ROOFLINE 资源上界](../../02_PyTorch_Algorithms/PERF-ROOFLINE_Arithmetic_Intensity_and_Resource_Ceiling.ipynb) → [Part 02 · PERF-CANDIDATE 约束到候选](../../02_PyTorch_Algorithms/PERF-CANDIDATE_Constraint_to_Candidate_and_Cost_Transfer.ipynb)；扩展：[性能分析 · Task4 瓶颈归因](../performance_analysis/intro.md) | 工作量账本 → 资源上界 → 候选作用对象 → 预期减少量 → 新增代价与证伪条件 | [专题正文 · 02 资源约束与候选代价](./02_observability_and_profiling.md) |
+| Task2 · 训练输入与状态优化 | 输入、激活、梯度、优化器状态和通信缓冲区怎样共同限制训练时间与峰值？ | 核心：[Part 00 · 18 显存分析](../../00_Prerequisites/18_Memory_Profiling_and_Optimization.ipynb) → [Part 01 · 06 显存计算与 ZeRO](../../01_Hardware_Math_and_Systems/06_VRAM_Calculation_and_ZeRO.ipynb) → [Part 01 · 07 CPU/GPU 异构调度](../../01_Hardware_Math_and_Systems/07_CPU_GPU_Heterogeneous_Scheduling.ipynb) → [Part 02 · PERF-INPUT 输入流水线](../../02_PyTorch_Algorithms/PERF-INPUT_Training_Input_Pipeline_Performance.ipynb)与[PERF-MEMORY-TIMELINE 显存驻留](../../02_PyTorch_Algorithms/PERF-MEMORY-TIMELINE_Memory_Residency_and_Peak_Overlap.ipynb)；扩展：[Part 02 · 19 激活检查点](../../02_PyTorch_Algorithms/19_Activation_Checkpointing.ipynb)、[Part 02 · 42 激活卸载](../../02_PyTorch_Algorithms/42_Activation_Offload.ipynb)、[Part 02 · 43 训练内存账本](../../02_PyTorch_Algorithms/43_Unified_Training_Memory_Ledger.ipynb) | 输入供给 → 训练步骤时间线 → 状态驻留 → 候选对照 → 时间—容量取舍 | [专题正文 · 03 训练输入、状态与资源账本](./03_training_memory_ledger.md) |
+| Task3 · 推理请求与状态优化 | 请求分布、KV Cache、批量和并发怎样共同限制延迟、吞吐与容量？ | 核心：[Part 01 · 11 KV Cache 与显存增长](../../01_Hardware_Math_and_Systems/11_KV_Cache_and_Memory_Growth.ipynb) → [Part 02 · INF-ITERATION-BUDGET 迭代成本与批量上界](../../02_PyTorch_Algorithms/INF-ITERATION-BUDGET_Serving_Iteration_Cost_and_Batch_Bounds.ipynb) → [Part 02 · 22 PagedAttention](../../02_PyTorch_Algorithms/22_vLLM_PagedAttention.ipynb) → [Part 02 · 37 KV Cache 生命周期](../../02_PyTorch_Algorithms/37_KV_Cache_Lifecycle_and_Capacity_Control.ipynb) → [Part 02 · INF-CONTINUOUS-BATCHING 连续批处理](../../02_PyTorch_Algorithms/INF-CONTINUOUS-BATCHING_Continuous_Batching.ipynb)；扩展：[推理优化](../inference_optimization/intro.md) | 固定请求分布 → 状态容量 → 批量与并发 → 延迟与吞吐 → 候选对照 | [专题正文 · 04 推理状态容量与 KV Cache](./04_inference_memory_and_kv_cache.md) |
+| Task4 · 计算、通信与 I/O 关键路径 | 哪些计算、搬运、集合通信或队列等待真正暴露在关键路径上，依赖关系允许隐藏多少？ | 核心：[Part 01 · 15 CUDA 执行模型](../../01_Hardware_Math_and_Systems/15_CUDA_Execution_Model.ipynb) → [Part 01 · 17 CUDA 流与异步执行](../../01_Hardware_Math_and_Systems/17_CUDA_Stream_and_Asynchrony.ipynb) → [Part 02 · PERF-TRACE 关键路径](../../02_PyTorch_Algorithms/PERF-TRACE_Trace_Dependencies_and_Critical_Path.ipynb) → [Part 02 · PERF-IO I/O 关键路径](../../02_PyTorch_Algorithms/PERF-IO_Artifact_State_and_Output_IO_Critical_Path.ipynb)；扩展：[Part 01 · 26 并行策略决策](../../01_Hardware_Math_and_Systems/26_Parallel_Strategy_Decision_Framework.ipynb)、[Part 02 · 47 NCCL 性能分析](../../02_PyTorch_Algorithms/47_Communication_Profiling_with_NCCL.ipynb) → [Part 02 · 48 通信热点与缓解](../../02_PyTorch_Algorithms/48_Communication_Hotspots_and_Mitigation.ipynb) | 重建依赖 → 区分总时间与暴露时间 → 定位关键路径 → 调整重叠或同步 → 复测 | [专题正文 · 05 计算、通信与 I/O](./05_compute_communication_and_io.md) |
+| Task5 · 单候选执行与准入 | 候选是否真正命中目标执行路径，并同时通过正确性、质量、性能回归和成本门槛？ | 核心：[Part 02 · PERF-REGRESSION 配对基准与回归阈值](../../02_PyTorch_Algorithms/PERF-REGRESSION_Paired_Benchmark_and_Regression_Thresholds.ipynb) → [Part 01 · 33 TCO 与成本模型](../../01_Hardware_Math_and_Systems/33_TCO_and_Cost_Model.ipynb) → [Part 01 · 34 异构加速器与运行时约束](../../01_Hardware_Math_and_Systems/34_Heterogeneous_Accelerators_and_Runtime_Constraints.ipynb)；扩展：各分支机制页的真实执行结果 | 正确性与质量 → 执行路径 → 配对性能分布 → 资源成本 → 单候选决策 | [专题正文 · 06 单候选执行与准入](./06_cost_model_and_production_decision.md) |
+| Task6 · 策略组合与瓶颈转移 | 单项候选组合后收益是否保留，主约束转移到了哪里，何时必须回退？ | 核心：[Part 02 · PERF-COMPOSITION 策略相互作用与瓶颈转移](../../02_PyTorch_Algorithms/PERF-COMPOSITION_Strategy_Interaction_and_Bottleneck_Shift.ipynb)；输入：Task1 的候选契约、Task2–4 的分支结果和 Task5 的准入结论 | 固定同一基线 → 复测单项候选 → 组合候选 → 重新归因 → 检查回归与回退条件 → `accept / tune / reject` | [专题正文 · 07 策略组合与瓶颈转移](./07_end_to_end_performance_engineering.md) |
 
-## 学习入口与相关项目
+下图把训练状态、推理状态、计算、通信、I/O 和最终准入放在同一张知识地图中。训练、推理、量化、通信和算子专题提供候选机制；本专题固定比较条件，判断候选是否改变主约束，并在组合后重新归因。
 
-主线项目按“机制 → 测量 → 对照 → 决策”组织：
+![性能优化知识地图](../../docs/public/topic_discussion/performance_optimization/performance_optimization_knowledge_map.svg)
 
-- 通用推理性能基线：[Part 02 · 66 推理性能对比](../../02_PyTorch_Algorithms/66_Inference_Performance_Comparison.ipynb)
-- 训练性能基线：[Part 02 · 73 训练性能分析](../../02_PyTorch_Algorithms/73_Training_Performance_Analysis.ipynb)
-- Profiling 驱动优化：[Part 02 · 74 Profiling 驱动的端到端优化](../../02_PyTorch_Algorithms/74_Profiling_Driven_End_to_End_Optimization.ipynb)
-- 显存策略对照：[Part 02 · 75 显存预算压缩](../../02_PyTorch_Algorithms/75_Memory_Budget_Compression_Project.ipynb)、[Part 02 · 76 激活检查点与卸载](../../02_PyTorch_Algorithms/76_Activation_Checkpoint_Offload_Benchmark.ipynb)
-- 显存路线迁移：显存优化 [Task4：KV Cache 与显存容量](../memory_performance_tuning/intro.md) → 性能优化 Task3；显存优化 [Task5：量化与显存容量扩展](../memory_performance_tuning/intro.md) → 性能优化 Task5
-- 多卡与通信证据：[Part 02 · 79–81 分布式项目](../../02_PyTorch_Algorithms/79_Distributed_Parallel_Benchmark.ipynb)
+## 扩展与跨专题入口
 
-项目节提供真实实验出口，专题正文负责解释方法和判断逻辑；二者不要求一一对应，一个 Task 可以连接多个正文小节和项目。
+### 按需回补
 
-## Part 02 迁移关系
-
-原有训练内存与调优页面按职责迁移到新的专题和相邻路线，不再继续作为 2.5 组的主线：
-
-| 原页面 | 新承接位置 | 迁移后的职责 |
+| 需要补充的机制 | 回补入口 | 回到性能优化时需要带回的证据 |
 |:---|:---|:---|
-| Part 02 · 43 统一训练内存 | Task2 · [显存账本与训练侧优化](./03_training_memory_ledger.md) | 统一记录参数、梯度、优化器状态、activation、临时工作集与迁移代价 |
-| Part 02 · 44 自动调优框架 | [算子优化 Task5](../operator_optimization/05_cost_model_and_profiling.md) | 以 shape、dtype、资源约束和 profiling 证据筛选候选配置 |
-| Part 02 · 45 显存裁剪规划 | Task2 + [75 显存预算压缩项目](../../02_PyTorch_Algorithms/75_Memory_Budget_Compression_Project.ipynb) | 将峰值来源、预算留边和裁剪顺序转化为可验证的策略决策 |
+| 低精度表示与计算路径 | [Part 01 · 01 数据类型与精度](../../01_Hardware_Math_and_Systems/01_Data_Types_and_Precision.ipynb) → [Part 01 · 12 Tensor Core 与混合精度](../../01_Hardware_Math_and_Systems/12_TensorCore_and_Mixed_Precision.ipynb) → [Part 01 · 21 量化理论](../../01_Hardware_Math_and_Systems/21_Quantization_Theory_and_INT4_INT8.ipynb) | 表示字节、累加精度、计算内核与回退路径 |
+| Attention 访存与推理工作量 | [Part 01 · 04 Attention 显存优化](../../01_Hardware_Math_and_Systems/04_Attention_Memory_Optimization.ipynb) → [Part 01 · 14 FlashAttention 显存模型](../../01_Hardware_Math_and_Systems/14_FlashAttention_Memory_Model.ipynb) | Attention 中间状态、访存量和融合收益条件 |
+| 计算内核、融合与片上存储 | [Part 01 · 08 CUDA/Triton 编程模型](../../01_Hardware_Math_and_Systems/08_Programming_Models_CUDA_Triton.ipynb) → [Part 01 · 16 Warp、Block 与 Shared Memory](../../01_Hardware_Math_and_Systems/16_Warp_Block_SharedMemory_Basics.ipynb) → [Part 01 · 19 算子融合](../../01_Hardware_Math_and_Systems/19_Operator_Fusion_Introduction.ipynb) → [Part 01 · 23 Tensor Core 深入](../../01_Hardware_Math_and_Systems/23_TensorCore_Deep_Dive.ipynb) → [Part 01 · 24 SRAM 优化](../../01_Hardware_Math_and_Systems/24_SRAM_Optimization_Techniques.ipynb) | 计算内核正确性、启动次数、访存量、占用率与片上复用 |
+| 动态形状与编译图 | [Part 01 · 09 AI 编译器与计算图优化](../../01_Hardware_Math_and_Systems/09_AI_Compilers_and_Graph_Optimization.ipynb) → [Part 01 · 30 动态 Shape](../../01_Hardware_Math_and_Systems/30_Dynamic_Shape_Handling.ipynb) | 图捕获范围、重编译次数、形状分布和稳态收益 |
+| 容错、检查点与恢复成本 | [Part 01 · 28 容错与检查点](../../01_Hardware_Math_and_Systems/28_Fault_Tolerance_and_Checkpointing.ipynb) | 保存频率、恢复时间、写回背压与失败成本 |
+| activation、梯度或优化器状态占用 | [反向传播与训练机制](../backpropagation_training_mechanism/intro.md) | 状态生命周期、正确性、峰值与 step 时间 |
+| 请求、量化、并行与输入数据 | [推理优化](../inference_optimization/intro.md)、[量化与压缩](../quantization_compression/intro.md)、[通信与并行](../communication_parallelism/intro.md)、[数据工程](../data_engineering/intro.md) | 请求分布、质量与容量、通信暴露、样本长度和输入吞吐 |
 
-迁移完成前保留原 Notebook，避免历史页面和交叉引用失效；新的学习入口以本表中的专题正文和项目页为准。
+旧显存优化内容已经按对象拆入训练状态、推理状态、量化和通信入口；历史链接的对应关系见[旧显存路线迁移说明](../memory_performance_tuning/intro.md)，不再沿旧目录继续学习。
 
-## 跨专题入口
+## 实验与项目出口
 
-- 请求阶段、KV Cache、Serving 和 backend：进入[推理优化](../inference_optimization/intro.md)。
-- 显存对象、Checkpoint、Offload 和资源策略：进入[显存优化专题](../memory_performance_tuning/intro.md)。
-- 时间线、trace 和瓶颈归因：进入[性能分析专题](../profiling/intro.md)。
-- Kernel、访存、融合和 CUDA/Triton：进入[算子优化](../operator_optimization/intro.md)。
-- 量化表示与部署格式：进入[量化与压缩](../quantization/intro.md)。
-- 多卡切分、通信和扩展效率：进入[通信与并行](../communication_parallel/intro.md)。
+性能优化使用同一条证据升级链：先取得性能分析证据，再验证局部机制和执行路径，最后进入真实工作负载的单项与组合复测。
 
-## 环境与证据
+| 证据阶段 | 要回答的问题 | 主要出口 |
+|:---|:---|:---|
+| 归因输入 | 主瓶颈和回归阈值是否已有可复查证据？ | Task0 的有效运行与比较基线；已有完整诊断时复用性能分析记录 |
+| 局部候选 | 候选是否改变目标对象，正确性与质量是否保持？ | 各机制 Notebook 的 CPU / GPU 结果 |
+| 单项准入 | 产物、执行后端、计算内核、SLO 和成本是否同时通过？ | 分支机制结果与单候选准入记录 |
+| 组合复测 | 多项候选组合后是否出现收益抵消、瓶颈转移或新回归？ | 固定工作负载下的基线、单项候选与组合候选配对结果 |
+| 工程决策 | 当前证据支持接受、继续调优还是回退？ | 含环境、工作负载、质量、资源、失败与回退条件的结论 |
 
-CPU 适合验证公式、账本、状态转移、指标聚合和决策逻辑；GPU 或真实 backend 才能确认峰值显存、吞吐、延迟、通信等待和部署收益。每个结论都应记录模型、硬件、dtype、batch、sequence length、并发、warmup、重复次数、baseline 和 candidate。
+CPU 适合验证公式、账本、状态关系和决策逻辑；GPU 或真实执行后端用于确认峰值显存、延迟、吞吐、通信暴露和执行路径。实验只在结果中记录本次版本和硬件快照，统一环境与环境配置（Profile）查询[GPU 环境资产表](../../docs/gpu_environment_assets.md)。
 
-## 阅读入口
-
-- 想按问题连续学习：查看[性能优化问题链](./walkthrough.md)。
-- 想根据现象选择测量和策略：查看[性能优化判断手册](./casebook.md)。
-- 想学习完整专题正文：按 Task0–6 阅读 01–07。
+首次运行从[实验资产表](./experiment_assets.md)确认实验身份、验证顺序和结果路径；术语差异查询[专题术语表](./glossary.md)。

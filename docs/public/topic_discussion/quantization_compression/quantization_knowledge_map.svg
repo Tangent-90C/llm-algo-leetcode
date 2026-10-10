@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="940" viewBox="0 0 1400 940" role="img" aria-labelledby="title desc">
+  <title id="title">量化知识地图：对象、机制、执行资产与证据</title>
+  <desc id="desc">按权重、激活、训练状态和 KV Cache 四类对象，映射对应量化机制、执行资产和最终证据。</desc>
+  <defs><style>.title{font:700 30px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.sub{font:16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.col{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.head{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.body{font:14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#435b70}.object{fill:#f3edff;stroke:#8b72b0;stroke-width:2}.mechanism{fill:#fff4d6;stroke:#d9a52f;stroke-width:2}.execution{fill:#e8f5ee;stroke:#62a980;stroke-width:2}.evidence{fill:#e6f0ff;stroke:#729dcc;stroke-width:2}.flow{stroke:#486581;stroke-width:2.2;fill:none}.pending{stroke-dasharray:7 6}</style><marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#486581"/></marker></defs>
+  <rect width="1400" height="940" fill="#fbfcfe"/>
+  <text x="700" y="47" text-anchor="middle" class="title">量化知识地图：每个对象都要回答四个问题</text>
+  <text x="700" y="77" text-anchor="middle" class="sub">量化什么 → 用什么机制 → 交付什么执行资产 → 用什么证据判断</text>
+  <text x="175" y="125" text-anchor="middle" class="col">量化对象</text><text x="515" y="125" text-anchor="middle" class="col">机制与策略</text><text x="885" y="125" text-anchor="middle" class="col">执行资产与路径</text><text x="1220" y="125" text-anchor="middle" class="col">决策证据</text>
+
+  <rect x="55" y="160" width="240" height="130" rx="17" class="object"/><text x="175" y="198" text-anchor="middle" class="head">权重</text><text x="175" y="229" text-anchor="middle" class="body">常驻容量 · 读取带宽</text><text x="175" y="255" text-anchor="middle" class="body">层与通道敏感度</text>
+  <rect x="345" y="160" width="340" height="130" rx="17" class="mechanism"/><text x="515" y="198" text-anchor="middle" class="head">权重量化</text><text x="515" y="229" text-anchor="middle" class="body">W8A16 · GPTQ · AWQ · 混合位宽</text><text x="515" y="255" text-anchor="middle" class="body">粒度 · 分组大小 · 敏感层保护</text>
+  <rect x="735" y="160" width="300" height="130" rx="17" class="execution"/><text x="885" y="198" text-anchor="middle" class="head">量化产物</text><text x="885" y="229" text-anchor="middle" class="body">整数码 · 量化参数 · 清单</text><text x="885" y="255" text-anchor="middle" class="body">加载器 · 反量化 / 融合计算内核</text>
+  <rect x="1085" y="160" width="270" height="130" rx="17" class="evidence"/><text x="1220" y="198" text-anchor="middle" class="head">权重证据</text><text x="1220" y="229" text-anchor="middle" class="body">文件 / 常驻显存</text><text x="1220" y="255" text-anchor="middle" class="body">质量 · 延迟 · 吞吐</text>
+
+  <rect x="55" y="335" width="240" height="130" rx="17" class="object"/><text x="175" y="373" text-anchor="middle" class="head">激活与计算格式</text><text x="175" y="404" text-anchor="middle" class="body">动态范围 · 异常通道</text><text x="175" y="430" text-anchor="middle" class="body">算子输入、累加与输出</text>
+  <rect x="345" y="335" width="340" height="130" rx="17" class="mechanism"/><text x="515" y="373" text-anchor="middle" class="head">运行时量化</text><text x="515" y="404" text-anchor="middle" class="body">SmoothQuant · W8A8 · FP8</text><text x="515" y="430" text-anchor="middle" class="body">静态 / 动态缩放 · 累加精度</text>
+  <rect x="735" y="335" width="300" height="130" rx="17" class="execution"/><text x="885" y="373" text-anchor="middle" class="head">运行时配置</text><text x="885" y="404" text-anchor="middle" class="body">缩放状态 · 数据类型流</text><text x="885" y="430" text-anchor="middle" class="body">目标计算内核 · 回退记录</text>
+  <rect x="1085" y="335" width="270" height="130" rx="17" class="evidence"/><text x="1220" y="373" text-anchor="middle" class="head">激活与计算证据</text><text x="1220" y="404" text-anchor="middle" class="body">溢出 · NLL / 任务质量</text><text x="1220" y="430" text-anchor="middle" class="body">显存 · 计算内核 · 性能</text>
+
+  <rect x="55" y="510" width="240" height="130" rx="17" class="object"/><text x="175" y="548" text-anchor="middle" class="head">训练状态</text><text x="175" y="579" text-anchor="middle" class="body">低比特底座 · 适配器</text><text x="175" y="605" text-anchor="middle" class="body">梯度 / 优化器状态待扩展</text>
+  <rect x="345" y="510" width="340" height="130" rx="17" class="mechanism"/><text x="515" y="548" text-anchor="middle" class="head">低比特训练</text><text x="515" y="579" text-anchor="middle" class="body">QLoRA · QAT · 误差适配</text><text x="515" y="605" text-anchor="middle" class="body">冻结 / 更新边界 · 恢复训练</text>
+  <rect x="735" y="510" width="300" height="130" rx="17" class="execution"/><text x="885" y="548" text-anchor="middle" class="head">训练资产</text><text x="885" y="579" text-anchor="middle" class="body">适配器 / 合并模型</text><text x="885" y="605" text-anchor="middle" class="body">检查点 · 清单 · 保存—加载往返</text>
+  <rect x="1085" y="510" width="270" height="130" rx="17" class="evidence"/><text x="1220" y="548" text-anchor="middle" class="head">训练证据</text><text x="1220" y="579" text-anchor="middle" class="body">收敛 · 稳定性 · 质量</text><text x="1220" y="605" text-anchor="middle" class="body">峰值显存 · 单步时间</text>
+
+  <rect x="55" y="685" width="240" height="130" rx="17" class="object"/><text x="175" y="723" text-anchor="middle" class="head">KV Cache</text><text x="175" y="754" text-anchor="middle" class="body">请求期追加状态</text><text x="175" y="780" text-anchor="middle" class="body">上下文、并发与读写带宽</text>
+  <rect x="345" y="685" width="340" height="130" rx="17" class="mechanism"/><text x="515" y="723" text-anchor="middle" class="head">KV Cache 量化</text><text x="515" y="754" text-anchor="middle" class="body">K/V 异轴 · 动态缩放</text><text x="515" y="780" text-anchor="middle" class="body">逐 Token / 逐通道 · 高精度窗口</text>
+  <rect x="735" y="685" width="300" height="130" rx="17" class="execution"/><text x="885" y="723" text-anchor="middle" class="head">运行时缓存状态</text><text x="885" y="754" text-anchor="middle" class="body">量化块 · 缩放状态 · 追加协议</text><text x="885" y="780" text-anchor="middle" class="body">注意力读取与反量化位置</text>
+  <rect x="1085" y="685" width="270" height="130" rx="17" class="evidence"/><text x="1220" y="723" text-anchor="middle" class="head">缓存证据</text><text x="1220" y="754" text-anchor="middle" class="body">质量 · 容量 · 并发</text><text x="1220" y="780" text-anchor="middle" class="body">TPOT · 带宽 · 尾延迟</text>
+
+  <path d="M295 225H345" class="flow" marker-end="url(#arrow)"/><path d="M685 225H735" class="flow" marker-end="url(#arrow)"/><path d="M1035 225H1085" class="flow" marker-end="url(#arrow)"/>
+  <path d="M295 400H345" class="flow" marker-end="url(#arrow)"/><path d="M685 400H735" class="flow" marker-end="url(#arrow)"/><path d="M1035 400H1085" class="flow" marker-end="url(#arrow)"/>
+  <path d="M295 575H345" class="flow pending" marker-end="url(#arrow)"/><path d="M685 575H735" class="flow" marker-end="url(#arrow)"/><path d="M1035 575H1085" class="flow" marker-end="url(#arrow)"/>
+  <path d="M295 750H345" class="flow" marker-end="url(#arrow)"/><path d="M685 750H735" class="flow" marker-end="url(#arrow)"/><path d="M1035 750H1085" class="flow" marker-end="url(#arrow)"/>
+
+  <path d="M310 862H1090" stroke="#7691aa" stroke-width="2"/>
+  <text x="700" y="897" text-anchor="middle" class="head">阅读规则：对象、机制、执行路径和目标证据必须同时明确</text>
+</svg>

@@ -139,6 +139,28 @@ def count_links(lines: list[str]) -> int:
     return count
 
 
+def section_cell_indexes(nb: dict, title: str) -> list[int]:
+    """Return markdown-cell indexes containing one exact level-2 section title."""
+    expected = f"## {title}"
+    indexes: list[int] = []
+    for idx, cell in enumerate(nb.get("cells", [])):
+        if cell.get("cell_type") != "markdown":
+            continue
+        lines = "".join(cell.get("source", [])).splitlines()
+        if any(line.strip() == expected for line in lines):
+            indexes.append(idx)
+    return indexes
+
+
+def last_nonempty_cell_index(nb: dict) -> int | None:
+    indexes = [
+        idx
+        for idx, cell in enumerate(nb.get("cells", []))
+        if "".join(cell.get("source", [])).strip()
+    ]
+    return indexes[-1] if indexes else None
+
+
 def audit_structure(path: Path, *, treat_missing_id_as_fail: bool) -> StructureResult:
     nb = read_notebook(path)
     lines = collect_markdown_lines(nb)
@@ -166,8 +188,22 @@ def audit_structure(path: Path, *, treat_missing_id_as_fail: bool) -> StructureR
     result.related_links = count_links(related_lines)
 
     is_part1 = path.parent.name == PART1_DIRNAME
+    for title in ("本节导读", "相关阅读"):
+        indexes = section_cell_indexes(nb, title)
+        if not indexes:
+            result.hard_failures.append(f"missing section: {title}")
+        elif len(indexes) > 1:
+            result.hard_failures.append(f"duplicate section: {title}")
+
+    related_cells = section_cell_indexes(nb, "相关阅读")
+    last_cell = last_nonempty_cell_index(nb)
+    if len(related_cells) == 1 and related_cells[0] != last_cell:
+        result.hard_failures.append(
+            f"相关阅读 must be the final non-empty cell: cell={related_cells[0]}, last={last_cell}"
+        )
+
     if is_part1:
-        for title in SECTION_TITLES:
+        for title in ("前置阅读",):
             if not any(line.strip() == f"## {title}" for line in lines):
                 result.hard_failures.append(f"missing section: {title}")
         if result.prereq_links > 3:

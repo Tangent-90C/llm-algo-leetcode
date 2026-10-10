@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="600" viewBox="0 0 1240 600" role="img" aria-labelledby="title desc">
+  <title id="title">交叉熵的目标比较、有效监督与归约尺度</title>
+  <desc id="desc">前向从输出分数形成类别概率并与目标分布比较，只聚合有效监督位置；反向由目标差、有效位置门控和归约尺度形成输出分数梯度。</desc>
+  <defs>
+    <marker id="forwardArrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L12 6L0 12Z" fill="#334155"/></marker>
+    <marker id="backwardArrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L12 6L0 12Z" fill="#dc2626"/></marker>
+    <marker id="controlArrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L12 6L0 12Z" fill="#7c3aed"/></marker>
+    <style>
+      .title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.group{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.label{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.small{font:500 13px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.box{stroke-width:2.5}.forward{stroke:#334155;stroke-width:3;fill:none;marker-end:url(#forwardArrow)}.backward{stroke:#dc2626;stroke-width:3;stroke-dasharray:8 6;fill:none;marker-end:url(#backwardArrow)}.control{stroke:#7c3aed;stroke-width:2.5;stroke-dasharray:7 5;fill:none;marker-end:url(#controlArrow)}
+    </style>
+  </defs>
+  <rect width="1240" height="600" fill="#fffaf5"/>
+  <text x="48" y="48" class="title">交叉熵 backward：目标差、有效位置与归约尺度</text>
+  <text x="48" y="76" class="sub">有效监督集合同时决定哪些位置参与目标比较、产生梯度并进入平均分母</text>
+
+  <text x="48" y="116" class="group">前向：只聚合有效监督位置</text>
+  <rect x="48" y="138" width="180" height="76" rx="15" fill="#fff7ed" stroke="#ea580c" class="box"/>
+  <text x="138" y="169" text-anchor="middle" class="label">输出分数</text><text x="138" y="194" text-anchor="middle" class="small">logits</text>
+  <rect x="276" y="138" width="180" height="76" rx="15" fill="#dbeafe" stroke="#2563eb" class="box"/>
+  <text x="366" y="169" text-anchor="middle" class="label">稳定归一化</text><text x="366" y="194" text-anchor="middle" class="small">类别概率 p 与 log p</text>
+  <rect x="504" y="138" width="180" height="76" rx="15" fill="#ede9fe" stroke="#7c3aed" class="box"/>
+  <text x="594" y="169" text-anchor="middle" class="label">目标比较</text><text x="594" y="194" text-anchor="middle" class="small">逐位置分类误差</text>
+  <rect x="732" y="138" width="180" height="76" rx="15" fill="#ecfccb" stroke="#65a30d" class="box"/>
+  <text x="822" y="169" text-anchor="middle" class="label">有效位置聚合</text><text x="822" y="194" text-anchor="middle" class="small">排除无监督位置</text>
+  <rect x="960" y="138" width="180" height="76" rx="15" fill="#fef3c7" stroke="#d97706" class="box"/>
+  <text x="1050" y="169" text-anchor="middle" class="label">标量损失</text><text x="1050" y="194" text-anchor="middle" class="small">求和或平均</text>
+  <path d="M228 176H276" class="forward"/><path d="M456 176H504" class="forward"/>
+  <path d="M684 176H732" class="forward"/><path d="M912 176H960" class="forward"/>
+
+  <rect x="474" y="252" width="190" height="68" rx="14" fill="#faf5ff" stroke="#7c3aed" class="box"/>
+  <text x="569" y="280" text-anchor="middle" class="label">目标分布 y</text><text x="569" y="304" text-anchor="middle" class="small">由目标类别确定</text>
+  <rect x="742" y="252" width="210" height="68" rx="14" fill="#faf5ff" stroke="#7c3aed" class="box"/>
+  <text x="847" y="280" text-anchor="middle" class="label">有效监督集合 V</text><text x="847" y="304" text-anchor="middle" class="small">位置集合及数量 |V|</text>
+  <path d="M569 252V214" class="control"/><path d="M822 252V214" class="control"/>
+  <path d="M900 252V234Q900 226 908 226H1032Q1050 226 1050 214" class="control"/>
+
+  <text x="48" y="374" class="group">反向：目标差经过门控与缩放后回到 logits</text>
+  <rect x="48" y="430" width="190" height="76" rx="15" fill="#dbeafe" stroke="#2563eb" class="box"/>
+  <text x="143" y="461" text-anchor="middle" class="label">目标差 p − y</text><text x="143" y="486" text-anchor="middle" class="small">每个位置的局部方向</text>
+  <rect x="308" y="430" width="190" height="76" rx="15" fill="#ede9fe" stroke="#7c3aed" class="box"/>
+  <text x="403" y="461" text-anchor="middle" class="label">有效位置门控</text><text x="403" y="486" text-anchor="middle" class="small">集合外梯度归零</text>
+  <rect x="568" y="430" width="190" height="76" rx="15" fill="#ecfccb" stroke="#65a30d" class="box"/>
+  <text x="663" y="461" text-anchor="middle" class="label">归约尺度</text><text x="663" y="486" text-anchor="middle" class="small">sum: 1；mean: 1 / |V|</text>
+  <rect x="828" y="430" width="210" height="76" rx="15" fill="#fff1f2" stroke="#e11d48" class="box"/>
+  <text x="933" y="461" text-anchor="middle" class="label">logits 梯度</text><text x="933" y="486" text-anchor="middle" class="small">返回模型输出端</text>
+  <path d="M238 468H308" class="backward"/><path d="M498 468H568" class="backward"/><path d="M758 468H828" class="backward"/>
+
+  <path d="M540 320V370Q540 390 520 390H163Q143 390 143 430" class="control"/>
+  <path d="M812 320V350Q812 370 792 370H423Q403 370 403 430" class="control"/>
+  <path d="M882 320V388Q882 408 862 408H683Q663 408 663 430" class="control"/>
+
+  <line x1="48" y1="555" x2="88" y2="555" stroke="#334155" stroke-width="3"/><text x="100" y="560" class="small">前向数值流</text>
+  <line x1="274" y1="555" x2="314" y2="555" stroke="#dc2626" stroke-width="3" stroke-dasharray="8 6"/><text x="326" y="560" class="small">反向梯度流</text>
+  <line x1="500" y1="555" x2="540" y2="555" stroke="#7c3aed" stroke-width="2.5" stroke-dasharray="7 5"/><text x="552" y="560" class="small">目标与有效监督控制</text>
+</svg>

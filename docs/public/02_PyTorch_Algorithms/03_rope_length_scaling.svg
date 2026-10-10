@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="title desc">
+  <title id="title">RoPE 的训练长度、外推风险与扩展选择</title>
+  <desc id="desc">训练长度内的相位组合受数据支持，训练长度外存在覆盖不足；扩展方案改变位置到旋转角的映射，并需要短程与长程质量共同验证。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker>
+    <style>.title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.head{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.body{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.accent{font:700 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#1e40af}.box{stroke-width:2.5;rx:14}.flow{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1500" height="470" fill="#f8fafc"/>
+  <text x="50" y="48" class="title">RoPE 长度扩展：改变位置到旋转角的映射</text>
+  <text x="50" y="76" class="sub">扩大配置上限不等于获得可靠外推；扩展方案必须同时守住训练长度内与目标长度质量。</text>
+  <rect x="65" y="175" width="180" height="92" class="box" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="155" y="208" text-anchor="middle" class="head">位置 m</text><text x="155" y="237" text-anchor="middle" class="body">持续增长</text>
+  <rect x="65" y="305" width="180" height="92" class="box" fill="#cffafe" stroke="#0891b2"/>
+  <text x="155" y="338" text-anchor="middle" class="head">频率 θⱼ</text><text x="155" y="367" text-anchor="middle" class="body">各通道旋转速度</text>
+  <rect x="360" y="240" width="210" height="92" class="box" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="465" y="273" text-anchor="middle" class="head">相位映射 m·θⱼ</text><text x="465" y="302" text-anchor="middle" class="body">位置与频率共同决定</text>
+  <rect x="700" y="135" width="240" height="105" class="box" fill="#ecfccb" stroke="#65a30d"/>
+  <text x="820" y="170" text-anchor="middle" class="head">训练长度内</text><text x="820" y="199" text-anchor="middle" class="body">相位组合有训练分布支持</text><text x="820" y="224" text-anchor="middle" class="body">仍需短程回归</text>
+  <rect x="700" y="300" width="240" height="105" class="box" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="820" y="335" text-anchor="middle" class="head">训练长度外</text><text x="820" y="364" text-anchor="middle" class="body">出现覆盖不足的相位组合</text><text x="820" y="389" text-anchor="middle" class="body">公式不能保证质量</text>
+  <rect x="1080" y="175" width="350" height="190" class="box" fill="#fff1f2" stroke="#e11d48"/>
+  <text x="1115" y="212" class="head">扩展候选</text>
+  <text x="1115" y="247" class="body">• 调整基频 theta</text><text x="1115" y="278" class="body">• 位置插值</text><text x="1115" y="309" class="body">• 分频 scaling</text><text x="1115" y="340" class="body">• 继续训练适配</text>
+  <text x="1255" y="392" text-anchor="middle" class="accent">短程质量 + 长程质量 + 成本</text>
+  <path d="M245 221C300 221 300 260 360 260" class="flow"/><path d="M245 351C300 351 300 312 360 312" class="flow"/>
+  <path d="M570 265C625 265 625 188 700 188" class="flow"/><path d="M570 307C625 307 625 352 700 352" class="flow"/>
+  <path d="M940 188C1010 188 1010 230 1080 230" class="flow"/><path d="M940 352C1010 352 1010 310 1080 310" class="flow"/>
+</svg>

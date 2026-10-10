@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="650" viewBox="0 0 1280 650">
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#486581"/></marker></defs>
+<style>.t{font:700 29px sans-serif;fill:#17324d}.s{font:16px sans-serif;fill:#526581}.l{font:700 18px sans-serif;fill:#17324d}.x{font:15px sans-serif;fill:#334e68}.f{stroke:#486581;stroke-width:2.5;fill:none;marker-end:url(#a)}</style>
+<rect width="1280" height="650" fill="#f7fafc"/><text x="640" y="52" text-anchor="middle" class="t">后训练决策：不要让单项分数替代整体结论</text><text x="640" y="80" text-anchor="middle" class="s">质量增益必须同时通过安全、鲁棒性、评测一致性、成本和可回滚性检查。</text>
+<g stroke-width="2"><rect x="80" y="155" width="205" height="116" rx="18" fill="#e6f0ff" stroke="#8fb3d8"/><rect x="330" y="155" width="205" height="116" rx="18" fill="#e8f5ee" stroke="#76b893"/><rect x="580" y="155" width="205" height="116" rx="18" fill="#fff4d6" stroke="#e0b34f"/><rect x="830" y="155" width="205" height="116" rx="18" fill="#fce8e6" stroke="#d98b87"/><rect x="1080" y="155" width="120" height="116" rx="18" fill="#f3e8ff" stroke="#ad8bd0"/></g>
+<text x="182" y="195" text-anchor="middle" class="l">质量</text><text x="182" y="226" text-anchor="middle" class="x">correctness / helpfulness</text><text x="182" y="250" text-anchor="middle" class="x">独立评测集</text><text x="432" y="195" text-anchor="middle" class="l">安全与鲁棒性</text><text x="432" y="226" text-anchor="middle" class="x">refusal / 边界样本</text><text x="432" y="250" text-anchor="middle" class="x">分布变化</text><text x="682" y="195" text-anchor="middle" class="l">评测一致性</text><text x="682" y="226" text-anchor="middle" class="x">judge / verifier</text><text x="682" y="250" text-anchor="middle" class="x">人工抽检</text><text x="932" y="195" text-anchor="middle" class="l">资源与失败</text><text x="932" y="226" text-anchor="middle" class="x">成本、延迟、OOM</text><text x="932" y="250" text-anchor="middle" class="x">波动与失败样本</text><text x="1140" y="195" text-anchor="middle" class="l">回滚</text><text x="1140" y="226" text-anchor="middle" class="x">版本</text><text x="1140" y="250" text-anchor="middle" class="x">阈值</text>
+<path d="M182 271V320H520V385" class="f"/>
+<path d="M432 271V340H580V385" class="f"/>
+<path d="M682 271V360H640V385" class="f"/>
+<path d="M932 271V340H700V385" class="f"/>
+<path d="M1140 271V320H760V385" class="f"/>
+<rect x="465" y="385" width="350" height="104" rx="20" fill="#fff" stroke="#829ab1" stroke-width="2"/><text x="640" y="425" text-anchor="middle" class="l">accept / tune / reject</text><text x="640" y="456" text-anchor="middle" class="x">记录冲突、阈值、证据等级与下一步</text><text x="640" y="575" text-anchor="middle" class="s">reward、loss 或 win-rate 只是一项观察；结论必须说明数据、版本和约束。</text>
+</svg>

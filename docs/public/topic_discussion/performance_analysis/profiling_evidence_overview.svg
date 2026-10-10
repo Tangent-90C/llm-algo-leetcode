@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="620" viewBox="0 0 1280 620" role="img" aria-labelledby="title desc">
+  <title id="title">从性能现象到可测问题</title>
+  <desc id="desc">先排除无效运行，再为性能现象补齐阶段、指标、工作负载和质量门槛，最后区分观察、假设与归因。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+    <style>
+      text{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;fill:#172033}.title{font-size:28px;font-weight:700}.sub{font-size:15px;fill:#526581}.head{font-size:18px;font-weight:700}.body{font-size:14px;fill:#475569}.node{stroke-width:2;rx:16}.line{stroke:#475569;stroke-width:2.8;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1280" height="620" fill="#f8fafc"/>
+  <text x="640" y="46" text-anchor="middle" class="title">从性能现象到可测问题</text>
+  <text x="640" y="74" text-anchor="middle" class="sub">先确认结果可信，再决定测什么、在什么条件下测，以及什么结果能够推翻假设</text>
+
+  <rect x="70" y="130" width="260" height="110" fill="#fee2e2" stroke="#fb7185" class="node"/>
+  <text x="200" y="170" text-anchor="middle" class="head">性能现象</text>
+  <text x="200" y="201" text-anchor="middle" class="body">变慢 · 峰值升高 · 扩展变差</text>
+
+  <rect x="70" y="340" width="260" height="110" fill="#fef3c7" stroke="#f59e0b" class="node"/>
+  <text x="200" y="380" text-anchor="middle" class="head">有效性检查</text>
+  <text x="200" y="411" text-anchor="middle" class="body">输出 · 数值 · 失败状态</text>
+  <path d="M200 240V330" class="line"/>
+
+  <rect x="420" y="105" width="390" height="370" fill="#eff6ff" stroke="#60a5fa" class="node"/>
+  <text x="615" y="145" text-anchor="middle" class="head">把现象写成可测问题</text>
+  <rect x="460" y="180" width="310" height="55" fill="#fff" stroke="#93c5fd" class="node"/>
+  <text x="615" y="214" text-anchor="middle" class="body">发生阶段：数据、计算、通信或服务</text>
+  <rect x="460" y="250" width="310" height="55" fill="#fff" stroke="#93c5fd" class="node"/>
+  <text x="615" y="284" text-anchor="middle" class="body">目标指标：延迟、吞吐、容量或扩展效率</text>
+  <rect x="460" y="320" width="310" height="55" fill="#fff" stroke="#93c5fd" class="node"/>
+  <text x="615" y="354" text-anchor="middle" class="body">工作负载：模型、输入、批量与并发</text>
+  <rect x="460" y="390" width="310" height="55" fill="#fff" stroke="#93c5fd" class="node"/>
+  <text x="615" y="424" text-anchor="middle" class="body">质量门槛：正确性、失败率与服务目标</text>
+  <path d="M330 395H385V290H410" class="line"/>
+
+  <rect x="900" y="115" width="300" height="86" fill="#e0f2fe" stroke="#38bdf8" class="node"/>
+  <text x="1050" y="148" text-anchor="middle" class="head">观察</text>
+  <text x="1050" y="175" text-anchor="middle" class="body">记录发生了什么</text>
+  <rect x="900" y="265" width="300" height="86" fill="#ede9fe" stroke="#a78bfa" class="node"/>
+  <text x="1050" y="298" text-anchor="middle" class="head">可证伪假设</text>
+  <text x="1050" y="325" text-anchor="middle" class="body">声明预期变化与反例</text>
+  <rect x="900" y="415" width="300" height="86" fill="#dcfce7" stroke="#4ade80" class="node"/>
+  <text x="1050" y="448" text-anchor="middle" class="head">归因</text>
+  <text x="1050" y="475" text-anchor="middle" class="body">由判别实验支持主约束</text>
+  <path d="M810 290H855V158H890" class="line"/>
+  <path d="M1050 201V255" class="line"/>
+  <path d="M1050 351V405" class="line"/>
+</svg>

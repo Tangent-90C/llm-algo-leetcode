@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="490" viewBox="0 0 1200 490" role="img" aria-labelledby="title desc">
+  <title id="title">Agent 沙盒执行环境</title><desc id="desc">模型动作先经过工具 schema 和权限校验，再在资源受限的沙盒中执行，输出状态和日志以供回放。</desc>
+  <style>.bg{fill:#f8fafc}.box{stroke-width:2;rx:16}.blue{fill:#eff6ff;stroke:#60a5fa}.green{fill:#ecfdf5;stroke:#34d399}.orange{fill:#fff7ed;stroke:#fb923c}.slate{fill:#f1f5f9;stroke:#94a3b8}.line{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#a)}.title{font:700 24px sans-serif;fill:#0f172a}.h{font:700 18px sans-serif;fill:#0f172a}.s{font:14px sans-serif;fill:#475569}.tag{font:700 13px sans-serif;fill:#2563eb}</style>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L10 3L0 6z" fill="#64748b"/></marker></defs>
+  <rect class="bg" width="1200" height="490" rx="20"/><text x="55" y="55" class="title">Agent 沙盒：让工具执行可控、可记录、可回放</text>
+  <rect class="box blue" x="70" y="130" width="210" height="110"/><text x="95" y="167" class="h">模型动作</text><text x="95" y="196" class="s">tool name · args</text><text x="95" y="220" class="s">任务与 step</text>
+  <rect class="box green" x="350" y="130" width="220" height="110"/><text x="375" y="167" class="h">接口与权限校验</text><text x="375" y="196" class="s">schema · allowlist</text><text x="375" y="220" class="s">参数与密钥策略</text>
+  <rect class="box orange" x="640" y="115" width="265" height="140"/><text x="665" y="157" class="h">隔离执行环境</text><text x="665" y="187" class="s">image · dependency · network</text><text x="665" y="211" class="s">CPU/GPU · memory · timeout</text><text x="665" y="235" class="s">reset · filesystem</text>
+  <rect class="box slate" x="975" y="130" width="155" height="110"/><text x="1000" y="167" class="h">反馈</text><text x="1000" y="196" class="s">status · output</text><text x="1000" y="220" class="s">error · latency</text>
+  <path class="line" d="M280 185H350"/><path class="line" d="M570 185H640"/><path class="line" d="M905 185H975"/>
+  <rect class="box slate" x="300" y="335" width="600" height="85"/><text x="330" y="370" class="h">可回放执行证据</text><text x="330" y="397" class="s">image / tool version · resource budget · trace · stdout / stderr · state snapshot</text>
+  <path class="line" d="M1052 240V335H900"/>
+</svg>

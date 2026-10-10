@@ -1,6 +1,6 @@
 # 02. Prefill and Attention Kernel | Prefill 与 Attention Kernel
 
-## 页面目标
+## 学习问题
 
 从一个长 Prompt 请求开始，观察 Prefill 为什么会推高 `TTFT`，再区分 Attention 访存、Chunked Prefill 和 Prefix Cache 分别解决哪类问题。
 
@@ -79,7 +79,7 @@ Prefill 的时间还可以拆成三类成本：矩阵计算成本、HBM 与片�
 | FlashAttention kernel | 以分块和在线 Softmax 减少中间写回 | kernel 时间、工作集、带宽和输出一致性 |
 | 服务 backend | 将 Attention 放入 Prefill / Decode 和请求执行 | TTFT、TPOT、并发、峰值显存和 P99 |
 
-因此 Task1 的验证顺序是“语义正确 → dispatch 路径可确认 → kernel 证据可解释 → 请求指标可复测”。如果需要修改融合、Triton 或 CUDA kernel，应转入算子优化路线；本节只说明这些实现如何影响 Prefill 和 Attention 的推理成本。
+因此 Task1 的验证顺序是“语义正确 → 融合候选可识别 → dispatch 路径可确认 → kernel 证据可解释 → 请求指标可复测”。[INF-EXECUTION-DISPATCH](../../02_PyTorch_Algorithms/INF-EXECUTION-DISPATCH_Inference_Fusion_and_Backend_Dispatch.md)负责候选、能力门槛和 eager 回退；如果需要修改融合、Triton 或 CUDA kernel，应转入算子优化路线。
 
 FlashAttention 的演进可以按“减少中间状态写回、提高并行效率、匹配硬件路径”理解。它们保持 Attention 的计算语义，主要改变 kernel 的数据流和执行方式；版本差异适合通过 kernel 时间、工作集、带宽和端到端 `TTFT` 验证，而不是只比较名称。
 
@@ -92,9 +92,9 @@ FlashAttention 的演进可以按“减少中间状态写回、提高并行效�
 
 参考入口：论文 [FlashAttention](https://arxiv.org/abs/2205.14135)；开源实现 [FlashAttention](https://github.com/Dao-AILab/flash-attention)。
 
-## 判断框架
+## 选择条件与验证证据
 
-本节承接 `01` 的请求阶段和指标：先用 [20 FlashAttention Sim](../../02_PyTorch_Algorithms/20_FlashAttention_Sim.md) 理解 Attention 访存，再分别用 [34 Prefix Cache 匹配与复用](../../02_PyTorch_Algorithms/34_Prefix_Cache_Matching_and_Reuse.md) 观察重复前缀如何减少新增 Prefill，用 [38 Prefill/Decode 调度](../../02_PyTorch_Algorithms/38_Prefill_Decode_Scheduling.md) 观察长 Prompt 如何分块让出执行机会，最后在 [66 Inference Performance Comparison](../../02_PyTorch_Algorithms/66_Inference_Performance_Comparison.md) 中固定 workload，检查这些机制是否真的改善了请求表现。阅读下表时，先找最接近当前现象的一行，再决定下一步学习或实验。
+本节承接 `01` 的请求阶段和指标：先用 [20 FlashAttention Sim](../../02_PyTorch_Algorithms/20_FlashAttention_Sim.md) 理解 Attention 访存，再用 [INF-EXECUTION-DISPATCH](../../02_PyTorch_Algorithms/INF-EXECUTION-DISPATCH_Inference_Fusion_and_Backend_Dispatch.md) 检查融合候选、backend 能力与回退；重复前缀进入 [24 Prefix Cache](../../02_PyTorch_Algorithms/24_Prefix_Cache_Matching_and_Reuse.md)，长 Prompt 阻塞进入 [38 Prefill/Decode 调度](../../02_PyTorch_Algorithms/38_Prefill_Decode_Scheduling.md)，最终在 [66 Inference Performance Comparison](../../02_PyTorch_Algorithms/66_Inference_Performance_Comparison.md) 中固定 workload 复测。
 
 | 观察到的现象 | 优先判断 | 下一步 |
 |:---|:---|:---|

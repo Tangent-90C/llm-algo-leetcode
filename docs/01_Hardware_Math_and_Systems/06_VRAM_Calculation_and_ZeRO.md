@@ -297,12 +297,9 @@ for row in strategies:
 
 ---
 ## 相关阅读
-本节可以继续接到梯度累积、QLoRA、LoRA 项目和真实显存策略比较；官方文档与论文可帮助你区分“状态分片”与“完整训练峰值”。
+本节可以继续接到 ZeRO/FSDP 的运行时管理与 Part 02 的状态分片机制。
 - [DeepSpeed ZeRO](https://www.deepspeed.ai/tutorials/zero/)：查看 ZeRO 不同阶段如何分片 optimizer state、梯度和参数。
 - [PyTorch Fully Sharded Data Parallel](https://pytorch.org/docs/stable/fsdp.html)：了解 FSDP 的参数分片、通信和运行时管理。
-- [ZeRO: Memory Optimizations Toward Training Trillion Parameter Models](https://arxiv.org/abs/1910.02054)：理解训练状态分片的设计动机。
-- [12. Gradient Accumulation | 梯度累积](../02_PyTorch_Algorithms/12_Gradient_Accumulation.md)
-- [26. QLoRA and 4bit Quantization | QLoRA 与 4-bit 量化](../02_PyTorch_Algorithms/26_QLoRA_and_4bit_Quantization.md)
-- [60. LoRA Fine-Tuning Project | LoRA 微调项目](../02_PyTorch_Algorithms/60_LoRA_Fine_Tuning_Project.md)
+- [27. ZeRO Optimizer Sim | ZeRO 优化器模拟](../02_PyTorch_Algorithms/27_ZeRO_Optimizer_Sim.md)
 
 ---

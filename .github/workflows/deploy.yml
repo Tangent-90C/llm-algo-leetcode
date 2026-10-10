@@ -33,6 +33,9 @@ jobs:
       - name: Install dependencies
         working-directory: ./docs
         run: npm ci
+      - name: Check SVG layout regressions
+        working-directory: ./
+        run: python tools/check_svg_layout.py
       - name: Build with VitePress
         working-directory: ./docs
         run: npm run docs:build

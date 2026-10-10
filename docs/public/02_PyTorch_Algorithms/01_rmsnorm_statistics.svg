@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="title desc">
+  <title id="title">RMSNorm 的混合精度统计路径</title>
+  <desc id="desc">低精度输入先转换为 FP32，完成平方、均值、加稳定项和倒平方根，再归一化、应用逐通道缩放并恢复输入数据类型。</desc>
+  <defs>
+    <style>.title{font:700 28px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.head{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.body{font:500 13px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:2.5}.arrow{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#arrow)}</style>
+    <marker id="arrow" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker>
+  </defs>
+  <rect width="1500" height="470" fill="#f8fafc"/>
+  <text x="55" y="55" class="title">混合精度路径：主状态低精度，归约统计使用 FP32</text>
+  <text x="55" y="85" class="sub">提升统计精度不改变归一化轴；输出恢复输入数据类型，保持后续 Block 接口稳定。</text>
+  <rect x="45" y="175" width="190" height="105" rx="15" fill="#dbeafe" stroke="#2563eb" class="box"/><text x="140" y="215" text-anchor="middle" class="head">输入主状态</text><text x="140" y="246" text-anchor="middle" class="body">FP16 / BF16 · [B,S,D]</text>
+  <rect x="285" y="175" width="190" height="105" rx="15" fill="#e0f2fe" stroke="#0284c7" class="box"/><text x="380" y="215" text-anchor="middle" class="head">提升统计精度</text><text x="380" y="246" text-anchor="middle" class="body">转换为 FP32</text>
+  <rect x="525" y="175" width="190" height="105" rx="15" fill="#fff7ed" stroke="#d97706" class="box"/><text x="620" y="207" text-anchor="middle" class="head">平方与均值</text><text x="620" y="236" text-anchor="middle" class="body">沿最后一维归约</text><text x="620" y="258" text-anchor="middle" class="body">保留单例统计轴</text>
+  <rect x="765" y="175" width="190" height="105" rx="15" fill="#fef3c7" stroke="#d97706" class="box"/><text x="860" y="207" text-anchor="middle" class="head">稳定倒均方根</text><text x="860" y="236" text-anchor="middle" class="body">加入 ε 后开方</text><text x="860" y="258" text-anchor="middle" class="body">避免除零</text>
+  <rect x="1005" y="175" width="190" height="105" rx="15" fill="#dcfce7" stroke="#16a34a" class="box"/><text x="1100" y="207" text-anchor="middle" class="head">归一化与缩放</text><text x="1100" y="236" text-anchor="middle" class="body">逐 token 归一化</text><text x="1100" y="258" text-anchor="middle" class="body">逐通道应用 γ</text>
+  <rect x="1245" y="175" width="210" height="105" rx="15" fill="#f5f3ff" stroke="#7c3aed" class="box"/><text x="1350" y="215" text-anchor="middle" class="head">恢复输出契约</text><text x="1350" y="246" text-anchor="middle" class="body">原数据类型 · [B,S,D]</text>
+  <path d="M235 227H285" class="arrow"/><path d="M475 227H525" class="arrow"/><path d="M715 227H765" class="arrow"/><path d="M955 227H1005" class="arrow"/><path d="M1195 227H1245" class="arrow"/>
+</svg>

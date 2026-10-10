@@ -17,7 +17,7 @@
 
 ##### Task5：MoE 与结构技巧 - [07 MoE Load Balancing Loss](../../02_PyTorch_Algorithms/07_MoE_Load_Balancing_Loss.md) - [08 Architecture Tricks](../../02_PyTorch_Algorithms/08_Architecture_Tricks.md)
 
-##### Task6：训练、微调与学习率策略 - [09 SFT Training Loop](../../02_PyTorch_Algorithms/09_SFT_Training_Loop.md) - [10 LoRA Tutorial](../../02_PyTorch_Algorithms/10_LoRA_Tutorial.md) - [11 Optimizer Updates and Learning Rate Scheduling](../../02_PyTorch_Algorithms/11_Optimizer_Updates_and_Learning_Rate_Scheduling.md)
+##### Task6：训练、微调与学习率策略 - [13 SFT Training Loop](../../02_PyTorch_Algorithms/13_SFT_Training_Loop.md) - [14 LoRA Tutorial](../../02_PyTorch_Algorithms/14_LoRA_Tutorial.md) - [12 Optimizer Updates and Learning Rate Scheduling](../../02_PyTorch_Algorithms/12_Optimizer_Updates_and_Learning_Rate_Scheduling.md)
 
 ## 3. 群内讨论
 [Top 10 大模型算法系统核心基础知识](./group_topic_1.md)
@@ -81,7 +81,7 @@ https://iambecauseithink.github.io/llm-algo-leetcode/02_PyTorch_Algorithms/learn
 #### Task6：训练、微调与学习率策略
 
 - 来自“新手营“的月芽踏浪：[可视化，基础友好]
-https://iambecauseithink.github.io/llm-algo-leetcode/02_PyTorch_Algorithms/learning_notes_html/notes/09_sft_training_loop.html
+https://iambecauseithink.github.io/llm-algo-leetcode/02_PyTorch_Algorithms/learning_notes_html/notes/13_sft_training_loop.html
 
  ## 6. 状态
  已完成

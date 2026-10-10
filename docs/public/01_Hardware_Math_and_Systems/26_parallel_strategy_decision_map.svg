@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="650" viewBox="0 0 1280 650" role="img" aria-labelledby="title desc">
   <title id="title">并行策略：从约束识别到风险验证</title>
-  <desc id="desc">显存、互连和模型结构约束汇入并行策略选择，再经过风险检查进入真实 benchmark。</desc>
+  <desc id="desc">显存、互连和工作负载结构约束汇入六类并行策略选择，再经过风险检查进入真实 benchmark。</desc>
   <defs><marker id="a26" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#64748b"/></marker><style>
     text{font-family:Arial,'Microsoft YaHei',sans-serif;fill:#172033}.title{font-size:28px;font-weight:700}.sub{font-size:15px;fill:#475569}.group{font-size:20px;font-weight:700}.head{font-size:17px;font-weight:700}.body{font-size:13px}.small{font-size:12px;fill:#475569}.panel{stroke:#94a3b8;stroke-width:2;rx:16}.item{stroke:#cbd5e1;stroke-width:1.5;rx:10}.flow{stroke:#64748b;stroke-width:2.5;fill:none;marker-end:url(#a26)}.branch{stroke:#94a3b8;stroke-width:2.2;fill:none;marker-end:url(#a26)}
   </style></defs>
@@ -10,18 +10,20 @@
 
   <rect x="40" y="145" width="260" height="100" fill="#e0f2fe" class="panel"/><text x="65" y="180" class="group">显存约束</text><text x="65" y="210" class="body">参数 · 梯度 · 优化器状态</text><text x="65" y="230" class="small">判断单卡是否能够容纳训练状态</text>
   <rect x="40" y="285" width="260" height="100" fill="#dcfce7" class="panel"/><text x="65" y="320" class="group">互连约束</text><text x="65" y="350" class="body">带宽 · 延迟 · 机内 / 跨机</text><text x="65" y="370" class="small">判断高频通信是否可承受</text>
-  <rect x="40" y="425" width="260" height="100" fill="#fef3c7" class="panel"/><text x="65" y="460" class="group">模型结构</text><text x="65" y="490" class="body">Dense / MoE · 层深 · 路由</text><text x="65" y="510" class="small">判断适合哪种切分层级</text>
+  <rect x="40" y="425" width="260" height="100" fill="#fef3c7" class="panel"/><text x="65" y="460" class="group">工作负载结构</text><text x="65" y="490" class="body">Dense / MoE · 长上下文 · Serving</text><text x="65" y="510" class="small">判断适合哪种切分层级</text>
 
-  <rect x="410" y="170" width="390" height="330" fill="#fff7ed" class="panel"/><text x="605" y="207" text-anchor="middle" class="group">策略选择</text>
-  <rect x="440" y="240" width="150" height="82" fill="#fff" class="item"/><text x="515" y="273" text-anchor="middle" class="head">DP</text><text x="515" y="298" text-anchor="middle" class="body">数据 / batch</text>
-  <rect x="630" y="240" width="150" height="82" fill="#fff" class="item"/><text x="705" y="273" text-anchor="middle" class="head">TP</text><text x="705" y="298" text-anchor="middle" class="body">层内张量</text>
-  <rect x="440" y="350" width="150" height="82" fill="#fff" class="item"/><text x="515" y="383" text-anchor="middle" class="head">PP</text><text x="515" y="408" text-anchor="middle" class="body">层与 stage</text>
-  <rect x="630" y="350" width="150" height="82" fill="#fff" class="item"/><text x="705" y="383" text-anchor="middle" class="head">EP</text><text x="705" y="408" text-anchor="middle" class="body">专家与 token</text>
+  <rect x="410" y="125" width="390" height="420" fill="#fff7ed" class="panel"/><text x="605" y="162" text-anchor="middle" class="group">按切分对象选择策略</text>
+  <rect x="440" y="190" width="150" height="76" fill="#fff" class="item"/><text x="515" y="220" text-anchor="middle" class="head">DP / ZeRO</text><text x="515" y="245" text-anchor="middle" class="body">数据与训练状态</text>
+  <rect x="630" y="190" width="150" height="76" fill="#fff" class="item"/><text x="705" y="220" text-anchor="middle" class="head">TP</text><text x="705" y="245" text-anchor="middle" class="body">层内张量</text>
+  <rect x="440" y="295" width="150" height="76" fill="#fff" class="item"/><text x="515" y="325" text-anchor="middle" class="head">PP</text><text x="515" y="350" text-anchor="middle" class="body">层与 stage</text>
+  <rect x="630" y="295" width="150" height="76" fill="#fff" class="item"/><text x="705" y="325" text-anchor="middle" class="head">CP</text><text x="705" y="350" text-anchor="middle" class="body">序列与上下文</text>
+  <rect x="440" y="400" width="150" height="76" fill="#fff" class="item"/><text x="515" y="430" text-anchor="middle" class="head">EP</text><text x="515" y="455" text-anchor="middle" class="body">专家与 token</text>
+  <rect x="630" y="400" width="150" height="76" fill="#fff" class="item"/><text x="705" y="430" text-anchor="middle" class="head">Replica</text><text x="705" y="455" text-anchor="middle" class="body">Serving 请求</text>
 
-  <rect x="920" y="190" width="300" height="150" fill="#fce7f3" class="panel"/><text x="1070" y="228" text-anchor="middle" class="group">风险检查</text><text x="1070" y="265" text-anchor="middle" class="body">显存 · 通信 · pipeline bubble</text><text x="1070" y="290" text-anchor="middle" class="body">路由 · 负载均衡 · 等待</text><text x="1070" y="315" text-anchor="middle" class="small">检查是否缓解原始瓶颈</text>
+  <rect x="920" y="190" width="300" height="150" fill="#fce7f3" class="panel"/><text x="1070" y="228" text-anchor="middle" class="group">风险检查</text><text x="1070" y="265" text-anchor="middle" class="body">显存 · 通信 · bubble · 上下文</text><text x="1070" y="290" text-anchor="middle" class="body">路由 · 负载不均 · 尾延迟</text><text x="1070" y="315" text-anchor="middle" class="small">检查是否缓解原始瓶颈</text>
   <rect x="920" y="405" width="300" height="120" fill="#ede9fe" class="panel"/><text x="1070" y="442" text-anchor="middle" class="group">真实 benchmark</text><text x="1070" y="476" text-anchor="middle" class="body">固定 workload、硬件和指标</text><text x="1070" y="500" text-anchor="middle" class="small">再判断策略是否值得保留</text>
 
-  <path d="M300 195H355V260H400" class="branch"/><path d="M300 335H355V335H400" class="branch"/><path d="M300 475H355V410H400" class="branch"/>
+  <path d="M300 195H355V228H400" class="branch"/><path d="M300 335H400" class="branch"/><path d="M300 475H355V438H400" class="branch"/>
   <path d="M800 335H860V265H910" class="flow"/><path d="M1070 340V395" class="flow"/>
   <text x="330" y="181" class="small">容量</text><text x="330" y="322" class="small">互连</text><text x="330" y="462" class="small">结构</text><text x="835" y="250" class="small">候选方案</text><text x="1090" y="378" class="small">验证</text>
 </svg>

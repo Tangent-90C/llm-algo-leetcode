@@ -1,0 +1,11 @@
+# Reproducible compatibility set for the historical vLLM 0.11 CUDA 12.8
+# environment used by the tutorial. vLLM owns this PyTorch stack; do not
+# combine it with requirements/torch-cu128.txt.
+vllm==0.11.0
+torch==2.8.0
+torchvision==0.23.0
+torchaudio==2.8.0
+xformers==0.0.32.post1
+triton==3.4.0
+compressed-tensors==0.11.0
+transformers==4.57.1

@@ -436,19 +436,9 @@ print('✅ MoE 条件决策测试通过')
 ---
 ## 相关阅读
 
-**导语：** 把 MoE 的参数与计算账本继续接到显存、通信和并行策略，会更容易判断它什么时候值得放大。
+**导语：** 把参数与计算账本接到 Router 和专家并行，继续观察 capacity、overflow 与跨卡 token 交换。
 
-- [06. VRAM Calculation and ZeRO | 显存计算与 ZeRO 优化](./06_VRAM_Calculation_and_ZeRO.md)
-- [20. NCCL and AllReduce Basics | NCCL 与 AllReduce 基础](./20_NCCL_and_AllReduce_Basics.md)
-- [26. Parallel Strategy Decision Framework | 并行策略决策框架](./26_Parallel_Strategy_Decision_Framework.md)
-
-**经典论文：**
-- [GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding](https://arxiv.org/abs/2006.16668)
-- [Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity](https://arxiv.org/abs/2101.03961)
-- [Mixtral of Experts](https://arxiv.org/abs/2401.04088)：稀疏专家模型的代表性案例。
-
-**开源实现：**
-- [MegaBlocks](https://github.com/databricks/megablocks)：面向 MoE 的高效稀疏计算与专家并行实现。
-- [Tutel](https://github.com/microsoft/Tutel)：MoE 训练和专家并行优化工具。
-- [DeepSpeed-MoE](https://www.deepspeed.ai/tutorials/mixture-of-experts/)：MoE 与专家并行实践入口。
+- [Part 02 · 06 MoE Router](../02_PyTorch_Algorithms/06_MoE_Router.md)
+- [Part 02 · 07 MoE Load Balancing](../02_PyTorch_Algorithms/07_MoE_Load_Balancing_Loss.md)
+- [Part 02 · 46 MoE Expert Parallel](../02_PyTorch_Algorithms/46_MoE_Expert_Parallel.md)
 ---

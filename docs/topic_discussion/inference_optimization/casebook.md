@@ -46,8 +46,8 @@
 |:---|:---|:---|:---|:---|
 | 请求级状态 | Decode 需要保存哪些历史 K / V？ | KV Cache | 峰值显存、TPOT | [11 KV Cache](../../01_Hardware_Math_and_Systems/11_KV_Cache_and_Memory_Growth.md) / [03 Decode](./03_decoding_strategies.md) |
 | 物理分配 | Cache 如何减少碎片并按需增长？ | PagedAttention、Block Table | Block 利用率、并发容量、峰值显存 | [22 PagedAttention](../../02_PyTorch_Algorithms/22_vLLM_PagedAttention.md) |
-| 前缀复用 | 相同前缀是否可以避免重复 Prefill？ | RadixAttention、Prefix Cache | 命中长度、reused tokens、TTFT | [24 RadixAttention](../../02_PyTorch_Algorithms/24_SGLang_RadixAttention.md) / [69 Prefix Cache](../../02_PyTorch_Algorithms/69_Prefix_Caching_Benchmark.md) |
-| 容量治理 | Cache 接近预算时如何控制代价？ | 驱逐、压缩、KV Cache 量化 | OOM、速度、质量、并发 | [04 KV Cache](./04_kv_cache_lifecycle_and_reuse.md) / [41 KV Cache 量化](../../02_PyTorch_Algorithms/41_FP8_and_KV_Cache_Quantization.md) |
+| 前缀复用 | 相同前缀是否可以避免重复 Prefill？ | Prefix Cache、RadixAttention | 命中长度、reused tokens、TTFT | [24 Prefix Cache](../../02_PyTorch_Algorithms/24_Prefix_Cache_Matching_and_Reuse.md) / [34 RadixAttention](../../02_PyTorch_Algorithms/34_SGLang_RadixAttention.md) / [69 Prefix Cache 项目](../../02_PyTorch_Algorithms/69_Prefix_Caching_Benchmark.md) |
+| 容量治理 | KV Cache 接近预算时如何控制代价？ | 驱逐、压缩、KV Cache 量化 | OOM、速度、质量、并发 | [04 KV Cache](./04_kv_cache_lifecycle_and_reuse.md) / [54 KV Cache 量化](../../02_PyTorch_Algorithms/54_KV_Cache_Quantization_Strategies.md) |
 
 如果还不能确定瓶颈对象，先使用下面的现象表定位阶段；已经确认属于 Cache 问题后，再使用上面的 Cache 角色表选择具体机制。
 
@@ -77,8 +77,8 @@
 | 证据层级 | 可以确认什么 | 不能确认什么 |
 |:---|:---|:---|
 | CPU 模拟 | shape、容量公式、匹配逻辑和决策逻辑 | 真实显存、TTFT、吞吐和 backend 命中 |
-| GPU 探针 | CUDA 分配和基础峰值变化 | 完整 backend 机制收益 |
-| backend smoke | 服务能否启动和基本指标 | 稳定 benchmark 与普遍结论 |
+| 单卡机制实验 | 真实模型的局部显存、延迟和路径差异 | 完整 Serving 调度与稳定吞吐 |
+| backend 能力预检 | 服务能否启动、模型能否加载、指标能否采集 | 稳定 benchmark 与普遍结论 |
 | repeated benchmark | 固定 workload 下的相对收益 | 其他模型或 workload 的普遍收益 |
 
 `66` 负责建立浮点推理 baseline 和统一指标口径；`68–71` 分别验证投机解码、缓存复用、调度和架构扩展。任何候选方案都应在固定模型、backend、dtype、prompt / generated tokens、并发和请求分布下比较。
@@ -90,12 +90,12 @@
 3. **再选择策略。** 写清楚代价转移到了算力、带宽、显存、通信、排队延迟还是质量。
 4. **最后选择证据。** CPU 只能验证 shape、容量公式和决策逻辑；真实 TTFT、TPOT、P99、吞吐和 backend 行为需要 GPU 实验。
 
-使用 `accept / tune / reject` 时，必须同时考虑速度、显存、质量和稳定性。单次 smoke test 或单一指标改善，只能标记为待验证，不能写成完整推理优化结论。
+使用 `accept / tune / reject` 时，必须同时考虑速度、显存、质量和稳定性。单次能力预检或单一指标改善只能标记为待验证，不能写成完整推理优化结论。
 
 ## 阅读入口
 
 - 想按顺序学习机制：回到[推理优化入口](./intro.md)，再读 01–07 正文。
 - 想沿请求生命周期完整阅读：查看[推理优化深入阅读](./walkthrough.md)。
-- 想分析显存对象和预算：转到[显存优化](../memory_performance_tuning/intro.md)。
-- 想分析低比特表示和部署格式：转到[量化与压缩](../quantization/intro.md)。
-- 想定位 kernel、访存和 trace 证据：转到[性能分析](../profiling/intro.md)或[算子优化](../operator_optimization/intro.md)。
+- 想分析 KV Cache 的容量、复用和预算：转到[性能优化 Task3](../performance_optimization/intro.md)。
+- 想分析低比特表示和部署格式：转到[量化与压缩](../quantization_compression/intro.md)。
+- 想定位 kernel、访存和 trace 证据：转到[性能分析](../performance_analysis/intro.md)或[算子优化](../operator_optimization/intro.md)。

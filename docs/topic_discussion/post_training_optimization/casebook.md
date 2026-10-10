@@ -1,34 +1,17 @@
-# 后训练优化正文
+# 后训练优化判断手册 | Post-Training Casebook
 
-这页只做对齐问题的判断框架：不重复 `intro` 的路线入口，也不写 `walkthrough` 的连续故事。
+先根据问题所在的训练信号与工程证据选择下一步，而不是从某个算法名开始。
 
-## 使用顺序
-
-先确认问题确实超出 SFT，再比较 PPO、DPO、GRPO 的训练闭环；随后审计偏好数据和评测口径，最后回到项目交付。不要只按 loss 或方法流行度选择路线。
-
-## 判断表
-
-先分清问题在方法选择、偏好数据、评测口径还是项目交付，再判断它是不是已经退化成训练或系统代价问题。
-
-| 现象 | 优先判断 | 先看哪条线 | 常见动作 |
+| 现象或目标 | 先检查什么 | 首选正文 | 项目出口 |
 |:---|:---|:---|:---|
-| SFT 后结果仍然偏离偏好 | `alignment gap` | [01](./01_why_post_training_alignment.md) | 先确认是不是对齐问题而不是 SFT 基础问题 |
-| 方法很强，但系统代价太重 | `ppo system cost` | [02](./02_rlhf_and_ppo_system_cost.md) | 看 rollout、reward、显存和多卡代价 |
-| 偏好数据有了，但结论不稳 | `dpo / data mismatch` | [03](./03_dpo_and_preference_optimization.md), [05](./05_preference_data_and_evaluation.md) | 看 chosen / rejected 和评测口径 |
-| group-wise 路线不稳定 | `grpo mismatch` | [04](./04_grpo_and_groupwise_alignment.md) | 看候选组构造和比较口径 |
-| 项目页能跑，但采用建议站不住 | `delivery gap` | [06](./06_project_decision_and_delivery.md) | 回到方法、数据、评测一起收口 |
+| 模型格式不稳、损失与监督对象不一致 | 聊天模板、标签、掩码、切分与数据质量 | [01 SFT 数据与监督契约](./01_sft_data_and_loss.md) | [Part 02 · 32 / 64](../../02_PyTorch_Algorithms/2_10.md) |
+| adapter 无效、训练不可复现或有效 batch 不清 | target modules、rank、optimizer step、scheduler 与评测集 | [02 LoRA / PEFT](./02_lora_peft_design.md)、[03 训练控制](./03_training_control.md) | [62 / 63 / 65](../../02_PyTorch_Algorithms/2_10.md) |
+| 训练完成但检查点、分词器或报告缺失 | 产物、恢复状态、样例输出与结果记录 | [04 SFT 实验与交付](./04_end_to_end_experiment.md) | [Part 02 · 62](../../02_PyTorch_Algorithms/62_Instruction_Fine_Tuning_Project.md) |
+| 有偏好对，需要更轻的离线优化 | 优选 / 非优选回答质量、参考策略与独立评测 | [05 DPO](./05_dpo_and_preference_optimization.md) | [Part 02 · 84](../../02_PyTorch_Algorithms/84_DPO_Preference_Project.md) |
+| 需要轨迹采样、奖励或组内比较 | 奖励、优势、候选组、KL 与验证器 | [06 PPO / RLHF](./06_rlhf_and_ppo_system_cost.md)、[07 GRPO / RLVR](./07_grpo_and_groupwise_alignment.md) | [Part 02 · 85](../../02_PyTorch_Algorithms/85_GRPO_Groupwise_Alignment_Project.md) |
+| 在线更新变慢、昂贵或不可回滚 | 采样后端、工作进程、策略新鲜度、资源与失败记录 | [08 RL 工程](./08_rl_engineering_and_efficiency.md) | [Part 02 · 86](../../02_PyTorch_Algorithms/86_DPO_Online_Benchmark.md) |
+| 指标相互冲突 | 质量、安全、鲁棒性、成本和评审器一致性 | [09 评测与项目决策](./09_preference_data_and_project_decision.md) | [Part 02 · 84–86](../../02_PyTorch_Algorithms/2_10.md) |
 
-| 检查项 | 主要回答什么 | 常见误判 |
-|:---|:---|:---|
-| 方法选择 | 当前是 PPO、DPO 还是 GRPO 问题 | 只按流行度选方法 |
-| 偏好数据 | chosen / rejected 或 group 数据是否可信 | 只要有 pair 就能训练 |
-| 评测口径 | 结果是不是和目标行为一致 | 只看 loss，不看偏好评测 |
-| 项目收口 | 是否能落成 adopt / tune / reject | 能跑就等于值得上 |
+最小记录字段：`data / model / reference / configuration / workload / quality / resource / failure / artifact / decision`。
 
-## 本节要点
-
-这页的职责不是再讲一遍对齐方法名，而是把后训练里最常见的判断点压成一张表。路线入口留给 `intro`，连续故事留给 `walkthrough`。
-
-## 最小决策模板
-
-记录 `SFT 基线 -> 对齐缺口 -> 方法与数据形态 -> 评测指标 -> 系统成本 -> adopt / tune / reject`。训练指标、偏好指标和在线指标不一致时，必须明确说明差异。
+训练机制异常进入[反向传播与训练机制](../backpropagation_training_mechanism/intro.md)，真实资源瓶颈进入[性能优化](../performance_optimization/intro.md)，数据管道问题进入[数据工程](../data_engineering/intro.md)。

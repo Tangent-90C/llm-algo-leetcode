@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="520" viewBox="0 0 1280 520" role="img" aria-labelledby="title desc">
+  <title id="title">部署兼容性的四道检查门</title>
+  <desc id="desc">候选依次经过 device、artifact、runtime 和 path 四道检查门，失败时记录原因并转向修复、转换或拒绝。</desc>
+  <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#64748b"/></marker><style>text{font-family:Arial,'Microsoft YaHei',sans-serif;fill:#172033}.title{font-size:28px;font-weight:700}.sub{font-size:15px;fill:#475569}.head{font-size:17px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#475569}.node{stroke:#94a3b8;stroke-width:2;rx:16}.flow{stroke:#64748b;stroke-width:2.5;fill:none;marker-end:url(#arrow)}.fail{stroke:#dc2626;stroke-width:2;fill:none;marker-end:url(#arrow)}</style></defs>
+  <rect width="1280" height="520" fill="#f8fafc"/>
+  <text x="640" y="42" text-anchor="middle" class="title">四道兼容 gate：从候选到可复测执行路径</text>
+  <text x="640" y="70" text-anchor="middle" class="sub">每一道 gate 都输出可保存证据；失败不是空白，而是下一次候选选择的输入</text>
+  <rect x="55" y="195" width="220" height="110" fill="#e0f2fe" class="node"/><text x="165" y="235" text-anchor="middle" class="head">Device gate</text><text x="165" y="263" text-anchor="middle" class="body">内存、dtype、driver</text>
+  <rect x="355" y="195" width="220" height="110" fill="#dcfce7" class="node"/><text x="465" y="235" text-anchor="middle" class="head">Artifact gate</text><text x="465" y="263" text-anchor="middle" class="body">格式、revision、metadata</text>
+  <rect x="655" y="195" width="220" height="110" fill="#fef3c7" class="node"/><text x="765" y="235" text-anchor="middle" class="head">Runtime gate</text><text x="765" y="263" text-anchor="middle" class="body">backend、插件、模型支持</text>
+  <rect x="955" y="195" width="270" height="110" fill="#fce7f3" class="node"/><text x="1090" y="235" text-anchor="middle" class="head">Path gate</text><text x="1090" y="263" text-anchor="middle" class="body">实际 dtype、kernel、请求输出</text>
+  <path d="M275 250H355" class="flow"/><path d="M575 250H655" class="flow"/><path d="M875 250H955" class="flow"/>
+  <path d="M165 305V395H620" class="fail"/><path d="M465 305V395H620" class="fail"/><path d="M765 305V395H620" class="fail"/><path d="M1090 305V395H620" class="fail"/>
+  <rect x="620" y="360" width="310" height="70" fill="#fff1f2" class="node"/><text x="775" y="390" text-anchor="middle" class="head">修复、转换、fallback 或拒绝</text><text x="775" y="414" text-anchor="middle" class="small">保留失败原因；若 fallback 成功，仍回到固定 workload 复测</text>
+</svg>

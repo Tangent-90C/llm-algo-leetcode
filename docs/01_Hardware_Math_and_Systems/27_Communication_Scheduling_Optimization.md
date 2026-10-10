@@ -206,11 +206,9 @@ print('effective overlap depends on whether the gap can hide the communication')
 
 ## 相关阅读
 
-**导语：** 如果还想把通信优化和实现细节连起来，可以接着看异步调度、容错和高级 stream 调度。
+**导语：** 把理论调度继续接到 CUDA 依赖和 Part 02 的真实通信时间线。
 
 - [17. CUDA Stream and Asynchrony | CUDA Stream 与异步执行](./17_CUDA_Stream_and_Asynchrony.md)
-- [28. Fault Tolerance and Checkpointing | 容错与检查点](./28_Fault_Tolerance_and_Checkpointing.md)
 - [29. CUDA Stream Advanced Scheduling | CUDA Stream 高级调度](./29_CUDA_Stream_Advanced_Scheduling.md)
-- [NCCL Documentation | NVIDIA Collective Communications Library](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/)
-- [nccl-tests | NCCL 性能测试工具](https://github.com/NVIDIA/nccl-tests)
+- [Part 02 · 48 通信热点与缓解](../02_PyTorch_Algorithms/48_Communication_Hotspots_and_Mitigation.md)
 ---

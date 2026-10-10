@@ -1,6 +1,6 @@
 # 06. PyTorch Tensor Layout and Indexing | PyTorch 张量布局与索引
 
-**难度：** Easy | **环境：** CPU-first | **标签：** `PyTorch`, `布局`, `索引` | **目标人群：** 已会创建 Tensor、准备理解 shape 与内存布局的学习者
+**难度：** Medium | **环境：** CPU-first | **标签：** `PyTorch`, `layout`, `indexing`, `broadcast` | **目标人群：** 已会创建 Tensor、准备阅读序列与多头张量变换的学习者
 
 > 🚀 **云端运行环境**
 >
@@ -10,206 +10,219 @@
 > [![Open In Studio](https://img.shields.io/badge/Open%20In-ModelScope-blueviolet?logo=alibabacloud)](https://modelscope.cn/my/mynotebook) *(国内推荐：魔搭社区免费实例)*
 
 
-本节聚焦：先读懂 Tensor 的 shape、stride 和连续性，再判断索引、广播与维度变换是否保持预期语义。学习时可以沿着“观察布局 → 读取数据 → 变换维度 → 选择操作”的顺序推进；后面 Attention、KV Cache 和序列变换中的 `permute / reshape / view / contiguous` 都会复用这套判断方式。
+shape 说明逻辑维度，stride 说明访问布局，索引决定取出哪些位置。三者需要一起检查：相同 shape 不代表相同布局，维度变换可能改变连续性，广播要求维度从右侧兼容。本节沿“观察布局→维度变换→mask/广播→查表→综合整理”建立输入契约。
 
-**关键词：** `shape`, `stride`, `contiguous`
-
-布局变换是否触发数据复制，要结合具体工作负载观察；本节先把判断复制可能性的布局条件练清楚。
+**关键词：** `shape`, `stride`, `contiguous`, `gather`
 
 ![Tensor 布局与索引概念关系](../public/00_Prerequisites/06_tensor_layout_indexing_map.svg)
 
 ## 前置阅读
-**导语：** 先回顾 Tensor 的形状和基础属性，再进入本节的布局、索引和连续性判断。
+**导语：** 先掌握 Tensor 的 dtype、device 和复制/共享语义，再进入 layout 与索引。
 - [05. PyTorch Tensor Fundamentals | PyTorch 张量基础操作](./05_PyTorch_Tensor_Fundamentals.md)
 - [0B 组页](./0B.md)
 
-## Q1：如何用 shape、stride 和 contiguous 观察 Tensor 布局？
+## 相关阅读
+**导语：** 建立 layout 和索引契约后，可以继续观察它们如何进入计算图与 Attention。
+- [PyTorch Tensor Views 官方文档](https://pytorch.org/docs/stable/tensor_view.html)
+- [07. PyTorch Autograd and Backward | PyTorch 自动求导与反向传播](./07_PyTorch_Autograd_and_Backward.md)
+- [16. Attention Mechanism Intro | Attention 机制导论](./16_Attention_Mechanism_Intro.md)
 
-看到一个 Tensor 时，先看它的 shape、stride 和连续性。shape 说明维度大小，stride 说明沿各维移动一个位置要跨过多少元素，contiguous 则帮助判断后续能否直接使用依赖连续布局的操作。这里用切片和转置制造两个布局不同的示例，再读取这三个信号。
+## Q1：shape、stride、contiguous 与共享存储分别说明什么？
 
+shape 是逻辑维度，stride 是沿每一维移动一个位置跨过的元素数，contiguous 表示布局是否满足默认连续顺序。切片和转置通常仍与原 Tensor 共享存储，但可能变成非连续视图。
 
 ```python
 import torch
 
 
-def describe_layout(x):
-    """返回 Tensor 的 shape、stride 和连续性，帮助观察布局变化。"""
+def describe_layout(tensor):
+    """返回 shape、stride、连续性和底层存储地址。"""
     return {
-        'shape': tuple(x.shape),
-        'stride': x.stride(),
-        'contiguous': x.is_contiguous(),
+        'shape': tuple(tensor.shape),
+        'stride': tuple(tensor.stride()),
+        'contiguous': tensor.is_contiguous(),
+        'storage_ptr': tensor.untyped_storage().data_ptr(),
     }
 
 
-x = torch.arange(12).reshape(3, 4)
-y = x[:, 1:3]
-z = x.t()
-
-# `shape`、`stride` 和 `contiguous` 是 layout 里的三个核心信号。
-print('x:', describe_layout(x))
-print('y:', describe_layout(y))
-print('z:', describe_layout(z))
-
-# 在当前示例中，切片和转置都会得到非连续 Tensor；实际判断仍应以 `is_contiguous()` 为准。
-assert x.is_contiguous() is True
-assert y.is_contiguous() is False
-assert z.is_contiguous() is False
-print('✅ layout 基本判断通过')
-
+base = torch.arange(12).reshape(3, 4)
+sliced = base[:, 1:3]
+transposed = base.t()
+print('base:', describe_layout(base))
+print('sliced:', describe_layout(sliced))
+print('transposed:', describe_layout(transposed))
 ```
 
-## Q2：如何判断索引、mask 和广播是否保持原有语义？
-
-取局部片段、屏蔽位置、按 id 查表或把一个偏置加到每一行时，先确认索引和广播是否改变了结果的含义。下面的对照表把这些操作的作用和检查重点放在一起，读完表格再看代码中的具体输出。
-
-| 操作 | 解决的问题 | 需要检查 |
-| --- | --- | --- |
-| `masked_fill` | 按布尔条件替换位置 | mask 的 shape 是否一致 |
-| `unsqueeze / squeeze` | 增加或删除维度 | 维度数量和位置 |
-| `index_select` | 按指定索引选择整行或整列 | 索引 dtype 和选择维度 |
-| `gather` | 按每个位置的索引取值 | index shape 与取值维度 |
-| 广播加法 | 将低维张量对齐到高维张量 | 从右侧开始逐维匹配 |
-
+## Q1 验证：视图是否共享存储但拥有不同布局？
 
 ```python
-x = torch.arange(1, 13).reshape(3, 4)
-mask = x % 2 == 0
-row = x[0]
-# `masked_fill` 会把 `~mask` 为 True 的位置替换成指定值。
-print('原始张量：')
-print(x)
-print('布尔 mask：')
-print(mask)
-print('masked 后：')
-print(x.masked_fill(~mask, -1))
-
-# `unsqueeze / squeeze` 负责加一维 / 去一维，先检查维度变化再继续计算。
-row_2d = row.unsqueeze(0)
-print('unsqueeze 后 shape：', row_2d.shape)
-print('squeeze 后 shape：', row_2d.squeeze(0).shape)
-# `index_select` / 高级索引常用于按 id 查表；`gather` 常用于按位置取值。
-table = torch.tensor([[10, 11, 12, 13], [20, 21, 22, 23], [30, 31, 32, 33]])
-ids = torch.tensor([2, 0], dtype=torch.long)
-print('高级索引查表：', table[ids])
-print('index_select 查表：', torch.index_select(table, 0, ids))
-pos = torch.tensor([[0], [3], [1]])
-print('gather 取值：', torch.gather(table, 1, pos))
-
-# 一维张量会自动广播到二维张量的每一行。
-bias = torch.tensor([10, 20, 30, 40])
-print('广播加 bias：')
-print(x + bias)
-
-masked = x.masked_fill(~mask, -1)
-# 通过断言把输出形状和数值都固定下来。
-assert masked.tolist() == [[-1, 2, -1, 4], [-1, 6, -1, 8], [-1, 10, -1, 12]]
-broadcasted = x + bias
-assert broadcasted.tolist() == [[11, 22, 33, 44], [15, 26, 37, 48], [19, 30, 41, 52]]
-assert row_2d.squeeze(0).shape == (4,)
-assert torch.index_select(table, 0, ids).tolist() == [[30, 31, 32, 33], [10, 11, 12, 13]]
-assert torch.gather(table, 1, pos).tolist() == [[10], [23], [31]]
-print('✅ mask、广播和查表通过')
-
+base = torch.arange(12).reshape(3, 4)
+sliced = base[:, 1:3]
+transposed = base.t()
+assert base.is_contiguous()
+assert not sliced.is_contiguous()
+assert not transposed.is_contiguous()
+assert describe_layout(base)['storage_ptr'] == describe_layout(sliced)['storage_ptr']
+assert describe_layout(base)['storage_ptr'] == describe_layout(transposed)['storage_ptr']
+print('✅ layout 与共享存储通过')
 ```
 
-## Q3：transpose / permute 后，为什么 view 可能无法使用？
+## Q2：transpose 后为什么 `view()` 可能失败？
 
-`transpose / permute` 会改变维度访问顺序，但不会自动重排底层数据；因此 Tensor 的 shape 可能仍然正确，layout 却不再满足 `view()` 的条件。本题用一个最小例子观察 `view()` 的失败、`reshape()` 的兜底，以及连续性检查在其中扮演的角色。
-
-
-```python
-x = torch.arange(24).reshape(2, 3, 4)
-y = x.transpose(1, 2)
-
-# `transpose` 会交换维度，但不会帮你重排内存。
-print('x contiguous:', x.is_contiguous())
-print('y contiguous:', y.is_contiguous())
-
-# 当前示例中的非连续 Tensor 直接 `view()` 会抛出 RuntimeError。
-try:
-    y.view(-1)
-except RuntimeError as e:
-    print('view 失败：', str(e).split(':', 1)[0])
-
-# `reshape()` 会在需要时帮你返回正确结果，更适合不确定连续性的场景。
-print('reshape 结果 shape：', y.reshape(-1).shape)
-assert y.is_contiguous() is False
-assert y.reshape(-1).shape == (24,)
-print('✅ contiguous 和 reshape 通过')
-
-```
-
-## Q4：如何根据 shape、layout 和目标操作选择变换方式？
-
-shape 解决维度能否对齐，layout 解决这些维度是否按当前顺序存放；两者都满足时才适合直接 `view()`。如果目标只是得到正确形状，可以使用 `reshape()`；如果后续接口明确要求连续 Tensor，再使用 `contiguous()`，但要意识到这可能产生复制。
-
+`transpose/permute` 只改变维度解释和 stride，不自动重排存储。`view()` 需要当前布局能够直接解释为目标 shape；`reshape()` 必要时会复制，`contiguous()` 则显式生成连续布局。
 
 ```python
-def layout_decision(x, target_shape, need_view=False):
-    """区分元素数量是否可重排，以及当前布局是否支持 view。"""
-    target_shape = tuple(target_shape)
-    target_numel = 1
-    for size in target_shape:
-        target_numel *= size
-    if x.numel() != target_numel:
-        return {'status': 'shape_fail', 'next': 'fix_shape_first'}
-    if need_view and not x.is_contiguous():
-        return {'status': 'layout_fail', 'next': 'use_reshape_or_make_contiguous'}
-    next_step = 'view' if need_view else 'view_or_reshape'
-    return {'status': 'ok', 'next': next_step, 'target_shape': target_shape}
-
-
 base = torch.arange(24).reshape(2, 3, 4)
 transposed = base.transpose(1, 2)
-# 同样的元素数量不等于同样的 layout；这里把真实 Tensor 传入判断函数。
-print('连续 Tensor：', layout_decision(base, (6, 4), need_view=True))
-print('转置 Tensor：', layout_decision(transposed, (6, 4), need_view=True))
-print('只要求结果形状：', layout_decision(transposed, (6, 4), need_view=False))
-assert layout_decision(base, (6, 4), need_view=True)['next'] == 'view'
-assert layout_decision(transposed, (6, 4), need_view=True)['status'] == 'layout_fail'
-assert layout_decision(transposed, (5, 5), need_view=False)['status'] == 'shape_fail'
-print('✅ shape、layout 与目标操作的判断通过')
 
+view_failed = False
+try:
+    transposed.view(-1)
+except RuntimeError:
+    view_failed = True
+
+reshaped = transposed.reshape(-1)
+contiguous_tensor = transposed.contiguous()
+print({
+    'view_failed': view_failed,
+    'reshape_shape': tuple(reshaped.shape),
+    'contiguous': contiguous_tensor.is_contiguous(),
+})
 ```
 
-## Q5：如何把索引、维度变换和布局检查串成一次输入整理？
-
-这一题把前面的判断串成一条输入整理流程：先从批量数据中选取需要的片段，再调整维度顺序，最后检查连续性并选择 `reshape()`。重点不是再记一个 API，而是确认每一步都同时满足目标 shape 和后续操作的布局要求。
-
+## Q2 验证：不同变形路径是否保持元素数量与顺序？
 
 ```python
-tokens = torch.arange(24).reshape(2, 3, 4)
-mask = tokens[:, :, 0] % 3 == 0
-selected_mask = mask[:, :2]
-selected = tokens[:, :2, :]
-reordered = selected.permute(0, 2, 1)
-# 先检查索引结果，再观察维度变换是否改变连续性。
-print('selected shape：', selected.shape)
-print('reordered shape：', reordered.shape)
-print('reordered contiguous:', reordered.is_contiguous())
+base = torch.arange(24).reshape(2, 3, 4)
+transposed = base.transpose(1, 2)
+reshaped = transposed.reshape(-1)
+contiguous_tensor = transposed.contiguous()
+assert not transposed.is_contiguous()
+assert reshaped.numel() == base.numel()
+assert torch.equal(reshaped, contiguous_tensor.view(-1))
+assert contiguous_tensor.is_contiguous()
+assert contiguous_tensor.untyped_storage().data_ptr() != base.untyped_storage().data_ptr()
+print('✅ view、reshape 与 contiguous 通过')
+```
 
-# `reshape` 在需要时处理非连续布局，返回目标 shape。
-masked_selected = selected.masked_fill(~selected_mask.unsqueeze(-1), 0)
-ready = reordered.reshape(2, 4, 2)
-assert selected.shape == (2, 2, 4)
-assert reordered.shape == (2, 4, 2)
-assert ready.shape == (2, 4, 2)
-assert mask.shape == (2, 3)
-assert selected_mask.shape == (2, 2)
-assert masked_selected[0, 0].tolist() == [0, 1, 2, 3]
-assert masked_selected[0, 1].tolist() == [0, 0, 0, 0]
-print('✅ 索引、维度变换和布局检查通过')
+## Q3：mask 与广播需要满足哪些 shape 条件？
 
+逐位置 mask 应与目标 Tensor shape 一致或明确可广播；feature bias 通常要求最后一维与 hidden size 相同。入口先校验这些条件，可以避免广播成功却语义错误。
+
+```python
+def mask_and_add_bias(values, visible_mask, feature_bias, fill_value=0):
+    """先广播 feature bias，再把不可见位置写成 fill_value。"""
+    if visible_mask.dtype != torch.bool or visible_mask.shape != values.shape:
+        raise ValueError('visible_mask must be boolean and match values.shape')
+    if feature_bias.ndim != 1 or feature_bias.shape[0] != values.shape[-1]:
+        raise ValueError('feature_bias must match the last dimension')
+    return (values + feature_bias).masked_fill(~visible_mask, fill_value)
+
+
+values = torch.arange(12).reshape(3, 4)
+visible_mask = values % 2 == 0
+bias = torch.tensor([10, 20, 30, 40])
+print(mask_and_add_bias(values, visible_mask, bias))
+```
+
+## Q3 验证：mask 数值和非法广播是否可检查？
+
+```python
+values = torch.arange(8).reshape(2, 4)
+visible_mask = values % 2 == 0
+bias = torch.tensor([10, 20, 30, 40])
+result = mask_and_add_bias(values, visible_mask, bias)
+assert result.tolist() == [[10, 0, 32, 0], [14, 0, 36, 0]]
+
+try:
+    mask_and_add_bias(values, visible_mask[:, :3], bias)
+except ValueError as error:
+    assert 'visible_mask' in str(error)
+else:
+    raise AssertionError('错误 mask shape 应触发 ValueError')
+print('✅ mask 与广播契约通过')
+```
+
+## Q4：高级索引、`index_select` 与 `gather` 分别按什么规则取值？
+
+高级索引和 `index_select` 按某一维选择整行或整列；`gather` 则要求 index 与输出 shape 对齐，并为每个位置指定来源索引。高级索引通常产生新 Tensor，不再与原表共享存储。
+
+```python
+table = torch.tensor([
+    [10, 11, 12, 13],
+    [20, 21, 22, 23],
+    [30, 31, 32, 33],
+])
+row_ids = torch.tensor([2, 0], dtype=torch.long)
+positions = torch.tensor([[0, 3], [1, 2], [3, 0]], dtype=torch.long)
+
+advanced = table[row_ids]
+selected = torch.index_select(table, dim=0, index=row_ids)
+gathered = torch.gather(table, dim=1, index=positions)
+print('selected:', selected)
+print('gathered:', gathered)
+```
+
+## Q4 验证：整行选择、逐位置选择和副本语义是否正确？
+
+```python
+table = torch.tensor([[10, 11, 12, 13], [20, 21, 22, 23], [30, 31, 32, 33]])
+row_ids = torch.tensor([2, 0], dtype=torch.long)
+positions = torch.tensor([[0, 3], [1, 2], [3, 0]], dtype=torch.long)
+advanced = table[row_ids]
+selected = torch.index_select(table, 0, row_ids)
+gathered = torch.gather(table, 1, positions)
+assert torch.equal(advanced, selected)
+assert selected.tolist() == [[30, 31, 32, 33], [10, 11, 12, 13]]
+assert gathered.tolist() == [[10, 13], [21, 22], [33, 30]]
+assert advanced.untyped_storage().data_ptr() != table.untyped_storage().data_ptr()
+print('✅ 索引与 gather 通过')
+```
+
+## Q5：怎样把位置选择和 head 拆分整理成稳定输入？
+
+综合流程先按 token 位置选择 `[B, S, D]`，再把 hidden 维拆成 head，最后排列为 `[B, H, S, D_h]`。每一步都要检查索引范围、hidden 是否可整除，以及最终布局是否满足后续接口。
+
+```python
+def prepare_head_input(features, positions, num_heads):
+    """从 [B, T, D] 选择位置并整理为连续的 [B, H, S, D_h]。"""
+    if features.ndim != 3:
+        raise ValueError('features must have shape [B, T, D]')
+    if positions.dtype != torch.long or positions.ndim != 1:
+        raise ValueError('positions must be a one-dimensional long tensor')
+    if positions.numel() and (positions.min() < 0 or positions.max() >= features.shape[1]):
+        raise IndexError('positions are out of range')
+    if num_heads <= 0 or features.shape[-1] % num_heads != 0:
+        raise ValueError('hidden size must be divisible by num_heads')
+
+    selected = features.index_select(1, positions)
+    batch, selected_tokens, hidden = selected.shape
+    head_dim = hidden // num_heads
+    heads = selected.reshape(batch, selected_tokens, num_heads, head_dim).permute(0, 2, 1, 3)
+    return heads.contiguous()
+
+
+features = torch.arange(2 * 4 * 8).reshape(2, 4, 8)
+ready = prepare_head_input(features, torch.tensor([0, 2]), num_heads=2)
+print('ready shape:', tuple(ready.shape), 'contiguous:', ready.is_contiguous())
+```
+
+## Q5 验证：综合整理是否保持位置内容和目标布局？
+
+```python
+features = torch.arange(2 * 4 * 8).reshape(2, 4, 8)
+positions = torch.tensor([0, 2], dtype=torch.long)
+ready = prepare_head_input(features, positions, num_heads=2)
+assert ready.shape == (2, 2, 2, 4)
+assert ready.is_contiguous()
+restored = ready.permute(0, 2, 1, 3).reshape(2, 2, 8)
+assert torch.equal(restored, features.index_select(1, positions))
+print('✅ 输入整理闭环通过')
 ```
 
 ### 本节小结
 
-- `shape` 负责对齐，`stride / contiguous` 负责决定能不能直接重排。
-- `mask / 广播 / 查表` 是高频语法，先看语义再看实现。
-- `reshape` 是更稳的默认选择，`view` 只适合布局已经对齐的场景。
-
-## 相关阅读
-**导语：** 完成本节后，可以继续看 Tensor 的视图规则、自动求导中的张量保存，以及 Attention 对布局和显存的要求。
-- [PyTorch Tensor Views 官方文档](https://pytorch.org/docs/stable/tensor_view.html)：理解 `view`、`reshape`、stride 与连续性。
-- [07. PyTorch Autograd and Backward | PyTorch 自动求导与反向传播](./07_PyTorch_Autograd_and_Backward.md)：观察布局与反向传播中保存张量的联系。
-- [P1: 04. Attention Memory Optimization | Attention 显存优化](../01_Hardware_Math_and_Systems/04_Attention_Memory_Optimization.md)：继续理解 Attention 中的张量布局和工作集。
+- shape、stride、连续性与共享存储共同决定 Tensor 的布局语义。
+- `transpose()` 只改变维度解释；`reshape()` 必要时复制，`contiguous()` 显式生成连续布局。
+- mask、bias 和索引都需要明确 shape/dtype 契约，且不可见位置应保持填充值语义。
+- 位置选择与 head 拆分应逐步验证内容守恒和最终布局。

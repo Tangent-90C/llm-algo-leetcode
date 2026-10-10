@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="600" viewBox="0 0 1240 600" role="img" aria-labelledby="title desc">
+  <title id="title">完整批次与梯度累积的更新等价条件</title>
+  <desc id="desc">相同样本分别通过完整批次和多个微批次产生梯度，在损失口径、权重和更新边界一致时得到相同的一次参数更新。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+    <style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei",Arial,sans-serif;fill:#172033}.title{font-size:30px;font-weight:700}.sub{font-size:16px;fill:#475569}.lane{font-size:19px;font-weight:700}.head{font-size:16px;font-weight:700}.body{font-size:14px;fill:#334155}.node{fill:#fff;stroke:#cbd5e1;stroke-width:1.7;rx:12}.flow{stroke:#475569;stroke-width:2.4;fill:none;marker-end:url(#arrow)}.eq{stroke:#0f766e;stroke-width:2.5;stroke-dasharray:7 6;fill:none}</style>
+  </defs>
+  <rect width="1240" height="600" fill="#f8fafc"/>
+  <text x="620" y="44" text-anchor="middle" class="title">完整批次与梯度累积何时等价</text>
+  <text x="620" y="73" text-anchor="middle" class="sub">固定样本、损失口径、随机状态和更新次数，再比较两条梯度路径</text>
+
+  <rect x="55" y="112" width="230" height="72" rx="14" fill="#e0f2fe" stroke="#38bdf8" stroke-width="2"/>
+  <text x="170" y="143" text-anchor="middle" class="lane">同一有效批次</text><text x="170" y="166" text-anchor="middle" class="body">N 个样本及其监督目标</text>
+
+  <path d="M285 148H350V245H405" class="flow"/>
+  <path d="M285 148H350V427H405" class="flow"/>
+
+  <rect x="405" y="202" width="310" height="86" fill="#eff6ff" stroke="#60a5fa" class="node"/>
+  <text x="560" y="225" text-anchor="middle" class="lane">完整批次路径</text>
+  <text x="560" y="253" text-anchor="middle" class="head">一次计算平均损失</text>
+  <text x="560" y="278" text-anchor="middle" class="body">直接得到完整批次梯度</text>
+
+  <rect x="405" y="378" width="310" height="98" fill="#fff7ed" stroke="#fb923c" class="node"/>
+  <text x="560" y="400" text-anchor="middle" class="lane">微批次累积路径</text>
+  <text x="560" y="430" text-anchor="middle" class="head">K 次计算并按样本占比加权</text>
+  <text x="560" y="456" text-anchor="middle" class="body">等长微批次的权重均为 1 / K</text>
+
+  <path d="M715 245H825V320H900" class="flow"/>
+  <path d="M715 427H825V320H900" class="flow"/>
+  <rect x="900" y="277" width="285" height="86" rx="14" fill="#ecfdf5" stroke="#34d399" stroke-width="2"/>
+  <text x="1042" y="300" text-anchor="middle" class="lane">一次参数更新</text>
+  <text x="1042" y="329" text-anchor="middle" class="head">梯度与更新后参数对齐</text>
+  <text x="1042" y="354" text-anchor="middle" class="body">不在中途更新或清空梯度</text>
+
+  <path d="M755 214V458" class="eq"/>
+  <rect x="731" y="299" width="48" height="72" rx="24" fill="#ccfbf1" stroke="#0f766e" stroke-width="1.5"/>
+  <text x="755" y="327" text-anchor="middle" class="head">等价</text>
+  <text x="755" y="351" text-anchor="middle" class="body">条件</text>
+</svg>

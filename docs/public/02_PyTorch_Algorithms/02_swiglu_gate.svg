@@ -1,68 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 760" role="img" aria-labelledby="title desc">
-  <title id="title">SwiGLU Gate Diagram</title>
-  <desc id="desc">SwiGLU uses gate and up branches, multiplies them elementwise, then projects down.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="title desc">
+  <title id="title">SwiGLU 从单路激活到双路门控</title>
+  <desc id="desc">上方展示 FFN、GLU、SwiGLU 的演进，下方展示门控分支、候选分支、逐元素相乘与输出映射的数据流。</desc>
   <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="#f8fafc"/>
-      <stop offset="100%" stop-color="#fef3c7"/>
-    </linearGradient>
-    <style>
-      .title { font: 700 30px "Inter", "Noto Sans SC", sans-serif; fill: #0f172a; }
-      .sub { font: 500 16px "Inter", "Noto Sans SC", sans-serif; fill: #475569; }
-      .box { fill: #ffffff; stroke-width: 3; rx: 18; ry: 18; }
-      .label { font: 700 18px "Inter", "Noto Sans SC", sans-serif; fill: #111827; }
-      .small { font: 500 13px "Inter", "Noto Sans SC", sans-serif; fill: #334155; }
-      .arrow { stroke: #475569; stroke-width: 4; fill: none; marker-end: url(#arrow); }
-      .magenta { stroke: #db2777; stroke-width: 4; fill: none; marker-end: url(#arrowPink); }
-    </style>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
-    </marker>
-    <marker id="arrowPink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#db2777"/>
-    </marker>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker>
+    <style>.title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.head{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.body{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.label{font:600 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.box{stroke-width:2.5;rx:14}.flow{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#arrow)}</style>
   </defs>
-  <rect width="1500" height="760" fill="url(#bg)"/>
-  <text x="64" y="66" class="title">SwiGLU: gate + content + down projection</text>
-  <text x="64" y="96" class="sub">One branch carries content, one branch gates it, then project down.</text>
+  <rect width="1500" height="470" fill="#f8fafc"/>
+  <text x="50" y="48" class="title">SwiGLU：从单路非线性到双路门控</text>
+  <text x="50" y="76" class="sub">演进改变选择机制；两条中间分支共同决定每个特征通过多少。</text>
 
-  <rect x="70" y="170" width="220" height="90" class="box" fill="#fff7ed" stroke="#f59e0b"/>
-  <text x="180" y="208" text-anchor="middle" class="label">Input x</text>
-  <text x="180" y="233" text-anchor="middle" class="small">hidden state</text>
+  <text x="55" y="118" class="label">结构演进</text>
+  <rect x="165" y="92" width="245" height="62" class="box" fill="#eff6ff" stroke="#2563eb"/>
+  <text x="287" y="118" text-anchor="middle" class="head">普通 FFN</text><text x="287" y="142" text-anchor="middle" class="body">单路 activation</text>
+  <rect x="625" y="92" width="245" height="62" class="box" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="747" y="118" text-anchor="middle" class="head">GLU</text><text x="747" y="142" text-anchor="middle" class="body">Sigmoid 门控</text>
+  <rect x="1085" y="92" width="245" height="62" class="box" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text x="1207" y="118" text-anchor="middle" class="head">SwiGLU</text><text x="1207" y="142" text-anchor="middle" class="body">SiLU 平滑门控</text>
+  <path d="M410 123H625" class="flow"/><text x="518" y="111" text-anchor="middle" class="label">加入门控</text>
+  <path d="M870 123H1085" class="flow"/><text x="978" y="111" text-anchor="middle" class="label">替换门函数</text>
 
-  <rect x="360" y="120" width="230" height="90" class="box" fill="#ecfccb" stroke="#65a30d"/>
-  <text x="475" y="158" text-anchor="middle" class="label">gate_proj</text>
-  <text x="475" y="183" text-anchor="middle" class="small">gate path</text>
-
-  <rect x="360" y="240" width="230" height="90" class="box" fill="#eff6ff" stroke="#3b82f6"/>
-  <text x="475" y="278" text-anchor="middle" class="label">up_proj</text>
-  <text x="475" y="303" text-anchor="middle" class="small">candidate content</text>
-
-  <rect x="640" y="160" width="240" height="110" class="box" fill="#fff1f2" stroke="#e11d48"/>
-  <text x="760" y="200" text-anchor="middle" class="label">SiLU / Swish</text>
-  <text x="760" y="226" text-anchor="middle" class="small">gate nonlinearity</text>
-  <text x="760" y="248" text-anchor="middle" class="small">smooth gate</text>
-
-  <rect x="930" y="170" width="220" height="90" class="box" fill="#f5f3ff" stroke="#8b5cf6"/>
-  <text x="1040" y="208" text-anchor="middle" class="label">Multiply</text>
-  <text x="1040" y="233" text-anchor="middle" class="small">elementwise gate</text>
-
-  <rect x="1220" y="170" width="220" height="90" class="box" fill="#dcfce7" stroke="#16a34a"/>
-  <text x="1330" y="208" text-anchor="middle" class="label">down_proj</text>
-  <text x="1330" y="233" text-anchor="middle" class="small">back to hidden size</text>
-
-  <path d="M 290 215 L 360 165" class="arrow"/>
-  <path d="M 290 215 L 360 285" class="arrow"/>
-  <path d="M 590 165 L 640 200" class="arrow"/>
-  <path d="M 590 285 L 640 220" class="arrow"/>
-  <path d="M 880 215 L 930 215" class="magenta"/>
-  <path d="M 1150 215 L 1220 215" class="arrow"/>
-
-  <rect x="120" y="430" width="1260" height="170" class="box" fill="#ffffff" stroke="#cbd5e1"/>
-  <text x="750" y="470" text-anchor="middle" class="label">Read it in one line</text>
-  <text x="210" y="525" class="small">gate_proj -> SiLU</text>
-  <text x="520" y="525" class="small">up_proj -> candidate content</text>
-  <text x="850" y="525" class="small">multiply -> selective activation</text>
-  <text x="1160" y="525" class="small">down_proj -> back to hidden size</text>
-  <text x="750" y="565" text-anchor="middle" class="small">SwiGLU adds selection inside the MLP instead of using one plain activation path.</text>
+  <text x="55" y="216" class="label">SwiGLU 数据流</text>
+  <rect x="75" y="252" width="170" height="82" class="box" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="160" y="283" text-anchor="middle" class="head">输入 x</text><text x="160" y="310" text-anchor="middle" class="body">hidden size D</text>
+  <rect x="350" y="210" width="190" height="72" class="box" fill="#fef3c7" stroke="#d97706"/>
+  <text x="445" y="238" text-anchor="middle" class="head">门控分支</text><text x="445" y="263" text-anchor="middle" class="body">SiLU 门控特征</text>
+  <rect x="350" y="320" width="190" height="72" class="box" fill="#ecfccb" stroke="#65a30d"/>
+  <text x="445" y="348" text-anchor="middle" class="head">候选分支</text><text x="445" y="373" text-anchor="middle" class="body">待选择的内容</text>
+  <rect x="675" y="252" width="210" height="82" class="box" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="780" y="283" text-anchor="middle" class="head">逐元素相乘</text><text x="780" y="310" text-anchor="middle" class="body">SiLU(gate) × up</text>
+  <rect x="1015" y="252" width="190" height="82" class="box" fill="#ffe4e6" stroke="#e11d48"/>
+  <text x="1110" y="283" text-anchor="middle" class="head">输出映射</text><text x="1110" y="310" text-anchor="middle" class="body">H → D</text>
+  <rect x="1310" y="252" width="140" height="82" class="box" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="1380" y="283" text-anchor="middle" class="head">输出</text><text x="1380" y="310" text-anchor="middle" class="body">hidden size D</text>
+  <path d="M245 276C290 276 300 246 350 246" class="flow"/>
+  <path d="M245 310C290 310 300 356 350 356" class="flow"/>
+  <path d="M540 246C610 246 610 273 675 273" class="flow"/>
+  <path d="M540 356C610 356 610 313 675 313" class="flow"/>
+  <path d="M885 293H1015" class="flow"/>
+  <path d="M1205 293H1310" class="flow"/>
 </svg>

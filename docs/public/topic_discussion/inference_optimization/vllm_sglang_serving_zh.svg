@@ -7,14 +7,14 @@
 .title{font:700 29px sans-serif;fill:#172b4d}.head{font:700 20px sans-serif;fill:#172b4d}.text{font:16px sans-serif;fill:#243b53}.small{font:14px sans-serif;fill:#52606d}.box{stroke-width:2;rx:14}.flow{stroke:#52606d;stroke-width:2.5;fill:none;marker-end:url(#arrow)}.link{stroke:#829ab1;stroke-width:2.5;stroke-dasharray:8 6;fill:none;marker-end:url(#arrow)}
 </style>
 
-<text x="700" y="44" text-anchor="middle" class="title">Serving：从资源竞争到请求调度</text>
-<text x="700" y="72" text-anchor="middle" class="small">先建立单 backend 基线，再定位 Cache、批处理和 Prefill / Decode 之间的竞争。</text>
+<text x="700" y="44" text-anchor="middle" class="title">服务执行：从资源竞争到请求调度</text>
+<text x="700" y="72" text-anchor="middle" class="small">先建立单执行后端基线，再定位缓存、批处理和预填充 / 解码之间的竞争。</text>
 
 <rect x="110" y="105" width="300" height="78" fill="#e8f1fb" stroke="#4c8eda" class="box"/>
-<text x="260" y="139" text-anchor="middle" class="head">请求 workload</text><text x="260" y="165" text-anchor="middle" class="small">Prompt、并发、输出长度</text>
+<text x="260" y="139" text-anchor="middle" class="head">请求工作负载</text><text x="260" y="165" text-anchor="middle" class="small">输入提示、并发、输出长度</text>
 <path d="M410 144 H550" class="flow"/>
 <rect x="550" y="105" width="300" height="78" fill="#fff5e6" stroke="#e0a23b" class="box"/>
-<text x="700" y="139" text-anchor="middle" class="head">单 backend 基线</text><text x="700" y="165" text-anchor="middle" class="small">单实例、基础批处理、不开启 PD</text>
+<text x="700" y="139" text-anchor="middle" class="head">单执行后端基线</text><text x="700" y="165" text-anchor="middle" class="small">单实例、基础批处理、不开启 PD</text>
 <path d="M850 144 H990" class="flow"/>
 <rect x="990" y="105" width="300" height="78" fill="#e8f7ef" stroke="#45a36b" class="box"/>
 <text x="1140" y="139" text-anchor="middle" class="head">服务指标</text><text x="1140" y="165" text-anchor="middle" class="small">TTFT、TPOT、吞吐、P99、显存</text>
@@ -35,7 +35,7 @@
 <text x="260" y="475" text-anchor="middle" class="text">PagedAttention / RadixAttention</text>
 <rect x="495" y="400" width="410" height="105" fill="#ffffff" stroke="#e0a23b" class="box"/>
 <text x="700" y="438" text-anchor="middle" class="head">批处理与队列</text>
-<text x="700" y="475" text-anchor="middle" class="text">Continuous Batching / Chunked Prefill</text>
+<text x="700" y="475" text-anchor="middle" class="text">连续批处理 / 分块预填充</text>
 <rect x="935" y="400" width="410" height="105" fill="#ffffff" stroke="#8069b5" class="box"/>
 <text x="1140" y="438" text-anchor="middle" class="head">资源拆分与调度</text>
 <text x="1140" y="475" text-anchor="middle" class="text">PD 分离 / 队列 / 优先级</text>

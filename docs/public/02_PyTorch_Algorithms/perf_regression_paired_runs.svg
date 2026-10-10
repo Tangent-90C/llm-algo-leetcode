@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+  <title id="title">配对运行、有效样本与失败分母</title>
+  <desc id="desc">基线与候选共享运行身份并交替执行；身份一致且两侧成功的试验进入比率分布，失败和缺失进入失败分母。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#334155"/></marker>
+    <style>
+      .title{font-family:"Noto Sans CJK SC",sans-serif;font-size:28px;font-weight:700;fill:#0f172a}.subtitle{font-family:"Noto Sans CJK SC",sans-serif;font-size:16px;fill:#475569}
+      .head{font-family:"Noto Sans CJK SC",sans-serif;font-size:18px;font-weight:700;fill:#172033}.body{font-family:"Noto Sans CJK SC",sans-serif;font-size:14px;fill:#475569}.mono{font-family:monospace;font-size:13px;fill:#334155}
+      .edge{fill:none;stroke:#334155;stroke-width:4;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="620" rx="24" fill="#f8fafc"/>
+  <text x="600" y="48" text-anchor="middle" class="title">配对基准同时保留成功差异与失败分母</text>
+  <text x="600" y="78" text-anchor="middle" class="subtitle">同一试验标识绑定基线和候选，避免把环境漂移或失败运行误写成性能收益</text>
+
+  <g text-anchor="middle">
+    <rect x="55" y="138" width="230" height="112" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2.5"/>
+    <text x="170" y="174" class="head">固定运行身份</text><text x="170" y="205" class="mono">workload · env · seed</text><text x="170" y="230" class="body">参数变化即新实验</text>
+    <rect x="350" y="138" width="230" height="112" rx="16" fill="#e0f2fe" stroke="#0284c7" stroke-width="2.5"/>
+    <text x="465" y="174" class="head">交替配对执行</text><text x="465" y="205" class="mono">B0→C0 · C1→B1</text><text x="465" y="230" class="body">抵消顺序与温度漂移</text>
+    <rect x="645" y="138" width="230" height="112" rx="16" fill="#cffafe" stroke="#0891b2" stroke-width="2.5"/>
+    <text x="760" y="174" class="head">逐对校验</text><text x="760" y="205" class="body">身份一致 · 两侧完成</text><text x="760" y="230" class="body">正确性与质量通过</text>
+  </g>
+  <path d="M285 194H350" class="edge"/><path d="M580 194H645" class="edge"/>
+
+  <rect x="645" y="365" width="230" height="112" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2.5"/>
+  <text x="760" y="401" text-anchor="middle" class="head">有效配对分布</text><text x="760" y="432" text-anchor="middle" class="mono">candidate / baseline</text><text x="760" y="457" text-anchor="middle" class="body">中位数 · 区间 · 分位数</text>
+  <rect x="940" y="365" width="220" height="112" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2.5"/>
+  <text x="1050" y="401" text-anchor="middle" class="head">失败分母</text><text x="1050" y="432" text-anchor="middle" class="body">OOM · 超时 · 缺失</text><text x="1050" y="457" text-anchor="middle" class="body">按失败类型保留</text>
+  <path d="M720 250V318H760V365" class="edge"/>
+  <path d="M800 250V318H1050V365" class="edge"/>
+  <text x="700" y="306" class="body" fill="#166534">有效</text><text x="1010" y="306" class="body" fill="#991b1b">失败或缺失</text>
+
+  <rect x="120" y="365" width="380" height="112" rx="16" fill="#f3e8ff" stroke="#9333ea" stroke-width="2.5"/>
+  <text x="310" y="401" text-anchor="middle" class="head">回归证据</text><text x="310" y="432" text-anchor="middle" class="body">配对分布 + 失败率 + 守护条件</text><text x="310" y="457" text-anchor="middle" class="body">共同进入 accept / tune / reject</text>
+  <path d="M645 421H500" class="edge"/><path d="M940 445H900V510H310V477" class="edge"/>
+</svg>

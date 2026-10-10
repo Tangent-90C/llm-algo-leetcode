@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="900" viewBox="0 0 1680 900" role="img" aria-labelledby="title desc">
+  <title id="title">大模型架构演进学习路线</title>
+  <desc id="desc">从 Transformer 块基线出发，沿注意力表示与块内通道、位置访问与混合记忆、MoE 稀疏容量三条分支学习，最后汇入架构审计。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#eff6ff"/></linearGradient>
+    <style>
+      text{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+      .title{font-size:34px;font-weight:700;fill:#0f172a}
+      .sub{font-size:17px;font-weight:500;fill:#475569}
+      .lane{font-size:16px;font-weight:700;fill:#475569}
+      .node{stroke-width:2.5}
+      .head{font-size:20px;font-weight:700;fill:#0f172a}
+      .body{font-size:15px;font-weight:500;fill:#334155}
+      .tag{font-size:14px;font-weight:600;fill:#334155}
+      .arrow{stroke:#64748b;stroke-width:3.5;fill:none;marker-end:url(#arrow)}
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="#64748b"/></marker>
+  </defs>
+  <rect width="1680" height="900" fill="url(#bg)"/>
+  <text x="70" y="62" class="title">大模型架构演进：三条机制分支汇入结构审计</text>
+  <text x="70" y="94" class="sub">先建立共同块基线，再分别判断表示与通道、长序列记忆、稀疏容量，最后用同一审计记录比较结构候选。</text>
+
+  <rect x="70" y="330" width="300" height="176" rx="20" class="node" fill="#eff6ff" stroke="#2563eb"/>
+  <text x="100" y="372" class="head">Task0 · 架构基线</text>
+  <text x="100" y="405" class="body">词元与嵌入进入 Transformer 块</text>
+  <text x="100" y="431" class="body">注意力、MLP 与两次残差更新</text>
+  <rect x="100" y="458" width="186" height="28" rx="14" fill="#dbeafe"/><text x="116" y="478" class="tag">产出：块内数据流</text>
+
+  <text x="430" y="134" class="lane">分支 A · 表示与块内通道</text>
+  <rect x="430" y="154" width="300" height="150" rx="20" class="node" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="458" y="194" class="head">Task1 · 注意力与 KV 表示</text>
+  <text x="458" y="225" class="body">MHA → MQA / GQA → MLA</text>
+  <text x="458" y="251" class="body">保存多少历史状态，怎样读取</text>
+  <rect x="458" y="266" width="174" height="24" rx="12" fill="#cffafe"/><text x="472" y="284" class="tag">表示与容量账本</text>
+
+  <rect x="790" y="154" width="300" height="150" rx="20" class="node" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text x="818" y="194" class="head">Task2 · 块稳定性与通道</text>
+  <text x="818" y="225" class="body">Pre-Norm / RMSNorm / SwiGLU</text>
+  <text x="818" y="251" class="body">深度稳定性与参数容量</text>
+  <rect x="818" y="266" width="174" height="24" rx="12" fill="#ede9fe"/><text x="832" y="284" class="tag">组件取舍证据</text>
+
+  <text x="430" y="374" class="lane">分支 B · 位置、访问与记忆</text>
+  <rect x="430" y="394" width="300" height="150" rx="20" class="node" fill="#fff7ed" stroke="#d97706"/>
+  <text x="458" y="434" class="head">Task3 · 位置与访问范围</text>
+  <text x="458" y="465" class="body">RoPE / 长度扩展</text>
+  <text x="458" y="491" class="body">全局、窗口、局部与稀疏访问</text>
+  <rect x="458" y="506" width="174" height="24" rx="12" fill="#ffedd5"/><text x="472" y="524" class="tag">可见性与质量代价</text>
+
+  <rect x="790" y="394" width="300" height="150" rx="20" class="node" fill="#fdf2f8" stroke="#db2777"/>
+  <text x="818" y="434" class="head">Task5 · 递推与混合记忆</text>
+  <text x="818" y="465" class="body">线性注意力 / SSM 状态</text>
+  <text x="818" y="491" class="body">注意力层与递推层分工</text>
+  <rect x="818" y="506" width="174" height="24" rx="12" fill="#fce7f3"/><text x="832" y="524" class="tag">长度阶梯证据</text>
+
+  <text x="430" y="614" class="lane">分支 C · 稀疏容量</text>
+  <rect x="430" y="634" width="300" height="150" rx="20" class="node" fill="#fff1f2" stroke="#e11d48"/>
+  <text x="458" y="674" class="head">Task4 · MoE 容量扩展</text>
+  <text x="458" y="705" class="body">路由、Top-k 与专家容量</text>
+  <text x="458" y="731" class="body">溢出、分发、负载与通信</text>
+  <rect x="458" y="746" width="174" height="24" rx="12" fill="#ffe4e6"/><text x="472" y="764" class="tag">容量与路由证据</text>
+
+  <rect x="1220" y="330" width="360" height="176" rx="20" class="node" fill="#f0fdf4" stroke="#15803d"/>
+  <text x="1250" y="372" class="head">Task6 · 架构审计与选型</text>
+  <text x="1250" y="405" class="body">配置字段 → 实际模块 → 状态接口</text>
+  <text x="1250" y="431" class="body">专项证据 → 资源影响 → 采用决策</text>
+  <rect x="1250" y="458" width="190" height="28" rx="14" fill="#dcfce7"/><text x="1266" y="478" class="tag">产出：架构审计卡</text>
+
+  <path d="M370 386 C405 386 395 229 430 229" class="arrow"/>
+  <path d="M370 420 H430" class="arrow"/>
+  <path d="M370 454 C405 454 395 709 430 709" class="arrow"/>
+  <path d="M730 229 H790" class="arrow"/>
+  <path d="M730 469 H790" class="arrow"/>
+  <path d="M1090 229 C1160 229 1150 370 1220 370" class="arrow"/>
+  <path d="M1090 469 H1220" class="arrow"/>
+  <path d="M730 709 C1010 709 1060 486 1220 486" class="arrow"/>
+
+  <text x="70" y="854" class="sub">推荐顺序：先完成 Task0；分支 A、B、C 可按目标选学；Task6 必须同时读取结构声明、机制证据与目标工作负载约束。</text>
+</svg>

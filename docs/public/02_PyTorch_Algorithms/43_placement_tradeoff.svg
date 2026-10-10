@@ -1,11 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" role="img" aria-labelledby="t d">
-<title id="t">统一内存放置的权衡</title><desc id="d">内存对象根据常驻需求、容量压力和迁移代价选择放置位置。</desc>
-<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><style>.h{font:700 26px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.s{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.l{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.b{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:3;rx:16}.f{stroke:#475569;stroke-width:4;fill:none;marker-end:url(#a)}</style></defs>
-<rect width="1200" height="500" fill="#f8fafc"/><text x="50" y="55" class="h">统一内存管理：先分类，再决定放置</text><text x="50" y="83" class="s">同一时刻的峰值与迁移代价共同决定对象是否适合移动。</text>
-<rect x="55" y="190" width="235" height="110" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="172" y="232" text-anchor="middle" class="l">内存对象</text><text x="172" y="263" text-anchor="middle" class="b">参数 · 激活 · KV · 临时缓冲</text>
+<title id="t">统一训练内存账本的放置权衡</title><desc id="d">训练状态根据生命周期、容量压力和迁移代价选择驻留或策略变换。</desc>
+<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><style>.h{font:700 26px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.s{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.l{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.b{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:3;rx:16}.f{stroke:#475569;stroke-width:4;fill:none;marker-end:url(#a)}</style></defs>
+<rect width="1200" height="500" fill="#f8fafc"/><text x="50" y="55" class="h">统一训练内存账本：先定位峰值，再选择策略</text><text x="50" y="83" class="s">对象的容量与驻留区间共同决定峰值，迁移或重算引入新的时间代价。</text>
+<rect x="55" y="190" width="235" height="110" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="172" y="225" text-anchor="middle" class="l">训练状态</text><text x="172" y="254" text-anchor="middle" class="b">参数 · 激活 · 梯度</text><text x="172" y="278" text-anchor="middle" class="b">优化器状态 · 工作区</text>
 <rect x="360" y="190" width="235" height="110" class="box" fill="#fef3c7" stroke="#d97706"/><text x="477" y="232" text-anchor="middle" class="l">工作集账本</text><text x="477" y="263" text-anchor="middle" class="b">大小 · 峰值阶段 · 驻留位置</text>
 <rect x="665" y="115" width="230" height="100" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="780" y="155" text-anchor="middle" class="l">留在 GPU</text><text x="780" y="185" text-anchor="middle" class="b">高频访问、迁移不划算</text>
 <rect x="665" y="260" width="230" height="100" class="box" fill="#fce7f3" stroke="#db2777"/><text x="780" y="300" text-anchor="middle" class="l">迁移或重算</text><text x="780" y="330" text-anchor="middle" class="b">缓解峰值，但增加代价</text>
 <rect x="980" y="190" width="160" height="110" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="1060" y="232" text-anchor="middle" class="l">评估</text><text x="1060" y="263" text-anchor="middle" class="b">峰值 · 步时 · 带宽</text>
-<path d="M290 245H360M595 235L665 165M595 265L665 310M895 165L980 225M895 310L980 265" class="f"/>
+<path d="M290 245H360" class="f"/>
+<path d="M595 235L665 165" class="f"/>
+<path d="M595 265L665 310" class="f"/>
+<path d="M895 165L980 225" class="f"/>
+<path d="M895 310L980 265" class="f"/>
 </svg>

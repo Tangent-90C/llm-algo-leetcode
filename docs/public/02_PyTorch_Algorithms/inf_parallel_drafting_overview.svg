@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="500" viewBox="0 0 1120 500">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0 0 L0 8 L8 4 z" fill="#315b7d"/>
+    </marker>
+    <style>
+      .panel{fill:#eef4f8;stroke:#a8bdcb;stroke-width:2}.node{fill:#ffffff;stroke:#477a9e;stroke-width:2}.green{fill:#e8f4ec;stroke:#4e8a68;stroke-width:2}.amber{fill:#fff3e8;stroke:#bf7447;stroke-width:2}.title{font:700 21px sans-serif;fill:#17324d}.label{font:600 16px sans-serif;fill:#17324d}.small{font:14px sans-serif;fill:#365269}.edge{fill:none;stroke:#315b7d;stroke-width:2.2;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1120" height="500" fill="#f7fafc"/>
+  <text x="560" y="36" text-anchor="middle" class="title">并行草稿主干与 DSpark 的两类补偿</text>
+
+  <rect x="34" y="66" width="286" height="384" rx="18" class="panel"/>
+  <text x="177" y="98" text-anchor="middle" class="label">共享输入</text>
+  <rect x="68" y="190" width="218" height="82" rx="12" class="node"/>
+  <text x="177" y="220" text-anchor="middle" class="label">上下文与锚点 Token</text>
+  <text x="177" y="246" text-anchor="middle" class="small">提供共享条件</text>
+
+  <rect x="350" y="66" width="320" height="384" rx="18" class="panel"/>
+  <text x="510" y="98" text-anchor="middle" class="label">DFlash 块并行主干</text>
+  <rect x="397" y="132" width="226" height="78" rx="12" class="green"/>
+  <text x="510" y="162" text-anchor="middle" class="label">一次草稿前向</text>
+  <text x="510" y="187" text-anchor="middle" class="small">同时计算多个位置</text>
+  <rect x="397" y="292" width="226" height="84" rx="12" class="node"/>
+  <text x="510" y="322" text-anchor="middle" class="label">各位置基础词表分数</text>
+  <text x="510" y="348" text-anchor="middle" class="small">位置间没有候选依赖</text>
+
+  <rect x="700" y="66" width="386" height="384" rx="18" class="panel"/>
+  <text x="893" y="98" text-anchor="middle" class="label">候选输出与 DSpark 增强</text>
+  <rect x="770" y="122" width="246" height="66" rx="12" class="node"/>
+  <text x="893" y="150" text-anchor="middle" class="label">DFlash 候选块</text>
+  <text x="893" y="173" text-anchor="middle" class="small">各位置独立选取</text>
+
+  <rect x="724" y="232" width="160" height="82" rx="12" class="green"/>
+  <text x="804" y="261" text-anchor="middle" class="label">低秩 Markov 修正</text>
+  <text x="804" y="286" text-anchor="middle" class="small">恢复局部顺序依赖</text>
+  <rect x="902" y="232" width="160" height="82" rx="12" class="amber"/>
+  <text x="982" y="261" text-anchor="middle" class="label">置信度预测</text>
+  <text x="982" y="286" text-anchor="middle" class="small">估计逐位置可信度</text>
+
+  <rect x="770" y="354" width="246" height="66" rx="12" class="node"/>
+  <text x="893" y="382" text-anchor="middle" class="label">DSpark 候选与置信度</text>
+  <text x="893" y="405" text-anchor="middle" class="small">供连续预算选择</text>
+
+  <path d="M286 231 H360 V171 H397" class="edge"/>
+  <path d="M510 210 V292" class="edge"/>
+  <path d="M623 318 H684 V155 H770" class="edge"/>
+  <path d="M623 334 H684 V273 H724" class="edge"/>
+  <path d="M623 171 H680 V214 H982 V232" class="edge"/>
+  <path d="M804 314 V336 H850 V354" class="edge"/>
+  <path d="M982 314 V336 H936 V354" class="edge"/>
+</svg>

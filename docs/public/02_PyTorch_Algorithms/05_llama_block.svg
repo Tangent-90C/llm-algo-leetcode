@@ -1,42 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 680" role="img" aria-labelledby="title desc">
-  <title id="title">LLaMA Decoder Block 主路径</title>
-  <desc id="desc">从隐藏状态经过两次 RMSNorm、Attention、残差连接和 SwiGLU MLP 的 Decoder Block 结构。</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="title desc">
+  <title id="title">Decoder Block 的组件关系与多层残差主干</title>
+  <desc id="desc">前一层输出进入当前 Block，主状态依次吸收 Attention 与 MLP 更新，再交给下一层。</desc>
   <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#eef2ff"/></linearGradient>
-    <style>
-      .title { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 30px; font-weight: 700; fill: #0f172a; }
-      .sub { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 16px; font-weight: 500; fill: #475569; }
-      .label { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 18px; font-weight: 700; fill: #111827; }
-      .small { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 14px; font-weight: 500; fill: #334155; }
-      .box { stroke-width: 3; rx: 18; ry: 18; }
-      .flow { stroke: #475569; stroke-width: 4; fill: none; marker-end: url(#arrow); }
-      .residual { stroke: #e11d48; stroke-width: 3.5; stroke-dasharray: 9 7; fill: none; marker-end: url(#arrowRed); }
-    </style>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#475569"/></marker>
-    <marker id="arrowRed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#e11d48"/></marker>
+    <marker id="red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#e11d48"/></marker>
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#2563eb"/></marker>
+    <style>.title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.head{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.body{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.label{font:600 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.box{stroke-width:2.5;rx:14}.main{stroke:#e11d48;stroke-width:2.6;fill:none;marker-end:url(#red)}.branch{stroke:#2563eb;stroke-width:2.4;fill:none;marker-end:url(#blue)}</style>
   </defs>
-  <rect width="1600" height="680" fill="url(#bg)"/>
-  <text x="60" y="60" class="title">LLaMA Decoder Block：组件如何组装成一层</text>
-  <text x="60" y="90" class="sub">主路径负责变换隐藏状态；虚线表示残差把原始信息带回下一步</text>
-
-  <rect x="60" y="240" width="170" height="88" class="box" fill="#fff7ed" stroke="#f59e0b"/>
-  <text x="145" y="275" text-anchor="middle" class="label">隐藏状态</text><text x="145" y="300" text-anchor="middle" class="small">输入 x</text>
-  <rect x="280" y="240" width="150" height="88" class="box" fill="#eff6ff" stroke="#3b82f6"/>
-  <text x="355" y="275" text-anchor="middle" class="label">RMSNorm</text><text x="355" y="300" text-anchor="middle" class="small">Attention 前</text>
-  <rect x="480" y="220" width="270" height="128" class="box" fill="#ecfccb" stroke="#65a30d"/>
-  <text x="615" y="260" text-anchor="middle" class="label">Attention</text><text x="615" y="287" text-anchor="middle" class="small">RoPE：处理位置</text><text x="615" y="310" text-anchor="middle" class="small">GQA：组织 Q / KV</text><text x="615" y="333" text-anchor="middle" class="small">KV Cache：保存历史状态</text>
-  <rect x="800" y="240" width="140" height="88" class="box" fill="#fff1f2" stroke="#e11d48"/>
-  <text x="870" y="275" text-anchor="middle" class="label">残差相加</text><text x="870" y="300" text-anchor="middle" class="small">x + Attention(x)</text>
-  <rect x="990" y="240" width="150" height="88" class="box" fill="#eff6ff" stroke="#3b82f6"/>
-  <text x="1065" y="275" text-anchor="middle" class="label">RMSNorm</text><text x="1065" y="300" text-anchor="middle" class="small">MLP 前</text>
-  <rect x="1190" y="220" width="270" height="128" class="box" fill="#f5f3ff" stroke="#8b5cf6"/>
-  <text x="1325" y="260" text-anchor="middle" class="label">SwiGLU MLP</text><text x="1325" y="287" text-anchor="middle" class="small">gate / up：两条升维路</text><text x="1325" y="310" text-anchor="middle" class="small">逐元素门控后 down</text><text x="1325" y="333" text-anchor="middle" class="small">也可替换为 MoE</text>
-  <rect x="1490" y="240" width="90" height="88" class="box" fill="#fff7ed" stroke="#f59e0b"/>
-  <text x="1535" y="275" text-anchor="middle" class="label">输出</text><text x="1535" y="300" text-anchor="middle" class="small">h</text>
-
-  <path d="M230 284 L280 284" class="flow"/><path d="M430 284 L480 284" class="flow"/><path d="M750 284 L800 284" class="flow"/><path d="M940 284 L990 284" class="flow"/><path d="M1140 284 L1190 284" class="flow"/><path d="M1460 284 L1490 284" class="flow"/>
-  <path d="M145 328 C145 430 870 430 870 328" class="residual"/>
-  <path d="M870 328 C870 500 1325 500 1325 348" class="residual"/>
-  <text x="450" y="458" class="small" fill="#be123c">残差保留输入信息，避免每个子层都从零重建表示</text>
-  <text x="985" y="528" class="small" fill="#be123c">第二条残差把 Attention 后的表示带入 MLP 输出</text>
+  <rect width="1500" height="470" fill="#f8fafc"/>
+  <text x="50" y="48" class="title">Decoder Block：两条更新分支写回同一条残差主干</text>
+  <text x="50" y="76" class="sub">Attention 交换 token 间信息，MLP 重组 token 内通道；每层输出继续成为下一层输入。</text>
+  <rect x="40" y="205" width="130" height="80" class="box" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="105" y="236" text-anchor="middle" class="head">Block l−1</text><text x="105" y="262" text-anchor="middle" class="body">上一层输出</text>
+  <rect x="245" y="205" width="150" height="80" class="box" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="320" y="236" text-anchor="middle" class="head">输入 hˡ</text><text x="320" y="262" text-anchor="middle" class="body">残差主状态</text>
+  <circle cx="650" cy="245" r="28" fill="#fff1f2" stroke="#e11d48" stroke-width="2.5"/><text x="650" y="252" text-anchor="middle" class="head">+</text>
+  <rect x="710" y="205" width="150" height="80" class="box" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text x="785" y="236" text-anchor="middle" class="head">中间状态 h′</text><text x="785" y="262" text-anchor="middle" class="body">吸收上下文更新</text>
+  <circle cx="1120" cy="245" r="28" fill="#ecfdf5" stroke="#16a34a" stroke-width="2.5"/><text x="1120" y="252" text-anchor="middle" class="head">+</text>
+  <rect x="1180" y="205" width="150" height="80" class="box" fill="#ecfdf5" stroke="#16a34a"/>
+  <text x="1255" y="236" text-anchor="middle" class="head">输出 hˡ⁺¹</text><text x="1255" y="262" text-anchor="middle" class="body">两次更新完成</text>
+  <rect x="1370" y="205" width="105" height="80" class="box" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="1422" y="236" text-anchor="middle" class="head">Block l+1</text><text x="1422" y="262" text-anchor="middle" class="body">下一层</text>
+  <path d="M170 245H245" class="main"/><path d="M395 245H622" class="main"/><path d="M678 245H710" class="main"/><path d="M860 245H1092" class="main"/><path d="M1148 245H1180" class="main"/><path d="M1330 245H1370" class="main"/>
+  <rect x="430" y="105" width="165" height="68" class="box" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="512" y="132" text-anchor="middle" class="head">Pre-Norm</text><text x="512" y="155" text-anchor="middle" class="body">控制子层输入尺度</text>
+  <rect x="620" y="105" width="180" height="68" class="box" fill="#ecfccb" stroke="#65a30d"/>
+  <text x="710" y="132" text-anchor="middle" class="head">Attention</text><text x="710" y="155" text-anchor="middle" class="body">上下文更新</text>
+  <path d="M395 220C420 220 405 139 430 139" class="branch"/><path d="M595 139H620" class="branch"/><path d="M710 173C710 192 650 190 650 217" class="branch"/>
+  <rect x="755" y="330" width="145" height="68" class="box" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="827" y="357" text-anchor="middle" class="head">Pre-Norm</text><text x="827" y="380" text-anchor="middle" class="body">读取更新后的 h′</text>
+  <rect x="925" y="330" width="155" height="68" class="box" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="1002" y="357" text-anchor="middle" class="head">SwiGLU MLP</text><text x="1002" y="380" text-anchor="middle" class="body">通道更新</text>
+  <path d="M785 285V330" class="branch"/><path d="M900 364H925" class="branch"/><path d="M1080 364C1110 364 1120 305 1120 273" class="branch"/>
 </svg>

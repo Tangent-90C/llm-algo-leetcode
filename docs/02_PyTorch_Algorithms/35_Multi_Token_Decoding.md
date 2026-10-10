@@ -1,5 +1,5 @@
-# 35. Multi Token Decoding | 多 Token 投机解码
-**难度：** Hard | **环境：** CPU-first | **标签：** `推理优化`, `投机解码`, `Multi-Token Decoding` | **目标人群：** 推理优化学习者
+# 35. Multi Token Decoding | 原生多 Token 预测
+**难度：** Hard | **环境：** CPU-first | **标签：** `推理优化`, `投机解码`, `MTP` | **目标人群：** 推理优化学习者
 
 > 🚀 **云端运行环境**
 >
@@ -13,9 +13,9 @@
 
 ## 本节导读
 
-经典投机解码由独立草稿模型提出候选；另一类策略会通过多 token 预测头、多个候选或其他并行路径，在一轮中尝试推进更多 token。它们同样需要验证与回退，但候选来源、验证组织和质量保证方式可能不同。
+经典投机解码由独立草稿模型提出候选；原生 Multi-Token Prediction（MTP）则把多个未来 token 的预测头或层放在目标模型内部。它减少了独立 draft checkpoint 的配对成本，但只有原生带有 MTP 模块的模型才能直接使用这条路径。
 
-本节把多 Token 推进作为投机式生成的一条策略分支：先观察候选如何形成，再看连续接受、首次拒绝和回退如何决定有效推进量，最后把候选长度与验证成本放进同一条收益判断。
+本节聚焦原生 MTP 的候选形成、连续接受、首次拒绝和回退。EAGLE 的外置特征草稿器以及 DFlash / DSpark 的并行草稿拓扑分别由独立机制页承载，避免把不同候选来源混成一种实现。
 
 **关键词：** `multi-token decoding`, `speculative decoding`, `verification`, `rollback`
 ## 前置阅读
@@ -26,61 +26,57 @@
 
 ---
 
-### Step 1: 多 Token 推进在投机策略谱系中的位置
+### Step 1: 原生 MTP 在投机策略谱系中的位置
 
-多 Token 解码与经典 draft / target 投机解码共享“候选 → 验证 → 有效推进”的骨架，但不要求候选一定来自独立草稿模型。候选可以来自草稿模型、多预测头或多条候选路径；因此先明确候选来源与验证语义，不能把所有实现都默认视为同一种无损采样算法。
+原生 MTP 与经典投机解码共享“提出候选 → 目标模型验证 → 接受或回退”的主线，区别在于候选由目标模型 checkpoint 内部的多 Token 预测模块产生。放回 Task2 看，21 提供 Decode 基础，23 解释精确验证语义，本节解释原生 MTP 候选和连续前缀，68 再用匹配的模型与 backend 判断真实收益。
 
-| 路径 | 候选来源 | 验证与回退重点 | 阅读入口 |
+一次验证先由原生 MTP 模块形成候选序列，再从左到右确认可接受的连续前缀。前缀越长，单轮有效推进越多；较早发生拒绝时，后续候选不能直接沿用，需要回退并进入下一轮。模型没有原生 MTP 层时，不能仅靠配置参数凭空启用该路径。
+
+图中上方区分候选产生方式，下方展开本节共享的执行闭环：候选形成后进入目标模型验证，再根据接受前缀或首次拒绝更新解码状态；状态随后反馈到下一轮候选形成。
+
+| 路径 | 候选如何产生 | 验证后的状态 | 本节关注点 |
 |---|---|---|---|
-| 经典投机解码 | 独立 draft model | 概率接受、residual correction、bonus | [23](./23_Speculative_Decoding.md) |
-| 多 Token 推进 | 多 token 候选序列或预测头 | 连续接受、首次拒绝、有效前缀 | 本节 |
-| 多候选 / 树验证 | 多条并行候选路径 | 覆盖范围与验证开销 | 扩展概念 |
+| 经典投机解码 | 独立草稿模型提出候选 | 概率接受、residual correction 或 bonus | 经典投机语义，详见 [23](./23_Speculative_Decoding.md) |
+| 原生 MTP | verifier checkpoint 内部的多 Token 预测层 | 连续接受前缀、首次拒绝和回退 | 本节的核心机制 |
+| EAGLE | 外置轻量草稿器复用目标隐藏表示 | 候选树与目标验证 | [INF-EAGLE](./INF-EAGLE_Feature_Drafter_and_Candidate_Tree.md) |
+| DFlash / DSpark | 块并行草稿与置信度调度 | 并行候选、块内依赖与预算 | [INF-PARALLEL-DRAFTING](./INF-PARALLEL-DRAFTING_DFlash_and_DSpark.md) |
+| 项目验证 | 在统一 workload 下比较候选、验证与服务结果 | acceptance、质量、成本和端到端收益 | 由 [68](./68_Speculative_Decoding_Benchmark.md) 收口 |
 
-单 token 解码每轮只推进一个 token，需要反复进入 decoder 并更新 KV Cache。Multi-Token Decoding 先提出一段候选，再由目标模型顺序验证；连续通过的候选可以在同一轮推进，首次拒绝后则回退到更保守的生成路径。
-
-本节先用接受长度和有效推进比例描述一轮到底推进了多少 token，再把验证成本纳入收益判断。这样可以先看清控制流，再理解候选更长并不自动带来端到端收益。
-
-| 参与对象 | 输入 | 输出 | 本节观察重点 |
-|---|---|---|---|
-| 草稿模型（draft） | 当前上下文 | 候选 token 序列与概率 | 一轮提出多少候选 |
-| 目标模型（target） | 候选序列与当前前缀 | 每个候选的验证结果 | 从左到右接受到哪里 |
-| 解码状态 | 接受前缀、首次拒绝位置、回退后缀 | 下一轮的有效前缀 | 本轮实际推进多少 token |
-
-![多 Token 解码总览](../public/02_PyTorch_Algorithms/35_multi_token_overview.svg)
+![原生 MTP 与投机解码机制链](../public/02_PyTorch_Algorithms/35_multi_token_overview.svg)
 ### Step 2: 候选序列与验证状态
 
-先固定一轮验证所需的输入和状态，再观察候选如何从提议进入顺序验证。`draft_tokens`、`draft_probs` 和 `target_probs` 分别表示候选 token、草稿概率和目标概率；状态沿着“提议 → 顺序验证 → 首次拒绝 → 切分结果”变化。
+先看一轮验证中有哪些信息，再理解状态如何变化。候选序列说明本轮准备尝试哪些 token；记目标模型对候选 token 给出的概率分布为 p，草稿路径给出的概率分布为 q，二者用于比较候选是否可靠。验证从左到右进行，首次拒绝会把序列分成可接受前缀和待回退后缀。
 
 
-| 机制阶段 | 输入 / 状态 | 作用 |
+| 机制阶段 | 关键对象 | 作用 |
 |------|----------|------|
-| 提议序列 | 草稿 token 与最大提议长度 | 截取本轮最多可尝试的候选序列 |
+| 提议序列 | 候选 token 与本轮候选上限 | 确定本轮最多尝试的范围 |
 | 接受判断 | 草稿概率与目标概率 | 判断单个候选 token 是否可靠 |
 | 顺序验证 | 候选序列与当前前缀 | 从左到右验证，首次拒绝后停止 |
-| 结果汇总 | 接受前缀、拒绝位置、回退后缀 | 区分可直接推进的 token 与待重新生成的 token |
+| 结果汇总 | 接受前缀、拒绝位置、回退后缀 | 区分可直接推进与需要重新生成的部分 |
 
 ### Step 3: 连续接受、首次拒绝与有效推进
 
-多 token 解码的收益取决于连续接受长度。若 4 个候选中前 3 个通过验证，本轮就实际推进 3 个 token；若第 1 个被拒绝，则需要回到保守路径。`progress_per_round = accepted_len / len(proposed_tokens)` 表示候选中真正写入输出前缀的比例。
+多 Token 解码的收益取决于连续接受长度，而不是候选数量本身。若一轮提出四个候选、前面三个通过验证，本轮有效推进量就是三个；若第一个就被拒绝，候选长度再长也不能带来有效推进。接受比例可以帮助比较候选质量，但最终还要结合目标模型验证和回退成本。
 
-本节用“目标概率达到草稿概率的一定比例”作为教学接受规则；项目 benchmark 可进一步记录 `accepted_tokens_per_round`，并把验证成本纳入比较。
+因此，原生 MTP 不能只看候选头数量：还要记录实际接受长度、目标验证耗时、额外 MTP 权重与 KV 状态，以及 backend 是否真正启用了 MTP。只有有效推进量能够抵消候选生成和验证成本时，这条路径才有端到端收益。
 
-| 参数 | 过大时的问题 | 过小时的问题 |
+| 机制因素 | 偏大时的风险 | 偏小时的限制 |
 |------|--------------|--------------|
-| `max_proposal_len` | 候选更激进，拒绝和回退概率更高 | 单轮推进短，加速效果有限 |
-| `min_accept_ratio` | 接受规则更严格，通过率下降 | 接受规则更宽松，可能引入更大偏差 |
+| 候选长度 | 尝试范围更大，但拒绝和回退可能增加 | 单轮推进短，潜在收益有限 |
+| 接受阈值 | 判断更严格，连续接受长度可能下降 | 判断更宽松，错误候选或重生成代价可能增加 |
 
 ![多 Token 解码的接受长度与收益](../public/02_PyTorch_Algorithms/35_acceptance_budget.svg)
 
-### Step 4: 实现多 Token 解码器
+### Step 4: 实现多 Token 候选验证
 
-请补全下方 `MultiTokenDecoderSim`，实现一轮候选提议、逐 token 验证、首次拒绝停止和回退后缀切分。这里的回退后缀只标记待丢弃或重新生成的候选，不在本题中真正生成 correction token。
-| 实现部分 | TODO 关注点 | 结果检查 |
-|---|---|---|
-| 候选提议 | 按 `max_proposal_len` 截取候选 | 不超过最大提议长度 |
-| 接受判断 | 使用草稿概率、目标概率和 `min_accept_ratio` | 接受结果稳定且可解释 |
-| 顺序验证 | 从左到右验证，首次拒绝后停止 | `accepted_tokens` 与拒绝位置一致 |
-| 回退切分 | 区分接受前缀和拒绝后缀 | 全部接受时后缀为空 |
+题目区提供候选概率、目标概率和结果汇总骨架。学习者只需完成候选截断、单点接受判断和连续前缀更新三个机制；测试分别覆盖长度上限、接受阈值、首次拒绝、后缀关闭与全部接受。
+
+| 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
+|---|---|---|---|
+| `propose` | 按候选预算截取本轮前缀 | 不修改输入，长度不超过上限 | 多种候选长度与空输入 |
+| `_accept_token` | 比较草稿概率、目标概率与接受阈值 | 草稿概率非正时单独处理 | 接受与拒绝阈值边界 |
+| `verify` | 从左到右维护连续接受前缀 | 首次拒绝后立即停止 | 中途拒绝与后续高概率候选 |
 
 
 ```python
@@ -93,8 +89,7 @@ import torch
 class MultiTokenDecoderSim:
     """教学用的多 token 提议—验证模拟器。
 
-    本类只模拟候选前缀、首次拒绝和回退后缀，不代表真实推理 backend 的
-    概率校正、KV Cache 管理或吞吐收益。"""
+    用于观察候选长度、接受前缀和回退后缀如何共同决定一轮推进结果。"""
 
     def __init__(self, max_proposal_len: int = 4, min_accept_ratio: float = 0.5):
         if not isinstance(max_proposal_len, int) or isinstance(max_proposal_len, bool) or max_proposal_len <= 0:
@@ -109,26 +104,20 @@ class MultiTokenDecoderSim:
         """把草稿序列截断为本轮允许验证的候选前缀。
 
         空序列返回空列表；返回长度不超过 `max_proposal_len`。"""
-        # ==========================================
-        # TODO 1: 从草稿 token 中生成本轮候选序列
-        # 提示：先把 draft_tokens 转成 list，再截取前 max_proposal_len 个 token。
-        # 这个结果决定本轮最多验证多少个位置，不要修改输入序列。
-        # ==========================================
+        # TODO 1（候选预算）：复制输入并截取本轮允许验证的候选前缀。
         # proposed = ???
+        raise NotImplementedError('TODO 1：请构造候选前缀')
         return proposed
 
     def _accept_token(self, draft_prob: float, target_prob: float) -> bool:
         """按教学用概率阈值判断一个候选是否通过验证。
 
         这里的阈值规则用于观察控制流，不等同于严格的分布保持算法。"""
-        # ==========================================
-        # TODO 2: 判断单个候选 token 是否被目标模型接受
-        # 提示：正常情况下，target_prob 至少要达到
-        # draft_prob * min_accept_ratio；draft_prob <= 0 时单独处理，并保持布尔返回值。
-        # ==========================================
+        # TODO 2（接受阈值）：比较目标概率与草稿概率经过阈值缩放后的下界。
         if draft_prob <= 0:
             return target_prob > 0
         # accepted = ???
+        raise NotImplementedError('TODO 2：请判断候选是否接受')
         return accepted
 
     def verify(
@@ -158,12 +147,9 @@ class MultiTokenDecoderSim:
         for i, token_id in enumerate(proposed):
             draft_prob = float(draft_probs[i, token_id])
             target_prob = float(target_probs[i, token_id])
-            # ==========================================
-            # TODO 3: 逐个验证候选 token，遇到第一次拒绝就停止
-            # 提示：调用 _accept_token 得到 accepted；只有当前 token 被接受才能继续，
-            #       第一个拒绝位置写入 rejected_at，并立即停止后续验证。
-            # ==========================================
+            # TODO 3（连续前缀）：计算当前位置的接受结果；下方骨架负责追加或终止。
             # accepted = ???
+            raise NotImplementedError('TODO 3：请计算当前位置的接受结果')
 
             if accepted:
                 accepted_tokens = accepted_tokens + [token_id]
@@ -184,11 +170,7 @@ class MultiTokenDecoderSim:
         `progress_per_round` 只表示本轮接受比例，不代表真实吞吐提升。"""
         proposed = self.propose(draft_tokens)
         accepted_tokens, rejected_at = self.verify(draft_probs, target_probs, draft_tokens)
-        # ==========================================
-        # TODO 4: 切出待丢弃或重新生成的回退后缀
-        # 提示：rejected_at 为 None 表示全部接受，返回空后缀；否则从 rejected_at 开始切出。
-        # ==========================================
-        # rejected_suffix = ???
+        rejected_suffix = proposed[rejected_at:] if rejected_at is not None else []
 
         result = {
             "proposed_tokens": proposed,
@@ -206,74 +188,94 @@ class MultiTokenDecoderSim:
 
 
 ```python
+# 按机制拆分测试，分别定位候选提议、接受判断、首次拒绝和回退状态。
+def _build_multi_token_fixture():
+    """构造包含中途拒绝位置的候选与概率矩阵。"""
+    draft_tokens = [10, 20, 30, 31]
+    draft_probs = torch.zeros(4, 40)
+    target_probs = torch.zeros(4, 40)
+    for index, token in enumerate(draft_tokens):
+        draft_probs[index, token] = 0.5
+        target_probs[index, token] = 0.8 if index < 2 else 0.2
+    return draft_tokens, draft_probs, target_probs
+
+def test_proposal_contract():
+    """验证候选前缀受预算限制且顺序保持不变。"""
+    draft_tokens, _, _ = _build_multi_token_fixture()
+    sim = MultiTokenDecoderSim(max_proposal_len=3, min_accept_ratio=0.6)
+    assert sim.propose(draft_tokens) == [10, 20, 30]
+
+def test_acceptance_rule():
+    """验证单点接受规则的通过与拒绝分支。"""
+    sim = MultiTokenDecoderSim(max_proposal_len=3, min_accept_ratio=0.6)
+    assert sim._accept_token(0.5, 0.31) is True
+    assert sim._accept_token(0.5, 0.2) is False
+
+def test_first_rejection():
+    """验证过程在首次拒绝位置停止。"""
+    draft_tokens, draft_probs, target_probs = _build_multi_token_fixture()
+    sim = MultiTokenDecoderSim(max_proposal_len=3, min_accept_ratio=0.6)
+    accepted, rejected_at = sim.verify(draft_probs, target_probs, draft_tokens)
+    assert accepted == [10, 20]
+    assert rejected_at == 2
+
+def test_rejection_closes_the_suffix():
+    """验证后续高概率候选不能越过首次拒绝。"""
+    draft_tokens, draft_probs, target_probs = _build_multi_token_fixture()
+    target_probs[3, draft_tokens[3]] = 0.9  # 后一个候选即使满足阈值，也不能越过第 3 个位置的拒绝。
+    sim = MultiTokenDecoderSim(max_proposal_len=4, min_accept_ratio=0.6)
+    accepted, rejected_at = sim.verify(draft_probs, target_probs, draft_tokens)
+    assert accepted == [10, 20] and rejected_at == 2
+
+def test_rollback_suffix():
+    """验证拒绝后缀、推进比例与历史记录。"""
+    draft_tokens, draft_probs, target_probs = _build_multi_token_fixture()
+    sim = MultiTokenDecoderSim(max_proposal_len=3, min_accept_ratio=0.6)
+    result = sim.decode(draft_probs, target_probs, draft_tokens)
+    assert result["proposed_tokens"] == [10, 20, 30]
+    assert result["accepted_tokens"] == [10, 20]
+    assert result["accepted_len"] == 2
+    assert result["progress_per_round"] == 2 / 3
+    assert result["rejected_at"] == 2
+    assert result["rejected_suffix"] == [30]
+    assert len(sim.history) == 1
+
+def test_all_accept_and_variable_length():
+    """验证不同候选预算下的全部接受路径。"""
+    draft_tokens, draft_probs, _ = _build_multi_token_fixture()
+    all_target = torch.zeros(4, 40)
+    for index, token in enumerate(draft_tokens):
+        all_target[index, token] = 0.8
+    for proposal_len in (1, 2, 3, 4):
+        sim = MultiTokenDecoderSim(max_proposal_len=proposal_len, min_accept_ratio=0.6)
+        result = sim.decode(draft_probs, all_target, draft_tokens)
+        assert result["accepted_len"] == proposal_len
+        assert result["progress_per_round"] == 1.0
+        assert result["rejected_at"] is None
+        assert result["rejected_suffix"] == []
+
 def test_multi_token_decoder():
+    """汇总运行候选、接受、拒绝和回退机制测试。"""
     try:
-        sim = MultiTokenDecoderSim(max_proposal_len=3, min_accept_ratio=0.6)
-        draft_tokens = [10, 20, 30, 31]
-        draft_probs = torch.zeros(4, 40)
-        target_probs = torch.zeros(4, 40)
-
-        for i, tok in enumerate(draft_tokens):
-            draft_probs[i, tok] = 0.5
-            target_probs[i, tok] = 0.8 if i < 2 else 0.2
-
-        assert sim.propose(draft_tokens) == [10, 20, 30]
-        assert sim._accept_token(0.5, 0.31) is True
-        assert sim._accept_token(0.5, 0.2) is False
-
-        accepted, rejected_at = sim.verify(draft_probs, target_probs, draft_tokens)
-        assert accepted == [10, 20]
-        assert rejected_at == 2
-
-        result = sim.decode(draft_probs, target_probs, draft_tokens)
-        assert result["proposed_tokens"] == [10, 20, 30]
-        assert result["accepted_tokens"] == [10, 20]
-        assert result["accepted_len"] == 2
-        assert result["progress_per_round"] == 2 / 3
-        assert result["rejected_at"] == 2
-        assert result["rejected_suffix"] == [30]
-        assert len(sim.history) == 1
-
-        # 全部接受：本轮推进比例应为 1，且没有回退后缀
-        all_target = torch.zeros(4, 40)
-        for i, tok in enumerate([10, 20, 30, 31]):
-            all_target[i, tok] = 0.8
-        all_result = sim.decode(draft_probs, all_target, draft_tokens)
-        assert all_result["accepted_len"] == 3
-        assert all_result["progress_per_round"] == 1.0
-        assert all_result["rejected_at"] is None
-        assert all_result["rejected_suffix"] == []
-
-        # 改变提议长度时，推进量应随实际接受前缀变化
-        for proposal_len in (1, 2, 4):
-            variable_sim = MultiTokenDecoderSim(max_proposal_len=proposal_len, min_accept_ratio=0.6)
-            variable_tokens = [10, 20, 30, 31]
-            variable_result = variable_sim.decode(draft_probs, all_target, variable_tokens)
-            assert variable_result["accepted_len"] == proposal_len
-            assert variable_result["progress_per_round"] == 1.0
-
-        print("✅ MultiTokenDecoderSim 测试通过！")
-    except NotImplementedError as e:
-        raise NotImplementedError("请先完成 TODO 代码！") from e
-    except (AttributeError, NameError, TypeError, ValueError, IndexError) as e:
-        raise NotImplementedError("请先完成 TODO 代码！") from e
-    except AssertionError as e:
-        raise AssertionError("测试未通过，请检查提议、验证和回退逻辑。") from e
+        test_proposal_contract()
+        test_acceptance_rule()
+        test_first_rejection()
+        test_rejection_closes_the_suffix()
+        test_rollback_suffix()
+        test_all_accept_and_variable_length()
+        print("✅ MultiTokenDecoderSim 机制测试通过：提议、接受、拒绝和回退均符合预期。")
+    except NotImplementedError:
+        print("请先完成 TODO 部分的代码！")
+        raise
+    except Exception as error:
+        print(f"❌ MultiTokenDecoderSim 测试失败: {type(error).__name__}: {error}")
+        raise
 
 
 test_multi_token_decoder()
 
 ```
 
----
-
-🛑 **STOP HERE** 🛑
-<br><br><br><br><br><br><br><br><br><br>
-> 请先尝试自己完成代码并跑通测试。<br>
-> 如果你正在 Colab 中运行，并且遇到困难没有思路，可以向下滚动查看参考答案。
-<br><br><br><br><br><br><br><br><br><br>
-
----
 
 ## 参考代码与解析
 
@@ -281,13 +283,10 @@ test_multi_token_decoder()
 
 
 ```python
-# TODO：下面是题目区的参考实现。
-
 class MultiTokenDecoderSim:
     """教学用的多 token 提议—验证模拟器。
 
-    本类只模拟候选前缀、首次拒绝和回退后缀，不代表真实推理 backend 的
-    概率校正、KV Cache 管理或吞吐收益。"""
+    用于观察候选长度、接受前缀和回退后缀如何共同决定一轮推进结果。"""
 
     def __init__(self, max_proposal_len: int = 4, min_accept_ratio: float = 0.5):
         if not isinstance(max_proposal_len, int) or isinstance(max_proposal_len, bool) or max_proposal_len <= 0:
@@ -352,9 +351,9 @@ class MultiTokenDecoderSim:
             draft_prob = float(draft_probs[i, token_id])
             target_prob = float(target_probs[i, token_id])
             # ==========================================
-            # TODO 3: 逐个验证候选 token，遇到第一次拒绝就停止
-            # 提示：调用 _accept_token 得到 accepted；只有当前 token 被接受才能继续，
-            #       第一个拒绝位置写入 rejected_at，并立即停止后续验证。
+            # TODO 3: 维护连续接受前缀
+            # 提示：先得到 accepted。若为 True，将 token 加入 accepted_tokens；
+            #       若为 False，记录当前 i 为 rejected_at 并停止，后续候选不能继续加入。
             # ==========================================
             accepted = self._accept_token(draft_prob, target_prob)
 
@@ -377,10 +376,6 @@ class MultiTokenDecoderSim:
         `progress_per_round` 只表示本轮接受比例，不代表真实吞吐提升。"""
         proposed = self.propose(draft_tokens)
         accepted_tokens, rejected_at = self.verify(draft_probs, target_probs, draft_tokens)
-        # ==========================================
-        # TODO 4: 切出待丢弃或重新生成的回退后缀
-        # 提示：rejected_at 为 None 表示全部接受，返回空后缀；否则从 rejected_at 开始切出。
-        # ==========================================
         rejected_suffix = proposed[rejected_at:] if rejected_at is not None else []
 
         result = {
@@ -399,43 +394,34 @@ class MultiTokenDecoderSim:
 
 ### 解析
 
-**1. TODO 1: 生成本轮候选序列**
-- **实现方式**：`proposed = list(draft_tokens)[: self.max_proposal_len]`
-- **关键点**：一次只截取最多 `max_proposal_len` 个候选，避免提议过长导致回退成本过高
-- **技术细节**：这里不实现真实采样器，而是用已给定的 `draft_tokens` 模拟草稿模型提出的候选序列
+**TODO 1：构造候选前缀**
+- 将草稿 token 复制为列表后按 `max_proposal_len` 截取。候选长度只规定本轮最多验证多少个位置，不改变原始草稿序列。
 
-**2. TODO 2: 单 token 接受判断**
-- **实现方式**：`accepted = target_prob >= draft_prob * self.min_accept_ratio`
-- **关键点**：用目标概率相对草稿概率的比例，近似表示目标模型是否认可这个候选 token
-- **技术细节**：`draft_prob <= 0` 的边界分支已经提前返回；正常分支只需要比较 `target_prob` 是否达到接受阈值
+**TODO 2：判断当前位置是否接受**
+- 当 `draft_prob > 0` 时，比较 `target_prob` 与 `draft_prob * min_accept_ratio`；草稿概率为零时单独处理，避免把无意义的比例带入判断。
 
-**3. TODO 3: 接入逐 token 验证**
-- **实现方式**：`accepted = self._accept_token(draft_prob, target_prob)`
-- **关键点**：验证循环必须从左到右执行，只有当前 token 被接受，后面的候选才仍然处在正确前缀下
-- **技术细节**：接受后的追加逻辑和拒绝后的 `rejected_at + break` 已经给出；一旦首次拒绝，后续候选不能继续直接采用
+**TODO 3：维护连续接受前缀**
+- 验证顺序决定状态：当前 token 被接受才可继续；首次拒绝的位置写入 `rejected_at` 后立即停止。这样 `accepted_tokens` 始终是候选序列的连续前缀，`rejected_suffix` 则由骨架据此生成。
 
-**4. TODO 4: 切分回退后缀**
-- **实现方式**：`rejected_suffix = proposed[rejected_at:] if rejected_at is not None else []`
-- **关键点**：`accepted_tokens` 是可以直接写入输出序列的前缀，`rejected_suffix` 是需要丢弃或重新生成的部分
-- **技术细节**：当 `rejected_at is None` 时表示本轮候选全部接受，因此回退后缀为空列表
+| 观察量 | 说明 | 在后续基准中的作用 |
+|---|---|---|
+| `max_proposal_len` | 每轮最多尝试的候选数 | 影响可获得的推进空间 |
+| `accepted_len` / `progress_per_round` | 本轮实际被连续接受的前缀 | 反映候选质量与回退压力 |
+| `rejected_at` / `rejected_suffix` | 首次拒绝及其后的候选 | 说明下一轮需要重新处理的部分 |
 
-**Multi-Token Decoding 核心机制**
-- **单 token 解码的瓶颈**：每次只推进一个 token，会带来频繁的 decoder 调用、kernel 调度和 KV Cache 更新
-- **多 token 推进**：草稿路径一次提出多个候选，目标路径验证后尽可能接受连续前缀，从而减少 token-level 往返
-- **首次拒绝原则**：候选序列具有前缀依赖，一旦某个位置被拒绝，它之后的候选就不再可靠，需要回退
 
-**工程优化要点**
-- **接受率权衡**：提议越长，理论加速空间越大，但被拒绝和回退的概率也越高
-- **验证成本**：多 token 解码只有在验证成本低于逐 token 生成成本时才有收益
-- **系统联动**：真实实现通常还要和 KV Cache 管理、batch 调度、采样策略和投机解码校正规则一起设计
+### 真实 GPU 验证出口
 
+本节的 CPU 实现用于验证候选组织、连续接受、首次拒绝与回退状态。同一份 logits 上的批量前缀运算不是 MTP GPU 实验，因为它没有真实草稿模块、目标验证、KV Cache 和服务调度。
+
+真实验需要固定目标模型与 MTP 草稿模块，比较自回归 baseline 与 MTP candidate 的接受率、有效推进 Token、TPOT、吞吐和输出质量。该证据由 [68 投机解码基准](./68_Speculative_Decoding_Benchmark.md) 在真实 backend 中承接。
 ## 相关阅读
 
-完成候选生成、顺序验证和回退处理后，可以继续比较不同投机式生成路径的候选来源、验证成本与真实 benchmark。
+完成原生 MTP 候选、顺序验证和回退处理后，可以继续比较外置特征草稿、块并行草稿与真实 backend benchmark。
 
-- [Medusa 原论文：Simple LLM Inference Acceleration Framework with Multiple Decoding Heads](https://arxiv.org/abs/2401.10782)
-- [Speculative Sampling 原论文](https://arxiv.org/abs/2302.01318)
-- [vLLM Speculative Decoding 文档](https://docs.vllm.ai/en/latest/features/spec_decode.html)
-- [23. Speculative Decoding | 投机解码](./23_Speculative_Decoding.md)
+- [DeepSeek-V3：Multi-Token Prediction](https://arxiv.org/abs/2412.19437)
+- [vLLM Speculators：MTP](https://docs.vllm.ai/projects/speculators/en/latest/user_guide/algorithms/decision_guide/)
+- [INF-EAGLE：特征草稿器与候选树](./INF-EAGLE_Feature_Drafter_and_Candidate_Tree.md)
+- [INF-PARALLEL-DRAFTING：DFlash 与 DSpark](./INF-PARALLEL-DRAFTING_DFlash_and_DSpark.md)
 - [36. Decode Scheduling | Decode 调度](./36_Decode_Scheduling.md)
 - [68. Speculative Decoding Benchmark | 投机解码基准](./68_Speculative_Decoding_Benchmark.md)

@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="title desc">
+  <title id="title">从失败证据到最小干预和升级复测的闭环</title>
+  <desc id="desc">稳定失败先按表达、知识、行为、偏好和探索根因分类，再映射到提示、检索、持续预训练、监督微调、离线偏好或在线强化学习，经过执行门槛后选择最小干预并复测。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+    <marker id="feedback" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#7C3AED"/></marker>
+  </defs>
+  <rect width="1500" height="470" fill="#F8FAFC"/>
+  <rect x="28" y="24" width="1444" height="422" rx="26" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="62" y="70" fill="#0F172A" font-family="Noto Sans CJK SC, sans-serif" font-size="28" font-weight="700">后训练准入：先定位失败根因，再选择最小充分干预</text>
+  <text x="62" y="102" fill="#475569" font-family="Noto Sans CJK SC, sans-serif" font-size="17">每次干预都回到同一失败切片复测；达到门槛即停止，仍失败才升级阶段。</text>
+
+  <rect x="54" y="150" width="220" height="160" rx="16" fill="#DBEAFE" stroke="#2563EB" stroke-width="2"/>
+  <text x="78" y="188" fill="#1E3A8A" font-family="Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">稳定失败证据</text>
+  <text x="78" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">目标与验收门槛</text>
+  <text x="78" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">固定工作负载与失败切片</text>
+  <text x="78" y="282" fill="#64748B" font-family="Noto Sans CJK SC, sans-serif" font-size="14">证据不足则先补测</text>
+
+  <rect x="320" y="134" width="292" height="192" rx="16" fill="#EDE9FE" stroke="#7C3AED" stroke-width="2"/>
+  <text x="344" y="172" fill="#5B21B6" font-family="Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">失败根因分类</text>
+  <text x="344" y="206" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">表达：指令歧义与格式不稳</text>
+  <text x="344" y="234" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">知识：外部事实或内部表示缺口</text>
+  <text x="344" y="262" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">行为：稳定任务接口与示范不足</text>
+  <text x="344" y="290" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">偏好 / 探索：负反馈或新轨迹不足</text>
+
+  <rect x="658" y="134" width="314" height="192" rx="16" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
+  <text x="682" y="172" fill="#92400E" font-family="Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">候选机制映射</text>
+  <text x="682" y="206" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">表达 → 提示模板</text>
+  <text x="682" y="234" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">外部知识 → RAG；内部表示 → 持续预训练</text>
+  <text x="682" y="262" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">行为 → SFT；偏好 → 离线偏好优化</text>
+  <text x="682" y="290" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">探索 / 可验证结果 → 在线 RL / RLVR</text>
+
+  <rect x="1018" y="150" width="214" height="160" rx="16" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/>
+  <text x="1042" y="188" fill="#991B1B" font-family="Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">执行硬门槛</text>
+  <text x="1042" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">数据 / 语料 / 反馈</text>
+  <text x="1042" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">评测 / 资源 / 交付</text>
+  <text x="1042" y="282" fill="#64748B" font-family="Noto Sans CJK SC, sans-serif" font-size="14">缺失项形成阻塞原因</text>
+
+  <rect x="1278" y="150" width="174" height="160" rx="16" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
+  <text x="1302" y="188" fill="#166534" font-family="Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">干预与复测</text>
+  <text x="1302" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">选择最小方案</text>
+  <text x="1302" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="15">固定切片复测</text>
+  <text x="1302" y="282" fill="#64748B" font-family="Noto Sans CJK SC, sans-serif" font-size="14">达标停止 / 未达标升级</text>
+
+  <path d="M274 230H310" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M612 230H648" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M972 230H1008" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M1232 230H1268" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <path d="M1365 310V382H164V320" fill="none" stroke="#7C3AED" stroke-width="2.3" stroke-dasharray="8 6" marker-end="url(#feedback)"/>
+  <text x="620" y="404" fill="#6D28D9" font-family="Noto Sans CJK SC, sans-serif" font-size="16" font-weight="700">复测仍未达标：带着新的失败证据重新诊断；不要按固定算法清单盲目升级</text>
+</svg>

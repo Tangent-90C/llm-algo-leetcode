@@ -1,27 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 720" role="img" aria-labelledby="title desc">
-  <title id="title">模型架构变体的观察方法</title>
-  <desc id="desc">从模型结构选择出发，分别观察参数共享、归一化、注意力和稀疏结构对成本与行为的影响。</desc>
-  <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#f5f3ff"/></linearGradient>
-    <style>
-      .title { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 30px; font-weight: 700; fill: #0f172a; }
-      .sub { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 16px; font-weight: 500; fill: #475569; }
-      .label { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 18px; font-weight: 700; fill: #111827; }
-      .small { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 14px; font-weight: 500; fill: #334155; }
-      .box { stroke-width: 3; rx: 18; ry: 18; }
-      .flow { stroke: #475569; stroke-width: 4; fill: none; marker-end: url(#arrow); }
-    </style>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#475569"/></marker>
-  </defs>
-  <rect width="1600" height="720" fill="url(#bg)"/>
-  <text x="60" y="60" class="title">架构变体：从结构改动追踪系统影响</text>
-  <text x="60" y="90" class="sub">先定位改动发生在参数、归一化、注意力还是稀疏路径，再观察容量、计算、通信和质量</text>
-
-  <rect x="650" y="260" width="300" height="110" class="box" fill="#ffffff" stroke="#6366f1"/><text x="800" y="305" text-anchor="middle" class="label">模型结构选择</text><text x="800" y="335" text-anchor="middle" class="small">改变哪一条数据或参数路径？</text>
-  <rect x="80" y="180" width="280" height="110" class="box" fill="#fff7ed" stroke="#f59e0b"/><text x="220" y="225" text-anchor="middle" class="label">参数共享</text><text x="220" y="255" text-anchor="middle" class="small">Embedding / LM Head</text>
-  <rect x="80" y="440" width="280" height="110" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="220" y="485" text-anchor="middle" class="label">归一化与激活</text><text x="220" y="515" text-anchor="middle" class="small">RMSNorm / 激活变体</text>
-  <rect x="1240" y="180" width="280" height="110" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="1380" y="225" text-anchor="middle" class="label">注意力变体</text><text x="1380" y="255" text-anchor="middle" class="small">头数 / 位置 / 缓存组织</text>
-  <rect x="1240" y="440" width="280" height="110" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="1380" y="485" text-anchor="middle" class="label">稀疏与专家</text><text x="1380" y="515" text-anchor="middle" class="small">MoE / 路由 / 负载均衡</text>
-  <path d="M650 300 C540 300 470 235 360 235" class="flow"/><path d="M650 330 C540 390 470 495 360 495" class="flow"/><path d="M950 300 C1060 300 1130 235 1240 235" class="flow"/><path d="M950 330 C1060 390 1130 495 1240 495" class="flow"/>
-  <text x="640" y="625" class="small">同一结构改动需要同时追踪：参数量与显存、算子与带宽、通信与调度、训练稳定性和任务质量。</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="650" viewBox="0 0 1600 650" role="img" aria-labelledby="title desc">
+<title id="title">架构配置审计链</title><desc id="desc">从配置声明追踪到模块实例、参数归属、运行时状态与系统后果。</desc>
+<defs><style>.t{font:700 30px sans-serif;fill:#0f172a}.s{font:500 16px sans-serif;fill:#475569}.h{font:700 17px sans-serif;fill:#111827;text-anchor:middle}.b{font:500 14px sans-serif;fill:#334155;text-anchor:middle}.g{font:700 16px sans-serif;fill:#475569}.x{stroke-width:2.5;rx:16}.a{stroke:#475569;stroke-width:3;fill:none;marker-end:url(#m)}</style><marker id="m" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#475569"/></marker></defs>
+<rect width="1600" height="650" fill="#f8fafc"/><text x="55" y="58" class="t">架构配置审计：从字段追踪到真实模块和系统后果</text><text x="55" y="88" class="s">同一字段只有落实为模块、参数和运行时状态后，才能解释参数量、显存、计算、通信与质量变化。</text>
+<rect x="55" y="220" width="190" height="96" class="x" fill="#fff7ed" stroke="#d97706"/><text x="150" y="258" class="h">配置声明</text><text x="150" y="285" class="b">注意力头 / 归一化 / MoE / 绑定</text>
+<rect x="300" y="220" width="190" height="96" class="x" fill="#eff6ff" stroke="#2563eb"/><text x="395" y="258" class="h">模块实例化</text><text x="395" y="285" class="b">实际层类型与连接</text>
+<rect x="545" y="220" width="190" height="96" class="x" fill="#f5f3ff" stroke="#7c3aed"/><text x="640" y="258" class="h">参数归属与形状</text><text x="640" y="285" class="b">共享 / 独立 / 分片</text>
+<rect x="790" y="220" width="190" height="96" class="x" fill="#ecfeff" stroke="#0891b2"/><text x="885" y="258" class="h">运行时状态</text><text x="885" y="285" class="b">激活 / KV / 路由</text>
+<rect x="1035" y="220" width="210" height="96" class="x" fill="#ecfccb" stroke="#65a30d"/><text x="1140" y="258" class="h">执行路径</text><text x="1140" y="285" class="b">内核 / 分发 / 集合通信</text>
+<rect x="1300" y="220" width="240" height="96" class="x" fill="#fff1f2" stroke="#e11d48"/><text x="1420" y="258" class="h">系统与质量后果</text><text x="1420" y="285" class="b">容量 / 延迟 / 通信 / 稳定性</text>
+<path d="M245 268H300" class="a"/><path d="M490 268H545" class="a"/><path d="M735 268H790" class="a"/><path d="M980 268H1035" class="a"/><path d="M1245 268H1300" class="a"/>
+<text x="65" y="400" class="g">典型审计入口</text>
+<rect x="65" y="430" width="300" height="85" class="x" fill="#ffffff" stroke="#94a3b8"/><text x="215" y="464" class="h">参数共享</text><text x="215" y="490" class="b">词嵌入 ↔ LM Head</text>
+<rect x="420" y="430" width="300" height="85" class="x" fill="#ffffff" stroke="#94a3b8"/><text x="570" y="464" class="h">归一化与残差</text><text x="570" y="490" class="b">前置归一化 / RMSNorm / 缩放</text>
+<rect x="775" y="430" width="300" height="85" class="x" fill="#ffffff" stroke="#94a3b8"/><text x="925" y="464" class="h">注意力表示</text><text x="925" y="490" class="b">注意力头 / RoPE / KV 状态</text>
+<rect x="1130" y="430" width="300" height="85" class="x" fill="#ffffff" stroke="#94a3b8"/><text x="1280" y="464" class="h">MoE 稀疏路径</text><text x="1280" y="490" class="b">路由器 / 专家容量 / 专家</text>
+<text x="800" y="585" class="s" text-anchor="middle">审计输出应能回答：配置是否生效、谁拥有参数、运行时保存什么、成本和行为为何变化。</text>
 </svg>

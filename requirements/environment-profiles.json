@@ -1,0 +1,412 @@
+{
+  "schema_version": "tutorial-environment-profiles/v1",
+  "profiles": {
+    "Q-CUDA-MECHANISM": {
+      "title": "量化机制单卡 GPU 环境",
+      "purpose": "运行量化机制页的真实层、校准、低精度执行和局部质量对照",
+      "python": {
+        "minimum": "3.11",
+        "maximum_exclusive": "3.13"
+      },
+      "requirements": [
+        "requirements/torch-cu128.txt",
+        "requirements/quantization.txt"
+      ],
+      "constraint_files": [
+        "requirements/quantization-cu128-constraints.txt"
+      ],
+      "required_modules": {
+        "torch": "torch",
+        "jupyterlab": "jupyterlab",
+        "ipykernel": "ipykernel",
+        "transformers": "transformers",
+      "torchao": "torchao",
+      "llmcompressor": "llmcompressor",
+        "compressed_tensors": "compressed-tensors",
+        "hqq": "hqq"
+      },
+      "forbidden_distributions": [
+        "vllm",
+        "sglang"
+      ],
+      "isolation": {
+        "require_clean_sys_path": true,
+        "require_user_site_disabled": true,
+        "require_project_runtime": true
+      },
+      "gpu": {
+        "required": true,
+        "minimum_memory_gb": 8,
+        "torch_cuda": "12.8",
+        "minimum_devices": 1
+      },
+      "evidence_scope": "local_mechanism_benchmark",
+      "documentation": {
+        "global": "docs/gpu_environment_assets.md#q-cuda-mechanism",
+        "topic": "topic_discussion/quantization_compression/quickstart.md#q-cuda-mechanism-quickstart"
+      }
+    },
+    "PAR-CUDA-MECHANISM": {
+      "title": "通信与并行双卡机制环境",
+      "purpose": "运行真实 NCCL collective、状态与张量切分、上下文交换、专家路由和副本负载机制实验",
+      "python": {
+        "minimum": "3.11",
+        "maximum_exclusive": "3.13"
+      },
+      "requirements": [
+        "requirements/torch-cu128.txt",
+        "requirements/distributed.txt"
+      ],
+      "constraint_files": [],
+      "required_modules": {
+        "torch": "torch",
+        "jupyterlab": "jupyterlab",
+        "ipykernel": "ipykernel",
+        "accelerate": "accelerate",
+        "torchmetrics": "torchmetrics",
+        "deepspeed": "deepspeed"
+      },
+      "forbidden_distributions": [
+        "vllm",
+        "sglang"
+      ],
+      "isolation": {
+        "require_clean_sys_path": true,
+        "require_user_site_disabled": true,
+        "require_project_runtime": true
+      },
+      "gpu": {
+        "required": true,
+        "minimum_memory_gb": 8,
+        "torch_cuda": "12.8",
+        "minimum_devices": 2
+      },
+      "evidence_scope": "multi_gpu_mechanism_benchmark",
+      "documentation": {
+        "global": "docs/gpu_environment_assets.md#par-cuda-mechanism",
+        "topic": "topic_discussion/communication_parallelism/quickstart.md#par-cuda-mechanism-quickstart"
+      }
+    },
+    "ARCH-CUDA-MECHANISM": {
+      "title": "模型架构单卡机制环境",
+      "purpose": "运行注意力访问、递推状态、MLA 表示与混合记忆的单卡机制实验",
+      "python": {
+        "minimum": "3.11",
+        "maximum_exclusive": "3.13"
+      },
+      "requirements": [
+        "requirements/torch-cu128.txt",
+        "requirements/architecture.txt"
+      ],
+      "constraint_files": [],
+      "required_modules": {
+        "torch": "torch",
+        "jupyterlab": "jupyterlab",
+        "ipykernel": "ipykernel",
+        "transformers": "transformers",
+        "socksio": "socksio"
+      },
+      "forbidden_distributions": [
+        "vllm",
+        "sglang",
+        "llmcompressor"
+      ],
+      "isolation": {
+        "require_clean_sys_path": true,
+        "require_user_site_disabled": true,
+        "require_project_runtime": true
+      },
+      "gpu": {
+        "required": true,
+        "minimum_memory_gb": 8,
+        "torch_cuda": "12.8",
+        "minimum_devices": 1
+      },
+      "evidence_scope": "local_mechanism_benchmark",
+      "documentation": {
+        "global": "docs/gpu_environment_assets.md#arch-cuda-mechanism",
+        "topic": "topic_discussion/llm_architecture_evolution/quickstart.md#arch-cuda-mechanism-quickstart"
+      }
+    },
+    "TRAIN-CUDA-MECHANISM": {
+      "title": "训练机制单卡 GPU 环境",
+      "purpose": "运行梯度累积、混合精度反向、激活检查点、激活卸载与训练状态峰值对照",
+      "python": {
+        "minimum": "3.11",
+        "maximum_exclusive": "3.13"
+      },
+      "requirements": [
+        "requirements/torch-cu128.txt",
+        "requirements/training-mechanism.txt"
+      ],
+      "constraint_files": [],
+      "required_modules": {
+        "torch": "torch",
+        "jupyterlab": "jupyterlab",
+        "ipykernel": "ipykernel",
+        "transformers": "transformers",
+        "socksio": "socksio"
+      },
+      "forbidden_distributions": [
+        "vllm",
+        "sglang",
+        "llmcompressor",
+        "deepspeed"
+      ],
+      "isolation": {
+        "require_clean_sys_path": true,
+        "require_user_site_disabled": true,
+        "require_project_runtime": true
+      },
+      "gpu": {
+        "required": true,
+        "minimum_memory_gb": 8,
+        "torch_cuda": "12.8",
+        "minimum_devices": 1
+      },
+      "evidence_scope": "local_mechanism_benchmark",
+      "documentation": {
+        "global": "docs/gpu_environment_assets.md#train-cuda-mechanism",
+        "topic": "topic_discussion/backpropagation_training_mechanism/quickstart.md#train-cuda-mechanism-quickstart"
+      }
+    },
+    "PERF-CUDA-MECHANISM": {
+      "title": "性能机制单卡 GPU 环境",
+      "purpose": "运行 Trace、配对回归、输入流水线、主机—设备搬运与 I/O 关键路径的单卡实验",
+      "python": {
+        "minimum": "3.11",
+        "maximum_exclusive": "3.13"
+      },
+      "requirements": [
+        "requirements/torch-cu128.txt",
+        "requirements/profiling.txt"
+      ],
+      "constraint_files": [],
+      "required_modules": {
+        "torch": "torch",
+        "jupyterlab": "jupyterlab",
+        "ipykernel": "ipykernel",
+        "tensorboard": "tensorboard"
+      },
+      "forbidden_distributions": [
+        "vllm",
+        "sglang",
+        "llmcompressor",
+        "deepspeed"
+      ],
+      "isolation": {
+        "require_clean_sys_path": true,
+        "require_user_site_disabled": true,
+        "require_project_runtime": true
+      },
+      "gpu": {
+        "required": true,
+        "minimum_memory_gb": 8,
+        "torch_cuda": "12.8",
+        "minimum_devices": 1
+      },
+      "evidence_scope": "local_mechanism_benchmark",
+      "documentation": {
+        "global": "docs/gpu_environment_assets.md#perf-cuda-mechanism",
+        "topic": "topic_discussion/performance_analysis/quickstart.md#perf-cuda-mechanism-quickstart"
+      }
+    },
+    "INF-CUDA-MECHANISM": {
+      "title": "推理机制单卡 GPU 环境",
+      "purpose": "运行真实模型的迭代成本、执行分派、显存和局部延迟对照",
+      "python": {"minimum": "3.11", "maximum_exclusive": "3.13"},
+      "requirements": ["requirements/torch-cu128.txt", "requirements/inference-mechanism.txt"],
+      "constraint_files": [],
+      "required_modules": {
+        "torch": "torch", "jupyterlab": "jupyterlab", "ipykernel": "ipykernel",
+        "transformers": "transformers", "datasets": "datasets", "accelerate": "accelerate", "psutil": "psutil"
+      },
+      "forbidden_distributions": ["vllm", "sglang", "llmcompressor", "deepspeed"],
+      "isolation": {"require_clean_sys_path": true, "require_user_site_disabled": true, "require_project_runtime": true},
+      "gpu": {"required": true, "minimum_memory_gb": 8, "torch_cuda": "12.8", "minimum_devices": 1},
+      "evidence_scope": "local_mechanism_benchmark",
+      "documentation": {
+        "global": "docs/gpu_environment_assets.md#inf-cuda-mechanism",
+        "topic": "topic_discussion/inference_optimization/quickstart.md#inf-cuda-mechanism-quickstart"
+      }
+    },
+    "PT-SFT-CUDA": {
+      "title": "后训练 SFT 与 LoRA 单卡环境",
+      "purpose": "运行真实模型 SFT、LoRA 与训练产物交付的单卡受控实验",
+      "python": {"minimum": "3.11", "maximum_exclusive": "3.13"},
+      "requirements": ["requirements/torch-cu128.txt", "requirements/fine-tuning.txt"],
+      "constraint_files": [],
+      "required_modules": {
+        "torch": "torch", "jupyterlab": "jupyterlab", "ipykernel": "ipykernel",
+        "transformers": "transformers", "datasets": "datasets", "accelerate": "accelerate", "peft": "peft"
+      },
+      "forbidden_distributions": ["vllm", "sglang", "llmcompressor", "deepspeed"],
+      "isolation": {"require_clean_sys_path": true, "require_user_site_disabled": true, "require_project_runtime": true},
+      "gpu": {"required": true, "minimum_memory_gb": 8, "torch_cuda": "12.8", "minimum_devices": 1},
+      "evidence_scope": "training_mechanism_benchmark",
+      "documentation": {
+        "global": "docs/gpu_environment_assets.md#pt-sft-cuda",
+        "topic": "topic_discussion/post_training_optimization/quickstart.md#pt-sft-cuda-quickstart"
+      }
+    },
+    "PT-RL-CUDA": {
+      "title": "后训练偏好与策略信号单卡机制环境",
+      "purpose": "运行 DPO、GRPO 与奖励信号的真实模型配对机制实验",
+      "python": {"minimum": "3.11", "maximum_exclusive": "3.13"},
+      "requirements": ["requirements/torch-cu128.txt", "requirements/fine-tuning.txt"],
+      "constraint_files": ["requirements/post-training-cu128-constraints.txt"],
+      "required_modules": {
+        "torch": "torch", "jupyterlab": "jupyterlab", "ipykernel": "ipykernel",
+        "transformers": "transformers", "datasets": "datasets", "accelerate": "accelerate", "peft": "peft"
+      },
+      "forbidden_distributions": ["vllm", "sglang", "llmcompressor", "deepspeed"],
+      "isolation": {"require_clean_sys_path": true, "require_user_site_disabled": true, "require_project_runtime": true},
+      "gpu": {"required": true, "minimum_memory_gb": 8, "torch_cuda": "12.8", "minimum_devices": 1},
+      "evidence_scope": "training_mechanism_benchmark",
+      "documentation": {
+        "global": "docs/gpu_environment_assets.md#pt-rl-cuda",
+        "topic": "topic_discussion/post_training_optimization/quickstart.md#pt-rl-cuda-quickstart"
+      }
+    },
+    "Q-QLORA": {
+      "title": "QLoRA 单卡 GPU 环境",
+      "purpose": "运行 BF16 LoRA 与 bitsandbytes NF4 QLoRA 的配对训练、质量比较和 adapter 交付",
+      "python": {
+        "minimum": "3.11",
+        "maximum_exclusive": "3.13"
+      },
+      "requirements": [
+        "requirements/torch-cu128.txt",
+        "requirements/qlora.txt"
+      ],
+      "constraint_files": [
+        "requirements/qlora-cu128-constraints.txt"
+      ],
+      "required_modules": {
+        "torch": "torch",
+        "jupyterlab": "jupyterlab",
+        "ipykernel": "ipykernel",
+        "transformers": "transformers",
+        "datasets": "datasets",
+        "accelerate": "accelerate",
+        "peft": "peft",
+        "bitsandbytes": "bitsandbytes"
+      },
+      "forbidden_distributions": [
+        "vllm",
+        "sglang",
+        "llmcompressor"
+      ],
+      "isolation": {
+        "require_clean_sys_path": true,
+        "require_user_site_disabled": true,
+        "require_project_runtime": true
+      },
+      "gpu": {
+        "required": true,
+        "minimum_memory_gb": 8,
+        "torch_cuda": "12.8",
+        "minimum_devices": 1
+      },
+      "evidence_scope": "local_mechanism_benchmark",
+      "documentation": {
+        "global": "docs/gpu_environment_assets.md#q-qlora",
+        "topic": "topic_discussion/quantization_compression/quickstart.md#q-qlora-quickstart"
+      }
+    },
+    "INF-VLLM-MTP": {
+      "title": "vLLM 原生 MTP CUDA 12.9 单卡机制环境",
+      "purpose": "使用固定 CUDA 12.9 后端运行同一原生 MTP checkpoint 的 target-only 与 MTP-1 配对实验",
+      "python": {
+        "minimum": "3.11",
+        "maximum_exclusive": "3.13"
+      },
+      "requirements": [
+        "requirements/inference-vllm-mtp.txt"
+      ],
+      "constraint_files": [
+        "requirements/inference-vllm-mtp-constraints.txt"
+      ],
+      "exact_distribution_versions": {
+        "vllm": "0.31.0+cu129"
+      },
+      "required_modules": {
+        "torch": "torch",
+        "jupyterlab": "jupyterlab",
+        "ipykernel": "ipykernel",
+        "transformers": "transformers",
+        "vllm": "vllm",
+        "httpx": "httpx"
+      },
+      "forbidden_distributions": [
+        "sglang",
+        "llmcompressor",
+        "torchao",
+        "deepspeed"
+      ],
+      "isolation": {
+        "require_clean_sys_path": true,
+        "require_user_site_disabled": true,
+        "require_project_runtime": true
+      },
+      "gpu": {
+        "required": true,
+        "minimum_memory_gb": 8,
+        "minimum_devices": 1,
+        "torch_cuda": "12.9",
+        "torch_version": "2.13.0+cu129"
+      },
+      "evidence_scope": "local_backend_mechanism_benchmark",
+      "documentation": {
+        "global": "docs/gpu_environment_assets.md#inf-vllm-mtp",
+        "topic": "topic_discussion/inference_optimization/quickstart.md#inf-vllm-mtp-quickstart"
+      }
+    },
+    "INF-VLLM-011-CU128": {
+      "title": "vLLM 0.11 CUDA 12.8 服务环境",
+      "purpose": "复现教程已登记的 vLLM 0.11 单卡服务基线",
+      "python": {
+        "minimum": "3.11",
+        "maximum_exclusive": "3.13"
+      },
+      "requirements": [
+        "requirements/inference-vllm.txt"
+      ],
+      "constraint_files": [
+        "requirements/inference-vllm-cu128-constraints.txt"
+      ],
+      "required_modules": {
+        "torch": "torch",
+        "jupyterlab": "jupyterlab",
+        "ipykernel": "ipykernel",
+        "transformers": "transformers",
+        "vllm": "vllm",
+        "xformers": "xformers",
+        "compressed_tensors": "compressed-tensors"
+      },
+      "forbidden_distributions": [
+        "llmcompressor",
+        "torchao",
+        "hqq",
+        "auto-round",
+        "sglang"
+      ],
+      "isolation": {
+        "require_clean_sys_path": true,
+        "require_user_site_disabled": true,
+        "require_project_runtime": true
+      },
+      "gpu": {
+        "required": true,
+        "minimum_memory_gb": 8,
+        "torch_cuda": "12.8",
+        "minimum_devices": 1
+      },
+      "evidence_scope": "backend_benchmark",
+      "documentation": {
+        "global": "docs/gpu_environment_assets.md#inf-vllm-011-cu128",
+        "topic": "topic_discussion/inference_optimization/intro.md"
+      }
+    }
+  }
+}

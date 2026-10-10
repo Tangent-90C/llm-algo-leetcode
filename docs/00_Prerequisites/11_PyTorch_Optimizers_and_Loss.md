@@ -1,6 +1,6 @@
 # 11. PyTorch Optimizers and Loss | PyTorch 优化器与损失函数
 
-**难度：** Medium | **环境：** CPU-first | **标签：** `PyTorch`, `训练闭环`, `优化器` | **目标人群：** Part 2-4 前置补课者
+**难度：** Medium | **环境：** CPU-first | **标签：** `PyTorch`, `损失函数`, `优化器` | **目标人群：** 准备理解训练更新机制的学习者
 
 > 🚀 **云端运行环境**
 >
@@ -10,26 +10,27 @@
 > [![Open In Studio](https://img.shields.io/badge/Open%20In-ModelScope-blueviolet?logo=alibabacloud)](https://modelscope.cn/my/mynotebook) *(国内推荐：魔搭社区免费实例)*
 
 
-本页聚焦：理解 `loss` 和 `optimizer` 的分工；掌握 `zero_grad()`、`backward()`、`step()` 的顺序；能跑通一个最小训练步。前面已经看过模型怎么存，这一页开始看模型怎么更新。阅读顺序可以按这条线走：先分清 loss 和 optimizer 的角色，再看训练步顺序，然后学会先排查训练流程，最后把最小闭环跑通。这里先把它当成 Part 2 里最常回看的“训练步入口”来看：你看到一段训练代码，先找 loss、梯度清理和参数更新分别在哪。训练模式切换通常也会出现在这一步里，`model.train()` / `model.eval()` 影响的是模型行为，不是 loss 的定义。
+损失函数把任务目标压缩成可求导标量，优化器再把梯度、学习率和内部状态组合成参数更新。本页依次检查 loss 契约、SGD 更新、AdamW 状态，以及 micro-batch、optimizer step 与 scheduler step 的时间关系。
 
-**显存路线视角：** 参数、梯度和 optimizer state 都属于训练状态账本的一部分；本页验证更新顺序，不假设 Adam 状态大小或具体 dtype，也不输出真实显存结论。预算和占用分析见 Part00 的 18 / 20。
+参数、梯度和 optimizer state 共同构成训练状态；不同优化器保存的状态不同，因此恢复训练时不能只保存模型参数。
 
-**关键词：** `loss`, `optimizer`, `step`
+**关键词：** `loss`, `SGD`, `AdamW`, `optimizer step`, `scheduler`
+
+![梯度累积、优化器与调度器时序](../public/00_Prerequisites/11_optimizer_update_timeline.svg)
 
 ## 前置阅读
-**导语：** 先看 0C 组页，把状态管理和训练闭环的边界对齐，再进入这一页会更顺。
-- [10. PyTorch State_dict and Persistence | PyTorch 状态管理与持久化](./10_PyTorch_State_dict_and_Persistence.md)
+**导语：** 参数必须先注册到模型，反向传播也必须已经产生梯度，优化器才能执行更新。
+- [09. PyTorch nn.Module Basics | PyTorch nn.Module 基础](./09_PyTorch_nn_Module_Basics.md)
+- [08. PyTorch Grad Hygiene and No-Grad | PyTorch 梯度控制](./08_PyTorch_Grad_Hygiene_and_No_Grad.md)
 - [0C 组页](./0C.md)
 
 ## 相关阅读
-**导语：** 本页先把 loss、optimizer 和最小训练步讲清楚；如果想继续看数据接口和 batch 契约，再顺着看下面这一页。
-- [12. PyTorch Minimal Training Interface | PyTorch 最小训练接口](./12_PyTorch_Minimal_Training_Interface.md)
-- [18. Memory Profiling and Optimization | 显存分析与优化](./18_Memory_Profiling_and_Optimization.md)
-- [20. Profiling and Memory Ledger | 性能剖析与显存账本](./20_Profiling_and_Memory_Ledger.md)
+**导语：** 掌握更新规则后，继续检查 batch 如何形成，以及更新规则如何进入完整训练循环。
+- [12. PyTorch Data Interface and Training Lifecycle | PyTorch 数据接口与训练生命周期](./12_PyTorch_Minimal_Training_Interface.md)
 
 ## Q1：loss 和 optimizer 分别解决什么问题？
 
-`loss` 把任务目标变成一个可以优化的标量，`optimizer` 负责根据梯度更新参数。训练能不能学起来，先看这两个角色是不是分清了。这里先记住：`loss` 负责“算差多少”，`optimizer` 负责“怎么改参数”。
+回归和分类使用不同的目标契约，但都必须把一个 batch 的误差归约成标量，才能从该标量启动反向传播。优化器不定义任务目标，只消费参数上的梯度。
 
 
 ```python
@@ -58,7 +59,7 @@ print('CrossEntropy 示例：', cross_entropy_loss(logits, labels).item())
 
 ```
 
-## Q1验证：基本 loss 的数值是否正确？
+## Q1 验证：基本 loss 的数值是否正确？
 
 这里直接检查 MSE 和交叉熵的调用是否返回预期数值。
 
@@ -77,147 +78,175 @@ print('✅ loss 基本验证通过')
 
 ```
 
-## Q2：什么时候必须先清梯度，再 backward，再 step？
+## Q2：SGD 的一次参数更新由哪些量决定？
 
-训练循环里最容易乱的就是顺序：先清梯度，再前向，再反向，再更新。顺序错了，看到的就不是当前 batch 的结果。这里先记住训练步的标准三连：`zero_grad()` -> `backward()` -> `step()`；如果模型里有 dropout 或 norm 之类的行为切换，也要先明确是 `train()` 还是 `eval()`。
+最基础的 SGD 更新由当前参数、梯度和学习率决定；加入 momentum 后，优化器还要保存跨 step 的动量状态。先把手算结果与 PyTorch 更新对齐，才能分清参数、梯度与 optimizer state。
 
 
 ```python
-def train_one_step(model, x, target, optimizer):
-    # `train()` 会把模型切到训练行为，dropout / norm 之类模块会据此工作。
-    model.train()
-    # 先清掉上一轮残留梯度，再做前向和反向。
-    optimizer.zero_grad()
-    pred = model(x)
-    loss = mse_loss(pred, target)
-    loss.backward()
-    # `step()` 才是真正更新参数的地方。
+def manual_sgd_step(parameter, gradient, learning_rate):
+    """计算不含 momentum 和 weight decay 的一次 SGD 更新。"""
+    return parameter - learning_rate * gradient
+
+
+weight = nn.Parameter(torch.tensor([2.0]))
+weight.grad = torch.tensor([3.0])
+optimizer = torch.optim.SGD([weight], lr=0.1)
+expected = manual_sgd_step(weight.detach(), weight.grad, learning_rate=0.1)
+optimizer.step()
+print('更新后参数：', weight.item(), '手算结果：', expected.item())
+
+```
+
+## Q2 验证：PyTorch SGD 是否与手算更新一致？
+
+无 momentum 时，两条更新路径应得到相同参数；启用 momentum 后，optimizer state 中应出现跨 step 保存的缓冲区。
+
+
+```python
+weight = nn.Parameter(torch.tensor([2.0]))
+weight.grad = torch.tensor([3.0])
+optimizer = torch.optim.SGD([weight], lr=0.1)
+optimizer.step()
+assert torch.allclose(weight.detach(), torch.tensor([1.7]))
+assert optimizer.state_dict()['state'] == {}
+
+momentum_weight = nn.Parameter(torch.tensor([2.0]))
+momentum_optimizer = torch.optim.SGD([momentum_weight], lr=0.1, momentum=0.9)
+momentum_weight.grad = torch.tensor([3.0])
+momentum_optimizer.step()
+state = momentum_optimizer.state[momentum_weight]
+assert 'momentum_buffer' in state
+print('✅ SGD 更新与 momentum state 通过')
+
+```
+
+## Q3：AdamW 为什么需要保存一阶、二阶矩状态？
+
+AdamW 不只读取当前梯度，还维护梯度的一阶矩与二阶矩估计，并独立应用 weight decay。这些状态解释了为什么完整 checkpoint 必须保存 optimizer state，也解释了优化器状态为何会增加训练内存。
+
+
+```python
+parameter = nn.Parameter(torch.tensor([1.0, -1.0]))
+optimizer = torch.optim.AdamW([parameter], lr=0.01, weight_decay=0.1)
+for gradient in (torch.tensor([0.5, -0.25]), torch.tensor([0.25, -0.5])):
+    optimizer.zero_grad(set_to_none=True)
+    parameter.grad = gradient.clone()
     optimizer.step()
-    return loss.item()
+
+state = optimizer.state[parameter]
+print('AdamW state keys：', sorted(state.keys()))
+print('step：', state['step'].item())
+
+```
+
+## Q3 验证：AdamW 状态是否随 optimizer step 更新？
+
+连续执行两个 step 后，步数、一阶矩和二阶矩都应存在，而且状态 shape 应与参数一致。
+
+
+```python
+assert int(state['step'].item()) == 2
+assert state['exp_avg'].shape == parameter.shape
+assert state['exp_avg_sq'].shape == parameter.shape
+assert torch.count_nonzero(state['exp_avg']) == parameter.numel()
+assert torch.count_nonzero(state['exp_avg_sq']) == parameter.numel()
+print('✅ AdamW optimizer state 通过')
+
+```
+
+## Q4：micro-batch、optimizer step 与 scheduler step 如何对齐？
+
+梯度可以跨多个 micro-batch 累积，但 optimizer 与 scheduler 只在累计边界推进。最后一个窗口不足 `accumulation_steps` 时，loss 还必须按实际窗口大小缩放，否则该次更新的梯度会偏小。
+
+
+```python
+def run_accumulated_updates(model, batches, optimizer, scheduler, accumulation_steps):
+    """按累计边界执行 optimizer 与 scheduler，并返回可核对的时间线。"""
+    if accumulation_steps <= 0:
+        raise ValueError('accumulation_steps must be positive')
+    optimizer.zero_grad(set_to_none=True)
+    timeline = []
+    optimizer_steps = 0
+    total_micro_steps = len(batches)
+    for micro_step, (x, target) in enumerate(batches, start=1):
+        window_start = ((micro_step - 1) // accumulation_steps) * accumulation_steps
+        window_size = min(accumulation_steps, total_micro_steps - window_start)
+        loss = mse_loss(model(x), target) / window_size
+        loss.backward()
+        should_update = micro_step % accumulation_steps == 0 or micro_step == len(batches)
+        if should_update:
+            optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad(set_to_none=True)
+            optimizer_steps += 1
+        timeline.append({
+            'micro_step': micro_step,
+            'optimizer_step': optimizer_steps,
+            'learning_rate': optimizer.param_groups[0]['lr'],
+            'window_size': window_size,
+        })
+    return timeline
 
 
 model = nn.Linear(1, 1)
-with torch.no_grad():
-    model.weight.zero_()
-    model.bias.zero_()
-
-x = torch.tensor([[1.0], [2.0], [3.0]])
-target = 2 * x + 1
 optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
-print('训练前损失：', mse_loss(model(x), target).item())
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.5)
+batches = [(torch.tensor([[float(i)]]), torch.tensor([[2.0 * i + 1.0]])) for i in range(1, 6)]
+timeline = run_accumulated_updates(model, batches, optimizer, scheduler, accumulation_steps=2)
+print(timeline)
 
 ```
 
-## Q2验证：一步训练后 loss 是否下降？
+## Q4 验证：scheduler 是否只在参数更新后推进？
 
-这里直接看一次更新前后 loss 是否变小，确认顺序和更新真的生效。
+五个 micro-batch、每两个累计一次，应产生三个 optimizer step；最后一个窗口只有一个 micro-batch，因此其 loss 不再额外除以 2。
 
 
 ```python
-model = nn.Linear(1, 1)
-with torch.no_grad():
-    model.weight.zero_()
-    model.bias.zero_()
-
-x = torch.tensor([[1.0], [2.0], [3.0]])
-target = 2 * x + 1
-optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
-before = mse_loss(model(x), target).item()
-loss = train_one_step(model, x, target, optimizer)
-after = mse_loss(model(x), target).item()
-assert abs(loss - before) < 1e-9
-assert after < before
-print('✅ 一步训练通过，before=', before, 'after=', after)
+assert [item['optimizer_step'] for item in timeline] == [0, 1, 1, 2, 3]
+assert [item['window_size'] for item in timeline] == [2, 2, 2, 2, 1]
+assert timeline[0]['learning_rate'] == 0.1
+assert timeline[1]['learning_rate'] == 0.05
+assert timeline[3]['learning_rate'] == 0.025
+assert timeline[4]['learning_rate'] == 0.0125
+assert all(parameter.grad is None for parameter in model.parameters())
+print('✅ micro-batch / optimizer / scheduler 对齐通过')
 
 ```
 
-## Q3：如果参数没有按预期更新，应该先检查什么？
+## Q5：为什么优化器需要 parameter groups？
 
-如果 loss 在变小，但参数或模型表现没有变化，先检查梯度是否累积、是否清零以及 optimizer 是否真的执行了更新，而不是马上换模型。Q2 说明标准顺序，Q3 负责定位“顺序已经写出但更新仍不生效”的情况。
+同一模型中的参数不一定共享更新规则。常见做法是对矩阵权重应用 weight decay，而让 bias 与归一化参数使用零衰减；parameter groups 把参数集合和各自的学习率、衰减系数绑定在一起。
 
 
 ```python
-w = torch.tensor(1.0, requires_grad=True)
-loss1 = w * 2
-loss1.backward()
-print('第一次 grad:', w.grad.item())
-loss2 = w * 3
-loss2.backward()
-print('累积后 grad:', w.grad.item())
-w.grad.zero_()
-loss3 = w * 4
-loss3.backward()
-print('清零后 grad:', w.grad.item())
+weight = nn.Parameter(torch.tensor([1.0]))
+bias = nn.Parameter(torch.tensor([1.0]))
+optimizer = torch.optim.AdamW([
+    {'params': [weight], 'weight_decay': 0.1},
+    {'params': [bias], 'weight_decay': 0.0},
+], lr=0.1)
+
+# 零梯度隔离了 weight decay 的影响，便于直接观察两组规则。
+weight.grad = torch.zeros_like(weight)
+bias.grad = torch.zeros_like(bias)
+optimizer.step()
+print('weight / bias：', weight.item(), bias.item())
 
 ```
 
-## Q3验证：梯度清零和累积是否可控？
+## Q5 验证：不同参数组是否执行了不同衰减规则？
 
-这里直接确认：梯度会累加，`zero_()` 可以清掉历史值。
-
-
-```python
-w = torch.tensor(1.0, requires_grad=True)
-loss1 = w * 2
-loss1.backward()
-loss2 = w * 3
-loss2.backward()
-assert w.grad.item() == 5.0
-w.grad.zero_()
-loss3 = w * 4
-loss3.backward()
-assert w.grad.item() == 4.0
-print('✅ zero_grad / 累积通过')
-
-```
-
-## Q4：什么时候必须把训练步串成一个最小闭环？
-
-只要你要验证一套训练逻辑，最好先把单步更新跑通，再去谈更复杂的 batch、scheduler 或混合精度。这里的最小闭环就是：前向算 loss，反向拿梯度，optimizer 更新参数。验证时还可以顺手把 `model.eval()` 和 `model.train()` 的行为差别看一眼；Q4 负责把前面的概念收成一条完整训练链。
+两组共享学习率，但只有 weight 所在组启用衰减；在零梯度条件下，weight 应缩小而 bias 保持不变。
 
 
 ```python
-model = nn.Linear(1, 1)
-with torch.no_grad():
-    model.weight.zero_()
-    model.bias.zero_()
-
-print('初始 training mode:', model.training)
-model.eval()
-print('eval mode:', model.training)
-model.train()
-print('train mode:', model.training)
-
-x = torch.tensor([[1.0], [2.0], [3.0], [4.0]])
-target = 2 * x + 1
-optimizer = torch.optim.SGD(model.parameters(), lr=0.05)
-print('初始损失：', mse_loss(model(x), target).item())
-for step in range(3):
-    loss = train_one_step(model, x, target, optimizer)
-    print(f'step {step + 1}: loss={loss:.4f}')
-print('训练后预测：', model(x).detach().squeeze().tolist())
-
-```
-
-## Q4验证：最小训练闭环是否真的能更新参数？
-
-这里直接看训练前后预测值有没有变，确认 optimizer 的更新链路已经打通。
-
-
-```python
-model = nn.Linear(1, 1)
-with torch.no_grad():
-    model.weight.zero_()
-    model.bias.zero_()
-
-x = torch.tensor([[1.0], [2.0], [3.0], [4.0]])
-target = 2 * x + 1
-optimizer = torch.optim.SGD(model.parameters(), lr=0.05)
-before = model(x).detach().clone()
-for _ in range(3):
-    train_one_step(model, x, target, optimizer)
-after = model(x).detach().clone()
-assert not torch.allclose(before, after)
-print('✅ 最小训练闭环通过')
+assert len(optimizer.param_groups) == 2
+assert optimizer.param_groups[0]['weight_decay'] == 0.1
+assert optimizer.param_groups[1]['weight_decay'] == 0.0
+assert torch.allclose(weight.detach(), torch.tensor([0.99]))
+assert torch.allclose(bias.detach(), torch.tensor([1.0]))
+print('✅ parameter groups 与 weight decay 规则通过')
 
 ```

@@ -1,3 +1,9 @@
+# Dedicated vLLM 0.11 CUDA 12.8 backend profile.
+# Install in a fresh environment. vLLM supplies its matching PyTorch stack;
+# do not install torch-cu128.txt, quantization.txt or inference-sglang.txt
+# into the same environment.
+-c inference-vllm-cu128-constraints.txt
 -r base.txt
+
 vllm
 httpx[socks]

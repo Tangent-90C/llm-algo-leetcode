@@ -1,11 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" role="img" aria-labelledby="t d">
-<title id="t">并行候选的收益与代价</title><desc id="d">不同并行方式分别缓解容量、计算或流水线问题，同时引入通信或气泡代价。</desc>
-<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><style>.h{font:700 26px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.s{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.l{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.b{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:3;rx:16}.f{stroke:#475569;stroke-width:4;fill:none;marker-end:url(#a)}</style></defs>
-<rect width="1200" height="500" fill="#f8fafc"/><text x="50" y="55" class="h">并行候选：收益必须和代价一起比较</text><text x="50" y="83" class="s">先用小规模成本模型筛选，再用多 GPU benchmark 验证真实通信与吞吐。</text>
-<rect x="55" y="190" width="220" height="110" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="165" y="232" text-anchor="middle" class="l">候选方案</text><text x="165" y="263" text-anchor="middle" class="b">DP+ZeRO · TP+PP · EP</text>
-<rect x="345" y="115" width="220" height="100" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="455" y="155" text-anchor="middle" class="l">主要收益</text><text x="455" y="185" text-anchor="middle" class="b">显存分摊 · 计算并行</text>
-<rect x="345" y="260" width="220" height="100" class="box" fill="#fff1f2" stroke="#e11d48"/><text x="455" y="300" text-anchor="middle" class="l">主要代价</text><text x="455" y="330" text-anchor="middle" class="b">通信 · 同步 · 气泡</text>
-<rect x="650" y="190" width="220" height="110" class="box" fill="#fef3c7" stroke="#d97706"/><text x="760" y="232" text-anchor="middle" class="l">约束过滤</text><text x="760" y="263" text-anchor="middle" class="b">显存上限 · 质量 · SLA</text>
-<rect x="945" y="190" width="195" height="110" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="1042" y="232" text-anchor="middle" class="l">验证出口</text><text x="1042" y="263" text-anchor="middle" class="b">小规模 → 多 GPU</text>
-<path d="M275 235L345 165M275 265L345 310M565 165L650 225M565 310L650 275M870 245H945" class="f"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 580" role="img" aria-labelledby="t d">
+<title id="t">并行候选的风险与复测</title>
+<desc id="d">四类并行候选各自解决不同压力，也有不同风险和需要复测的证据字段。</desc>
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+  <style>.title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.group{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.head{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.body{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:2.4;rx:13}.line{stroke:#475569;stroke-width:3;fill:none;marker-end:url(#arrow)}</style>
+</defs>
+<rect width="1200" height="580" fill="#f8fafc"/>
+<text x="54" y="55" class="title">候选策略必须同时比较收益、风险与复测证据</text>
+<text x="54" y="83" class="sub">统一 workload 后，候选是否保留取决于它解决的压力是否大于新增的通信、气泡或负载代价。</text>
+
+<text x="72" y="130" class="group">候选策略</text><text x="410" y="130" class="group">主要解决的压力</text><text x="700" y="130" class="group">需要先看的风险</text><text x="963" y="130" class="group">复测字段</text>
+
+<g>
+<rect x="55" y="154" width="230" height="70" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="170" y="196" text-anchor="middle" class="head">DP + ZeRO</text>
+<rect x="355" y="154" width="260" height="70" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="485" y="184" text-anchor="middle" class="head">优化器 / 参数状态显存</text><text x="485" y="206" text-anchor="middle" class="body">按 rank 分片</text>
+<rect x="685" y="154" width="230" height="70" class="box" fill="#fff1f2" stroke="#e11d48"/><text x="800" y="196" text-anchor="middle" class="head">collective 频率</text>
+<rect x="970" y="154" width="185" height="70" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="1062" y="184" text-anchor="middle" class="head">峰值显存</text><text x="1062" y="206" text-anchor="middle" class="body">collective 时间</text>
+<path d="M285 189H355M615 189H685M915 189H970" class="line"/>
+</g>
+<g>
+<rect x="55" y="258" width="230" height="70" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="170" y="300" text-anchor="middle" class="head">TP</text>
+<rect x="355" y="258" width="260" height="70" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="485" y="288" text-anchor="middle" class="head">大线性层的容量与计算</text><text x="485" y="310" text-anchor="middle" class="body">矩阵维度拆分</text>
+<rect x="685" y="258" width="230" height="70" class="box" fill="#fff1f2" stroke="#e11d48"/><text x="800" y="300" text-anchor="middle" class="head">all-reduce 暴露</text>
+<rect x="970" y="258" width="185" height="70" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="1062" y="288" text-anchor="middle" class="head">payload</text><text x="1062" y="310" text-anchor="middle" class="body">exposed time</text>
+<path d="M285 293H355M615 293H685M915 293H970" class="line"/>
+</g>
+<g>
+<rect x="55" y="362" width="230" height="70" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="170" y="404" text-anchor="middle" class="head">PP</text>
+<rect x="355" y="362" width="260" height="70" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="485" y="392" text-anchor="middle" class="head">模型单卡放不下</text><text x="485" y="414" text-anchor="middle" class="body">分段放置层</text>
+<rect x="685" y="362" width="230" height="70" class="box" fill="#fff1f2" stroke="#e11d48"/><text x="800" y="404" text-anchor="middle" class="head">bubble / stage 失衡</text>
+<rect x="970" y="362" width="185" height="70" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="1062" y="392" text-anchor="middle" class="head">bubble ratio</text><text x="1062" y="414" text-anchor="middle" class="body">stage time</text>
+<path d="M285 397H355M615 397H685M915 397H970" class="line"/>
+</g>
+<g>
+<rect x="55" y="466" width="230" height="70" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="170" y="508" text-anchor="middle" class="head">EP</text>
+<rect x="355" y="466" width="260" height="70" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="485" y="496" text-anchor="middle" class="head">MoE 专家计算分配</text><text x="485" y="518" text-anchor="middle" class="body">专家维度切分</text>
+<rect x="685" y="466" width="230" height="70" class="box" fill="#fff1f2" stroke="#e11d48"/><text x="800" y="508" text-anchor="middle" class="head">all-to-all / 热门专家</text>
+<rect x="970" y="466" width="185" height="70" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="1062" y="496" text-anchor="middle" class="head">expert token CV</text><text x="1062" y="518" text-anchor="middle" class="body">P95 step time</text>
+<path d="M285 501H355M615 501H685M915 501H970" class="line"/>
+</g>
 </svg>

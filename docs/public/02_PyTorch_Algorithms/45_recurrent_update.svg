@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="450" viewBox="0 0 1120 450">
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#475569"/></marker></defs>
+  <rect width="1120" height="450" rx="24" fill="#f8fafc"/>
+  <text x="56" y="54" font-size="28" font-family="sans-serif" font-weight="700" fill="#0f172a">线性注意力：按 token 更新固定形状状态</text>
+  <g font-family="sans-serif" text-anchor="middle">
+    <path d="M72 125H220Q236 125 236 141V201Q236 217 220 217H72Q56 217 56 201V141Q56 125 72 125Z" fill="#dbeafe" stroke="#60a5fa"/><text x="146" y="163" font-size="19" font-weight="700" fill="#1e3a8a">kₜ, vₜ</text><text x="146" y="190" font-size="15" fill="#334155">当前写入</text>
+    <path d="M334 105H548Q566 105 566 123V219Q566 237 548 237H334Q316 237 316 219V123Q316 105 334 105Z" fill="#dcfce7" stroke="#4ade80"/><text x="441" y="148" font-size="20" font-weight="700" fill="#166534">累计状态</text><text x="441" y="181" font-size="16" fill="#334155">Sₜ = Sₜ₋₁ + φ(kₜ)vₜᵀ</text><text x="441" y="210" font-size="16" fill="#334155">zₜ = zₜ₋₁ + φ(kₜ)</text>
+    <path d="M662 125H810Q826 125 826 141V201Q826 217 810 217H662Q646 217 646 201V141Q646 125 662 125Z" fill="#fef3c7" stroke="#fbbf24"/><text x="736" y="163" font-size="19" font-weight="700" fill="#92400e">qₜ</text><text x="736" y="190" font-size="15" fill="#334155">当前读取</text>
+    <path d="M904 105H1046Q1064 105 1064 123V219Q1064 237 1046 237H904Q886 237 886 219V123Q886 105 904 105Z" fill="#ede9fe" stroke="#a78bfa"/><text x="975" y="148" font-size="20" font-weight="700" fill="#5b21b6">输出 yₜ</text><text x="975" y="181" font-size="15" fill="#334155">φ(qₜ)ᵀSₜ</text><text x="975" y="207" font-size="15" fill="#334155">÷ φ(qₜ)ᵀzₜ</text>
+  </g>
+  <path d="M236 171H316" stroke="#475569" stroke-width="3" marker-end="url(#a)"/><path d="M566 205V270H975V237" fill="none" stroke="#475569" stroke-width="3" marker-end="url(#a)"/><path d="M826 171H886" stroke="#475569" stroke-width="3" marker-end="url(#a)"/>
+  <path d="M441 237V316H310V171H316" fill="none" stroke="#64748b" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#a)"/>
+  <text x="560" y="374" text-anchor="middle" font-size="17" font-family="sans-serif" fill="#64748b">状态形状不随序列长度增长，但累计状态不能直接还原任意历史 token。</text>
+</svg>

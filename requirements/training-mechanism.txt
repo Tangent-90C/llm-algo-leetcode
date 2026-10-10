@@ -1,0 +1,12 @@
+# Dedicated TRAIN-CUDA-MECHANISM profile.
+# Install requirements/torch-cu128.txt first, then install this file in a
+# fresh environment. Distributed and serving backends use separate profiles.
+--index-url https://download.pytorch.org/whl/cu128
+--extra-index-url https://pypi.org/simple
+
+-r base.txt
+
+# Step 5 uses one fixed Qwen checkpoint with deterministic text inputs. Keep
+# this profile on the shared notebook baseline; no external dataset or full
+# post-training framework is required.
+socksio

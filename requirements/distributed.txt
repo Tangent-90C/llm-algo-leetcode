@@ -1,3 +1,5 @@
 -r base.txt
 accelerate
 torchmetrics
+# Optional real ZeRO / Pipeline experiment backend for Part 02 27–28.
+deepspeed

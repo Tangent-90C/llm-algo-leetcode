@@ -1,6 +1,6 @@
 # 08. Distributed Inference and Parallelism | 分布式推理与并行扩展
 
-## 页面目标
+## 学习问题
 
 当单实例无法同时满足容量、延迟或吞吐目标时，学习如何判断是否需要扩展，以及如何比较并行方式、通信代价和部署收益。本节把 Part 02 的通信机制、并行选型和 79–81 项目串成一条证据链，最后把结果交给 06 做统一决策。
 
@@ -21,10 +21,10 @@
 
 | 学习阶段 | 需要回答的问题 | 机制入口 | 形成的判断 |
 |:---|:---|:---|:---|
-| 通信观测 | 通信时间、等待和计算重叠分别是多少？ | [46 NCCL 通信 Profiling](../../02_PyTorch_Algorithms/46_Communication_Profiling_with_NCCL.md) | 区分带宽受限、同步受限和负载不均 |
+| 通信观测 | 通信时间、等待和计算重叠分别是多少？ | [47 NCCL 通信 Profiling](../../02_PyTorch_Algorithms/47_Communication_Profiling_with_NCCL.md) | 区分带宽受限、同步受限和负载不均 |
 | 热点缓解 | 哪些通信暴露在关键路径，应该如何减少或隐藏？ | [48 通信热点与缓解](../../02_PyTorch_Algorithms/48_Communication_Hotspots_and_Mitigation.md) | 形成 overlap、批次、拓扑或调度假设 |
 | 并行选型 | 当前模型和互联条件适合哪种切分？ | [49 并行策略选型](../../02_PyTorch_Algorithms/49_Parallelism_Strategy_Selection.md) | 明确 DP、TP、PP、EP 的适用条件与代价 |
-| MoE 分支 | token dispatch 和 All-to-All 是否成为主导成本？ | [47 MoE 专家并行](../../02_PyTorch_Algorithms/47_MoE_Expert_Parallel.md) | 只在 MoE workload 下进入专家并行比较 |
+| MoE 分支 | token dispatch 和 All-to-All 是否成为主导成本？ | [47 MoE 专家并行](../../02_PyTorch_Algorithms/46_MoE_Expert_Parallel.md) | 只在 MoE workload 下进入专家并行比较 |
 
 ## 并行策略与通信代价
 
@@ -55,7 +55,7 @@ Task4 的 `handoff` 关注单次 Serving 路径上的局部状态交接、请求
 
 完成本节后，再回到 [06 端到端基准与决策](./06_benchmark_and_decision.md)，用统一 workload 判断方案应当 `accept / tune / reject`。
 
-## 判断框架
+## 选择条件与验证证据
 
 | 现象 | 优先判断 | 下一步 |
 |:---|:---|:---|

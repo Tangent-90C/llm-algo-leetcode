@@ -28,7 +28,9 @@ DOCS_DIR = ROOT / "docs"
 
 def is_generated_path(path: Path) -> bool:
     """Skip local/generated artifacts that are not tutorial source pages."""
-    return "model_cache" in path.parts or "__pycache__" in path.parts
+    parts = path.parts
+    benchmark_artifact = "benchmarks" in parts and "artifacts" in parts
+    return benchmark_artifact or "model_cache" in parts or "__pycache__" in parts
 
 
 def iter_source_pages() -> set[Path]:

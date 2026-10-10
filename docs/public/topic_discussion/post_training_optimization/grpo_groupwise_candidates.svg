@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
+  <title id="title">GRPO 组内候选与相对优势</title><desc id="desc">同一提示生成多个候选，经奖励和组内归一化形成相对优势，再进入受约束更新和独立评测。</desc>
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#475569"/></marker><style>.t{font:700 25px Arial,sans-serif;fill:#172033}.s{font:15px Arial,sans-serif;fill:#475569}.h{font:700 16px Arial,sans-serif;fill:#172033}.c{font:14px Arial,sans-serif;fill:#334155}.l{fill:none;stroke:#475569;stroke-width:2.4;marker-end:url(#a)}</style></defs>
+  <rect width="1200" height="430" fill="#F8FAFC"/><rect x="28" y="24" width="1144" height="382" rx="24" fill="#FFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="62" y="68" class="t">GRPO：候选只在同一提示的组内形成相对信号</text><text x="62" y="96" class="s">候选数量增加不自动提高质量；奖励离散度、排序可靠性和零方差保护必须同时检查。</text>
+  <rect x="62" y="154" width="174" height="120" rx="15" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/><text x="84" y="188" class="h">同一提示</text><text x="84" y="218" class="c">固定任务与采样条件</text><text x="84" y="244" class="c">生成候选组</text>
+  <rect x="286" y="108" width="170" height="62" rx="13" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/><text x="308" y="146" class="h">候选 A · reward</text>
+  <rect x="286" y="184" width="170" height="62" rx="13" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/><text x="308" y="222" class="h">候选 B · reward</text>
+  <rect x="286" y="260" width="170" height="62" rx="13" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/><text x="308" y="298" class="h">候选 C · reward</text>
+  <rect x="526" y="154" width="210" height="120" rx="15" fill="#FFF7ED" stroke="#EA580C" stroke-width="2"/><text x="548" y="188" class="h">组内归一化</text><text x="548" y="218" class="c">均值 · 方差 · 并列</text><text x="548" y="244" class="c">形成正 / 负 advantage</text>
+  <rect x="806" y="154" width="160" height="120" rx="15" fill="#F3E8FF" stroke="#9333EA" stroke-width="2"/><text x="828" y="188" class="h">策略更新</text><text x="828" y="218" class="c">ratio · clip · KL</text><text x="828" y="244" class="c">零方差不更新</text>
+  <rect x="1016" y="154" width="124" height="120" rx="15" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/><text x="1038" y="188" class="h">独立复测</text><text x="1038" y="218" class="c">任务质量</text><text x="1038" y="244" class="c">奖励漏洞</text>
+  <path d="M236 214H264V139H278" class="l"/><path d="M236 214H278" class="l"/><path d="M236 214H264V291H278" class="l"/>
+  <path d="M456 139H492V214H518" class="l"/><path d="M456 215H518" class="l"/><path d="M456 291H492V214H518" class="l"/><path d="M736 214H798" class="l"/><path d="M966 214H1008" class="l"/>
+</svg>

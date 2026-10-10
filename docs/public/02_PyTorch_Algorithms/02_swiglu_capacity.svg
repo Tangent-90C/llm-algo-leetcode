@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="title desc">
+  <title id="title">标准 FFN 与 SwiGLU 的容量对齐</title>
+  <desc id="desc">比较两次映射的标准 FFN 与三次映射的 SwiGLU，在相近参数预算下推导中间维。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker>
+    <style>.title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.head{font:700 19px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.body{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.strong{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#1e3a8a}.box{stroke-width:2.5;rx:16}.flow{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1500" height="470" fill="#f8fafc"/>
+  <text x="50" y="48" class="title">门控增加一条投影：中间维需要重新分配</text>
+  <text x="50" y="76" class="sub">固定比较口径为相近参数预算，避免把门控收益与单纯增加参数混在一起。</text>
+  <rect x="70" y="120" width="480" height="250" class="box" data-layout-role="panel" fill="#eff6ff" stroke="#2563eb"/>
+  <text x="105" y="160" class="head">标准 FFN：中间维 4D</text>
+  <text x="105" y="202" class="body">up：D → 4D</text><text x="105" y="234" class="body">down：4D → D</text>
+  <rect x="105" y="270" width="410" height="66" class="box" fill="#dbeafe" stroke="#60a5fa"/>
+  <text x="310" y="297" text-anchor="middle" class="strong">2 × D × 4D = 8D²</text><text x="310" y="322" text-anchor="middle" class="body">参数容量基线</text>
+  <rect x="950" y="120" width="480" height="250" class="box" data-layout-role="panel" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text x="985" y="160" class="head">SwiGLU：中间维 H</text>
+  <text x="985" y="202" class="body">gate / up：两次 D → H</text><text x="985" y="234" class="body">down：H → D</text>
+  <rect x="985" y="270" width="410" height="66" class="box" fill="#ede9fe" stroke="#a78bfa"/>
+  <text x="1190" y="297" text-anchor="middle" class="strong">3 × D × H ≈ 8D²</text><text x="1190" y="322" text-anchor="middle" class="body">得到 H ≈ 8D / 3</text>
+  <rect x="650" y="155" width="200" height="150" class="box" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="750" y="190" text-anchor="middle" class="head">固定参数预算</text>
+  <text x="750" y="224" text-anchor="middle" class="body">2D · 4D</text><text x="750" y="251" text-anchor="middle" class="body">≈ 3D · H</text>
+  <text x="750" y="282" text-anchor="middle" class="strong">解出 H</text>
+  <path d="M550 230H650" class="flow"/><path d="M850 230H950" class="flow"/>
+  <text x="750" y="350" text-anchor="middle" class="sub">容量对齐只固定比较口径，不改变双路门控关系。</text>
+</svg>

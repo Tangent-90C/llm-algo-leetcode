@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">一次训练更新中的依赖、状态与更新边界</title>
+  <desc id="desc">批次和参数经过前向传播、损失、反向传播和参数更新，并在验证阶段形成下一轮证据。</desc>
+  <style>.bg{fill:#f8fafc}.line{stroke:#64748b;stroke-width:2.5;fill:none;marker-end:url(#a)}.dash{stroke-dasharray:7 6}.box{fill:#eff6ff;stroke:#60a5fa;stroke-width:2}.state{fill:#fff7ed;stroke:#fb923c;stroke-width:2}.out{fill:#ecfdf5;stroke:#34d399;stroke-width:2}.n{font:700 18px sans-serif;fill:#0f172a}.s{font:14px sans-serif;fill:#475569}.t{font:700 24px sans-serif;fill:#0f172a}</style>
+  <defs><marker id="a" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L9 3L0 6z" fill="#64748b"/></marker></defs>
+  <rect class="bg" width="1200" height="500" rx="20"/><text x="50" y="52" class="t">一次训练更新：依赖决定梯度，边界决定何时提交更新</text>
+  <path class="line" d="M250 185H310"/><path class="line" d="M510 185H570"/><path class="line" d="M770 185H830"/><path class="line" d="M1030 185H1090V365H995"/>
+  <path class="line dash" d="M150 245V315"/><path class="line dash" d="M410 245V315"/><path class="line dash" d="M670 245V315"/><path class="line dash" d="M930 245V315"/>
+  <g><rect class="box" x="50" y="125" width="200" height="120" rx="16"/><text x="75" y="165" class="n">批次与参数</text><text x="75" y="195" class="s">输入、标签、掩码</text><text x="75" y="220" class="s">初始化后的参数状态</text></g>
+  <g><rect class="box" x="310" y="125" width="200" height="120" rx="16"/><text x="335" y="165" class="n">前向传播</text><text x="335" y="195" class="s">logits 与中间激活</text><text x="335" y="220" class="s">建立计算依赖</text></g>
+  <g><rect class="box" x="570" y="125" width="200" height="120" rx="16"/><text x="595" y="165" class="n">损失与反向传播</text><text x="595" y="195" class="s">监督信号沿图回传</text><text x="595" y="220" class="s">形成参数梯度</text></g>
+  <g><rect class="box" x="830" y="125" width="200" height="120" rx="16"/><text x="855" y="165" class="n">参数更新</text><text x="855" y="195" class="s">消费累计梯度</text><text x="855" y="220" class="s">提交新参数状态</text></g>
+  <g><rect class="state" x="50" y="315" width="200" height="100" rx="16"/><text x="75" y="353" class="n">常驻状态</text><text x="75" y="383" class="s">参数、模块缓冲区</text></g>
+  <g><rect class="state" x="310" y="315" width="200" height="100" rx="16"/><text x="335" y="353" class="n">前向状态</text><text x="335" y="383" class="s">激活、反向保存张量</text></g>
+  <g><rect class="state" x="570" y="315" width="200" height="100" rx="16"/><text x="595" y="353" class="n">反向状态</text><text x="595" y="383" class="s">参数梯度、工作区</text></g>
+  <g><rect class="out" x="830" y="315" width="200" height="100" rx="16"/><text x="855" y="353" class="n">更新后证据</text><text x="855" y="383" class="s">参数增量、验证指标</text></g>
+</svg>

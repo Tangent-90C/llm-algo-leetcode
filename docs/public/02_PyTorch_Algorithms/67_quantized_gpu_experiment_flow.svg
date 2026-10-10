@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
   <title id="title">67 GPU 量化实验的固定条件</title>
   <desc id="desc">为了比较 G0、G1 和可选 G2，需要同时固定运行环境、输入 workload 和对照变量。</desc>
   <defs>

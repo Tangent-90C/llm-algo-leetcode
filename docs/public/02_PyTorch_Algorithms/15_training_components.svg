@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="500" viewBox="0 0 1500 500" role="img" aria-labelledby="title desc">
+  <title id="title">端到端 SFT 闭环的四类对象</title>
+  <desc id="desc">展示数据与监督、模型与目标、训练控制、评估与记录之间的训练和评估分支。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#eff6ff"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L10 5 L0 10 Z" fill="#475569"/></marker>
+    <style>.title{font:700 30px "Inter","Noto Sans SC",sans-serif;fill:#0f172a}.sub{font:500 16px "Inter","Noto Sans SC",sans-serif;fill:#475569}.label{font:700 18px "Inter","Noto Sans SC",sans-serif;fill:#111827}.small{font:500 14px "Inter","Noto Sans SC",sans-serif;fill:#334155}.box{stroke-width:3;rx:16;ry:16}.arrow{stroke:#475569;stroke-width:2.5;fill:none;marker-end:url(#arrow)}.loop{stroke:#0891b2;stroke-width:2.5;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1500" height="500" fill="url(#bg)"/>
+  <text x="60" y="58" class="title">端到端 SFT 闭环的四类对象</text>
+  <text x="60" y="88" class="sub">训练与评估共享数据契约和损失口径，但只有训练分支写回参数。</text>
+
+  <rect x="70" y="175" width="250" height="115" class="box" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="195" y="212" text-anchor="middle" class="label">数据与监督</text><text x="195" y="240" text-anchor="middle" class="small">prompt / response</text><text x="195" y="264" text-anchor="middle" class="small">有效位置与监督目标</text>
+  <rect x="410" y="175" width="250" height="115" class="box" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="535" y="212" text-anchor="middle" class="label">模型与目标</text><text x="535" y="240" text-anchor="middle" class="small">下一 Token 预测</text><text x="535" y="264" text-anchor="middle" class="small">同口径监督损失</text>
+  <path d="M320 232 H410" class="arrow"/>
+
+  <rect x="760" y="115" width="270" height="120" class="box" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="895" y="153" text-anchor="middle" class="label">训练控制</text><text x="895" y="181" text-anchor="middle" class="small">微批次与梯度累积</text><text x="895" y="205" text-anchor="middle" class="small">参数与学习率推进</text>
+  <rect x="760" y="285" width="270" height="120" class="box" fill="#fdf2f8" stroke="#db2777"/>
+  <text x="895" y="323" text-anchor="middle" class="label">评估与记录</text><text x="895" y="351" text-anchor="middle" class="small">无梯度、同一损失口径</text><text x="895" y="375" text-anchor="middle" class="small">训练前后配对证据</text>
+  <path d="M660 215 H710 V175 H760" class="arrow"/><path d="M660 250 H710 V345 H760" class="arrow"/>
+
+  <rect x="1130" y="175" width="270" height="115" class="box" fill="#f5f3ff" stroke="#8b5cf6"/>
+  <text x="1265" y="212" text-anchor="middle" class="label">模型与训练状态</text><text x="1265" y="240" text-anchor="middle" class="small">参数、优化器、调度器</text><text x="1265" y="264" text-anchor="middle" class="small">随机状态与更新进度</text>
+  <path d="M1030 175 H1080 V205 H1130" class="arrow"/>
+  <path d="M1130 260 H1080 V330 H1030" class="loop"/>
+  <path d="M1265 175 V105 H535 V175" class="loop"/>
+
+  <rect x="300" y="430" width="900" height="48" class="box" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="750" y="460" text-anchor="middle" class="label">闭环证据：监督有效 · 更新发生 · 评估隔离 · 状态可恢复 · 产物可交付</text>
+</svg>

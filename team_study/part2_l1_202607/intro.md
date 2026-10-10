@@ -13,7 +13,7 @@
 ##### Task3：反向传播与显存优化 - [2.5 反向传播与显存优化](../../02_PyTorch_Algorithms/2_5.md)
 ##### Task4：项目收口 - [2.9 项目实战](../../02_PyTorch_Algorithms/2_9.md)
 
-##### 收尾项目：`30 LoRA Fine Tuning Project` - [30 LoRA Fine Tuning Project](../../02_PyTorch_Algorithms/60_LoRA_Fine_Tuning_Project.ipynb)
+##### 收尾项目：`62 Instruction Fine-Tuning Project` - [62 Instruction Fine-Tuning Project](../../02_PyTorch_Algorithms/62_Instruction_Fine_Tuning_Project.ipynb)
 
 ## 3. 群内讨论
 后续按本周期实际讨论材料补充。

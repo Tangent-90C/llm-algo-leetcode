@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">多模态 workload 与 baseline</title><desc id="desc">图像请求增加预处理、视觉编码与视觉 token，随后与纯文本请求共同进入 prefill 和 decode，并以质量和性能证据比较。</desc>
+  <style>.bg{fill:#f8fafc}.box{stroke-width:2;rx:16}.blue{fill:#eff6ff;stroke:#60a5fa}.green{fill:#ecfdf5;stroke:#34d399}.orange{fill:#fff7ed;stroke:#fb923c}.slate{fill:#f1f5f9;stroke:#94a3b8}.line{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#a)}.title{font:700 24px sans-serif;fill:#0f172a}.h{font:700 18px sans-serif;fill:#0f172a}.s{font:14px sans-serif;fill:#475569}.tag{font:700 13px sans-serif;fill:#2563eb}</style>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L10 3L0 6z" fill="#64748b"/></marker></defs>
+  <rect class="bg" width="1200" height="500" rx="20"/><text x="55" y="55" class="title">多模态 baseline：拆开新增阶段，再比较共同服务指标</text>
+  <text x="85" y="105" class="tag">图像 workload</text><text x="800" y="105" class="tag">文本对照</text>
+  <rect class="box blue" x="55" y="130" width="220" height="105"/><text x="80" y="166" class="h">媒体准备</text><text x="80" y="195" class="s">读取 · decode · resize</text><text x="80" y="219" class="s">processor</text>
+  <rect class="box green" x="340" y="130" width="220" height="105"/><text x="365" y="166" class="h">视觉编码与连接器</text><text x="365" y="195" class="s">features · visual tokens</text><text x="365" y="219" class="s">视觉侧耗时</text>
+  <rect class="box orange" x="760" y="130" width="220" height="105"/><text x="785" y="166" class="h">文本 token 化</text><text x="785" y="195" class="s">prompt · template</text><text x="785" y="219" class="s">文本长度</text>
+  <path class="line" d="M275 182H340"/>
+  <rect class="box slate" x="420" y="320" width="360" height="100"/><text x="445" y="359" class="h">共同服务阶段</text><text x="445" y="388" class="s">Prefill · Decode · KV state · output</text>
+  <path class="line" d="M450 235V320H520"/><path class="line" d="M870 235V320H680"/>
+  <rect class="box slate" x="865" y="340" width="250" height="70"/><text x="890" y="370" class="h">配对证据</text><text x="890" y="395" class="s">quality · TTFT · TPOT · VRAM</text>
+  <path class="line" d="M780 370H865"/>
+</svg>

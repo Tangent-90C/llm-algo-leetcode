@@ -24,12 +24,12 @@
   <text x="350" y="210" class="small">处理全零边界</text>
   <rect x="595" y="105" width="200" height="125" class="box" fill="#dcfce7" stroke="#16a34a"/>
   <text x="620" y="145" class="head">缩放因子</text>
-  <text x="620" y="180" class="formula">S = 127 / m</text>
-  <text x="620" y="210" class="small">确定整数映射范围</text>
+  <text x="620" y="180" class="formula">scale = m / 127</text>
+  <text x="620" y="210" class="small">表示一个整数步长</text>
   <rect x="865" y="105" width="280" height="125" class="box" fill="#fce7f3" stroke="#db2777"/>
   <text x="890" y="145" class="head">整数表示与反量化</text>
-  <text x="890" y="180" class="formula">round(X·S) → INT8</text>
-  <text x="890" y="210" class="small">X̂ = Xᵢₙₜ₈ / S，产生误差</text>
+  <text x="890" y="180" class="formula">round(X / scale) → INT8</text>
+  <text x="890" y="210" class="small">X̂ = Xᵢₙₜ₈ × scale，产生误差</text>
   <path d="M255 168H325" class="arrow"/>
   <path d="M525 168H595" class="arrow"/>
   <path d="M795 168H865" class="arrow"/>
