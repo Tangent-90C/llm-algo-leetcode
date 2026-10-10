@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">Agent workload 与可审计轨迹</title><desc id="desc">任务输入经过模型规划、工具执行和状态更新，形成包含结果、失败与成本的可审计轨迹。</desc>
+  <style>.bg{fill:#f8fafc}.box{stroke-width:2;rx:16}.blue{fill:#eff6ff;stroke:#60a5fa}.green{fill:#ecfdf5;stroke:#34d399}.orange{fill:#fff7ed;stroke:#fb923c}.slate{fill:#f1f5f9;stroke:#94a3b8}.line{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#a)}.dash{stroke:#94a3b8;stroke-width:2;stroke-dasharray:7 7;fill:none;marker-end:url(#a)}.title{font:700 24px sans-serif;fill:#0f172a}.h{font:700 18px sans-serif;fill:#0f172a}.s{font:14px sans-serif;fill:#475569}.tag{font:700 13px sans-serif;fill:#2563eb}</style>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L10 3L0 6z" fill="#64748b"/></marker></defs>
+  <rect class="bg" width="1200" height="500" rx="20"/><text x="55" y="55" class="title">Agent workload：从任务输入到可审计的多步轨迹</text>
+  <text x="80" y="100" class="tag">任务定义</text><text x="355" y="100" class="tag">模型与工具循环</text><text x="805" y="100" class="tag">任务证据</text>
+  <rect class="box blue" x="55" y="120" width="240" height="120"/><text x="80" y="158" class="h">任务与初始状态</text><text x="80" y="187" class="s">goal · success rule</text><text x="80" y="211" class="s">tool schema · max steps</text>
+  <rect class="box green" x="360" y="120" width="220" height="120"/><text x="385" y="158" class="h">模型规划 / 动作</text><text x="385" y="187" class="s">context · tool call</text><text x="385" y="211" class="s">token · latency</text>
+  <rect class="box orange" x="650" y="120" width="220" height="120"/><text x="675" y="158" class="h">受控工具执行</text><text x="675" y="187" class="s">observation · timeout</text><text x="675" y="211" class="s">side effect · status</text>
+  <rect class="box slate" x="930" y="120" width="215" height="120"/><text x="955" y="158" class="h">终止与评测</text><text x="955" y="187" class="s">success / failure</text><text x="955" y="211" class="s">quality · cost</text>
+  <path class="line" d="M295 180H360"/><path class="line" d="M580 180H650"/><path class="line" d="M870 180H930"/>
+  <path class="dash" d="M760 240V320H470V240"/><text x="500" y="307" class="s">反馈更新上下文，进入下一步</text>
+  <rect class="box slate" x="270" y="360" width="660" height="90"/><text x="300" y="397" class="h">可比较的 trace</text><text x="300" y="424" class="s">task / step / action / observation / elapsed time / resource / outcome / error</text>
+  <path class="line" d="M1038 240V360"/>
+</svg>

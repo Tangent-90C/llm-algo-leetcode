@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="490" viewBox="0 0 1200 490" role="img" aria-labelledby="title desc">
+  <title id="title">Agent 轨迹数据与验证</title><desc id="desc">任务蓝图生成候选轨迹，经过环境反馈和验证后进入训练或评测数据集。</desc>
+  <style>.bg{fill:#f8fafc}.box{stroke-width:2;rx:16}.blue{fill:#eff6ff;stroke:#60a5fa}.green{fill:#ecfdf5;stroke:#34d399}.orange{fill:#fff7ed;stroke:#fb923c}.slate{fill:#f1f5f9;stroke:#94a3b8}.line{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#a)}.title{font:700 24px sans-serif;fill:#0f172a}.h{font:700 18px sans-serif;fill:#0f172a}.s{font:14px sans-serif;fill:#475569}.tag{font:700 13px sans-serif;fill:#2563eb}</style>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L10 3L0 6z" fill="#64748b"/></marker></defs>
+  <rect class="bg" width="1200" height="490" rx="20"/><text x="55" y="55" class="title">Agent 数据：保留任务、动作和环境反馈的因果关系</text>
+  <rect class="box blue" x="70" y="130" width="220" height="115"/><text x="95" y="168" class="h">任务蓝图</text><text x="95" y="197" class="s">目标、初始状态</text><text x="95" y="221" class="s">成功规则、工具约束</text>
+  <rect class="box green" x="360" y="130" width="220" height="115"/><text x="385" y="168" class="h">候选轨迹</text><text x="385" y="197" class="s">多步动作与参数</text><text x="385" y="221" class="s">计划、重试、终止</text>
+  <rect class="box orange" x="650" y="130" width="220" height="115"/><text x="675" y="168" class="h">环境反馈</text><text x="675" y="197" class="s">observation、状态变化</text><text x="675" y="221" class="s">超时、退出码、副作用</text>
+  <rect class="box slate" x="940" y="130" width="190" height="115"/><text x="965" y="168" class="h">验证标签</text><text x="965" y="197" class="s">完成、失败、违规</text><text x="965" y="221" class="s">质量与错误类别</text>
+  <path class="line" d="M290 188H360"/><path class="line" d="M580 188H650"/><path class="line" d="M870 188H940"/>
+  <rect class="box slate" x="315" y="330" width="570" height="95"/><text x="345" y="368" class="h">可训练 / 可评测数据集</text><text x="345" y="397" class="s">版本、train/eval split、验证器、trace、失败样本与去污染记录</text>
+  <path class="line" d="M1035 245V330H885"/>
+</svg>
