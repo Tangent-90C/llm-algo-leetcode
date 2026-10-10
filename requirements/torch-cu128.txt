@@ -1,4 +1,15 @@
-# PyTorch with CUDA 12.8 user-space runtime.
+# PyTorch CUDA 12.8 compatibility baseline used by the tutorial GPU profiles.
+# Selected baseline: PyTorch 2.11.0+cu128. A real-hardware snapshot is still
+# required before publishing benchmark results.
+#
 # The NVIDIA driver is installed on the host and is not supplied by pip.
+# Install this file before a capability profile such as quantization.txt.
+# Do not install it into an existing vLLM or SGLang environment: those runtimes
+# pin their own PyTorch, CUDA libraries and extension versions.
+# PyTorch wheels come from the cu128 index; PyPI remains available for
+# dependencies such as NVIDIA cuda-bindings that are not mirrored there.
 --index-url https://download.pytorch.org/whl/cu128
-torch
+--extra-index-url https://pypi.org/simple
+
+cuda-bindings==12.9.4
+torch==2.11.0
