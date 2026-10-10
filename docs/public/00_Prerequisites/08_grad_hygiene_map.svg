@@ -15,7 +15,7 @@
 
 <rect width="1280" height="620" fill="#f8fafc"/>
 <text x="640" y="42" text-anchor="middle" class="title">梯度控制：从运行阶段到状态管理</text>
-<text x="640" y="70" text-anchor="middle" class="sub">先组合模块模式与梯度记录，再管理梯度状态和单个 Tensor 的连接</text>
+<text x="640" y="70" text-anchor="middle" class="sub">模块模式、梯度记录、累计窗口和参数冻结是四个需要分别设置的控制轴</text>
 
 <!-- 运行阶段 -->
 <rect x="20" y="112" width="220" height="390" fill="#e0f2fe" class="panel"/>
@@ -54,29 +54,29 @@
 <rect x="534" y="392" width="168" height="54" fill="#fff" class="item"/>
 <text x="618" y="425" text-anchor="middle" class="head">当前轮梯度</text>
 
-<!-- Tensor 连接 -->
+<!-- 连接与参数边界 -->
 <rect x="752" y="112" width="220" height="390" fill="#fce7f3" class="panel"/>
-<text x="862" y="148" text-anchor="middle" class="group">Tensor 连接</text>
+<text x="862" y="148" text-anchor="middle" class="group">连接与参数边界</text>
 <rect x="778" y="184" width="168" height="82" fill="#fff" class="item"/>
 <text x="862" y="218" text-anchor="middle" class="head">detach()</text>
 <text x="862" y="242" text-anchor="middle" class="small">切断单个 Tensor</text>
 <rect x="778" y="292" width="168" height="82" fill="#fff" class="item"/>
-<text x="862" y="326" text-anchor="middle" class="head">no_grad()</text>
-<text x="862" y="350" text-anchor="middle" class="small">影响一段新计算</text>
+<text x="862" y="326" text-anchor="middle" class="head">requires_grad=False</text>
+<text x="862" y="350" text-anchor="middle" class="small">冻结指定参数</text>
 <rect x="778" y="400" width="168" height="54" fill="#fff" class="item"/>
-<text x="862" y="433" text-anchor="middle" class="head">离开上下文后恢复</text>
+<text x="862" y="433" text-anchor="middle" class="head">后续可训练层仍保留图</text>
 
-<!-- 后续动作 -->
+<!-- 可检查结果 -->
 <rect x="996" y="112" width="264" height="390" fill="#ede9fe" class="panel"/>
-<text x="1128" y="148" text-anchor="middle" class="group">后续动作</text>
+<text x="1128" y="148" text-anchor="middle" class="group">可检查结果</text>
 <rect x="1022" y="184" width="212" height="82" fill="#fff" class="item"/>
-<text x="1128" y="218" text-anchor="middle" class="head">参数更新</text>
-<text x="1128" y="242" text-anchor="middle" class="small">使用当前轮梯度</text>
+<text x="1128" y="218" text-anchor="middle" class="head">训练路径</text>
+<text x="1128" y="242" text-anchor="middle" class="small">可训练参数获得梯度</text>
 <rect x="1022" y="294" width="212" height="82" fill="#fff" class="item"/>
-<text x="1128" y="328" text-anchor="middle" class="head">指标计算</text>
-<text x="1128" y="352" text-anchor="middle" class="small">不保留无用计算图</text>
+<text x="1128" y="328" text-anchor="middle" class="head">验证路径</text>
+<text x="1128" y="352" text-anchor="middle" class="small">eval + no_grad</text>
 <rect x="1022" y="404" width="212" height="50" fill="#fff" class="item"/>
-<text x="1128" y="435" text-anchor="middle" class="head">状态可复查</text>
+<text x="1128" y="435" text-anchor="middle" class="head">推理路径：inference tensor</text>
 
 <path d="M240 297H264" class="flow"/>
 <path d="M484 297H508" class="flow"/>

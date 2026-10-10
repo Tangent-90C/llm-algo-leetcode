@@ -1,85 +1,89 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="600" viewBox="0 0 1280 600">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="650" viewBox="0 0 1280 650">
 <defs>
-  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-    <path d="M0 0L8 4L0 8Z" fill="#64748b"/>
+  <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+    <path d="M0 0L7 3.5L0 7Z" fill="#64748b"/>
   </marker>
   <style>
     text{font-family:Arial,'Microsoft YaHei',sans-serif;fill:#172033}
     .title{font-size:28px;font-weight:700}.sub{font-size:15px;fill:#475569}
     .group{font-size:18px;font-weight:700}.head{font-size:15px;font-weight:700}
-    .small{font-size:12px;fill:#475569}
+    .small{font-size:12px;fill:#475569}.note{font-size:13px;fill:#334155}
     .panel{stroke:#94a3b8;stroke-width:2;rx:16}.item{stroke:#cbd5e1;stroke-width:1.5;rx:10}
-    .flow{stroke:#64748b;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+    .flow{stroke:#64748b;stroke-width:2.2;fill:none;marker-end:url(#arrow)}
+    .merge{stroke:#7c3aed;stroke-width:2.2;fill:none;marker-end:url(#arrow)}
   </style>
 </defs>
 
-<rect width="1280" height="600" fill="#f8fafc"/>
-<text x="640" y="42" text-anchor="middle" class="title">自动求导：从前向建图到反向梯度</text>
-<text x="640" y="70" text-anchor="middle" class="sub">先记录依赖关系，再沿计算图回传梯度，最后观察梯度状态和保存位置</text>
+<rect width="1280" height="650" fill="#f8fafc"/>
+<text x="640" y="42" text-anchor="middle" class="title">自动求导：从计算依赖到梯度汇合</text>
+<text x="640" y="70" text-anchor="middle" class="sub">前向传播建立依赖并保存局部状态；反向传播计算 VJP，再把各分支贡献累积到目标梯度</text>
 
-<!-- 前向建图 -->
-<rect x="20" y="112" width="220" height="390" fill="#e0f2fe" class="panel"/>
-<text x="130" y="148" text-anchor="middle" class="group">前向建图</text>
-<rect x="46" y="192" width="168" height="78" fill="#fff" class="item"/>
-<text x="130" y="226" text-anchor="middle" class="head">Tensor + 算子</text>
-<text x="130" y="250" text-anchor="middle" class="small">产生前向依赖</text>
-<rect x="46" y="300" width="168" height="78" fill="#fff" class="item"/>
-<text x="130" y="334" text-anchor="middle" class="head">requires_grad</text>
-<text x="130" y="358" text-anchor="middle" class="small">决定是否记录梯度</text>
-<rect x="46" y="408" width="168" height="54" fill="#fff" class="item"/>
-<text x="130" y="441" text-anchor="middle" class="head">计算结果</text>
+<!-- 1. 前向计算图 -->
+<rect x="30" y="112" width="250" height="450" fill="#e0f2fe" class="panel"/>
+<text x="155" y="148" text-anchor="middle" class="group">前向计算图</text>
+<rect x="66" y="184" width="178" height="64" fill="#fff" class="item"/>
+<text x="155" y="211" text-anchor="middle" class="head">叶子张量</text>
+<text x="155" y="232" text-anchor="middle" class="small">requires_grad=True</text>
+<rect x="66" y="292" width="178" height="64" fill="#fff" class="item"/>
+<text x="155" y="319" text-anchor="middle" class="head">算子与中间结果</text>
+<text x="155" y="340" text-anchor="middle" class="small">grad_fn 记录来源</text>
+<rect x="66" y="400" width="178" height="64" fill="#fff" class="item"/>
+<text x="155" y="427" text-anchor="middle" class="head">标量 / 非标量输出</text>
+<text x="155" y="448" text-anchor="middle" class="small">决定上游梯度入口</text>
+<path d="M155 248V292" class="flow"/>
+<path d="M155 356V400" class="flow"/>
 
-<!-- 反向回传 -->
-<rect x="264" y="112" width="220" height="390" fill="#dcfce7" class="panel"/>
-<text x="374" y="148" text-anchor="middle" class="group">反向回传</text>
-<rect x="290" y="192" width="168" height="78" fill="#fff" class="item"/>
-<text x="374" y="226" text-anchor="middle" class="head">backward()</text>
-<text x="374" y="250" text-anchor="middle" class="small">启动反向计算</text>
-<rect x="290" y="300" width="168" height="78" fill="#fff" class="item"/>
-<text x="374" y="334" text-anchor="middle" class="head">链式法则</text>
-<text x="374" y="358" text-anchor="middle" class="small">沿依赖关系回传</text>
-<rect x="290" y="408" width="168" height="54" fill="#fff" class="item"/>
-<text x="374" y="441" text-anchor="middle" class="head">输入梯度</text>
+<!-- 2. 局部反向契约 -->
+<rect x="340" y="112" width="260" height="450" fill="#dcfce7" class="panel"/>
+<text x="470" y="148" text-anchor="middle" class="group">局部反向契约</text>
+<rect x="376" y="176" width="188" height="64" fill="#fff" class="item"/>
+<text x="470" y="203" text-anchor="middle" class="head">上游梯度 v</text>
+<text x="470" y="224" text-anchor="middle" class="small">标量默认 1；向量需显式给出</text>
+<rect x="376" y="286" width="188" height="78" fill="#fff" class="item"/>
+<text x="470" y="315" text-anchor="middle" class="head">反向保存张量 + 局部导数</text>
+<text x="470" y="338" text-anchor="middle" class="small">前向传播保存，反向传播读取</text>
+<rect x="376" y="410" width="188" height="64" fill="#fff" class="item"/>
+<text x="470" y="437" text-anchor="middle" class="head">VJP：vᵀJ</text>
+<text x="470" y="458" text-anchor="middle" class="small">返回当前输入的梯度贡献</text>
+<path d="M470 240V286" class="flow"/>
+<path d="M470 364V410" class="flow"/>
 
-<!-- 状态观察 -->
-<rect x="508" y="112" width="220" height="390" fill="#fef3c7" class="panel"/>
-<text x="618" y="148" text-anchor="middle" class="group">状态观察</text>
-<rect x="534" y="176" width="168" height="70" fill="#fff" class="item"/>
-<text x="618" y="208" text-anchor="middle" class="head">requires_grad</text>
-<text x="618" y="231" text-anchor="middle" class="small">是否参与梯度追踪</text>
-<rect x="534" y="270" width="168" height="70" fill="#fff" class="item"/>
-<text x="618" y="302" text-anchor="middle" class="head">grad_fn</text>
-<text x="618" y="325" text-anchor="middle" class="small">由什么运算产生</text>
-<rect x="534" y="364" width="168" height="70" fill="#fff" class="item"/>
-<text x="618" y="396" text-anchor="middle" class="head">is_leaf</text>
-<text x="618" y="419" text-anchor="middle" class="small">位于计算图哪里</text>
+<!-- 3. 分支梯度汇合 -->
+<rect x="660" y="112" width="300" height="450" fill="#f3e8ff" class="panel"/>
+<text x="810" y="148" text-anchor="middle" class="group">分支梯度汇合</text>
+<rect x="688" y="184" width="116" height="68" fill="#fff" class="item"/>
+<text x="746" y="212" text-anchor="middle" class="head">主分支</text>
+<text x="746" y="233" text-anchor="middle" class="small">局部梯度贡献</text>
+<rect x="816" y="184" width="116" height="68" fill="#fff" class="item"/>
+<text x="874" y="212" text-anchor="middle" class="head">残差路径</text>
+<text x="874" y="233" text-anchor="middle" class="small">恒等导数为 1</text>
+<rect x="752" y="310" width="116" height="64" fill="#fff" class="item"/>
+<text x="810" y="337" text-anchor="middle" class="head">梯度求和</text>
+<text x="810" y="358" text-anchor="middle" class="small">所有可达路径相加</text>
+<rect x="706" y="430" width="208" height="64" fill="#fff" class="item"/>
+<text x="810" y="457" text-anchor="middle" class="head">共享参数的累计贡献</text>
+<text x="810" y="478" text-anchor="middle" class="small">主任务分支 + 其他使用分支</text>
+<path d="M746 252V276H790V310" class="merge"/>
+<path d="M874 252V276H830V310" class="merge"/>
+<path d="M810 374V430" class="merge"/>
 
-<!-- 梯度保存 -->
-<rect x="752" y="112" width="220" height="390" fill="#fce7f3" class="panel"/>
-<text x="862" y="148" text-anchor="middle" class="group">梯度保存</text>
-<rect x="778" y="192" width="168" height="78" fill="#fff" class="item"/>
-<text x="862" y="226" text-anchor="middle" class="head">叶子节点</text>
-<text x="862" y="250" text-anchor="middle" class="small">默认接收 .grad</text>
-<rect x="778" y="300" width="168" height="78" fill="#fff" class="item"/>
-<text x="862" y="334" text-anchor="middle" class="head">中间结果</text>
-<text x="862" y="358" text-anchor="middle" class="small">需要 retain_grad()</text>
-<rect x="778" y="408" width="168" height="54" fill="#fff" class="item"/>
-<text x="862" y="441" text-anchor="middle" class="head">状态生命周期</text>
+<!-- 4. 梯度目标与观察 -->
+<rect x="1020" y="112" width="230" height="450" fill="#fef3c7" class="panel"/>
+<text x="1135" y="148" text-anchor="middle" class="group">梯度目标与观察</text>
+<rect x="1048" y="184" width="174" height="70" fill="#fff" class="item"/>
+<text x="1135" y="213" text-anchor="middle" class="head">叶子参数 .grad</text>
+<text x="1135" y="235" text-anchor="middle" class="small">接收并累积最终贡献</text>
+<rect x="1048" y="304" width="174" height="70" fill="#fff" class="item"/>
+<text x="1135" y="333" text-anchor="middle" class="head">中间张量梯度</text>
+<text x="1135" y="355" text-anchor="middle" class="small">retain_grad() 后可观察</text>
+<rect x="1048" y="424" width="174" height="70" fill="#fff" class="item"/>
+<text x="1135" y="453" text-anchor="middle" class="head">自定义 Function</text>
+<text x="1135" y="475" text-anchor="middle" class="small">显式闭合前向与反向契约</text>
 
-<!-- 自定义反向 -->
-<rect x="996" y="112" width="264" height="390" fill="#ede9fe" class="panel"/>
-<text x="1128" y="148" text-anchor="middle" class="group">自定义反向</text>
-<rect x="1022" y="184" width="212" height="86" fill="#fff" class="item"/>
-<text x="1128" y="218" text-anchor="middle" class="head">forward(ctx)</text>
-<text x="1128" y="242" text-anchor="middle" class="small">计算输出并保存信息</text>
-<rect x="1022" y="300" width="212" height="86" fill="#fff" class="item"/>
-<text x="1128" y="334" text-anchor="middle" class="head">backward(ctx)</text>
-<text x="1128" y="358" text-anchor="middle" class="small">读取信息并返回梯度</text>
-<rect x="1022" y="416" width="212" height="46" fill="#fff" class="item"/>
-<text x="1128" y="445" text-anchor="middle" class="head">闭合 forward / backward</text>
+<!-- 阶段连接 -->
+<path d="M280 337H340" class="flow"/>
+<path d="M600 337H660" class="flow"/>
+<path d="M960 337H1020" class="flow"/>
 
-<path d="M240 297H264" class="flow"/>
-<path d="M484 297H508" class="flow"/>
-<path d="M728 297H752" class="flow"/>
-<path d="M972 297H996" class="flow"/>
+<text x="640" y="608" text-anchor="middle" class="note">关键区分：上游梯度是反向传播的输入；中间梯度是可选观察值；参数 .grad 是多条反向路径的累积目标</text>
 </svg>

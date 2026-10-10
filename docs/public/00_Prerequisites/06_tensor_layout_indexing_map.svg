@@ -15,7 +15,7 @@
 
 <rect width="1280" height="620" fill="#f8fafc"/>
 <text x="640" y="42" text-anchor="middle" class="title">Tensor 布局与索引：从观察到输入整理</text>
-<text x="640" y="70" text-anchor="middle" class="sub">先确认数据如何存放，再判断如何读取、变换和整理为后续计算输入</text>
+<text x="640" y="70" text-anchor="middle" class="sub">先理解 stride 与连续性，再处理维度变换、mask/索引和多头输入整理</text>
 
 <!-- 观察布局 -->
 <rect x="20" y="112" width="220" height="390" fill="#e0f2fe" class="panel"/>
@@ -29,55 +29,55 @@
 <rect x="46" y="404" width="168" height="54" fill="#fff" class="item"/>
 <text x="130" y="437" text-anchor="middle" class="head">contiguous</text>
 
-<!-- 读取与对齐 -->
-<rect x="264" y="112" width="220" height="390" fill="#dcfce7" class="panel"/>
-<text x="374" y="148" text-anchor="middle" class="group">读取与对齐</text>
-<rect x="290" y="184" width="168" height="78" fill="#fff" class="item"/>
-<text x="374" y="218" text-anchor="middle" class="head">切片与 mask</text>
-<text x="374" y="242" text-anchor="middle" class="small">选择或屏蔽位置</text>
-<rect x="290" y="286" width="168" height="78" fill="#fff" class="item"/>
-<text x="374" y="320" text-anchor="middle" class="head">索引与查表</text>
-<text x="374" y="344" text-anchor="middle" class="small">按 id 或位置取值</text>
-<rect x="290" y="388" width="168" height="58" fill="#fff" class="item"/>
-<text x="374" y="422" text-anchor="middle" class="head">广播对齐维度</text>
-
 <!-- 维度变换 -->
+<rect x="264" y="112" width="220" height="390" fill="#dcfce7" class="panel"/>
+<text x="374" y="148" text-anchor="middle" class="group">维度变换</text>
+<rect x="290" y="184" width="168" height="78" fill="#fff" class="item"/>
+<text x="374" y="218" text-anchor="middle" class="head">transpose / permute</text>
+<text x="374" y="242" text-anchor="middle" class="small">改变维度访问顺序</text>
+<rect x="290" y="286" width="168" height="78" fill="#fff" class="item"/>
+<text x="374" y="320" text-anchor="middle" class="head">view / reshape</text>
+<text x="374" y="344" text-anchor="middle" class="small">解释布局或生成副本</text>
+<rect x="290" y="388" width="168" height="58" fill="#fff" class="item"/>
+<text x="374" y="422" text-anchor="middle" class="head">contiguous 显式连续化</text>
+
+<!-- mask 与广播 -->
 <rect x="508" y="112" width="220" height="390" fill="#fef3c7" class="panel"/>
-<text x="618" y="148" text-anchor="middle" class="group">维度变换</text>
+<text x="618" y="148" text-anchor="middle" class="group">mask 与广播</text>
 <rect x="534" y="184" width="168" height="82" fill="#fff" class="item"/>
-<text x="618" y="218" text-anchor="middle" class="head">transpose / permute</text>
-<text x="618" y="242" text-anchor="middle" class="small">改变维度访问顺序</text>
+<text x="618" y="218" text-anchor="middle" class="head">visible mask</text>
+<text x="618" y="242" text-anchor="middle" class="small">shape 与 dtype 明确</text>
 <rect x="534" y="292" width="168" height="72" fill="#fff" class="item"/>
-<text x="618" y="324" text-anchor="middle" class="head">shape 重组</text>
-<text x="618" y="348" text-anchor="middle" class="small">目标形状与元素数量</text>
+<text x="618" y="324" text-anchor="middle" class="head">feature bias</text>
+<text x="618" y="348" text-anchor="middle" class="small">最后一维可广播</text>
 <rect x="534" y="390" width="168" height="58" fill="#fff" class="item"/>
-<text x="618" y="424" text-anchor="middle" class="head">布局可能改变</text>
+<text x="618" y="424" text-anchor="middle" class="head">不可见位置保持填充值</text>
 
-<!-- 目标检查 -->
+<!-- 索引与查表 -->
 <rect x="752" y="112" width="220" height="390" fill="#fce7f3" class="panel"/>
-<text x="862" y="148" text-anchor="middle" class="group">目标检查</text>
+<text x="862" y="148" text-anchor="middle" class="group">索引与查表</text>
 <rect x="778" y="184" width="168" height="72" fill="#fff" class="item"/>
-<text x="862" y="216" text-anchor="middle" class="head">目标 shape</text>
-<text x="862" y="239" text-anchor="middle" class="small">元素数量能否重排</text>
+<text x="862" y="216" text-anchor="middle" class="head">高级索引</text>
+<text x="862" y="239" text-anchor="middle" class="small">选择整行并产生结果</text>
 <rect x="778" y="282" width="168" height="72" fill="#fff" class="item"/>
-<text x="862" y="314" text-anchor="middle" class="head">当前 layout</text>
-<text x="862" y="337" text-anchor="middle" class="small">是否满足 view 条件</text>
+<text x="862" y="314" text-anchor="middle" class="head">index_select</text>
+<text x="862" y="337" text-anchor="middle" class="small">沿指定维选择</text>
 <rect x="778" y="380" width="168" height="72" fill="#fff" class="item"/>
-<text x="862" y="412" text-anchor="middle" class="head">目标操作</text>
-<text x="862" y="435" text-anchor="middle" class="small">零拷贝还是结果优先</text>
+<text x="862" y="412" text-anchor="middle" class="head">gather</text>
+<text x="862" y="435" text-anchor="middle" class="small">逐位置指定来源</text>
 
-<!-- 输入整理 -->
+<!-- 综合整理 -->
 <rect x="996" y="112" width="264" height="390" fill="#ede9fe" class="panel"/>
-<text x="1128" y="148" text-anchor="middle" class="group">输入整理</text>
+<text x="1128" y="148" text-anchor="middle" class="group">综合整理</text>
 <rect x="1022" y="184" width="212" height="72" fill="#fff" class="item"/>
-<text x="1128" y="216" text-anchor="middle" class="head">view</text>
-<text x="1128" y="239" text-anchor="middle" class="small">布局满足时直接重解释</text>
+<text x="1128" y="216" text-anchor="middle" class="head">选择 token 位置</text>
+<text x="1128" y="239" text-anchor="middle" class="small">[B, T, D] → [B, S, D]</text>
 <rect x="1022" y="282" width="212" height="72" fill="#fff" class="item"/>
-<text x="1128" y="314" text-anchor="middle" class="head">reshape</text>
-<text x="1128" y="337" text-anchor="middle" class="small">优先保证目标形状</text>
+<text x="1128" y="314" text-anchor="middle" class="head">拆分并排列 heads</text>
+<text x="1128" y="337" text-anchor="middle" class="small">[B, H, S, D_h]</text>
 <rect x="1022" y="380" width="212" height="72" fill="#fff" class="item"/>
-<text x="1128" y="412" text-anchor="middle" class="head">contiguous</text>
-<text x="1128" y="435" text-anchor="middle" class="small">明确需要连续布局时使用</text>
+<text x="1128" y="412" text-anchor="middle" class="head">验证内容守恒</text>
+<text x="1128" y="435" text-anchor="middle" class="small">shape 与布局均可用</text>
 
 <path d="M240 297H264" class="flow"/>
 <path d="M484 297H508" class="flow"/>
