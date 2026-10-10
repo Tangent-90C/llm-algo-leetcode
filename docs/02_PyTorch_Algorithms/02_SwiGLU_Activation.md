@@ -16,7 +16,7 @@
 
 Transformer 的 MLP 不只是把向量升维、过激活函数、再降维这么简单。大模型需要在每个 token 的特征里学会“哪些信息该放大，哪些信息该压住”，普通 ReLU/GELU 的单路激活很难显式表达这种选择过程。
 
-SwiGLU 用两条并行分支做门控：一条提供候选特征，另一条决定通过多少。本节会实现一个最小 SwiGLU，并推导隐藏层维度为什么要调整，避免门控结构让参数量无意膨胀。完成后，你应该能看懂现代 LLM 的 MLP 为什么普遍采用 gated activation，也能把它和 RMSNorm、Attention 一起放进完整模型结构里。
+SwiGLU 用两条并行分支做门控：一条提供候选特征，另一条决定通过多少。本节沿着单路前馈网络、双路门控和容量对齐展开，帮助你判断门控结构改变了什么，以及为什么中间维需要重新分配。
 
 **关键词：** `SwiGLU`, `GLU`, `gating`
 
@@ -32,7 +32,7 @@ SwiGLU 用两条并行分支做门控：一条提供候选特征，另一条决�
 ---
 ### Step 1：从单路 FFN 到双路门控
 
-普通 FFN 先产生一组中间特征，再统一施加非线性；SwiGLU 同时产生候选特征和门控特征，并用逐元素乘法决定每个中间维度通过多少信息。因此现代 LLM 的 MLP 常见 `gate_proj / up_proj / down_proj` 三个投影：前两条支路各自升维，合并后再投影回 hidden size。
+普通 FFN 只有一条非线性变换路径；GLU 增加门控分支，让一组特征控制另一组候选内容；SwiGLU 再把有界的 Sigmoid 门替换为平滑的 SiLU 门，使每个中间特征获得独立的选择强度。
 
 | 结构 | 中间路径 | 选择机制 |
 | --- | --- | --- |
@@ -43,7 +43,7 @@ SwiGLU 用两条并行分支做门控：一条提供候选特征，另一条决�
 ![SwiGLU 的 gate / up / down 三条线](../public/02_PyTorch_Algorithms/02_swiglu_gate.svg)
 ### Step 2：门控容量为什么需要重新对齐
 
-SwiGLU 比单路 FFN 多出一条升维分支。如果仍沿用标准 FFN 的中间宽度，参数量和计算量都会明显增加；现代 LLM 因而会缩小中间维，再按硬件友好的倍数向上对齐。`8d/3` 不是孤立的经验常数：它是在门控带来额外投影后，为保持与标准 FFN 相近容量而得到的折中。
+SwiGLU 比单路 FFN 多出一条中间分支。如果仍沿用标准 FFN 的中间宽度，参数量与计算量都会明显增加，因此比较两类结构时要先固定容量口径。常见的 $8d/3$ 中间维来自三次映射与标准 FFN 两次映射之间的参数预算平衡。
 
 | 结构 | 投影数 | 参数量近似 | 与标准 `4d` FFN 对齐时的中间维 |
 | --- | ---: | ---: | --- |
@@ -51,30 +51,29 @@ SwiGLU 比单路 FFN 多出一条升维分支。如果仍沿用标准 FFN 的中
 | SwiGLU | 3 | `3dh` | `h ≈ 8d/3`，约 `8d²` |
 
 ![标准 FFN 与 SwiGLU 的容量对齐](../public/02_PyTorch_Algorithms/02_swiglu_capacity.svg)
-### Step 3：维度对齐与融合的工程取舍
+### Step 3：门控语义与模型块接口
 
-实际实现会把理论中间宽度向 `multiple_of` 对齐，使矩阵形状更适合底层执行和并行分片；也常将 gate/up 融合投影，以复用同一份输入读取。这些调整不改变门控机制本身，但会改变参数账本和中间表示的成本。
+SwiGLU 的门控值来自 SiLU，因此它不是限制在 0 到 1 之间的概率，也不是简单的开关。门控分支与候选分支必须在同一个中间特征空间逐元素对应；相乘后的结果再回到模型隐藏维，才能继续进入残差路径。
 
-| 设计点 | 它解决的问题 | 需要同时观察的代价 |
+| 机制关系 | 必须保持的约束 | 容易误解之处 |
 | --- | --- | --- |
-| `8D/3` 中间维 | 三个投影的参数量接近普通 `4D` FFN | 中间表示仍显著影响显存与计算 |
-| `multiple_of` 对齐 | 让矩阵形状更适合硬件与并行分片 | 向上取整会带来少量额外参数 |
-| gate/up 融合投影 | 复用相同输入读取，减少中间访问 | 仍需保证切分后的两支路语义正确 |
+| 门控值 | 由 SiLU 产生，可为负且不受 1 限制 | 不能解释成概率或二值掩码 |
+| 两条中间分支 | 特征宽度和逐元素位置必须一致 | 不是两组可以任意配对的特征 |
+| MLP 输出 | 恢复为模型隐藏维 | 残差相加与归一化属于模型块的外层关系 |
 ### Step 4：代码设计与 SwiGLU MLP 契约
 
 题目区依次连接容量推导、硬件倍数对齐、双分支投影和门控回投。固定骨架保留模块接口；学习者补全影响形状与数值结果的四处变量。
 
-| TODO | 代码契约与机制责任 | 关键约束 | 测试证据 |
-| --- | --- | --- | --- |
-| TODO 1 | 计算 SwiGLU 的理论中间维 | 使用 $8/3 \times hidden\_size$ 的容量关系 | 理论维度符合预期 |
-| TODO 2 | 将中间维向上对齐到 `multiple_of` | 对齐后不小于理论维度且是指定倍数 | `4096 → 11008` 等配置正确 |
-| TODO 3 | 定义融合 gate/up 投影与 down 投影 | `gate_up_proj` 输出为 `2 × intermediate_size`；均无 bias | 两条分支与回投维度正确 |
-| TODO 4 | 完成 SiLU 门控、逐元素乘法和回投 | `SiLU(gate) * up` 后再投回 hidden 维 | 输出形状正确，gate 与 up 都影响输出 |
+| TODO / 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
+|---|---|---|---|
+| TODO 1 · `calculate_intermediate_size` | 计算 SwiGLU 理论中间维 | 使用 $8/3 \times hidden\_size$ 的容量关系 | 理论维度符合预期 |
+| TODO 2 · `calculate_intermediate_size` | 将中间维向上对齐到 `multiple_of` | 对齐后不小于理论维度且是指定倍数 | `4096 → 11008` 等配置正确 |
+| TODO 3 · `SwiGLU_MLP.__init__` | 定义融合 gate/up 投影与 down 投影 | 融合投影输出为 `2 × intermediate_size`；均无 bias | 两条分支与回投维度正确 |
+| TODO 4 · `SwiGLU_MLP.forward` | 完成 SiLU 门控、逐元素乘法和回投 | `SiLU(gate) * up` 后投回隐藏维 | 输出形状正确，门控与升维分支都影响输出 |
 
 ```python
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 ```
 
 
@@ -83,9 +82,14 @@ def calculate_intermediate_size(hidden_size: int, multiple_of: int = 256) -> int
     """计算 LLaMA 风格 SwiGLU 的对齐中间维。"""
     if hidden_size <= 0 or multiple_of <= 0:
         raise ValueError('hidden_size 和 multiple_of 必须为正数')
+    # ==========================================
     # TODO 1：按 8/3 容量关系计算理论中间维。
+    # ==========================================
     # theoretical_size = ???
+
+    # ==========================================
     # TODO 2：向上对齐到 multiple_of 的倍数。
+    # ==========================================
     # aligned_size = ???
     raise NotImplementedError('TODO 1/2：请完成中间维推导与对齐')
 
@@ -97,14 +101,18 @@ class SwiGLU_MLP(nn.Module):
         super().__init__()
         if hidden_size <= 0 or intermediate_size <= 0:
             raise ValueError('hidden_size 和 intermediate_size 必须为正数')
+        # ==========================================
         # TODO 3：构造无 bias 的融合 gate/up 投影和 down 投影。
+        # ==========================================
         # self.gate_up_proj = ???
         # self.down_proj = ???
         raise NotImplementedError('TODO 3：请定义 SwiGLU 投影层')
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """执行 gate/up 切分、SiLU 门控和 down 投影。"""
+        # ==========================================
         # TODO 4：完成门控前向。
+        # ==========================================
         # gate_up = ???
         # gate, up = ???
         # gated = ???
@@ -117,6 +125,7 @@ class SwiGLU_MLP(nn.Module):
 # 测试设计：分别验证容量推导、投影契约与门控前向，而非只检查最终形状。
 
 def test_swiglu_intermediate_size():
+    """验证理论中间维、倍数对齐和非法输入拒绝。"""
     assert calculate_intermediate_size(4096, multiple_of=256) == 11008
     assert calculate_intermediate_size(64, multiple_of=16) == 176
     for hidden_size, multiple_of in ((0, 16), (64, 0)):
@@ -128,6 +137,7 @@ def test_swiglu_intermediate_size():
 
 
 def test_swiglu_projection_contract():
+    """验证融合投影与回投影的形状和 bias 契约。"""
     mlp = SwiGLU_MLP(hidden_size=8, intermediate_size=16)
     assert mlp.gate_up_proj.in_features == 8
     assert mlp.gate_up_proj.out_features == 32
@@ -137,6 +147,7 @@ def test_swiglu_projection_contract():
 
 
 def test_swiglu_gated_forward():
+    """验证门控前向数值、输出形状和梯度连通性。"""
     torch.manual_seed(7)
     mlp = SwiGLU_MLP(hidden_size=4, intermediate_size=6)
     x = torch.randn(2, 3, 4, requires_grad=True)
@@ -150,6 +161,7 @@ def test_swiglu_gated_forward():
 
 
 def run_swiglu_tests():
+    """运行 SwiGLU 的机制测试集合。"""
     test_swiglu_intermediate_size()
     test_swiglu_projection_contract()
     test_swiglu_gated_forward()
@@ -160,6 +172,9 @@ run_swiglu_tests()
 
 ```
 
+🛑 **STOP HERE** 🛑
+
+请先完成题目区并通过测试，再继续查看参考代码与解析。
 ## 参考代码与解析
 
 ### 代码
@@ -199,15 +214,25 @@ class SwiGLU_MLP(nn.Module):
 
 ### 解析
 
-题目区与答案区使用同一函数和模块骨架；四个 TODO 对应容量关系、对齐策略、投影布局和门控计算。
+#### TODO 1：推导理论中间维
 
-**TODO 1：理论中间维**：SwiGLU 为两条中间分支保留容量，常用 $8/3 \times hidden\_size$ 让参数量与普通 MLP 接近。
+- 判断依据：SwiGLU 有 gate、up、down 三个投影，需要在相近参数预算下与标准 `4D` FFN 比较。
+- 实现与证据：按 $8/3 \times hidden\_size$ 得到理论宽度，测试检查已知配置。
 
-**TODO 2：倍数对齐**：把理论值向上取整到 `multiple_of`，避免中间维落在不利于矩阵计算的尺寸。
+#### TODO 2：执行倍数对齐
 
-**TODO 3：融合投影**：`gate_up_proj` 一次产生两条大小相同的中间分支，再由 `down_proj` 回到 `hidden_size`。
+- 判断依据：对齐值必须不小于理论宽度，并能被 `multiple_of` 整除。
+- 实现与证据：使用向上取整而非四舍五入，测试覆盖常见维度和非法参数。
 
-**TODO 4：门控前向**：门控分支经过 SiLU 后与 up 分支逐元素相乘；任一分支变化都会影响回投结果。
+#### TODO 3：建立三投影契约
+
+- 判断依据：融合投影一次产生等宽的 gate/up 两支，down 投影再回到模型隐藏维。
+- 实现与证据：测试核对输入输出维度及无 bias 约束。
+
+#### TODO 4：完成门控数据流
+
+- 判断依据：候选内容必须经过 `SiLU(gate) * up` 选择后才能回投。
+- 实现与证据：测试同时核对参考数值、输出形状和反向梯度。
 ## 相关阅读
 
 本节的门控激活可以继续沿两条线阅读：一条是 GLU 家族的原始设计，另一条是 LLaMA 实现中 gate / up / down 三个投影如何落地。

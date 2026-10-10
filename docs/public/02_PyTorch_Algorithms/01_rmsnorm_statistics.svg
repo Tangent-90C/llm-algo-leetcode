@@ -1,11 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 560" role="img" aria-labelledby="title desc">
-  <title id="title">LayerNorm 与 RMSNorm 的统计路径</title><desc id="desc">展示 LayerNorm 的居中加缩放，以及 RMSNorm 仅保留均方根缩放的路径。</desc>
-  <defs><style>.t{font:700 28px sans-serif;fill:#0f172a}.s{font:500 16px sans-serif;fill:#475569}.h{font:700 18px sans-serif;fill:#0f172a}.b{font:500 15px sans-serif;fill:#334155}.box{stroke-width:2.5;rx:18}.a{stroke:#64748b;stroke-width:3.5;fill:none;marker-end:url(#m)}</style><marker id="m" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#64748b"/></marker></defs>
-  <rect width="1400" height="560" fill="#f8fafc"/><text x="55" y="58" class="t">归一化统计路径：RMSNorm 省去居中，保留尺度控制</text><text x="55" y="88" class="s">两种方式都沿每个 token 的最后一维统计；batch 与 sequence 轴保持不变。</text>
-  <rect x="70" y="160" width="250" height="110" class="box" fill="#eff6ff" stroke="#2563eb"/><text x="100" y="204" class="h">输入 hidden state</text><text x="100" y="234" class="b">每个 token：x ∈ R^D</text>
-  <rect x="430" y="135" width="250" height="130" class="box" fill="#fff7ed" stroke="#d97706"/><text x="460" y="178" class="h">LayerNorm</text><text x="460" y="208" class="b">减均值 → 方差缩放</text><text x="460" y="234" class="b">再乘 γ、加 β</text>
-  <rect x="430" y="330" width="250" height="130" class="box" fill="#ecfeff" stroke="#0891b2"/><text x="460" y="373" class="h">RMSNorm</text><text x="460" y="403" class="b">均方根缩放</text><text x="460" y="429" class="b">再乘 γ</text>
-  <rect x="820" y="160" width="250" height="110" class="box" fill="#f5f3ff" stroke="#7c3aed"/><text x="850" y="204" class="h">尺度受控的表示</text><text x="850" y="234" class="b">形状仍为 [B, S, D]</text>
-  <rect x="1140" y="160" width="190" height="110" class="box" fill="#f0fdf4" stroke="#16a34a"/><text x="1170" y="204" class="h">Attention / MLP</text><text x="1170" y="234" class="b">接收稳定输入</text>
-  <path d="M320 215H430" class="a"/><path d="M320 215V395H430" class="a"/><path d="M680 200H820" class="a"/><path d="M680 395V215H820" class="a"/><path d="M1070 215H1140" class="a"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="title desc">
+  <title id="title">RMSNorm 的混合精度统计路径</title>
+  <desc id="desc">低精度输入先转换为 FP32，完成平方、均值、加稳定项和倒平方根，再归一化、应用逐通道缩放并恢复输入数据类型。</desc>
+  <defs>
+    <style>.title{font:700 28px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.head{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.body{font:500 13px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:2.5}.arrow{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#arrow)}</style>
+    <marker id="arrow" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#64748b"/></marker>
+  </defs>
+  <rect width="1500" height="470" fill="#f8fafc"/>
+  <text x="55" y="55" class="title">混合精度路径：主状态低精度，归约统计使用 FP32</text>
+  <text x="55" y="85" class="sub">提升统计精度不改变归一化轴；输出恢复输入数据类型，保持后续 Block 接口稳定。</text>
+  <rect x="45" y="175" width="190" height="105" rx="15" fill="#dbeafe" stroke="#2563eb" class="box"/><text x="140" y="215" text-anchor="middle" class="head">输入主状态</text><text x="140" y="246" text-anchor="middle" class="body">FP16 / BF16 · [B,S,D]</text>
+  <rect x="285" y="175" width="190" height="105" rx="15" fill="#e0f2fe" stroke="#0284c7" class="box"/><text x="380" y="215" text-anchor="middle" class="head">提升统计精度</text><text x="380" y="246" text-anchor="middle" class="body">转换为 FP32</text>
+  <rect x="525" y="175" width="190" height="105" rx="15" fill="#fff7ed" stroke="#d97706" class="box"/><text x="620" y="207" text-anchor="middle" class="head">平方与均值</text><text x="620" y="236" text-anchor="middle" class="body">沿最后一维归约</text><text x="620" y="258" text-anchor="middle" class="body">保留单例统计轴</text>
+  <rect x="765" y="175" width="190" height="105" rx="15" fill="#fef3c7" stroke="#d97706" class="box"/><text x="860" y="207" text-anchor="middle" class="head">稳定倒均方根</text><text x="860" y="236" text-anchor="middle" class="body">加入 ε 后开方</text><text x="860" y="258" text-anchor="middle" class="body">避免除零</text>
+  <rect x="1005" y="175" width="190" height="105" rx="15" fill="#dcfce7" stroke="#16a34a" class="box"/><text x="1100" y="207" text-anchor="middle" class="head">归一化与缩放</text><text x="1100" y="236" text-anchor="middle" class="body">逐 token 归一化</text><text x="1100" y="258" text-anchor="middle" class="body">逐通道应用 γ</text>
+  <rect x="1245" y="175" width="210" height="105" rx="15" fill="#f5f3ff" stroke="#7c3aed" class="box"/><text x="1350" y="215" text-anchor="middle" class="head">恢复输出契约</text><text x="1350" y="246" text-anchor="middle" class="body">原数据类型 · [B,S,D]</text>
+  <path d="M235 227H285" class="arrow"/><path d="M475 227H525" class="arrow"/><path d="M715 227H765" class="arrow"/><path d="M955 227H1005" class="arrow"/><path d="M1195 227H1245" class="arrow"/>
 </svg>

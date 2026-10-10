@@ -1,12 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
-<title id="title">前向传播与反向传播的训练闭环</title><desc id="desc">展示输入经过前向计算得到 loss，再通过反向传播得到梯度并更新参数的关系。</desc>
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#475569"/></marker><style>
-.title{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;font-size:27px;font-weight:700;fill:#0f172a}.sub{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;font-size:15px;fill:#475569}.head{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;font-size:18px;font-weight:700;fill:#111827}.body{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;font-size:14px;fill:#334155}.small{font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;font-size:13px;fill:#475569}.box{stroke-width:2.5;rx:15}.line{stroke:#475569;stroke-width:3;fill:none;marker-end:url(#arrow)}
-</style></defs><rect width="1200" height="300" fill="#f8fafc"/><text x="55" y="52" class="title">训练闭环：前向计算、Loss 与梯度更新</text><text x="55" y="82" class="sub">前向产生可比较的结果，Loss 提供误差信号，反向传播把信号传回参数；中间状态支撑正确求导并影响训练显存。</text>
-<rect x="55" y="135" width="190" height="125" fill="#dbeafe" class="box" stroke="#3b82f6"/><text x="150" y="177" text-anchor="middle" class="head">输入数据</text><text x="150" y="210" text-anchor="middle" class="body">x / labels</text><text x="150" y="237" text-anchor="middle" class="small">进入模型</text>
-<rect x="285" y="135" width="190" height="125" fill="#dcfce7" class="box" stroke="#16a34a"/><text x="380" y="177" text-anchor="middle" class="head">前向传播</text><text x="380" y="210" text-anchor="middle" class="body">Linear → ReLU</text><text x="380" y="237" text-anchor="middle" class="small">保存必要中间状态</text>
-<rect x="515" y="135" width="190" height="125" fill="#fef3c7" class="box" stroke="#d97706"/><text x="610" y="177" text-anchor="middle" class="head">Loss</text><text x="610" y="210" text-anchor="middle" class="body">预测与目标比较</text><text x="610" y="237" text-anchor="middle" class="small">产生误差信号</text>
-<rect x="745" y="135" width="190" height="125" fill="#fce7f3" class="box" stroke="#db2777"/><text x="840" y="177" text-anchor="middle" class="head">反向传播</text><text x="840" y="210" text-anchor="middle" class="body">链式法则</text><text x="840" y="237" text-anchor="middle" class="small">得到各处梯度</text>
-<rect x="975" y="135" width="170" height="125" fill="#ede9fe" class="box" stroke="#7c3aed"/><text x="1060" y="177" text-anchor="middle" class="head">参数更新</text><text x="1060" y="210" text-anchor="middle" class="body">优化器</text><text x="1060" y="237" text-anchor="middle" class="small">进入下一轮</text>
-<path d="M245 197H275" class="line"/><path d="M475 197H505" class="line"/><path d="M705 197H735" class="line"/><path d="M935 197H965" class="line"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="title desc">
+  <title id="title">局部前向状态如何支撑反向传播</title>
+  <desc id="desc">前向依次形成线性结果、激活与损失，并保存输入、权重和门控状态；反向从损失梯度出发产生输入、权重和偏置梯度。</desc>
+  <defs>
+    <style>.title{font:700 28px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.label{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif}.head{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.body{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:2.5}.forward{stroke:#2563eb;stroke-width:3;fill:none;marker-end:url(#blue)}.backward{stroke:#db2777;stroke-width:3;fill:none;marker-end:url(#pink)}</style>
+    <marker id="blue" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#2563eb"/></marker>
+    <marker id="pink" markerUnits="userSpaceOnUse" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#db2777"/></marker>
+  </defs>
+  <rect width="1500" height="470" fill="#f8fafc"/>
+  <text x="55" y="55" class="title">训练闭环：前向保存什么，反向就消费什么</text>
+  <text x="55" y="85" class="sub">蓝色表示前向数据流，粉色表示反向梯度流；两条路径共享前向保存的输入、权重和激活门控。</text>
+  <text x="55" y="155" class="label" fill="#2563eb">前向</text>
+  <rect x="150" y="115" width="230" height="90" rx="15" fill="#dbeafe" stroke="#2563eb" class="box"/><text x="265" y="150" text-anchor="middle" class="head">输入与参数</text><text x="265" y="178" text-anchor="middle" class="body">保存输入、权重</text>
+  <rect x="475" y="115" width="230" height="90" rx="15" fill="#dcfce7" stroke="#16a34a" class="box"/><text x="590" y="150" text-anchor="middle" class="head">线性变换</text><text x="590" y="178" text-anchor="middle" class="body">形成激活前值</text>
+  <rect x="800" y="115" width="230" height="90" rx="15" fill="#fef3c7" stroke="#d97706" class="box"/><text x="915" y="150" text-anchor="middle" class="head">激活门控</text><text x="915" y="178" text-anchor="middle" class="body">保存正负状态</text>
+  <rect x="1125" y="115" width="230" height="90" rx="15" fill="#ede9fe" stroke="#7c3aed" class="box"/><text x="1240" y="150" text-anchor="middle" class="head">损失</text><text x="1240" y="178" text-anchor="middle" class="body">产生上游梯度</text>
+  <path d="M380 160H475" class="forward"/><path d="M705 160H800" class="forward"/><path d="M1030 160H1125" class="forward"/>
+
+  <text x="55" y="333" class="label" fill="#db2777">反向</text>
+  <rect x="1125" y="290" width="230" height="90" rx="15" fill="#fce7f3" stroke="#db2777" class="box"/><text x="1240" y="325" text-anchor="middle" class="head">上游梯度</text><text x="1240" y="353" text-anchor="middle" class="body">从损失向前一层传播</text>
+  <rect x="800" y="290" width="230" height="90" rx="15" fill="#fff1f2" stroke="#e11d48" class="box"/><text x="915" y="325" text-anchor="middle" class="head">门控梯度</text><text x="915" y="353" text-anchor="middle" class="body">关闭位置变为 0</text>
+  <rect x="475" y="290" width="230" height="90" rx="15" fill="#ecfeff" stroke="#0891b2" class="box"/><text x="590" y="325" text-anchor="middle" class="head">矩阵梯度</text><text x="590" y="353" text-anchor="middle" class="body">输入梯度 · 权重梯度</text>
+  <rect x="150" y="290" width="230" height="90" rx="15" fill="#f0fdf4" stroke="#16a34a" class="box"/><text x="265" y="325" text-anchor="middle" class="head">参数与输入</text><text x="265" y="353" text-anchor="middle" class="body">接收对应梯度</text>
+  <path d="M1125 335H1030" class="backward"/><path d="M800 335H705" class="backward"/><path d="M475 335H380" class="backward"/>
+  <path d="M1240 205V290" class="backward"/>
 </svg>

@@ -14,45 +14,43 @@
 
 ## 本节导读
 
-Attention 本身只看 token 之间的相似度，并不知道谁在前、谁在后。没有位置编码，模型看到的更像一袋 token；但如果位置处理得太死，模型又很难泛化到更长的上下文。
+注意力本身只看 token 之间的相似度，并不知道谁在前、谁在后。没有位置编码，模型看到的更像一袋 token；但如果位置处理得太死，模型又很难泛化到更长的上下文。
 
-RoPE 的做法不是给 token 额外加一个位置向量，而是把位置信息写进 Query 和 Key 的旋转里，让注意力点积天然感知相对距离。本节会用纯 PyTorch 实现 RoPE，重点看清成对维度旋转、位置频率和 attention 内积之间的关系。完成后，你应该能把它接到后面的 MHA / GQA 和 KV Cache 实现里。
+RoPE 的做法不是给 token 额外加一个位置向量，而是把位置信息写进查询（Query，Q）和键（Key，K）的旋转里，让注意力点积感知相对距离。本节沿着成对维度、位置频率、相对相位和长度外推展开，帮助你判断位置配置改变了哪一层表示。
 
-**关键词：** `RoPE`, `positional encoding`, `complex tensor`
+**关键词：** `RoPE`, `位置编码`, `复数张量`
 
 ---
 ## 前置阅读
 
-**导语：** 先确认 Query / Key 的形状和注意力点积如何计算，再观察旋转角度和位置频率如何改变相对位置信息。
+**导语：** 先确认 Q/K 的形状和注意力点积如何计算，再观察旋转角度和位置频率如何改变相对位置信息。
 
 - [P0: 05. PyTorch Tensor Fundamentals | PyTorch 张量基础操作](../00_Prerequisites/05_PyTorch_Tensor_Fundamentals.md)
 - [P0: 16. Attention Mechanism Intro | 注意力机制导论](../00_Prerequisites/16_Attention_Mechanism_Intro.md)
 
 ---
-### Step 1：让 Attention 感知相对位置
+### Step 1：让注意力感知相对位置
 
-Attention 的 Q/K 相似度本身不知道 token 的顺序。RoPE 将位置写成二维通道对上的旋转：位置越远，旋转相位差越大；两个位置的内积因而能够表达相对距离。旋转只作用于 Q/K，不直接改写 V，也不改变因果 mask 决定的可见范围。
+注意力的 Q/K 相似度本身不知道 token 的顺序。RoPE 将位置写成二维通道对上的旋转：位置越远，旋转相位差越大；两个位置的内积因而能够表达相对距离。旋转只作用于 Q/K，不直接改写 V，也不改变因果掩码决定的可见范围。
 
 | 对象 | RoPE 改变什么 | RoPE 不负责什么 |
 |---|---|---|
 | Q/K 表示 | 按位置旋转成对通道 | 不决定哪些历史位置可见 |
-| 相似度 | 让内积携带相对相位差 | 不替代 Attention 的内容匹配 |
+| 相似度 | 让内积携带相对相位差 | 不替代注意力的内容匹配 |
 | 长度配置 | 决定频率覆盖和外推条件 | 不保证训练长度外的任务质量 |
 
 ![RoPE：把位置信息写入 Q/K 旋转](../public/02_PyTorch_Algorithms/03_rope_rotation.svg)
 
 ### Step 2：成对维度如何表示旋转
 
-hidden 通道两两组成二维平面。第 $i$ 个通道对使用频率 $\omega_i$，位置 $m$ 对应角度 $m\omega_i$；同一旋转同时作用于 Q 和 K，因此两者的内积主要由位置差而不是绝对位置决定。维度必须为偶数，频率表长度必须覆盖当前序列位置。
+隐藏通道两两组成二维平面。第 $i$ 个通道对使用频率 $\omega_i$，位置 $m$ 对应角度 $m\omega_i$；同一旋转同时作用于 Q 和 K，因此两者的内积主要由位置差而不是绝对位置决定。维度必须为偶数，频率表长度必须覆盖当前序列位置。
 
 | 中间量 | 形状或约束 | 机制含义 |
 |---|---|---|
 | 通道对 | `D/2` 组 | 每组构成一个二维旋转平面 |
 | 频率 | 高频到低频 | 分别感知短距离变化和较慢位置变化 |
 | 复数旋转因子 | `[S, D/2]` | 用单位模复数统一表达旋转 |
-| 广播视图 | 与 Q/K 的 batch、head 维兼容 | 同一位置旋转所有 batch 与 head |
-
-![RoPE 成对维度、频率与广播关系](../public/02_PyTorch_Algorithms/03_rope_frequency_cn.svg)
+| 广播关系 | 同一位置覆盖所有批次与注意力头 | 不改变批次、序列、注意力头的轴语义 |
 
 ### Step 3：频率尺度、长度扩展与验证证据
 
@@ -62,22 +60,20 @@ RoPE 为不同维度对分配不同频率。训练长度之外继续使用原频
 |---|---|---|---|
 | 调整基频 `theta` | 改变各通道对的旋转速度 | 短距离位置分辨率发生变化 | 训练长度内回归、目标长度质量 |
 | 位置插值 | 将更长位置压回训练位置范围 | 相邻位置被压缩 | 短文本质量、长距离检索 |
-| 频率相关 scaling | 对不同频率采用不同缩放 | 配置与模型训练方式强相关 | 配置来源、长度阶梯和失败样例 |
+| 频率相关缩放 | 对不同频率采用不同缩放 | 配置与模型训练方式强相关 | 配置来源、长度阶梯和失败样例 |
 | 重新训练或继续训练 | 让模型适应新的位置分布 | 需要额外数据与训练预算 | 训练曲线、目标任务和成本 |
-
-本节代码只验证基础旋转不变量。长上下文方案应固定模型、tokenizer、输入长度阶梯与任务，分别记录训练长度内质量、长度外推质量、显存和延迟；不能用频率公式或单个合成样例替代端到端结论。
 
 ![RoPE 的频率与长度外推](../public/02_PyTorch_Algorithms/03_rope_length_scaling.svg)
 
 ### Step 4：代码设计与 RoPE 旋转验证
 
-题目区以 Q/K 的最后一维为偶数这一输入契约，连接频率表、成对维表示和旋转还原三个机制责任。固定函数接口保留广播辅助逻辑；学习者补全决定位置旋转的变量。
+题目区验证基础旋转不变量：频率表由位置与通道对共同确定，Q/K 经过同一位置旋转后保持形状、数据类型和模长。长上下文扩展仍需在固定模型和任务上独立评测。
 
-| TODO | 代码契约与机制责任 | 关键约束 | 测试证据 |
-| --- | --- | --- | --- |
-| TODO 1 | 生成位置与成对维度对应的复数旋转因子 | `head_dim` 为偶数；频率表为 `[S, D/2]` | 首位置不旋转，频率表形状正确 |
-| TODO 2 | 将 Q/K 的成对实数维转换为复数表示 | 不丢失 batch、sequence 与 head 轴 | 成对维形状与 dtype 正确 |
-| TODO 3 | 旋转并还原为实数张量 | Q/K 输出与输入形状一致 | 旋转生效，模长与输入 dtype 保持 |
+| TODO / 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
+|---|---|---|---|
+| TODO 1 · `precompute_freqs_cis` | 生成位置与成对维对应的复数旋转因子 | `head_dim` 为偶数；频率表为 `[S, D/2]` | 首位置不旋转，频率表形状正确 |
+| TODO 2 · `apply_rotary_emb` | 将 Q/K 成对实数维转换为复数表示 | 保留批次、序列与注意力头轴 | 成对维形状与 dtype 正确 |
+| TODO 3 · `apply_rotary_emb` | 旋转并还原为实数张量 | Q/K 输出与输入形状一致 | 旋转生效，模长与输入 dtype 保持 |
 
 ```python
 import torch
@@ -89,7 +85,9 @@ def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0) -> torch.Te
     """生成 `[sequence_length, head_dim // 2]` 的复数旋转因子。"""
     if dim <= 0 or dim % 2 != 0 or end <= 0 or theta <= 0:
         raise ValueError('dim 必须为正偶数，end 和 theta 必须为正数')
+    # ==========================================
     # TODO 1：构造成对维的逆频率、位置角度和单位复数旋转因子。
+    # ==========================================
     # pair_indices = ???
     # inv_freq = ???
     # positions = ???
@@ -114,13 +112,17 @@ def apply_rotary_emb(
     """将同一位置旋转应用到 Query 与 Key。"""
     if xq.shape != xk.shape or xq.ndim != 4 or xq.shape[-1] % 2 != 0:
         raise ValueError('xq/xk 必须是形状相同且最后一维为偶数的四维张量')
+    # ==========================================
     # TODO 2：将成对实数维转为 FP32 复数表示。
+    # ==========================================
     # xq_complex = ???
     # xk_complex = ???
     raise NotImplementedError('TODO 2：请完成 Q/K 的成对维表示')
 
     freqs = reshape_for_broadcast(freqs_cis, xq_complex).to(xq_complex.dtype)
+    # ==========================================
     # TODO 3：复数旋转后还原为输入 dtype 的实数张量。
+    # ==========================================
     # xq_out = ???
     # xk_out = ???
     raise NotImplementedError('TODO 3：请完成 RoPE 旋转与还原')
@@ -132,6 +134,7 @@ def apply_rotary_emb(
 # 测试设计：分别验证频率表、成对旋转性质和输入契约。
 
 def test_rope_frequency_table():
+    """验证频率表形状、零位置旋转与非法配置拒绝。"""
     freqs = precompute_freqs_cis(dim=8, end=5)
     assert freqs.shape == (5, 4)
     assert torch.allclose(freqs[0], torch.ones(4, dtype=freqs.dtype))
@@ -144,6 +147,7 @@ def test_rope_frequency_table():
 
 
 def test_rope_rotation_contract():
+    """验证旋转前后的形状与向量模长不变量。"""
     xq = torch.randn(2, 4, 3, 8)
     xk = torch.randn(2, 4, 3, 8)
     freqs = precompute_freqs_cis(dim=8, end=4)
@@ -154,6 +158,7 @@ def test_rope_rotation_contract():
 
 
 def test_rope_position_and_dtype_contract():
+    """验证位置差异、输入数据类型和奇数维拒绝。"""
     repeated = torch.ones(1, 3, 1, 4, dtype=torch.float16)
     freqs = precompute_freqs_cis(dim=4, end=3)
     rotated, _ = apply_rotary_emb(repeated, repeated, freqs)
@@ -169,6 +174,7 @@ def test_rope_position_and_dtype_contract():
 
 
 def run_rope_tests():
+    """运行 RoPE 的机制测试集合。"""
     test_rope_frequency_table()
     test_rope_rotation_contract()
     test_rope_position_and_dtype_contract()
@@ -179,6 +185,9 @@ run_rope_tests()
 
 ```
 
+🛑 **STOP HERE** 🛑
+
+请先完成题目区并通过测试，再继续查看参考代码与解析。
 ## 参考代码与解析
 
 ### 代码
@@ -227,13 +236,20 @@ def apply_rotary_emb(
 
 ### 解析
 
-题目区与答案区保留同一函数顺序；三个 TODO 分别对应频率表、成对维表示和旋转还原。
+#### TODO 1：生成位置频率表
 
-**TODO 1：频率表**：每一对特征维有自己的逆频率，位置与逆频率的外积给出旋转角；位置 0 的角度为 0，因此旋转因子是 1。
+- 判断依据：每个通道对有独立逆频率，位置与逆频率的外积给出旋转角。
+- 实现与证据：构造单位模复数因子；测试检查 `[S, D/2]` 形状和位置 0 不旋转。
 
-**TODO 2：成对维表示**：把最后一维按相邻两个数配对后解释为复数。FP32 表示让旋转计算更稳定，并保留 batch、sequence 与 head 轴。
+#### TODO 2：建立成对维表示
 
-**TODO 3：旋转还原**：Q/K 与相同位置的复数因子相乘，再还原为实数向量。旋转改变方向而保持每对维度的模长，因此同一内容在不同位置得到不同表示。
+- 判断依据：最后一维的相邻两个分量共同构成一个二维旋转平面。
+- 实现与证据：先转为 FP32 复数表示，同时保留批次、序列与注意力头轴。
+
+#### TODO 3：旋转并还原实数张量
+
+- 判断依据：单位复数乘法改变方向但保持每个二维通道对的模长。
+- 实现与证据：Q/K 使用相同位置因子后还原为输入数据类型；测试核对形状、模长和位置差异。
 ## 相关阅读
 
 RoPE 解释位置如何写入 Q/K；若继续研究长上下文，应接着比较访问范围如何限制或传播远程信息。

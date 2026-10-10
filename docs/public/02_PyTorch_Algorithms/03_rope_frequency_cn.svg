@@ -1,1 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" role="img" aria-labelledby="t d"><title id="t">RoPE 频率与旋转维度</title><desc id="d">最后一维按二维一组旋转，不同维度使用不同频率，位置决定旋转角度。</desc><defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><style>.h{font:700 26px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.s{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.l{font:700 18px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.b{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.box{stroke-width:3;rx:16}.f{stroke:#475569;stroke-width:4;fill:none;marker-end:url(#a)}</style></defs><rect width="1200" height="500" fill="#f8fafc"/><text x="50" y="55" class="h">RoPE：频率、位置和二维旋转</text><text x="50" y="83" class="s">先预计算旋转因子，再按最后一维的成对坐标旋转 Q 和 K。</text><rect x="55" y="190" width="220" height="110" class="box" fill="#eff6ff" stroke="#3b82f6"/><text x="165" y="232" text-anchor="middle" class="l">head_dim</text><text x="165" y="263" text-anchor="middle" class="b">两两分组 (x₀,x₁)</text><rect x="345" y="190" width="220" height="110" class="box" fill="#fef3c7" stroke="#d97706"/><text x="455" y="232" text-anchor="middle" class="l">频率 θⱼ</text><text x="455" y="263" text-anchor="middle" class="b">不同维度使用不同频率</text><rect x="635" y="190" width="220" height="110" class="box" fill="#ecfccb" stroke="#65a30d"/><text x="745" y="232" text-anchor="middle" class="l">位置 m</text><text x="745" y="263" text-anchor="middle" class="b">角度 = m · θⱼ</text><rect x="930" y="190" width="210" height="110" class="box" fill="#f5f3ff" stroke="#8b5cf6"/><text x="1035" y="232" text-anchor="middle" class="l">旋转后的 Q / K</text><text x="1035" y="263" text-anchor="middle" class="b">进入 Attention 点积</text><path d="M275 245H345M565 245H635M855 245H930" class="f"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="620" viewBox="0 0 1400 620" role="img" aria-labelledby="title desc">
+  <title id="title">RoPE 的成对维度、位置与旋转角</title>
+  <desc id="desc">成对维度决定频率，token 位置与频率共同得到旋转角，再将同一位置旋转应用于 Query 和 Key。</desc>
+  <defs>
+    <style>
+      .title{font:700 28px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}
+      .sub{font:500 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}
+      .head{font:700 19px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}
+      .body{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}
+      .note{font:600 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#1e3a8a}
+      .box{stroke-width:2.5;rx:18}
+      .arrow{stroke:#64748b;stroke-width:3.5;fill:none;marker-end:url(#arrow)}
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect width="1400" height="620" fill="#f8fafc"/>
+  <text x="55" y="58" class="title">RoPE：维度频率与 token 位置共同决定旋转角</text>
+  <text x="55" y="88" class="sub">最后一维按二维一组旋转；不同通道对使用不同频率，同一位置旋转所有 batch 与 head。</text>
+
+  <rect x="70" y="170" width="285" height="125" class="box" fill="#eff6ff" stroke="#2563eb"/>
+  <text x="100" y="214" class="head">成对维度</text>
+  <text x="100" y="245" class="body">D/2 组二维坐标</text>
+  <text x="100" y="273" class="body">(x₀,x₁), (x₂,x₃), ...</text>
+
+  <rect x="70" y="365" width="285" height="125" class="box" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="100" y="409" class="head">token 位置 m</text>
+  <text x="100" y="440" class="body">序列中的当前位置</text>
+  <text x="100" y="468" class="body">m = 0, 1, 2, ...</text>
+
+  <rect x="455" y="170" width="285" height="125" class="box" fill="#fff7ed" stroke="#d97706"/>
+  <text x="485" y="214" class="head">每组频率 θⱼ</text>
+  <text x="485" y="245" class="body">不同通道对旋转速度不同</text>
+  <text x="485" y="273" class="body">覆盖快慢不同的位置变化</text>
+
+  <rect x="455" y="365" width="285" height="125" class="box" fill="#f5f3ff" stroke="#7c3aed"/>
+  <text x="485" y="409" class="head">旋转角 m · θⱼ</text>
+  <text x="485" y="440" class="body">位置与频率在这里合并</text>
+  <text x="485" y="468" class="body">形成单位复数旋转因子</text>
+
+  <rect x="840" y="220" width="285" height="220" class="box" fill="#ecfccb" stroke="#65a30d"/>
+  <text x="870" y="266" class="head">旋转同一位置的 Q / K</text>
+  <text x="870" y="305" class="body">Q(m) 使用角度 m · θⱼ</text>
+  <text x="870" y="338" class="body">K(m) 使用相同角度</text>
+  <text x="870" y="371" class="body">V 不参与 RoPE 旋转</text>
+  <text x="870" y="407" class="note">形状保持 [B, S, H, D]</text>
+
+  <rect x="1190" y="260" width="160" height="140" class="box" fill="#fff1f2" stroke="#e11d48"/>
+  <text x="1270" y="307" text-anchor="middle" class="head">Attention</text>
+  <text x="1270" y="340" text-anchor="middle" class="body">Q · K 点积</text>
+  <text x="1270" y="370" text-anchor="middle" class="body">携带相对相位</text>
+
+  <path d="M355 232H455" class="arrow"/>
+  <path d="M355 427H455" class="arrow"/>
+  <path d="M598 295V365" class="arrow"/>
+  <path d="M740 427H790Q815 427 815 402V350Q815 330 840 330" class="arrow"/>
+  <path d="M1125 330H1190" class="arrow"/>
+</svg>

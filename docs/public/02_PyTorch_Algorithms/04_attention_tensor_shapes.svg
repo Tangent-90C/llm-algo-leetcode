@@ -1,62 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="560" viewBox="0 0 1500 560" role="img" aria-labelledby="title desc">
-<title id="title">MHA、GQA、MQA 的 QKV 张量分支</title>
-<desc id="desc">输入产生 Q 与 K/V 两条不同 head 数的张量分支。它们共同参与 Attention，K/V 同时进入 KV Cache。</desc>
-<defs>
-  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#475569"/></marker>
-  <style>
-    .title { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 29px; font-weight: 700; fill: #0f172a; }
-    .sub { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 16px; font-weight: 500; fill: #475569; }
-    .head { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 18px; font-weight: 700; fill: #111827; }
-    .body { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 14px; font-weight: 500; fill: #334155; }
-    .shape { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 15px; font-weight: 700; fill: #0f172a; }
-    .small { font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 13px; font-weight: 500; fill: #475569; }
-    .box { stroke-width: 2.5; rx: 16; }
-    .panel { stroke-width: 2; rx: 20; }
-    .line { stroke: #475569; stroke-width: 3; fill: none; marker-end: url(#arrow); }
-    .state { stroke: #7c3aed; stroke-width: 3; fill: none; marker-end: url(#arrow); }
-  </style>
-</defs>
-<rect width="1500" height="560" fill="#f8fafc"/>
-<text x="70" y="58" class="title">MHA、GQA、MQA：Q 与 K/V 的张量分支</text>
-<text x="70" y="91" class="sub">B 是 batch，S 是序列长度，H 是 Query head 数，Hₖᵥ 是 KV head 数，D 是每个 head 的特征宽度。</text>
-
-<rect x="45" y="215" width="185" height="110" fill="#dbeafe" class="box" stroke="#3b82f6"/>
-<text x="137" y="252" text-anchor="middle" class="head">输入表示</text>
-<text x="137" y="280" text-anchor="middle" class="shape">[B, S, D_model]</text>
-
-<rect x="300" y="195" width="225" height="150" fill="#e0f2fe" class="box" stroke="#0284c7"/>
-<text x="412" y="234" text-anchor="middle" class="head">Q / K / V 投影</text>
-<text x="412" y="282" text-anchor="middle" class="body">生成 Query 与 K/V 状态</text>
-<path d="M230 270 H285" class="line"/>
-
-<rect x="590" y="120" width="230" height="138" fill="#ede9fe" class="box" stroke="#7c3aed"/>
-<text x="705" y="157" text-anchor="middle" class="head">K/V：KV head</text>
-<text x="705" y="188" text-anchor="middle" class="shape">[B, Hₖᵥ, S, D]</text>
-<text x="705" y="216" text-anchor="middle" class="small">MHA：Hₖᵥ=H；GQA：Hₖᵥ&lt;H；MQA：Hₖᵥ=1</text>
-
-<rect x="590" y="345" width="230" height="128" fill="#dcfce7" class="box" stroke="#16a34a"/>
-<text x="705" y="382" text-anchor="middle" class="head">Q：Query head</text>
-<text x="705" y="413" text-anchor="middle" class="shape">[B, H, S, D]</text>
-<text x="705" y="441" text-anchor="middle" class="small">当前位置发起查询</text>
-<path d="M525 245 H555 V184 H590" class="state"/>
-<path d="M525 295 H555 V409 H590" class="line"/>
-
-<rect x="905" y="120" width="220" height="128" fill="#fef3c7" class="box" stroke="#d97706"/>
-<text x="1015" y="157" text-anchor="middle" class="head">Q × Kᵀ 与权重</text>
-<text x="1015" y="188" text-anchor="middle" class="body">相关性计算后归一化</text>
-<text x="1015" y="216" text-anchor="middle" class="shape">[B, H, S, S]</text>
-<path d="M820 184 H905" class="state"/>
-<path d="M820 409 H860 V248 H1015" class="line"/>
-
-<rect x="1190" y="120" width="255" height="128" fill="#fce7f3" class="box" stroke="#db2777"/>
-<text x="1317" y="157" text-anchor="middle" class="head">权重 × V 与多头输出</text>
-<text x="1317" y="188" text-anchor="middle" class="body">权重聚合 V，形成上下文表示</text>
-<text x="1317" y="216" text-anchor="middle" class="shape">[B, S, H×D]</text>
-<path d="M1125 184 H1190" class="line"/>
-
-<rect x="930" y="345" width="330" height="138" fill="#fff4e6" class="box" stroke="#d97706"/>
-<text x="1095" y="382" text-anchor="middle" class="head">KV Cache</text>
-<text x="1095" y="413" text-anchor="middle" class="body">仅保存历史 K/V，沿 S 维增长</text>
-<text x="1095" y="441" text-anchor="middle" class="shape">[B, Hₖᵥ, S_cache, D]</text>
-<path d="M705 258 V300 H1095 V345" class="state"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="title desc">
+  <title id="title">MHA、GQA、MQA 的 Query 与 KV head 共享关系</title>
+  <desc id="desc">三种结构保持相同数量的 Query head，但依次减少 KV head 数量，使多个 Query head 共享一组 KV 状态。</desc>
+  <defs><style>.title{font:700 27px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#0f172a}.sub{font:500 15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#475569}.head{font:700 19px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#111827}.body{font:500 14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#334155}.q{fill:#dbeafe;stroke:#2563eb;stroke-width:2}.kv{fill:#ede9fe;stroke:#7c3aed;stroke-width:2}.panel{stroke-width:2.5;rx:16}.line{stroke:#94a3b8;stroke-width:2}</style></defs>
+  <rect width="1500" height="470" fill="#f8fafc"/>
+  <text x="50" y="48" class="title">MHA → GQA → MQA：逐步增加 Query 对 K/V 的共享</text>
+  <text x="50" y="76" class="sub">Query head 数保持不变；减少 KV head 会降低每个 token 的普通 K/V 状态量。</text>
+  <rect x="55" y="115" width="430" height="300" class="panel" fill="#ffffff" stroke="#2563eb"/>
+  <text x="270" y="150" text-anchor="middle" class="head">MHA</text><text x="270" y="177" text-anchor="middle" class="body">Hkv = H；一对一保存 K/V</text>
+  <g transform="translate(105 205)"><rect width="34" height="48" rx="7" class="q"/><rect x="43" width="34" height="48" rx="7" class="q"/><rect x="86" width="34" height="48" rx="7" class="q"/><rect x="129" width="34" height="48" rx="7" class="q"/><rect x="172" width="34" height="48" rx="7" class="q"/><rect x="215" width="34" height="48" rx="7" class="q"/><rect x="258" width="34" height="48" rx="7" class="q"/><rect x="301" width="34" height="48" rx="7" class="q"/></g>
+  <g transform="translate(105 300)"><rect width="34" height="48" rx="7" class="kv"/><rect x="43" width="34" height="48" rx="7" class="kv"/><rect x="86" width="34" height="48" rx="7" class="kv"/><rect x="129" width="34" height="48" rx="7" class="kv"/><rect x="172" width="34" height="48" rx="7" class="kv"/><rect x="215" width="34" height="48" rx="7" class="kv"/><rect x="258" width="34" height="48" rx="7" class="kv"/><rect x="301" width="34" height="48" rx="7" class="kv"/></g>
+  <text x="270" y="388" text-anchor="middle" class="body">KV 状态基线：8 组</text>
+  <rect x="535" y="115" width="430" height="300" class="panel" fill="#ffffff" stroke="#7c3aed"/>
+  <text x="750" y="150" text-anchor="middle" class="head">GQA</text><text x="750" y="177" text-anchor="middle" class="body">1 &lt; Hkv &lt; H；分组共享 K/V</text>
+  <g transform="translate(585 205)"><rect width="34" height="48" rx="7" class="q"/><rect x="43" width="34" height="48" rx="7" class="q"/><rect x="86" width="34" height="48" rx="7" class="q"/><rect x="129" width="34" height="48" rx="7" class="q"/><rect x="172" width="34" height="48" rx="7" class="q"/><rect x="215" width="34" height="48" rx="7" class="q"/><rect x="258" width="34" height="48" rx="7" class="q"/><rect x="301" width="34" height="48" rx="7" class="q"/></g>
+  <line x1="650" y1="260" x2="650" y2="300" class="line"/><line x1="850" y1="260" x2="850" y2="300" class="line"/>
+  <rect x="625" y="300" width="50" height="48" rx="8" class="kv"/><rect x="825" y="300" width="50" height="48" rx="8" class="kv"/>
+  <text x="750" y="388" text-anchor="middle" class="body">示例 KV 状态：2 组</text>
+  <rect x="1015" y="115" width="430" height="300" class="panel" fill="#ffffff" stroke="#e11d48"/>
+  <text x="1230" y="150" text-anchor="middle" class="head">MQA</text><text x="1230" y="177" text-anchor="middle" class="body">Hkv = 1；全部 Query 共享 K/V</text>
+  <g transform="translate(1065 205)"><rect width="34" height="48" rx="7" class="q"/><rect x="43" width="34" height="48" rx="7" class="q"/><rect x="86" width="34" height="48" rx="7" class="q"/><rect x="129" width="34" height="48" rx="7" class="q"/><rect x="172" width="34" height="48" rx="7" class="q"/><rect x="215" width="34" height="48" rx="7" class="q"/><rect x="258" width="34" height="48" rx="7" class="q"/><rect x="301" width="34" height="48" rx="7" class="q"/></g>
+  <line x1="1230" y1="260" x2="1230" y2="300" class="line"/><rect x="1205" y="300" width="50" height="48" rx="8" class="kv"/>
+  <text x="1230" y="388" text-anchor="middle" class="body">KV 状态：1 组</text>
+  <text x="75" y="232" class="body">Q</text><text x="75" y="328" class="body">K/V</text>
 </svg>
