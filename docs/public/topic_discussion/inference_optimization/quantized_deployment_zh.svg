@@ -18,7 +18,7 @@
 <rect x="45" y="310" width="390" height="130" fill="#e8f1fb" stroke="#4c8eda" class="box"/>
 <text x="240" y="347" text-anchor="middle" class="head">权重：部署前</text><text x="240" y="382" text-anchor="middle" class="text">GPTQ · AWQ · GGUF</text><text x="240" y="414" text-anchor="middle" class="small">改变装载大小与权重带宽</text>
 <rect x="505" y="310" width="390" height="130" fill="#e8f7ef" stroke="#45a36b" class="box"/>
-<text x="700" y="347" text-anchor="middle" class="head">激活：运行时</text><text x="700" y="382" text-anchor="middle" class="text">FP8 / 低精度计算</text><text x="700" y="414" text-anchor="middle" class="small">依赖硬件与 kernel 执行路径</text>
+<text x="700" y="347" text-anchor="middle" class="head">激活：运行时</text><text x="700" y="382" text-anchor="middle" class="text">FP8 / 低精度计算</text><text x="700" y="414" text-anchor="middle" class="small">依赖硬件与计算内核执行路径</text>
 <rect x="965" y="310" width="390" height="130" fill="#fff5e6" stroke="#e0a23b" class="box"/>
 <text x="1160" y="347" text-anchor="middle" class="head">KV Cache：请求期间</text><text x="1160" y="382" text-anchor="middle" class="text">FP8 Cache / 专用量化</text><text x="1160" y="414" text-anchor="middle" class="small">改变长上下文和并发容量</text>
 <path d="M700 280 V292" class="flow"/><path d="M240 292 H1160" class="bus"/><path d="M240 292 V310" class="flow"/><path d="M700 292 V310" class="flow"/><path d="M1160 292 V310" class="flow"/>

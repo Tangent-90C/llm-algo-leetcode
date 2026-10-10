@@ -22,7 +22,7 @@
 
   <rect x="48" y="158" width="330" height="88" fill="#e8f1fb" stroke="#4c8eda" class="box"/>
   <text x="213" y="188" text-anchor="middle" class="head">输入规模</text>
-  <text x="213" y="214" text-anchor="middle" class="small">Prompt 长度 · 输出长度 · batch</text>
+  <text x="213" y="214" text-anchor="middle" class="small">输入提示长度 · 输出长度 · 批量</text>
 
   <rect x="402" y="158" width="330" height="88" fill="#e8f7ef" stroke="#45a36b" class="box"/>
   <text x="567" y="188" text-anchor="middle" class="head">请求组合</text>
@@ -34,7 +34,7 @@
 
   <rect x="1110" y="158" width="330" height="88" fill="#f9f0e8" stroke="#bd7b3a" class="box"/>
   <text x="1275" y="188" text-anchor="middle" class="head">运行条件</text>
-  <text x="1275" y="214" text-anchor="middle" class="small">GPU · dtype · quantization · backend</text>
+  <text x="1275" y="214" text-anchor="middle" class="small">GPU · 数据类型 · 量化 · 执行后端</text>
 
   <!-- 分：机制对象 -->
   <rect x="24" y="312" width="1452" height="290" fill="#fff8eb" stroke="#e0a23b" class="box"/>
@@ -44,8 +44,8 @@
   <text x="213" y="402" text-anchor="middle" class="head">计算阶段</text>
   <text x="213" y="431" text-anchor="middle" class="text">Prefill：批量处理输入</text>
   <text x="213" y="456" text-anchor="middle" class="text">Decode：逐步生成 token</text>
-  <text x="213" y="493" text-anchor="middle" class="small">Attention 访问模式决定计算与访存压力</text>
-  <text x="213" y="518" text-anchor="middle" class="small">FlashAttention、采样策略改变执行路径</text>
+  <text x="213" y="493" text-anchor="middle" class="small">注意力访问模式决定计算与访存压力</text>
+  <text x="213" y="518" text-anchor="middle" class="small">FlashAttention、融合分派与采样改变执行路径</text>
 
   <rect x="402" y="370" width="330" height="178" fill="#e8f7ef" stroke="#45a36b" class="box"/>
   <text x="567" y="402" text-anchor="middle" class="head">状态管理</text>
@@ -56,17 +56,17 @@
 
   <rect x="756" y="370" width="330" height="178" fill="#eef2f5" stroke="#829ab1" class="box"/>
   <text x="921" y="402" text-anchor="middle" class="head">服务组织</text>
-  <text x="921" y="431" text-anchor="middle" class="text">Batching：合并可执行请求</text>
-  <text x="921" y="456" text-anchor="middle" class="text">Scheduling：分配计算与 Cache</text>
+  <text x="921" y="431" text-anchor="middle" class="text">批处理：合并可执行请求</text>
+  <text x="921" y="456" text-anchor="middle" class="text">调度：分配计算与缓存</text>
   <text x="921" y="493" text-anchor="middle" class="small">Prefill / Decode 的资源竞争</text>
   <text x="921" y="518" text-anchor="middle" class="small">PD 分离、通信与并行协作</text>
 
   <rect x="1110" y="370" width="330" height="178" fill="#f0eefb" stroke="#8069b5" class="box"/>
   <text x="1275" y="402" text-anchor="middle" class="head">部署表示</text>
   <text x="1275" y="431" text-anchor="middle" class="text">权重与 KV Cache 的 dtype</text>
-  <text x="1275" y="456" text-anchor="middle" class="text">量化格式与执行 kernel</text>
+  <text x="1275" y="456" text-anchor="middle" class="text">量化格式与计算内核</text>
   <text x="1275" y="493" text-anchor="middle" class="small">模型装载路径影响可用显存</text>
-  <text x="1275" y="518" text-anchor="middle" class="small">backend 决定真实执行方式</text>
+  <text x="1275" y="518" text-anchor="middle" class="small">执行后端决定真实执行方式</text>
 
   <!-- 主关系：输入条件到机制对象 -->
   <path d="M213 246 V370" class="flow"/>
@@ -79,7 +79,7 @@
 
   <!-- 分：可观测结果 -->
   <rect x="24" y="640" width="1452" height="170" fill="#f2effc" stroke="#a795d0" class="box"/>
-  <text x="46" y="669" class="group">可观测结果：用同一 workload 判断收益是否真实</text>
+  <text x="46" y="669" class="group">可观测结果：用同一工作负载判断收益是否真实</text>
 
   <rect x="48" y="696" width="330" height="88" fill="#eef6ff" stroke="#4c8eda" class="box"/>
   <text x="213" y="726" text-anchor="middle" class="head">首 token 延迟</text>

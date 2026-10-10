@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="title desc">
   <title id="title">推理优化 Benchmark 与项目决策</title>
-  <desc id="desc">固定 workload 后采集和解释指标，经过公平比较与质量检查，分流到 accept、tune 或 reject。</desc>
+  <desc id="desc">固定工作负载后采集和解释指标，经过公平比较与质量检查，分流到接受、调优或拒绝。</desc>
   <defs>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#627d98"/></marker>
     <style>
@@ -13,7 +13,7 @@
 
   <rect x="250" y="102" width="900" height="116" fill="#eef6ff" stroke="#8ab4df" class="box"/>
   <text x="700" y="136" text-anchor="middle" class="group">固定实验口径</text>
-  <text x="700" y="170" text-anchor="middle" class="body">模型 · backend · dtype · prompt / generated tokens · 并发 · 请求分布</text>
+  <text x="700" y="170" text-anchor="middle" class="body">模型 · 执行后端 · 数据类型 · 输入 / 输出 Token · 并发 · 请求分布</text>
   <text x="700" y="197" text-anchor="middle" class="small">baseline 与 candidate 只改变一个主要变量，结果才能归因。</text>
 
   <rect x="55" y="300" width="290" height="120" fill="#e8f7ef" stroke="#45a36b" class="box"/>
