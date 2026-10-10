@@ -23,8 +23,8 @@
 ---
 ## 前置阅读
 **导语：** 这一页先把图优化、fusion 和 lowering 的关系接上，再理解编译器为什么会成为推理和部署链路里的关键一环。
-- [Group 1D: Heterogeneous Scheduling and Operator Programming | 1D: 异构调度与算子编程](./1D.md)
-- [Group 1E: Compiler Optimization and Hardware Ecosystem | 1E: 编译优化与硬件生态](./1E.md)
+- [Group 1D: Execution Models, Asynchrony and Operator Mapping | 1D: 执行模型、异步调度与算子映射](./1D.md)
+- [Group 1E: Compilers and Backends | 1E: 编译与后端](./1E.md)
 - [04. Attention MHA GQA | 多头注意力](../02_PyTorch_Algorithms/04_Attention_MHA_GQA.md)
 ## 相关阅读
 **导语：** 如果想继续把图优化和执行后端的关系补完整，可以接着看这些页。
