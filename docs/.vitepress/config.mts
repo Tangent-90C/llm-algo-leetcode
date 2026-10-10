@@ -324,7 +324,7 @@ export default defineConfig({
             items: [
               { text: '组内导读', link: '/02_PyTorch_Algorithms/2_3' },
               { text: '09. 监督微调训练循环', link: '/02_PyTorch_Algorithms/09_SFT_Training_Loop' },
-              { text: '10. LoRA 教程', link: '/02_PyTorch_Algorithms/10_LoRA_Tutorial' },
+              { text: '14. LoRA 教程', link: '/02_PyTorch_Algorithms/14_LoRA_Tutorial' },
               { text: '11. 优化器更新与学习率调度', link: '/02_PyTorch_Algorithms/11_Optimizer_Updates_and_Learning_Rate_Scheduling' },
               { text: '12. 梯度累积', link: '/02_PyTorch_Algorithms/12_Gradient_Accumulation' },
               { text: '13. 端到端微调实验', link: '/02_PyTorch_Algorithms/13_End_to_End_Fine_Tuning_Experiment' },
