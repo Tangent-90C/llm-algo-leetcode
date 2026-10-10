@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">RT-DETR 演进与实时部署取舍</title><desc id="desc">RT-DETR 系列在固定检测接口下，依次引入部署/训练改进、密集监督和视觉基础模型蒸馏，需要按数据、runtime 与质量同时比较。</desc>
+  <style>.bg{fill:#f8fafc}.box{stroke-width:2;rx:16}.blue{fill:#eff6ff;stroke:#60a5fa}.green{fill:#ecfdf5;stroke:#34d399}.orange{fill:#fff7ed;stroke:#fb923c}.slate{fill:#f1f5f9;stroke:#94a3b8}.line{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#a)}.title{font:700 24px sans-serif;fill:#0f172a}.h{font:700 18px sans-serif;fill:#0f172a}.s{font:14px sans-serif;fill:#475569}.tag{font:700 13px sans-serif;fill:#2563eb}</style>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L10 3L0 6z" fill="#64748b"/></marker></defs>
+  <rect class="bg" width="1200" height="500" rx="20"/><text x="55" y="55" class="title">RT-DETR 系列：把版本变化还原为训练与部署问题</text>
+  <rect class="box blue" x="55" y="130" width="240" height="110"/><text x="80" y="167" class="h">RT-DETR</text><text x="80" y="196" class="s">end-to-end 实时检测</text><text x="80" y="220" class="s">encoder / decoder 基线</text>
+  <rect class="box green" x="335" y="130" width="240" height="110"/><text x="360" y="167" class="h">RT-DETRv2</text><text x="360" y="196" class="s">采样、部署算子与训练</text><text x="360" y="220" class="s">基线可用性</text>
+  <rect class="box orange" x="615" y="130" width="240" height="110"/><text x="640" y="167" class="h">RT-DETRv3</text><text x="640" y="196" class="s">层级密集正样本监督</text><text x="640" y="220" class="s">训练质量路径</text>
+  <rect class="box slate" x="895" y="130" width="240" height="110"/><text x="920" y="167" class="h">RT-DETRv4</text><text x="920" y="196" class="s">视觉基础模型辅助蒸馏</text><text x="920" y="220" class="s">轻量检测器表示增强</text>
+  <path class="line" d="M295 185H335"/><path class="line" d="M575 185H615"/><path class="line" d="M855 185H895"/>
+  <rect class="box slate" x="260" y="350" width="680" height="80"/><text x="290" y="383" class="h">同口径实时部署证据</text><text x="290" y="410" class="s">数据 / 输入尺寸 / runtime / precision / 前处理 / 前向 / 后处理 / AP·AR / P95 / VRAM</text>
+  <path class="line" d="M1015 240V350H940"/>
+</svg>
