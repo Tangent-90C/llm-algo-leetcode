@@ -1,43 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1240" height="600" viewBox="0 0 1240 600" role="img" aria-labelledby="title desc">
-  <title id="title">W8A16 权重量化的存储与前向路径</title>
-  <desc id="desc">浮点权重经缩放量化为 INT8 权重与 scale；前向时激活保持 FP16 或 BF16，按 scale 恢复近似权重参与线性计算，并记录恢复误差。</desc>
+  <title id="title">W8A16 权重表示与前向路径</title>
+  <desc id="desc">浮点权重经过映射方式和量化粒度选择后保存为整数码及量化参数，前向时与高精度激活共同进入线性计算。</desc>
   <defs>
-    <style>
-      .title{font:700 28px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.sub{font:15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.group{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#35526b}.h{font:700 17px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.t{font:14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.frame{fill:#fff;stroke:#c7d9e7;stroke-width:1.5}.blue{fill:#e8f3fb;stroke:#3978a8;stroke-width:2}.orange{fill:#fff1df;stroke:#c78335;stroke-width:2}.green{fill:#eaf7ef;stroke:#4c9870;stroke-width:2}.purple{fill:#f1eafa;stroke:#8b6bb1;stroke-width:2}.flow{stroke:#3978a8;stroke-width:3;fill:none;marker-end:url(#arrow)}.measure{stroke:#8b6bb1;stroke-width:2.5;stroke-dasharray:8 6;fill:none;marker-end:url(#purpleArrow)}
-    </style>
-    <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#3978a8"/></marker>
-    <marker id="purpleArrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#8b6bb1"/></marker>
+    <style>.title{font:700 28px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.sub{font:15px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.group{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#35526b}.h{font:700 16px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#17324d}.t{font:14px "Noto Sans SC","Microsoft YaHei",sans-serif;fill:#526b7d}.frame{fill:#fff;stroke:#c7d9e7;stroke-width:1.5}.blue{fill:#e8f3fb;stroke:#3978a8;stroke-width:2}.orange{fill:#fff1df;stroke:#c78335;stroke-width:2}.purple{fill:#f1eafa;stroke:#8b6bb1;stroke-width:2}.green{fill:#eaf7ef;stroke:#4c9870;stroke-width:2}.flow{stroke:#3978a8;stroke-width:2.5;fill:none}</style>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" fill="#3978a8"/></marker>
   </defs>
   <rect width="1240" height="600" rx="24" fill="#f8fbfd"/>
-  <text x="620" y="48" text-anchor="middle" class="title">W8A16：低比特权重如何参与高精度前向</text>
-  <text x="620" y="76" text-anchor="middle" class="sub">本节只跟踪权重从浮点表示到 INT8 存储，再到近似线性计算的路径</text>
+  <text x="620" y="46" text-anchor="middle" class="title">W8A16：先确定表示，再讨论执行收益</text>
+  <text x="620" y="74" text-anchor="middle" class="sub">权重以 8-bit 保存，激活保持 16-bit；整数码必须与量化参数共同解释</text>
+  <rect x="55" y="108" width="1130" height="208" rx="18" class="frame"/>
+  <text x="78" y="136" class="group">权重从浮点参考值变成可恢复的低比特状态</text>
+  <rect x="95" y="172" width="210" height="82" rx="14" class="blue"/>
+  <text x="200" y="203" text-anchor="middle" class="h">浮点权重</text><text x="200" y="228" text-anchor="middle" class="t">FP16 / FP32 参考值</text>
+  <rect x="370" y="158" width="220" height="108" rx="14" class="orange"/>
+  <text x="480" y="188" text-anchor="middle" class="h">映射方式</text><text x="480" y="215" text-anchor="middle" class="t">对称：缩放因子</text><text x="480" y="239" text-anchor="middle" class="t">非对称：缩放因子 + 零点</text>
+  <rect x="655" y="158" width="220" height="108" rx="14" class="orange"/>
+  <text x="765" y="188" text-anchor="middle" class="h">量化粒度</text><text x="765" y="215" text-anchor="middle" class="t">逐张量 · 逐通道</text><text x="765" y="239" text-anchor="middle" class="t">逐组与尾组处理</text>
+  <rect x="940" y="158" width="210" height="108" rx="14" class="purple"/>
+  <text x="1045" y="188" text-anchor="middle" class="h">低比特权重状态</text><text x="1045" y="215" text-anchor="middle" class="t">INT8 整数码</text><text x="1045" y="239" text-anchor="middle" class="t">缩放因子 · 零点 · 粒度</text>
+  <path d="M305 213H370" class="flow" marker-end="url(#arrow)"/><path d="M590 213H655" class="flow" marker-end="url(#arrow)"/><path d="M875 213H940" class="flow" marker-end="url(#arrow)"/>
 
-  <rect x="55" y="125" width="730" height="190" rx="18" class="frame"/>
-  <text x="78" y="155" class="group">权重表示与存储</text>
-  <rect x="78" y="190" width="180" height="80" rx="15" class="blue"/>
-  <text x="168" y="222" text-anchor="middle" class="h">浮点权重 W</text><text x="168" y="247" text-anchor="middle" class="t">FP16 / FP32 参考值</text>
-  <rect x="330" y="190" width="180" height="80" rx="15" class="orange"/>
-  <text x="420" y="222" text-anchor="middle" class="h">缩放与量化</text><text x="420" y="247" text-anchor="middle" class="t">分组范围决定 scale</text>
-  <rect x="582" y="190" width="180" height="80" rx="15" class="purple"/>
-  <text x="672" y="222" text-anchor="middle" class="h">INT8 权重 + scale</text><text x="672" y="247" text-anchor="middle" class="t">压缩后的存储表示</text>
-  <path d="M258 230H330" class="flow"/><path d="M510 230H582" class="flow"/>
-
-  <rect x="855" y="125" width="330" height="190" rx="18" class="frame"/>
-  <text x="878" y="155" class="group">激活保持高精度</text>
-  <rect x="878" y="190" width="284" height="80" rx="15" class="green"/>
-  <text x="1020" y="222" text-anchor="middle" class="h">激活 A</text><text x="1020" y="247" text-anchor="middle" class="t">FP16 / BF16，不量化为 INT8</text>
-
-  <rect x="175" y="390" width="890" height="135" rx="18" class="frame"/>
-  <text x="198" y="420" class="group">前向计算与检查</text>
-  <rect x="205" y="440" width="205" height="58" rx="14" class="purple"/>
-  <text x="308" y="466" text-anchor="middle" class="h">按 scale 反量化</text><text x="308" y="487" text-anchor="middle" class="t">恢复近似 Ŵ</text>
-  <rect x="515" y="440" width="205" height="58" rx="14" class="green"/>
-  <text x="618" y="466" text-anchor="middle" class="h">线性前向</text><text x="618" y="487" text-anchor="middle" class="t">A × Ŵ</text>
-  <rect x="825" y="440" width="205" height="58" rx="14" class="orange"/>
-  <text x="928" y="466" text-anchor="middle" class="h">误差与结果</text><text x="928" y="487" text-anchor="middle" class="t">输出差异、存储节省</text>
-  <path d="M672 270V350H308V440" class="flow"/>
-  <path d="M1020 270V350H618V440" class="flow"/>
-  <path d="M410 469H515" class="flow"/><path d="M720 469H825" class="flow"/>
-  <path d="M168 270V555H928V498" class="measure"/>
-  <text x="535" y="578" text-anchor="middle" class="t">用原始 W 与近似 Ŵ 对照，检查量化误差是否处于可接受范围</text>
+  <rect x="55" y="350" width="1130" height="180" rx="18" class="frame"/>
+  <text x="78" y="378" class="group">W8A16 前向同时消费高精度激活和低比特权重状态</text>
+  <rect x="145" y="415" width="230" height="72" rx="14" class="green"/>
+  <text x="260" y="444" text-anchor="middle" class="h">16-bit 激活</text><text x="260" y="468" text-anchor="middle" class="t">FP16 / BF16，不量化为 INT8</text>
+  <rect x="505" y="415" width="230" height="72" rx="14" class="purple"/>
+  <text x="620" y="444" text-anchor="middle" class="h">权重恢复或融合读取</text><text x="620" y="468" text-anchor="middle" class="t">执行位置决定中间状态与访存</text>
+  <rect x="865" y="415" width="230" height="72" rx="14" class="green"/>
+  <text x="980" y="444" text-anchor="middle" class="h">线性层输出</text><text x="980" y="468" text-anchor="middle" class="t">误差与资源证据分别记录</text>
+  <path d="M1045 266V326H620V415" class="flow" marker-end="url(#arrow)"/><path d="M375 451H505" class="flow" marker-end="url(#arrow)"/><path d="M735 451H865" class="flow" marker-end="url(#arrow)"/>
 </svg>
