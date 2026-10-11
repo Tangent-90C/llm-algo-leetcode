@@ -8,17 +8,21 @@
 
 ## 学习路线
 
-先完成 Task0–2，建立组件全景、轨迹数据和安全执行环境；已有推理服务基础后再研究轨迹调度与可观测性；只有在任务、工具、沙盒和评测协议固定后，才进入框架选型与 Agentic RL。
+先固定任务工作负载、轨迹数据和安全执行环境，再研究轨迹调度与可观测性；只有任务、工具、沙盒和评测协议能够复现时，框架选型与 Agentic RL 的结果才可比较。
 
-| Task / 主题 | 本阶段要回答的问题 | 前置与机制入口 | 主要学习入口 | 阶段输出 |
+| Task / 主题 | 本阶段要回答的问题 | 学习入口与验证出口 | 学习顺序 | 主要正文入口 |
 |:---|:---|:---|:---|:---|
-| Task0 · 智能体全景与核心链路 | 单次推理怎样演化为多步任务执行？ | [推理优化](../inference_optimization/intro.md)、[后训练优化](../post_training_optimization/intro.md) | [00 智能体工作负载与执行链](./00_agent_workload_and_trace.md) | 模型、工具、上下文、沙盒、执行轨迹和评估的组件图与工作负载卡 |
-| Task1 · 轨迹数据生产与验证 | 如何生成包含工具调用和环境反馈的训练数据？ | [数据工程](../data_engineering/intro.md)、[后训练优化](../post_training_optimization/intro.md) | [01 智能体轨迹数据与验证](./01_agent_trajectory_data.md) | 任务蓝图、候选轨迹、环境反馈与验证规则 |
-| Task2 · 沙盒与执行环境 | 如何隔离工具执行、限制资源并记录可复现反馈？ | [部署与异构](../deployment_heterogeneous/intro.md) | [02 智能体沙盒与执行环境](./02_agent_sandbox_environment.md) | 工具接口、资源配额、日志和环境快照 |
-| Task3 · 轨迹感知调度与上下文管理 | 多阶段、可失败任务怎样调度和复用状态？ | [推理优化](../inference_optimization/intro.md) | [Part 02 · 70 服务调度](../../02_PyTorch_Algorithms/70_Serving_Scheduler_Benchmark.ipynb) | 先来先服务、优先级与轨迹感知策略对照 |
-| Task4 · 任务评估与可观测性 | 如何同时评估完成率、工具正确性、轨迹质量、延迟与成本？ | [性能优化](../performance_optimization/intro.md) | [Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb) | 结构化执行轨迹、错误分类和任务级报告 |
-| Task5 · 框架与工具协议 | 编排框架、协作方式和工具接入协议应怎样选择？ | [00 智能体工作负载与执行链](./00_agent_workload_and_trace.md) | [Part 05 · 综合项目](../../05_Integrated_Projects_and_Decisions/intro.md) | 多工具调用闭环与框架选型记录 |
-| Task6 · Agentic RL 与综合交付 | 如何把数据、沙盒、轨迹采样、奖励和评估收束为训练闭环？ | [后训练优化](../post_training_optimization/intro.md) | [Part 05 · 后训练交付综合项目](../../05_Integrated_Projects_and_Decisions/02_Post_Training_Delivery_Project.md#小模型-agentic-rl-扩展) | 可复现实验、任务质量与成本报告、产物清单及采用决策 |
+| Task0 · 智能体全景与核心链路 | 单次推理怎样演化为多步任务执行？ | 核心：[推理优化](../inference_optimization/intro.md)、[后训练优化](../post_training_optimization/intro.md) | 模型调用 → 工具调用 → 环境反馈 → 任务评估 | [00 智能体工作负载与执行链](./00_agent_workload_and_trace.md) |
+| Task1 · 轨迹数据生产与验证 | 包含工具调用和环境反馈的轨迹怎样通过验证后进入数据版本？ | 核心：[数据工程](../data_engineering/intro.md)、[后训练优化](../post_training_optimization/intro.md) | 任务蓝图 → 候选轨迹 → 环境反馈 → 验证分流 | [01 智能体轨迹数据与验证](./01_agent_trajectory_data.md) |
+| Task2 · 沙盒与执行环境 | 工具执行怎样隔离资源并产生可复现反馈？ | 核心：[部署与异构](../deployment_heterogeneous/intro.md) | 工具契约 → 权限与资源 → 执行日志 → 环境快照 | [02 智能体沙盒与执行环境](./02_agent_sandbox_environment.md) |
+| Task3 · 轨迹感知调度与上下文管理 | 多阶段、可失败任务怎样调度和复用状态？ | 核心：[推理优化](../inference_optimization/intro.md)；项目：[Part 02 · 70 服务调度](../../02_PyTorch_Algorithms/70_Serving_Scheduler_Benchmark.ipynb) | 依赖状态 → 就绪队列 → 调度 → 重试与上下文复用 | [多步任务怎样调度和恢复](./walkthrough.md#多步任务怎样调度和恢复) |
+| Task4 · 任务评估与可观测性 | 完成率、工具正确性、轨迹质量、延迟与成本怎样对应同一次任务？ | 核心：[性能优化](../performance_optimization/intro.md)；扩展：[Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb) | 任务身份 → 轨迹事件 → 错误分类 → 质量与成本报告 | [怎样同时评估质量、可靠性和成本](./walkthrough.md#怎样同时评估质量可靠性和成本) |
+| Task5 · 框架与工具协议 | 工具能力、协作方式和运行约束怎样决定编排方案？ | 核心：[00 智能体工作负载与执行链](./00_agent_workload_and_trace.md)；项目：[Part 05 综合项目](../../05_Integrated_Projects_and_Decisions/intro.md) | 能力需求 → 工具契约 → 编排候选 → 失败与成本对照 | [什么时候需要改变协议或编排框架](./walkthrough.md#什么时候需要改变协议或编排框架) |
+| Task6 · Agentic RL 与综合交付 | 数据、沙盒、轨迹采样、奖励和评估怎样形成可恢复的训练闭环？ | 核心：[后训练优化](../post_training_optimization/intro.md)；项目：[Part 05 · 后训练交付综合项目](../../05_Integrated_Projects_and_Decisions/02_Post_Training_Delivery_Project.md#小模型-agentic-rl-扩展) | 固定任务 → 轨迹采样 → 奖励与更新 → 独立评测 → 采用决策 | [什么时候才进入 Agentic RL](./walkthrough.md#什么时候才进入-agentic-rl) |
+
+![智能体基础设施学习路线：从任务轨迹到训练与交付](../../docs/public/topic_discussion/agent/agent_infrastructure_roadmap.svg)
+
+![智能体基础设施知识地图：工具、状态、环境与证据](../../docs/public/topic_discussion/agent/agent_infrastructure_knowledge_map.svg)
 
 ## 扩展与跨专题入口
 
@@ -31,10 +35,12 @@
 
 MCP、函数调用和业务 API 都可以作为工具接入方式。本专题首先检查工具能力、参数约束、返回结果和失败状态是否满足任务需要，再比较具体协议或框架；框架名称不能替代任务成功率、轨迹正确性和资源成本证据。
 
+连续理解一次任务怎样从输入走到采用决策，阅读[智能体任务问题链](./walkthrough.md)；按失败现象定位检查对象，使用[智能体判断手册](./casebook.md)；概念辨析见[专题术语表](./glossary.md)。
+
 ## 实验与项目出口
 
-Task0–2 的学习结果应能够固定工作负载、工具接口、沙盒限制和轨迹字段。Task3–5 的对照只有在这些条件固定后才有可解释性；Task6 还需要策略版本、奖励分量、任务质量、采样成本和回滚状态共同支持采用决策。
+任务、工具接口、沙盒限制和轨迹字段固定后，调度、框架和训练候选才具有可比性。Agentic RL 还需要策略版本、奖励分量、任务质量、采样成本和回滚状态共同支持采用决策。当前可运行资产、复用环境与证据缺口见[实验资产表](./experiment_assets.md)。
 
 - 局部调度与服务行为由 Part 02 项目验证；
 - 跨数据、训练、沙盒和评测的组合由 Part 05 综合项目承接；
-- 场景或框架尚未形成稳定依赖时，可先作为 Part 05 的开放实践项目，不直接进入核心交付链。
+- 场景或框架依赖发生变化时，在 Part 05 中建立新的任务身份和对照，不沿用其他任务的训练或发布结论。
