@@ -26,7 +26,7 @@
       "title": "指令微调项目",
       "primary_owner": "post_training_optimization",
       "project_type": "project",
-      "topic_order": 2,
+      "topic_order": 4,
       "target_contract": "fine-tuning-project/v1"
     },
     {
@@ -35,7 +35,7 @@
       "title": "LoRA 变体对比项目",
       "primary_owner": "post_training_optimization",
       "project_type": "benchmark",
-      "topic_order": 3,
+      "topic_order": 2,
       "target_contract": "fine-tuning-project/v1"
     },
     {
@@ -53,7 +53,7 @@
       "title": "QLoRA 选型项目",
       "primary_owner": "post_training_optimization",
       "project_type": "project",
-      "topic_order": 4,
+      "topic_order": 3,
       "target_contract": "fine-tuning-project/v1"
     },
     {
@@ -246,11 +246,11 @@
       "target_contract": "model-evaluation/v1"
     },
     {
-      "semantic_id": "PT-DPO-ONLINE",
+      "semantic_id": "PT-POST-TRAINING-LIFECYCLE",
       "notebook": "02_PyTorch_Algorithms/86_DPO_Online_Benchmark.ipynb",
-      "title": "DPO 在线基准",
+      "title": "在线后训练生命周期与采用决策",
       "primary_owner": "post_training_optimization",
-      "project_type": "benchmark",
+      "project_type": "qualification",
       "topic_order": 7,
       "target_contract": "model-evaluation/v1"
     }
