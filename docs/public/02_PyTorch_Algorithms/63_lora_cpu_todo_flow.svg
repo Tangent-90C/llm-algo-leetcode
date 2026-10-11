@@ -1,16 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="520" viewBox="0 0 1160 520" role="img" aria-labelledby="title desc">
-  <title id="title">LoRA 变体的单变量实验卡</title><desc id="desc">固定其余训练条件，每轮只改变一个 LoRA 变量，再比较容量、质量和资源指标。</desc>
-  <style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;fill:#052e16}.title{font-size:25px;font-weight:700}.h{font-size:18px;font-weight:700}.b{font-size:15px;fill:#166534}.head{font-size:16px;font-weight:700;fill:#fff}.cell{fill:#fff;stroke:#bbf7d0;stroke-width:1.5}.accent{fill:#f0fdf4;stroke:#16a34a;stroke-width:2;rx:14}</style>
-  <rect width="1160" height="520" fill="#f7fdf9"/><text x="580" y="42" text-anchor="middle" class="title">LoRA 变体：一次只改变一个变量</text>
-  <rect x="70" y="82" width="1020" height="48" fill="#16a34a" rx="10"/><text x="180" y="113" text-anchor="middle" class="head">实验卡</text><text x="390" y="113" text-anchor="middle" class="head">固定条件</text><text x="620" y="113" text-anchor="middle" class="head">本轮变量</text><text x="835" y="113" text-anchor="middle" class="head">观察指标</text><text x="1010" y="113" text-anchor="middle" class="head">动作</text>
-  <rect x="70" y="130" width="220" height="82" class="cell"/><text x="180" y="164" text-anchor="middle" class="h">baseline</text><text x="180" y="190" text-anchor="middle" class="b">记录默认 LoRA 配置</text>
-  <rect x="290" y="130" width="220" height="82" class="cell"/><text x="400" y="164" text-anchor="middle" class="h">模型 · 数据 · 步数</text><text x="400" y="190" text-anchor="middle" class="b">其余配置保持不变</text>
-  <rect x="510" y="130" width="220" height="82" class="accent"/><text x="620" y="164" text-anchor="middle" class="h">rank / alpha</text><text x="620" y="190" text-anchor="middle" class="b">或 dropout / target</text>
-  <rect x="730" y="130" width="220" height="82" class="cell"/><text x="840" y="164" text-anchor="middle" class="h">质量与资源</text><text x="840" y="190" text-anchor="middle" class="b">loss · 参数 · 显存 · 步时</text>
-  <rect x="950" y="130" width="140" height="82" class="cell"/><text x="1020" y="164" text-anchor="middle" class="h">筛选</text><text x="1020" y="190" text-anchor="middle" class="b">保留 / 调整</text>
-  <rect x="100" y="280" width="280" height="115" class="accent"/><text x="240" y="318" text-anchor="middle" class="h">容量解释</text><text x="240" y="350" text-anchor="middle" class="b">rank 影响 adapter 容量</text><text x="240" y="376" text-anchor="middle" class="b">target_modules 改变位置</text>
-  <rect x="440" y="280" width="280" height="115" class="accent"/><text x="580" y="318" text-anchor="middle" class="h">训练行为</text><text x="580" y="350" text-anchor="middle" class="b">alpha 影响缩放</text><text x="580" y="376" text-anchor="middle" class="b">dropout 影响正则化</text>
-  <rect x="780" y="280" width="280" height="115" class="accent"/><text x="920" y="318" text-anchor="middle" class="h">证据解释</text><text x="920" y="350" text-anchor="middle" class="b">CPU 做逻辑与排序</text><text x="920" y="376" text-anchor="middle" class="b">GPU 验证真实收益</text>
-  <path d="M620 212 V258" stroke="#166534" stroke-width="3" marker-end="url(#arrow)"/>
-  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6 Z" fill="#166534"/></marker></defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">LoRA 候选的证据选择关系</title>
+  <desc id="desc">先检查可比性和硬门槛，再用共享随机种子配对复测，并根据质量是否可区分选择候选。</desc>
+  <defs>
+    <marker id="neutral" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L10 5 L0 10 Z" fill="#475569"/></marker>
+    <marker id="purple" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L10 5 L0 10 Z" fill="#7c3aed"/></marker>
+    <marker id="green" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L10 5 L0 10 Z" fill="#16a34a"/></marker>
+    <style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;fill:#0f172a}.t{font-size:28px;font-weight:700}.h{font-size:19px;font-weight:700}.b{font-size:15px;fill:#334155}.neutral,.purple,.green{fill:none;stroke-width:3}.neutral{stroke:#475569;marker-end:url(#neutral)}.purple{stroke:#7c3aed;marker-end:url(#purple)}.green{stroke:#16a34a;marker-end:url(#green)}</style>
+  </defs>
+  <rect width="1200" height="520" fill="#f8fafc"/>
+  <text x="600" y="45" text-anchor="middle" class="t">从可比候选到稳定选择</text>
+
+  <rect x="70" y="105" width="270" height="100" rx="15" fill="#ffedd5" stroke="#fb923c" stroke-width="2"/>
+  <text x="205" y="143" text-anchor="middle" class="h">可比性</text>
+  <text x="205" y="174" text-anchor="middle" class="b">固定字段不变，只改变一个变量</text>
+  <rect x="465" y="105" width="270" height="100" rx="15" fill="#ffedd5" stroke="#fb923c" stroke-width="2"/>
+  <text x="600" y="143" text-anchor="middle" class="h">候选准入</text>
+  <text x="600" y="174" text-anchor="middle" class="b">质量 · 显存 · 吞吐 · 执行状态</text>
+  <rect x="860" y="105" width="270" height="100" rx="15" fill="#ccfbf1" stroke="#14b8a6" stroke-width="2"/>
+  <text x="995" y="143" text-anchor="middle" class="h">配对复测</text>
+  <text x="995" y="174" text-anchor="middle" class="b">共享种子 · 配对差 · 失败运行</text>
+  <path class="neutral" d="M340 155 H455"/>
+  <path class="neutral" d="M735 155 H850"/>
+
+  <polygon points="760,270 890,330 760,390 630,330" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+  <text x="760" y="324" text-anchor="middle" class="h">质量可区分？</text>
+  <text x="760" y="350" text-anchor="middle" class="b">配对差大于等价区间</text>
+  <path class="neutral" d="M995 205 V245 H760 V260"/>
+
+  <rect x="300" y="285" width="290" height="90" rx="14" fill="#ede9fe" stroke="#a78bfa" stroke-width="2"/>
+  <text x="445" y="320" text-anchor="middle" class="h">质量近似</text>
+  <text x="445" y="348" text-anchor="middle" class="b">按显存、步时和参数量选择</text>
+  <path class="purple" d="M630 330 H600"/>
+  <text x="615" y="316" text-anchor="middle" class="b">否</text>
+
+  <rect x="920" y="285" width="240" height="90" rx="14" fill="#dcfce7" stroke="#4ade80" stroke-width="2"/>
+  <text x="1040" y="320" text-anchor="middle" class="h">质量差异明确</text>
+  <text x="1040" y="348" text-anchor="middle" class="b">选择质量更好的合格候选</text>
+  <path class="green" d="M890 330 H910"/>
+  <text x="900" y="316" text-anchor="middle" class="b">是</text>
 </svg>
