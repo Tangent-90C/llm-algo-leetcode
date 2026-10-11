@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
-  <title id="title">从数据工程、预训练到后训练与独立评测的完整链路</title>
+  <title id="title">数据工程、预训练、后训练与独立评测的关系</title>
   <desc id="desc">数据工程分别提供预训练语料、监督样本、偏好与任务数据。监督微调建立行为基线后，离线偏好对可用于 DPO 或奖励模型训练，当前策略在线采样形成轨迹；奖励模型或验证器产生奖励，再由 PPO 或 GRPO 更新策略，最终进入独立评测。</desc>
   <defs>
     <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L8 4L0 8Z" fill="#475569"/></marker>

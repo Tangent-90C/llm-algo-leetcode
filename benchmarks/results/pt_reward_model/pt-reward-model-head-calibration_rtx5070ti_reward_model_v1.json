@@ -1,0 +1,139 @@
+{
+  "schema_version": "post-training-mechanism-gpu/v1",
+  "semantic_id": "PT-REWARD-MODEL",
+  "environment_profile": "PT-RL-CUDA",
+  "run_mode": "real_gpu",
+  "run_label": "rtx5070ti_reward_model_v1",
+  "framework": {
+    "python": "3.12.15",
+    "torch": "2.11.0+cu128",
+    "transformers": "5.18.0"
+  },
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+    "total_memory_bytes": 12328960000,
+    "compute_capability": [
+      12,
+      0
+    ],
+    "torch": "2.11.0+cu128",
+    "cuda": "12.8",
+    "bf16_supported": true
+  },
+  "model": {
+    "id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "requested_revision": "main",
+    "resolved_commit": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "resolution_source": "huggingface_hub_api"
+  },
+  "dataset": {
+    "source": "embedded_fixed_preference_pairs",
+    "train_pairs": 6,
+    "calibration_pairs": 4,
+    "hidden_quality_pairs": 4,
+    "sample_hash": "19d2eaa9c95254b69d91db047246ad2b80c2247fca9ee0a140771c64e6c1bc12"
+  },
+  "workload": {
+    "id": "pt-reward-model-head-calibration",
+    "version": "v1",
+    "max_length": 128,
+    "update_steps": 60,
+    "learning_rate": 0.01,
+    "temperature_candidates": [
+      0.5,
+      1.0,
+      2.0
+    ],
+    "corrupted_pair_indices": [
+      0,
+      2,
+      4
+    ],
+    "seed": 42
+  },
+  "baseline": {
+    "name": "shared_random_head_initialization",
+    "clean_train_accuracy": 0.5
+  },
+  "candidates": [
+    {
+      "name": "aligned_labels",
+      "swapped_pair_count": 0,
+      "initial_clean_train_accuracy": 0.5,
+      "initial_clean_margin_mean": -0.5707592368125916,
+      "loss_first": 1.162990927696228,
+      "loss_last": 8.6005584164911e-14,
+      "proxy_train_accuracy": 1.0,
+      "proxy_margin_mean": 39.99351119995117,
+      "clean_train_accuracy": 1.0,
+      "clean_train_margin_mean": 39.99351119995117,
+      "calibration_accuracy": 1.0,
+      "calibration_margin_mean": 9.150737762451172,
+      "selected_temperature": 0.5,
+      "selected_brier": 7.183974304325602e-09,
+      "calibration_records": [
+        {
+          "temperature": 0.5,
+          "brier": 7.183974304325602e-09
+        },
+        {
+          "temperature": 1.0,
+          "brier": 4.14463720517233e-05
+        },
+        {
+          "temperature": 2.0,
+          "brier": 0.002841746434569359
+        }
+      ],
+      "hidden_quality_accuracy": 1.0,
+      "hidden_quality_margin_mean": 6.602166175842285,
+      "step_time_median_ms": 0.270105003437493,
+      "step_time_p95_ms": 0.7171899924287573
+    },
+    {
+      "name": "corrupted_labels",
+      "swapped_pair_count": 3,
+      "initial_clean_train_accuracy": 0.5,
+      "initial_clean_margin_mean": -0.5707592368125916,
+      "loss_first": 0.9380828738212585,
+      "loss_last": 4.68661767172307e-07,
+      "proxy_train_accuracy": 1.0,
+      "proxy_margin_mean": 39.15141296386719,
+      "clean_train_accuracy": 0.5,
+      "clean_train_margin_mean": 10.362030029296875,
+      "calibration_accuracy": 0.25,
+      "calibration_margin_mean": -4.193285942077637,
+      "selected_temperature": 2.0,
+      "selected_brier": 0.7105064988136292,
+      "calibration_records": [
+        {
+          "temperature": 0.5,
+          "brier": 0.7499982118606567
+        },
+        {
+          "temperature": 1.0,
+          "brier": 0.7486177682876587
+        },
+        {
+          "temperature": 2.0,
+          "brier": 0.7105064988136292
+        }
+      ],
+      "hidden_quality_accuracy": 0.5,
+      "hidden_quality_margin_mean": -2.2568552494049072,
+      "step_time_median_ms": 0.2582180095487274,
+      "step_time_p95_ms": 0.4558420041576028
+    }
+  ],
+  "mechanism_checks": {
+    "candidate_matrix_complete": true,
+    "aligned_pairwise_update_passed": true,
+    "holdout_ordering_observed": true,
+    "calibration_matrix_complete": true,
+    "negative_control_divergence_observed": true,
+    "peak_allocated_bytes": 1021895680
+  },
+  "failure": null,
+  "evidence_level": "real_frozen_backbone_reward_head_benchmark",
+  "decision": "accept_mechanism"
+}

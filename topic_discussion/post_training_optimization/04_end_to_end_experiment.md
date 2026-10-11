@@ -1,8 +1,8 @@
-# 04 · SFT 实验、产物与交付
+# 04 · SFT 基线、升级条件与训练交付
 
-一条 SFT 基线只有在训练、评测、恢复和交付都能复查时，才能成为 DPO、GRPO 或部署对照的起点。它消费第 13 节的监督损失契约和第 15 节的有效更新结果，既输出后续适配方案复用的产物，也提供是否升级到偏好或奖励优化的证据。
+提示、RAG 或工具仍无法解决稳定失败时，才需要建立 SFT 基线。这个基线同时消费监督契约、参数更新方案和训练控制：训练数据通过契约与泄漏检查，标签只保留有效监督词元，更新范围与资源预算已经固定，训练过程能够产生可复算的更新、验证和恢复结果。长样本还要记录窗口适配、受控截断、监督保留和 Packing 边界。
 
-## 最小实验闭环
+## SFT 基线怎样形成可恢复产物
 
 `数据版本 → 模型 / 分词器 → 适配器配置 → 训练控制 → 独立评测 → 检查点 / 产物 → 报告`
 
@@ -30,6 +30,4 @@ SFT 的作用是用示范高效建立任务接口、输出格式、指令遵循�
 | 数学答案、代码测试或环境终态可验证，候选间奖励可区分 | 评估 GRPO / RLVR | 规则覆盖不足或奖励饱和时容易产生奖励投机 |
 | 奖励大量同分、全正 / 全负，或与独立成功率背离 | 修复奖励、验证器或采样分布 | 缺少可学习的相对信号 |
 
-## 验证与出口
-
-[15 端到端微调](../../02_PyTorch_Algorithms/15_End_to_End_Fine_Tuning_Experiment.ipynb) 与 [62 指令微调项目](../../02_PyTorch_Algorithms/62_Instruction_Fine_Tuning_Project.ipynb) 是本页的直接出口；真实资源与回归证据进入[性能优化](../performance_optimization/intro.md)。
+先用[后训练准入与阶段选择](../../02_PyTorch_Algorithms/33_Fine_Tuning_Readiness.ipynb)确认失败确实需要修改参数，再用[端到端微调练习](../../02_PyTorch_Algorithms/15_End_to_End_Fine_Tuning_Experiment.ipynb)建立可恢复、可复测的 SFT 基线。基线通过后，已有偏好对进入[DPO](./05_dpo_and_preference_optimization.md)；需要当前策略探索时，根据反馈和基线形式进入[PPO](./06_rlhf_and_ppo_system_cost.md)或[GRPO / RLVR](./07_grpo_and_groupwise_alignment.md)。若资源开销成为采用条件，再进入[性能优化](../performance_optimization/intro.md)补充真实显存、时间和回归证据。

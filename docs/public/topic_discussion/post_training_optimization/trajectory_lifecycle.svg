@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="620" viewBox="0 0 1280 620" role="img" aria-labelledby="title desc">
+  <title id="title">轨迹形成、登记与消费准入</title>
+  <desc id="desc">任务和环境进入当前策略，模型动作获得环境观察与奖励终态，随后形成版本化轨迹，并按策略版本、奖励状态和消费状态决定接纳、等待或丢弃重放。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="6.5" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#475569"/></marker>
+    <style>
+      .title{font:700 27px Arial,sans-serif;fill:#172033}.sub{font:15px Arial,sans-serif;fill:#475569}.head{font:700 16px Arial,sans-serif;fill:#172033}.body{font:14px Arial,sans-serif;fill:#334155}.small{font:13px Arial,sans-serif;fill:#475569}.line{fill:none;stroke:#475569;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrow)}.dash{fill:none;stroke:#0284C7;stroke-width:2.3;stroke-dasharray:7 6;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1280" height="620" fill="#F8FAFC"/>
+  <rect x="28" y="24" width="1224" height="572" rx="24" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="62" y="70" class="title">轨迹生命周期：从策略与环境交互到训练准入</text>
+  <text x="62" y="99" class="sub">动作、观察和奖励分别登记；策略版本、奖励状态与消费状态共同决定轨迹能否进入当前更新。</text>
+
+  <rect x="58" y="154" width="190" height="96" rx="15" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/>
+  <text x="80" y="188" class="head">任务与环境身份</text><text x="80" y="216" class="body">提示 · 工具 · 环境版本</text><text x="80" y="238" class="small">固定初始状态</text>
+  <rect x="294" y="154" width="190" height="96" rx="15" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/>
+  <text x="316" y="188" class="head">当前策略</text><text x="316" y="216" class="body">生成回复或动作</text><text x="316" y="238" class="small">记录行为策略版本</text>
+  <rect x="530" y="154" width="190" height="96" rx="15" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
+  <text x="552" y="188" class="head">模型动作</text><text x="552" y="216" class="body">词元 · 函数调用 · 代码</text><text x="552" y="238" class="small">动作掩码与对数概率</text>
+  <rect x="766" y="154" width="190" height="96" rx="15" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
+  <text x="788" y="188" class="head">环境观察</text><text x="788" y="216" class="body">工具结果 · 下一状态</text><text x="788" y="238" class="small">不作为模型动作求梯度</text>
+  <rect x="1002" y="154" width="216" height="96" rx="15" fill="#FFF7ED" stroke="#EA580C" stroke-width="2"/>
+  <text x="1024" y="188" class="head">奖励与终止状态</text><text x="1024" y="216" class="body">成功 · 失败 · 超时</text><text x="1024" y="238" class="small">保留无法判定状态</text>
+
+  <path d="M248 202H286" class="line"/><path d="M484 202H522" class="line"/><path d="M720 202H758" class="line"/><path d="M956 202H994" class="line"/>
+  <path d="M861 250V278H389V250" class="dash"/>
+
+  <rect x="172" y="344" width="282" height="112" rx="16" fill="#E0E7FF" stroke="#4F46E5" stroke-width="2"/>
+  <text x="194" y="378" class="head">版本化轨迹记录</text><text x="194" y="406" class="body">任务 / 提示 ID · 策略 / 环境版本</text><text x="194" y="432" class="body">动作与观察 · 奖励分量 · 失败原因</text>
+  <rect x="516" y="344" width="282" height="112" rx="16" fill="#F3E8FF" stroke="#9333EA" stroke-width="2"/>
+  <text x="538" y="378" class="head">新鲜度与消费检查</text><text x="538" y="406" class="body">版本差是否在门槛内</text><text x="538" y="432" class="body">奖励是否完成 · 是否重复消费</text>
+  <rect x="860" y="344" width="282" height="112" rx="16" fill="#F8FAFC" stroke="#64748B" stroke-width="2"/>
+  <text x="882" y="378" class="head">准入结果</text><text x="882" y="406" class="body">接纳当前批次 · 等待奖励</text><text x="882" y="432" class="body">丢弃过期轨迹 · 修复后重放</text>
+
+  <path d="M625 250V298H270V336" class="line"/><path d="M1110 250V316H390V336" class="line"/>
+  <path d="M454 400H508" class="line"/><path d="M798 400H852" class="line"/>
+</svg>
