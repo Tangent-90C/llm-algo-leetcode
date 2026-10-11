@@ -1,29 +1,46 @@
-<svg width="1500" height="470" viewBox="0 0 1500 470" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <title>LoRA 变体比较机制链</title>
-  <desc>固定基座和目标模块后，比较标准 LoRA、rsLoRA 与 DoRA 的参数化、缩放、资源和交付证据。</desc>
-  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker></defs>
+<svg width="1500" height="370" viewBox="0 0 1500 370" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>LoRA 变体从固定比较条件到候选决策的机制链</title>
+  <desc>依次固定基座和工作负载、计算参数上限、区分 LoRA rsLoRA DoRA 参数化、检查数值与输出等价性，最后形成候选决策。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+  </defs>
   <style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei","Droid Sans Fallback",sans-serif!important}</style>
-  <rect width="1500" height="470" rx="24" fill="#F8FAFC"/>
-  <text x="62" y="64" fill="#0F172A" font-family="Noto Sans CJK SC, sans-serif" font-size="30" font-weight="700">LoRA 变体：先对齐预算，再比较参数化与证据</text>
-  <text x="62" y="98" fill="#475569" font-family="Noto Sans CJK SC, sans-serif" font-size="18">变体名称不是决策依据；基座、目标模块、数据和训练 Token 预算必须保持一致。</text>
-  <rect x="62" y="152" width="246" height="126" rx="18" fill="#DBEAFE" stroke="#2563EB" stroke-width="2"/>
-  <text x="90" y="188" fill="#1E3A8A" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">固定比较口径</text>
-  <text x="90" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">基座与目标模块</text><text x="90" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">数据与训练预算</text>
-  <rect x="354" y="152" width="246" height="126" rx="18" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
-  <text x="382" y="188" fill="#92400E" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">参数预算</text>
-  <text x="382" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">秩 × 输入输出维度</text><text x="382" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">DoRA 附加幅值状态</text>
-  <rect x="646" y="152" width="246" height="126" rx="18" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
-  <text x="674" y="188" fill="#166534" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">参数化差异</text>
-  <text x="674" y="216" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="16">LoRA / DoRA：α / r</text><text x="674" y="241" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="16">rsLoRA：α / √r</text><text x="674" y="266" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="16">DoRA：幅值 + 归一化方向</text>
-  <rect x="938" y="152" width="246" height="126" rx="18" fill="#FCE7F3" stroke="#DB2777" stroke-width="2"/>
-  <text x="966" y="188" fill="#9D174D" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">配对证据</text>
-  <text x="966" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">质量与训练稳定性</text><text x="966" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">显存、时间与合并误差</text>
-  <rect x="1230" y="152" width="208" height="126" rx="18" fill="#EDE9FE" stroke="#7C3AED" stroke-width="2"/>
-  <text x="1258" y="188" fill="#5B21B6" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">候选决策</text>
-  <text x="1258" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">保留 / 调参</text><text x="1258" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">淘汰或项目复测</text>
-  <path d="M308 215H342" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/><path d="M600 215H634" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/><path d="M892 215H926" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/><path d="M1184 215H1218" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
-  <rect x="250" y="340" width="1000" height="76" rx="18" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
-  <text x="286" y="374" fill="#0F172A" font-family="Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">硬门槛优先</text>
-  <text x="430" y="374" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="18">先对齐参数预算，再过滤质量、稳定性与可加载性失败的候选</text>
-  <text x="430" y="402" fill="#64748B" font-family="Noto Sans CJK SC, sans-serif" font-size="16">不使用一个综合分数掩盖质量退化或产物不兼容。</text>
+  <rect width="1500" height="370" rx="24" fill="#F8FAFC"/>
+  <text x="54" y="54" fill="#0F172A" font-size="30" font-weight="700">LoRA 变体：固定条件、参数预算与逐项检查</text>
+  <text x="54" y="88" fill="#475569" font-size="18">短程机制实验只判断参数路径与输出等价性；真实任务指标由项目实验比较。</text>
+
+  <rect x="50" y="128" width="250" height="174" rx="18" fill="#DBEAFE" stroke="#2563EB" stroke-width="2.5"/>
+  <text x="76" y="166" fill="#1E3A8A" font-size="22" font-weight="700">固定比较条件</text>
+  <text x="76" y="204" fill="#334155" font-size="17">同一基座与目标模块</text>
+  <text x="76" y="234" fill="#334155" font-size="17">同一监督输入与更新次数</text>
+  <text x="76" y="264" fill="#334155" font-size="17">固定 dtype、学习率与随机种子</text>
+
+  <rect x="340" y="128" width="250" height="174" rx="18" fill="#FEF3C7" stroke="#D97706" stroke-width="2.5"/>
+  <text x="366" y="166" fill="#92400E" font-size="22" font-weight="700">计算参数上限</text>
+  <text x="366" y="204" fill="#334155" font-size="17">LoRA：r(d_in + d_out)</text>
+  <text x="366" y="234" fill="#334155" font-size="17">DoRA：再增加 d_out</text>
+  <text x="366" y="264" fill="#334155" font-size="17">固定 rank / 固定参数上限</text>
+
+  <rect x="630" y="128" width="250" height="174" rx="18" fill="#DCFCE7" stroke="#16A34A" stroke-width="2.5"/>
+  <text x="656" y="166" fill="#166534" font-size="22" font-weight="700">区分参数化</text>
+  <text x="656" y="204" fill="#334155" font-size="17">LoRA / DoRA：α / r</text>
+  <text x="656" y="234" fill="#334155" font-size="17">rsLoRA：α / √r</text>
+  <text x="656" y="264" fill="#334155" font-size="17">DoRA：幅值 × 归一化方向</text>
+
+  <rect x="920" y="128" width="260" height="174" rx="18" fill="#FCE7F3" stroke="#DB2777" stroke-width="2.5"/>
+  <text x="946" y="166" fill="#9D174D" font-size="22" font-weight="700">逐项检查</text>
+  <text x="946" y="204" fill="#334155" font-size="17">loss / 梯度为有限值</text>
+  <text x="946" y="234" fill="#334155" font-size="17">基座冻结、参数未超上限</text>
+  <text x="946" y="264" fill="#334155" font-size="17">初始与合并输出通过阈值</text>
+
+  <rect x="1220" y="128" width="230" height="174" rx="18" fill="#EDE9FE" stroke="#7C3AED" stroke-width="2.5"/>
+  <text x="1246" y="166" fill="#5B21B6" font-size="22" font-weight="700">候选决策</text>
+  <text x="1246" y="204" fill="#334155" font-size="17">失败项为空：保留</text>
+  <text x="1246" y="234" fill="#334155" font-size="17">存在失败项：调参</text>
+  <text x="1246" y="264" fill="#334155" font-size="17">记录 checks 与原因</text>
+
+  <path d="M300 215H328" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M590 215H618" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M880 215H908" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M1180 215H1208" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
 </svg>

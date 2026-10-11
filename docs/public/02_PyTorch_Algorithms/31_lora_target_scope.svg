@@ -1,24 +1,34 @@
-<svg width="1500" height="470" viewBox="0 0 1500 470" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="1500" height="370" viewBox="0 0 1500 370" fill="none" xmlns="http://www.w3.org/2000/svg">
   <title>LoRA 目标模块范围与参数容量</title>
-  <desc>从查询和值投影扩展到全部注意力与 MLP 投影时，可训练参数和表达范围逐级增加。</desc>
-  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker></defs>
+  <desc>从查询和值投影扩大到全部注意力投影，再扩大到注意力和 MLP；每次扩大都会增加被更新的计算路径和参数量。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+  </defs>
   <style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei","Droid Sans Fallback",sans-serif!important}</style>
-  <rect width="1500" height="470" rx="24" fill="#F8FAFC"/>
-  <text x="62" y="64" fill="#0F172A" font-family="Noto Sans CJK SC, sans-serif" font-size="30" font-weight="700">目标模块范围决定适配容量与资源代价</text>
-  <text x="62" y="98" fill="#475569" font-family="Noto Sans CJK SC, sans-serif" font-size="18">在相同秩下，扩大挂载范围会同时改变可训练参数、表示路径和交付产物。</text>
-  <rect x="82" y="152" width="330" height="126" rx="18" fill="#DBEAFE" stroke="#2563EB" stroke-width="2"/>
-  <text x="112" y="188" fill="#1E3A8A" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">查询 + 值投影</text>
-  <text x="112" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">较小参数预算</text><text x="112" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">改变查询与内容聚合路径</text>
-  <rect x="586" y="152" width="330" height="126" rx="18" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
-  <text x="616" y="188" fill="#166534" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">全部注意力投影</text>
-  <text x="616" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">查询、键、值与输出</text><text x="616" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">覆盖完整注意力表示路径</text>
-  <rect x="1090" y="152" width="330" height="126" rx="18" fill="#EDE9FE" stroke="#7C3AED" stroke-width="2"/>
-  <text x="1120" y="188" fill="#5B21B6" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">注意力 + MLP</text>
-  <text x="1120" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">再加入门控、扩展与回投影</text><text x="1120" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">容量和资源代价最高</text>
-  <path d="M412 215H574" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/><path d="M916 215H1078" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
-  <text x="452" y="196" fill="#64748B" font-family="Noto Sans CJK SC, sans-serif" font-size="16">扩大挂载范围</text><text x="956" y="196" fill="#64748B" font-family="Noto Sans CJK SC, sans-serif" font-size="16">扩大挂载范围</text>
-  <rect x="250" y="340" width="1000" height="76" rx="18" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
-  <text x="286" y="374" fill="#0F172A" font-family="Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">公平比较</text>
-  <text x="414" y="374" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="18">固定基座、数据与训练 Token；同时记录模块形状、秩和总可训练参数</text>
-  <text x="414" y="402" fill="#64748B" font-family="Noto Sans CJK SC, sans-serif" font-size="16">只比较秩而忽略挂载范围，会把容量差异误判为变体收益。</text>
+  <rect width="1500" height="370" rx="24" fill="#F8FAFC"/>
+  <text x="54" y="54" fill="#0F172A" font-size="30" font-weight="700">目标模块范围决定参数容量与被更新的计算路径</text>
+  <text x="54" y="88" fill="#475569" font-size="18">rank 相同不代表参数量相同；目标范围变化后必须按真实模块形状重新计算。</text>
+
+  <rect x="80" y="128" width="350" height="174" rx="18" fill="#DBEAFE" stroke="#2563EB" stroke-width="2.5"/>
+  <text x="110" y="166" fill="#1E3A8A" font-size="22" font-weight="700">查询 + 值投影</text>
+  <text x="110" y="204" fill="#334155" font-size="17">模块：q_proj、v_proj</text>
+  <text x="110" y="234" fill="#334155" font-size="17">更新查询与内容聚合路径</text>
+  <text x="110" y="264" fill="#334155" font-size="17">参数量：Σ r(d_in + d_out)</text>
+
+  <rect x="575" y="128" width="350" height="174" rx="18" fill="#DCFCE7" stroke="#16A34A" stroke-width="2.5"/>
+  <text x="605" y="166" fill="#166534" font-size="22" font-weight="700">全部注意力投影</text>
+  <text x="605" y="204" fill="#334155" font-size="17">模块：q / k / v / o_proj</text>
+  <text x="605" y="234" fill="#334155" font-size="17">加入键映射与输出投影路径</text>
+  <text x="605" y="264" fill="#334155" font-size="17">重新累计四类模块参数</text>
+
+  <rect x="1070" y="128" width="350" height="174" rx="18" fill="#EDE9FE" stroke="#7C3AED" stroke-width="2.5"/>
+  <text x="1100" y="166" fill="#5B21B6" font-size="22" font-weight="700">注意力 + MLP</text>
+  <text x="1100" y="204" fill="#334155" font-size="17">再加入 gate / up / down_proj</text>
+  <text x="1100" y="234" fill="#334155" font-size="17">更新门控、扩展与回投影路径</text>
+  <text x="1100" y="264" fill="#334155" font-size="17">参数与优化器状态继续增加</text>
+
+  <path d="M430 215H563" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="454" y="194" fill="#64748B" font-size="16">增加 k / o</text>
+  <path d="M925 215H1058" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="947" y="194" fill="#64748B" font-size="16">再增加 MLP</text>
 </svg>
