@@ -1,18 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
-  <title id="title">在线反馈新鲜度与准入</title><desc id="desc">反馈与当前策略之间的距离先形成新鲜度响应，再与身份、风险和切分检查共同决定进入更新池或拒绝。</desc>
-  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#475569"/></marker><style>.t{font:700 25px Arial,sans-serif;fill:#172033}.s{font:15px Arial,sans-serif;fill:#475569}.h{font:700 16px Arial,sans-serif;fill:#172033}.c{font:14px Arial,sans-serif;fill:#334155}.l{fill:none;stroke:#475569;stroke-width:2.4;marker-end:url(#a)}</style></defs>
+  <title id="title">在线反馈的策略版本差与准入</title><desc id="desc">当前目标策略版本减去反馈生成策略版本得到版本差，再与身份、风险和切分检查共同决定进入更新池或拒绝。</desc>
+  <defs><marker id="a" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><style>.t{font:700 25px "Inter","Noto Sans SC",sans-serif;fill:#172033}.s{font:15px "Inter","Noto Sans SC",sans-serif;fill:#475569}.h{font:700 16px "Inter","Noto Sans SC",sans-serif;fill:#172033}.c{font:14px "Inter","Noto Sans SC",sans-serif;fill:#334155}.l{fill:none;stroke:#475569;stroke-width:3.5;marker-end:url(#a)}</style></defs>
   <rect width="1200" height="430" fill="#F8FAFC"/><rect x="28" y="24" width="1144" height="382" rx="24" fill="#FFF" stroke="#CBD5E1" stroke-width="2"/>
-  <text x="62" y="68" class="t">反馈准入：策略新鲜度只是第一道门</text><text x="62" y="96" class="s">版本距离决定初步响应，身份、风险和评测隔离决定最终去向。</text>
-  <rect x="54" y="151" width="218" height="126" rx="16" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/><text x="76" y="185" class="h">反馈与当前策略</text><text x="76" y="215" class="c">反馈产生时的策略</text><text x="76" y="241" class="c">当前准备更新的策略</text><text x="76" y="267" class="c">二者的版本与行为距离</text>
+  <text x="62" y="68" class="t">反馈准入：先计算策略版本差，再检查身份、风险与切分</text><text x="62" y="96" class="s">版本差决定初步去向，身份、风险规则和评测隔离决定最终结果。</text>
+  <rect x="54" y="151" width="218" height="126" rx="16" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/><text x="76" y="185" class="h">生成与目标策略版本</text><text x="76" y="215" class="c">反馈生成策略版本</text><text x="76" y="241" class="c">当前目标策略版本</text><text x="76" y="267" class="c">目标版本减去生成版本</text>
   <g data-layout-role="glyph-group">
-    <rect x="330" y="112" width="208" height="62" rx="13" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/><text x="352" y="150" class="h">新鲜：进入后续复核</text>
-    <rect x="330" y="187" width="208" height="62" rx="13" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/><text x="352" y="225" class="h">可容忍：降权或标记</text>
+    <rect x="330" y="112" width="208" height="62" rx="13" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/><text x="352" y="150" class="h">当前版本：继续检查</text>
+    <rect x="330" y="187" width="208" height="62" rx="13" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/><text x="352" y="225" class="h">允许范围内：继续检查</text>
     <rect x="330" y="262" width="208" height="62" rx="13" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/><text x="352" y="300" class="h">过期或未来版本：拒绝</text>
   </g>
   <rect x="610" y="146" width="224" height="136" rx="16" fill="#F3E8FF" stroke="#9333EA" stroke-width="2"/><text x="632" y="180" class="h">其余准入检查</text><text x="632" y="210" class="c">身份完整且没有重复消费</text><text x="632" y="236" class="c">风险状态与来源覆盖</text><text x="632" y="262" class="c">训练和评测保持隔离</text>
   <rect x="922" y="126" width="220" height="78" rx="14" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/><text x="944" y="160" class="h">进入可用反馈池</text><text x="944" y="184" class="c">保留准入原因与版本关系</text>
   <rect x="922" y="246" width="220" height="78" rx="14" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/><text x="944" y="280" class="h">拒绝或重新采样</text><text x="944" y="304" class="c">保留拒绝原因与补救动作</text>
-  <path d="M272 188H298V143H322" class="l"/><path d="M272 214H322" class="l"/><path d="M272 240H298V293H322" class="l"/>
-  <path d="M538 143H570V184H602" class="l"/><path d="M538 218H602" class="l"/><path d="M538 293H878V285H914" class="l"/>
-  <path d="M834 184H914" class="l"/><path d="M834 244H878V285H914" class="l"/>
+  <path d="M272 188H298V143H330" class="l"/><path d="M272 214H330" class="l"/><path d="M272 240H298V293H330" class="l"/>
+  <path d="M538 143H570V184H610" class="l"/><path d="M538 218H610" class="l"/><path d="M538 293H878V285H922" class="l"/>
+  <path d="M834 184H922" class="l"/><path d="M834 244H878V285H922" class="l"/>
 </svg>

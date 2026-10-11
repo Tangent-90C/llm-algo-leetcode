@@ -1,18 +1,73 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
-  <title id="title">偏好数据契约</title><desc id="desc">同一任务下的可比回答经过偏好语义、来源身份和切分隔离检查，分别进入训练与独立评测。</desc>
-  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#475569"/></marker><style>.t{font:700 25px Arial,sans-serif;fill:#172033}.s{font:15px Arial,sans-serif;fill:#475569}.h{font:700 17px Arial,sans-serif;fill:#172033}.c{font:14px Arial,sans-serif;fill:#334155}.l{fill:none;stroke:#475569;stroke-width:2.4;marker-end:url(#a)}</style></defs>
-  <rect width="1200" height="430" fill="#F8FAFC"/><rect x="28" y="24" width="1144" height="382" rx="24" fill="#FFF" stroke="#CBD5E1" stroke-width="2"/>
-  <text x="62" y="68" class="t">偏好数据：可比关系成立后，才能进入训练与评测</text><text x="62" y="96" class="s">比较对象、偏好依据、来源身份和数据切分共同决定偏好信号是否可信。</text>
-  <rect x="58" y="156" width="208" height="122" rx="16" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/>
-  <text x="80" y="191" class="h">同一任务的回答</text><text x="80" y="222" class="c">相同输入与任务约束</text><text x="80" y="248" class="c">回答之间可以直接比较</text>
-  <rect x="318" y="156" width="208" height="122" rx="16" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
-  <text x="340" y="191" class="h">偏好语义</text><text x="340" y="222" class="c">选择理由对应目标能力</text><text x="340" y="248" class="c">不是题目差异或标注噪声</text>
-  <rect x="578" y="156" width="220" height="122" rx="16" fill="#F3E8FF" stroke="#9333EA" stroke-width="2"/>
-  <text x="600" y="191" class="h">身份与切分隔离</text><text x="600" y="222" class="c">来源和判分依据可追溯</text><text x="600" y="248" class="c">训练与最终评测不泄漏</text>
-  <rect x="878" y="126" width="254" height="92" rx="15" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
-  <text x="900" y="162" class="h">偏好训练数据</text><text x="900" y="190" class="c">学习回答之间的相对选择</text>
-  <rect x="878" y="254" width="254" height="92" rx="15" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/>
-  <text x="900" y="290" class="h">独立评测数据</text><text x="900" y="318" class="c">检验能力变化而非训练记忆</text>
-  <path d="M266 217H310" class="l"/><path d="M526 217H570" class="l"/>
-  <path d="M798 190H834V172H870" class="l"/><path d="M798 244H834V300H870" class="l"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="560" viewBox="0 0 1500 560" role="img" aria-labelledby="title desc">
+  <title id="title">偏好对进入互斥的训练或评测集合</title>
+  <desc id="desc">回答对先检查任务与偏好依据，再检查来源身份、规范化任务输入和数据切分；通过的样本按切分进入互斥的训练偏好集或冻结评测集，失败样本进入拒绝或复核。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#F8FAFC"/>
+      <stop offset="100%" stop-color="#EFF6FF"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0L10 5L0 10Z" fill="#475569"/>
+    </marker>
+    <style>
+      .title{font:700 30px "Inter","Noto Sans SC",sans-serif;fill:#0F172A}
+      .sub{font:500 17px "Inter","Noto Sans SC",sans-serif;fill:#475569}
+      .label{font:700 18px "Inter","Noto Sans SC",sans-serif;fill:#111827}
+      .small{font:500 14px "Inter","Noto Sans SC",sans-serif;fill:#334155}
+      .box{stroke-width:2.5}
+      .arrow{stroke:#475569;stroke-width:3.5;fill:none;marker-end:url(#arrow)}
+      .branch{font:700 15px "Inter","Noto Sans SC",sans-serif;fill:#475569}
+    </style>
+  </defs>
+  <rect width="1500" height="560" rx="24" fill="url(#bg)"/>
+  <text x="55" y="58" class="title">偏好对按检查结果进入互斥的数据集合</text>
+  <text x="55" y="90" class="sub">训练偏好对与冻结评测样本共享检查规则，但同一任务输入不能同时出现在两个集合。</text>
+
+  <rect x="55" y="145" width="225" height="115" rx="17" class="box" fill="#EFF6FF" stroke="#3B82F6"/>
+  <text x="167" y="184" text-anchor="middle" class="label">回答对与来源信息</text>
+  <text x="167" y="214" text-anchor="middle" class="small">任务、约束、优选与非优选回答</text>
+  <text x="167" y="238" text-anchor="middle" class="small">生成来源、标注依据或轨迹身份</text>
+
+  <path d="M335 202L425 137L515 202L425 267Z" fill="#FFF7ED" stroke="#F59E0B" stroke-width="2.5"/>
+  <text x="425" y="196" text-anchor="middle" class="label">回答是否可比？</text>
+  <text x="425" y="223" text-anchor="middle" class="small">同一任务且偏好依据明确</text>
+
+  <rect x="570" y="145" width="245" height="115" rx="17" class="box" fill="#ECFEFF" stroke="#0891B2"/>
+  <text x="692" y="184" text-anchor="middle" class="label">身份与任务输入指纹</text>
+  <text x="692" y="214" text-anchor="middle" class="small">来源身份可追溯</text>
+  <text x="692" y="238" text-anchor="middle" class="small">任务输入先规范化再比较</text>
+
+  <path d="M870 202L960 137L1050 202L960 267Z" fill="#F5F3FF" stroke="#8B5CF6" stroke-width="2.5"/>
+  <text x="960" y="190" text-anchor="middle" class="label">字段与切分</text>
+  <text x="960" y="216" text-anchor="middle" class="small">是否通过检查？</text>
+
+  <rect x="1105" y="145" width="180" height="115" rx="17" class="box" fill="#FFFFFF" stroke="#64748B"/>
+  <text x="1195" y="184" text-anchor="middle" class="label">按切分互斥路由</text>
+  <text x="1195" y="214" text-anchor="middle" class="small">固定样本身份</text>
+  <text x="1195" y="238" text-anchor="middle" class="small">禁止跨集合重复</text>
+
+  <rect x="1325" y="110" width="135" height="95" rx="16" class="box" fill="#ECFDF5" stroke="#10B981"/>
+  <text x="1392" y="148" text-anchor="middle" class="label">训练偏好集</text>
+  <text x="1392" y="177" text-anchor="middle" class="small">用于 DPO 更新</text>
+
+  <rect x="1325" y="265" width="135" height="95" rx="16" class="box" fill="#E0F2FE" stroke="#0284C7"/>
+  <text x="1392" y="303" text-anchor="middle" class="label">冻结评测集</text>
+  <text x="1392" y="332" text-anchor="middle" class="small">用于候选比较</text>
+
+  <rect x="650" y="405" width="360" height="95" rx="17" class="box" fill="#FEF2F2" stroke="#EF4444"/>
+  <text x="830" y="443" text-anchor="middle" class="label">拒绝或人工复核</text>
+  <text x="830" y="472" text-anchor="middle" class="small">记录不可比、字段缺失、重复身份或切分污染</text>
+
+  <path d="M280 202H335" class="arrow"/>
+  <path d="M515 202H570" class="arrow"/>
+  <text x="536" y="170" text-anchor="middle" class="branch">是</text>
+  <path d="M815 202H870" class="arrow"/>
+  <path d="M1050 202H1105" class="arrow"/>
+  <text x="1071" y="170" text-anchor="middle" class="branch">是</text>
+  <path d="M1285 180H1305V157H1325" class="arrow"/>
+  <path d="M1285 225H1305V312H1325" class="arrow"/>
+  <path d="M425 267V350H745V405" class="arrow"/>
+  <text x="447" y="329" class="branch">否</text>
+  <path d="M960 267V350H915V405" class="arrow"/>
+  <text x="981" y="329" class="branch">否</text>
 </svg>

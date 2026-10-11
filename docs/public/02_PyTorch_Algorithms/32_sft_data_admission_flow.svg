@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="620" viewBox="0 0 1440 620" role="img" aria-labelledby="title desc">
-  <title id="title">SFT 数据从冻结切分到训练候选的准入链</title>
-  <desc id="desc">原始样本先冻结数据切分并检查身份和监督契约；通过后再进行重复污染审计、模板分词和监督词元预算检查。失败样本进入带原因的拒绝记录，通过样本按长度与监督量形成训练候选。</desc>
+  <title id="title">SFT 数据从冻结切分到准入清单的审计链</title>
+  <desc id="desc">原始样本冻结切分并检查身份与监督契约，再分别构造任务输入指纹和完整样本指纹，检查训练重复与跨切分泄漏；每条样本保留准入结果和拒绝原因。</desc>
   <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L8 4L0 8Z" fill="#475569"/></marker><style>.title{font-family:"Noto Sans CJK SC",sans-serif;font-size:28px;font-weight:700;fill:#0F172A}.subtitle{font-family:"Noto Sans CJK SC",sans-serif;font-size:16px;fill:#475569}.head{font-family:"Noto Sans CJK SC",sans-serif;font-size:18px;font-weight:700;fill:#172033}.copy{font-family:"Noto Sans CJK SC",sans-serif;font-size:14px;fill:#334155}.line{fill:none;stroke:#475569;stroke-width:2.3;marker-end:url(#arrow)}.reject{fill:none;stroke:#DC2626;stroke-width:2.2;stroke-dasharray:7 5;marker-end:url(#arrow)}</style></defs>
   <rect width="1440" height="620" fill="#F8FAFC"/><rect x="28" y="24" width="1384" height="572" rx="26" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
-  <text x="62" y="70" class="title">SFT 数据准入：每一道门槛保留什么证据</text><text x="62" y="102" class="subtitle">先冻结切分，再拟合清洗和预算规则；拒绝样本保留身份与具体原因，不被一个布尔值覆盖。</text>
+  <text x="62" y="70" class="title">SFT 数据准入：契约、指纹与切分隔离</text><text x="62" y="102" class="subtitle">完整样本指纹检查训练重复，任务输入指纹检查评测泄漏；拒绝样本保留全部原因。</text>
 
   <rect x="54" y="214" width="184" height="112" rx="15" fill="#DBEAFE" stroke="#2563EB" stroke-width="2"/>
   <text x="76" y="248" class="head">原始 SFT 样本</text><text x="76" y="278" class="copy">指令 · 上下文 · 回答</text><text x="76" y="304" class="copy">来源与许可记录</text>
@@ -12,17 +12,17 @@
   <polygon points="590,200 680,270 590,340 500,270" fill="#EDE9FE" stroke="#7C3AED" stroke-width="2"/>
   <text x="542" y="263" class="head">契约完整？</text><text x="542" y="291" class="copy">身份与监督语义</text>
   <rect x="732" y="214" width="190" height="112" rx="15" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/>
-  <text x="754" y="248" class="head">重复与污染审计</text><text x="754" y="278" class="copy">训练内内容指纹</text><text x="754" y="304" class="copy">训练对冻结评测指纹</text>
+  <text x="754" y="248" class="head">构造两类指纹</text><text x="754" y="278" class="copy">任务输入指纹</text><text x="754" y="304" class="copy">完整样本指纹</text>
   <rect x="970" y="214" width="190" height="112" rx="15" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
-  <text x="992" y="248" class="head">模板化与分词</text><text x="992" y="278" class="copy">输入掩码 · 回答监督</text><text x="992" y="304" class="copy">定位有效监督词元</text>
+  <text x="992" y="248" class="head">重复与泄漏审计</text><text x="992" y="278" class="copy">训练内完整样本重复</text><text x="992" y="304" class="copy">训练任务命中冻结评测</text>
   <polygon points="1280,200 1370,270 1280,340 1190,270" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
-  <text x="1224" y="263" class="head">预算达标？</text><text x="1218" y="291" class="copy">保留量与损失比例</text>
+  <text x="1224" y="263" class="head">风险为空？</text><text x="1220" y="291" class="copy">契约 · 重复 · 泄漏</text>
   <path d="M238 270H286" class="line"/><path d="M470 270H500" class="line"/><path d="M680 270H732" class="line"/><path d="M922 270H970" class="line"/><path d="M1160 270H1190" class="line"/>
 
   <rect x="1050" y="430" width="300" height="106" rx="15" fill="#ECFDF5" stroke="#16A34A" stroke-width="2"/>
-  <text x="1074" y="466" class="head">训练候选与分桶清单</text><text x="1074" y="496" class="copy">样本 · 模板 · 配方版本</text><text x="1074" y="522" class="copy">长度桶 · 有效监督量 · 准入证据</text>
+  <text x="1074" y="466" class="head">SFT 准入清单</text><text x="1074" y="496" class="copy">样本 · 来源 · 两类指纹</text><text x="1074" y="522" class="copy">交给模板与标签构造</text>
   <rect x="430" y="430" width="360" height="106" rx="15" fill="#FFF1F2" stroke="#DC2626" stroke-width="2"/>
-  <text x="454" y="466" class="head">拒绝与修复记录</text><text x="454" y="496" class="copy">缺失字段 · 重复 · 污染 · 监督不足</text><text x="454" y="522" class="copy">保留样本身份、阈值和失败阶段</text>
+  <text x="454" y="466" class="head">拒绝与修复记录</text><text x="454" y="496" class="copy">契约失败 · 重复身份 · 内容重复</text><text x="454" y="522" class="copy">评测泄漏 · 来源与失败阶段</text>
   <path d="M1280 340V430" class="line"/>
   <path d="M590 340V366H540V430" class="reject"/>
   <path d="M827 326V384H610V430" class="reject"/>
