@@ -17,7 +17,7 @@
   <text x="82" y="150" class="column">数据对象</text><text x="340" y="150" class="column">学习信号</text><text x="620" y="150" class="column">模型与系统状态</text><text x="926" y="150" class="column">独立证据</text>
 
   <rect x="76" y="172" width="204" height="108" rx="15" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/>
-  <text x="96" y="204" class="label">监督样本</text><text x="96" y="232" class="copy">提示 / 回答 · 对话模板</text><text x="96" y="256" class="copy">切分 · 去重 · 去污染</text>
+  <text x="96" y="204" class="label">监督样本</text><text x="96" y="232" class="copy">必需字段 · 输入 / 样本指纹</text><text x="96" y="256" class="copy">切分隔离 · 重复与冲突</text>
   <rect x="332" y="172" width="224" height="108" rx="15" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
   <text x="352" y="204" class="label">标签与 SFT 损失</text><text x="352" y="232" class="copy">回复边界 · 有效监督词元</text><text x="352" y="256" class="copy">微批次 · 有效更新</text>
   <rect x="608" y="172" width="242" height="108" rx="15" fill="#F3E8FF" stroke="#9333EA" stroke-width="2"/>
@@ -53,7 +53,7 @@
   <rect x="906" y="310" width="294" height="108" rx="15" fill="#ECFDF5" stroke="#16A34A" stroke-width="2"/>
   <text x="928" y="342" class="label">偏好与安全证据</text><text x="928" y="370" class="copy">评审一致性 · 胜率 · 安全</text><text x="928" y="394" class="copy">参考策略版本 · 失败切片</text>
   <rect x="906" y="448" width="294" height="108" rx="15" fill="#ECFDF5" stroke="#16A34A" stroke-width="2"/>
-  <text x="928" y="480" class="label">奖励可靠性证据</text><text x="928" y="508" class="copy">校准误差 · 域外泛化</text><text x="928" y="532" class="copy">奖励投机 · 过度优化曲线</text>
+  <text x="928" y="480" class="label">奖励模型验证</text><text x="928" y="508" class="copy">留出排序 · 校准误差</text><text x="928" y="532" class="copy">奖励投机 · 独立质量</text>
   <rect x="906" y="586" width="294" height="108" rx="15" fill="#ECFDF5" stroke="#16A34A" stroke-width="2"/>
   <text x="928" y="618" class="label">在线系统证据</text><text x="928" y="646" class="copy">质量 · 显存 · 时间 · 成本</text><text x="928" y="670" class="copy">策略版本 · 恢复与回滚记录</text>
   <path d="M850 226H898" class="line"/><path d="M850 364H898" class="line"/><path d="M850 502H898" class="line"/><path d="M850 640H898" class="line"/>

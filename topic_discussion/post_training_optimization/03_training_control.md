@@ -1,6 +1,6 @@
 # 03 · 训练控制与低资源 SFT
 
-训练能运行不等于一次有效更新已经被正确控制。学习率调度器、梯度累积、混合精度、验证频率和恢复状态共同决定训练曲线是否可解释。第 11–12 节提供通用训练机制，本页只把这些状态接入 SFT、LoRA 与 QLoRA 的同口径比较。
+训练能运行不等于一次有效更新已经被正确控制。学习率调度器、梯度累积、混合精度、验证频率和恢复状态共同决定训练曲线是否可解释。比较 SFT、LoRA 与 QLoRA 时，必须固定有效批量、优化器步、调度器推进时机、数据切分和验证协议。
 
 ## 先对齐有效更新
 
@@ -20,8 +20,8 @@
 
 | 工具层 | 适合解决的问题 | 不应替代的证据 |
 |:---|:---|:---|
-| Transformers `Trainer` | 建立标准训练、验证、保存与恢复闭环 | 标签边界、有效监督 Token 和实际更新步 |
-| Accelerate | 保留自定义循环，同时接入混合精度与多设备执行 | 批量口径、调度器推进时机和恢复一致性 |
+| Transformers `Trainer` | 组织训练、验证、保存与恢复 | 标签边界、有效监督 Token 和实际更新步 |
+| Accelerate | 保留自定义循环，同时接入混合精度与多设备执行 | 有效批量、调度器推进时机和恢复一致性 |
 | TRL | 复用 SFT、奖励建模、DPO 与 GRPO 等后训练器 | 数据格式、参考策略、奖励定义和独立评测 |
 | PEFT | 管理 LoRA 等适配器的注入、训练、保存与加载 | 目标模块、秩、缩放系数和底座模型身份 |
 | LLaMA-Factory / Axolotl | 用配置文件编排数据、训练方法和分布式后端 | 配置展开后的真实参数与产物清单 |
@@ -34,6 +34,4 @@
 | 梯度累积 | 单次微批次与更新节奏 | 有效批量、优化器步、调度器步 |
 | AMP | 前向 / 反向计算数据类型 | FP16 / BF16、缩放器、溢出或失败状态 |
 
-## 验证与出口
-
-[12 优化器与调度](../../02_PyTorch_Algorithms/12_Optimizer_Updates_and_Learning_Rate_Scheduling.ipynb)、[11 梯度累积](../../02_PyTorch_Algorithms/11_Gradient_Accumulation.ipynb) 和 [15 端到端微调](../../02_PyTorch_Algorithms/15_End_to_End_Fine_Tuning_Experiment.ipynb) 提供机制与实验入口。训练状态机制回补[反向传播与训练机制](../backpropagation_training_mechanism/intro.md)。工具细节查阅 [Transformers Trainer](https://huggingface.co/docs/transformers/en/main_classes/trainer)、[Accelerate](https://huggingface.co/docs/accelerate/index)、[TRL](https://huggingface.co/docs/trl/index)、[PEFT](https://huggingface.co/docs/peft/index)、[LLaMA-Factory](https://llamafactory.readthedocs.io/en/latest/)、[Axolotl](https://docs.axolotl.ai/) 与 [Unsloth](https://unsloth.ai/docs) 官方文档。
+先用[梯度累积练习](../../02_PyTorch_Algorithms/11_Gradient_Accumulation.ipynb)核对微批次、优化器步和有效批量，再用[优化器与调度练习](../../02_PyTorch_Algorithms/12_Optimizer_Updates_and_Learning_Rate_Scheduling.ipynb)确认调度器只随真实更新推进。控制项固定后，进入[SFT 基线与交付](./04_end_to_end_experiment.md)，检查保存、恢复和独立评测是否仍属于同一训练线。计算图、激活与训练状态的生命周期见[反向传播与训练机制](../backpropagation_training_mechanism/intro.md)；框架参数以 [Transformers Trainer](https://huggingface.co/docs/transformers/en/main_classes/trainer)、[Accelerate](https://huggingface.co/docs/accelerate/index)和[TRL](https://huggingface.co/docs/trl/index)官方文档为准。

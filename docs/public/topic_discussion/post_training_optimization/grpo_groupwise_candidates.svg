@@ -1,15 +1,71 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
-  <title id="title">GRPO 组内候选与相对优势</title><desc id="desc">同一提示生成多个候选，经奖励和组内归一化形成相对优势，再进入受约束更新和独立评测。</desc>
-  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#475569"/></marker><style>.t{font:700 25px Arial,sans-serif;fill:#172033}.s{font:15px Arial,sans-serif;fill:#475569}.h{font:700 16px Arial,sans-serif;fill:#172033}.c{font:14px Arial,sans-serif;fill:#334155}.l{fill:none;stroke:#475569;stroke-width:2.4;marker-end:url(#a)}</style></defs>
-  <rect width="1200" height="430" fill="#F8FAFC"/><rect x="28" y="24" width="1144" height="382" rx="24" fill="#FFF" stroke="#CBD5E1" stroke-width="2"/>
-  <text x="62" y="68" class="t">GRPO：候选只在同一提示的组内形成相对信号</text><text x="62" y="96" class="s">候选数量增加不自动提高质量；奖励离散度、排序可靠性和零方差保护必须同时检查。</text>
-  <rect x="62" y="154" width="174" height="120" rx="15" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/><text x="84" y="188" class="h">同一提示</text><text x="84" y="218" class="c">固定任务与采样条件</text><text x="84" y="244" class="c">生成候选组</text>
-  <rect x="286" y="108" width="170" height="62" rx="13" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/><text x="308" y="146" class="h">候选 A · reward</text>
-  <rect x="286" y="184" width="170" height="62" rx="13" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/><text x="308" y="222" class="h">候选 B · reward</text>
-  <rect x="286" y="260" width="170" height="62" rx="13" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/><text x="308" y="298" class="h">候选 C · reward</text>
-  <rect x="526" y="154" width="210" height="120" rx="15" fill="#FFF7ED" stroke="#EA580C" stroke-width="2"/><text x="548" y="188" class="h">组内归一化</text><text x="548" y="218" class="c">均值 · 方差 · 并列</text><text x="548" y="244" class="c">形成正 / 负 advantage</text>
-  <rect x="806" y="154" width="160" height="120" rx="15" fill="#F3E8FF" stroke="#9333EA" stroke-width="2"/><text x="828" y="188" class="h">策略更新</text><text x="828" y="218" class="c">ratio · clip · KL</text><text x="828" y="244" class="c">零方差不更新</text>
-  <rect x="1016" y="154" width="124" height="120" rx="15" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/><text x="1038" y="188" class="h">独立复测</text><text x="1038" y="218" class="c">任务质量</text><text x="1038" y="244" class="c">奖励漏洞</text>
-  <path d="M236 214H264V139H278" class="l"/><path d="M236 214H278" class="l"/><path d="M236 214H264V291H278" class="l"/>
-  <path d="M456 139H492V214H518" class="l"/><path d="M456 215H518" class="l"/><path d="M456 291H492V214H518" class="l"/><path d="M736 214H798" class="l"/><path d="M966 214H1008" class="l"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="600" viewBox="0 0 1280 600" role="img" aria-labelledby="title desc">
+  <title id="title">GRPO 组内比较与 RLVR 可验证奖励</title>
+  <desc id="desc">同一提示生成候选组，奖励模型、标准答案、测试或环境终态提供反馈，无法判定状态单独记录；有效奖励经组内归一化形成优势，进入受约束更新与独立评测。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#475569"/></marker>
+    <marker id="feedbackArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#0284C7"/></marker>
+    <style>
+      .title{font:700 26px Arial,sans-serif;fill:#172033}.sub{font:15px Arial,sans-serif;fill:#475569}
+      .head{font:700 17px Arial,sans-serif;fill:#172033}.body{font:14px Arial,sans-serif;fill:#334155}.small{font:13px Arial,sans-serif;fill:#475569}
+      .line{fill:none;stroke:#475569;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrow)}
+      .feedback{fill:none;stroke:#0284C7;stroke-width:2.4;stroke-dasharray:7 6;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#feedbackArrow)}
+    </style>
+  </defs>
+  <rect width="1280" height="600" fill="#F8FAFC"/>
+  <rect x="28" y="24" width="1224" height="552" rx="24" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="62" y="70" class="title">GRPO 与 RLVR：从候选组到可验证的相对优势</text>
+  <text x="62" y="99" class="sub">GRPO 规定组内比较方式；RLVR 提供可复查的奖励来源；超时和无法判定不能静默记为零分。</text>
+
+  <rect x="52" y="176" width="154" height="118" rx="15" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/>
+  <text x="74" y="211" class="head">当前策略</text>
+  <text x="74" y="240" class="body">对同一提示采样</text>
+  <text x="74" y="266" class="body">固定策略版本</text>
+
+  <rect x="246" y="151" width="176" height="168" rx="15" fill="#F8FAFC" stroke="#64748B" stroke-width="2"/>
+  <text x="268" y="184" class="head">候选组</text>
+  <rect x="266" y="201" width="136" height="30" rx="7" fill="#DCFCE7" stroke="#16A34A" stroke-width="1.6"/>
+  <text x="282" y="222" class="small">候选 A</text>
+  <rect x="266" y="241" width="136" height="30" rx="7" fill="#FEF3C7" stroke="#D97706" stroke-width="1.6"/>
+  <text x="282" y="262" class="small">候选 B</text>
+  <rect x="266" y="281" width="136" height="30" rx="7" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.6"/>
+  <text x="282" y="302" class="small">候选 C …</text>
+
+  <rect x="462" y="140" width="230" height="190" rx="15" fill="#FFF7ED" stroke="#EA580C" stroke-width="2"/>
+  <text x="484" y="173" class="head">奖励来源</text>
+  <text x="484" y="205" class="body">人类偏好：奖励模型</text>
+  <text x="484" y="234" class="body">数学任务：标准答案</text>
+  <text x="484" y="263" class="body">代码任务：测试结果</text>
+  <text x="484" y="292" class="body">交互任务：环境终态</text>
+  <text x="484" y="316" class="small">规则版本与失败原因随结果保存</text>
+
+  <rect x="732" y="151" width="184" height="168" rx="15" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
+  <text x="754" y="184" class="head">奖励结果</text>
+  <text x="754" y="216" class="body">有效：rA、rB、rC</text>
+  <text x="754" y="245" class="body">超时：单独记录</text>
+  <text x="754" y="274" class="body">无法判定：不冒充 0</text>
+  <text x="754" y="300" class="small">先检查覆盖率与同分率</text>
+
+  <rect x="956" y="151" width="260" height="168" rx="15" fill="#F3E8FF" stroke="#9333EA" stroke-width="2"/>
+  <text x="978" y="184" class="head">组内归一化</text>
+  <text x="978" y="216" class="body">有效候选计算均值与方差</text>
+  <text x="978" y="245" class="body">高于组内基线 → 正优势</text>
+  <text x="978" y="274" class="body">低于组内基线 → 负优势</text>
+  <text x="978" y="300" class="small">零方差组不产生更新信号</text>
+
+  <rect x="790" y="408" width="166" height="104" rx="15" fill="#E0E7FF" stroke="#4F46E5" stroke-width="2"/>
+  <text x="812" y="442" class="head">受约束更新</text>
+  <text x="812" y="471" class="body">策略比率与裁剪</text>
+  <text x="812" y="496" class="body">KL 与版本记录</text>
+  <rect x="996" y="408" width="220" height="104" rx="15" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
+  <text x="1018" y="442" class="head">独立评测</text>
+  <text x="1018" y="471" class="body">任务质量 · 安全</text>
+  <text x="1018" y="496" class="body">失败切片 · 奖励漏洞</text>
+
+  <path d="M206 235H238" class="line"/>
+  <path d="M422 235H454" class="line"/>
+  <path d="M692 235H724" class="line"/>
+  <path d="M916 235H948" class="line"/>
+  <path d="M1086 319V370H873V400" class="line"/>
+  <path d="M956 460H988" class="line"/>
+  <path d="M790 460H129V294" class="feedback"/>
 </svg>
