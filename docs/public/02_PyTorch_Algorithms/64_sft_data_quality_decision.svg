@@ -1,19 +1,64 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="520" viewBox="0 0 1160 520" role="img" aria-labelledby="title desc">
-  <title id="title">SFT 数据质量的准入决策</title><desc id="desc">根据字段完整性、监督范围、重复长度和任务样例检查，把数据分为准入、修复或拒绝。</desc>
-  <style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;fill:#0f172a}.title{font-size:25px;font-weight:700}.h{font-size:18px;font-weight:700}.b{font-size:15px;fill:#334155}.head{font-size:16px;font-weight:700;fill:#fff}.cell{fill:#fff;stroke:#cbd5e1;stroke-width:1.5}.ok{fill:#ecfdf5;stroke:#34d399;stroke-width:2}.fix{fill:#fffbeb;stroke:#f59e0b;stroke-width:2}.bad{fill:#fff1f2;stroke:#fb7185;stroke-width:2}</style>
-  <rect width="1160" height="520" fill="#f8fafc"/><text x="580" y="42" text-anchor="middle" class="title">SFT 数据质量：检查结果如何变成准入动作</text>
-  <rect x="70" y="82" width="1020" height="48" fill="#475569" rx="10"/><text x="205" y="113" text-anchor="middle" class="head">检查项</text><text x="455" y="113" text-anchor="middle" class="head">观察内容</text><text x="720" y="113" text-anchor="middle" class="head">典型问题</text><text x="995" y="113" text-anchor="middle" class="head">动作</text>
-  <rect x="70" y="130" width="270" height="82" class="cell"/><text x="205" y="164" text-anchor="middle" class="h">字段与格式</text><text x="205" y="190" text-anchor="middle" class="b">instruction / response</text>
-  <rect x="340" y="130" width="230" height="82" class="cell"/><text x="455" y="164" text-anchor="middle" class="h">结构完整性</text><text x="455" y="190" text-anchor="middle" class="b">字段、类型、空值</text>
-  <rect x="570" y="130" width="255" height="82" class="cell"/><text x="697" y="164" text-anchor="middle" class="h">缺字段 / 空回答</text><text x="697" y="190" text-anchor="middle" class="b">模板不一致</text>
-  <rect x="825" y="130" width="265" height="82" class="fix"/><text x="957" y="177" text-anchor="middle" class="h">修复后复查</text>
-  <rect x="70" y="212" width="270" height="82" class="cell"/><text x="205" y="246" text-anchor="middle" class="h">监督范围</text><text x="205" y="272" text-anchor="middle" class="b">prompt / response / mask</text>
-  <rect x="340" y="212" width="230" height="82" class="cell"/><text x="455" y="246" text-anchor="middle" class="h">可训练性</text><text x="455" y="272" text-anchor="middle" class="b">是否留下监督 token</text>
-  <rect x="570" y="212" width="255" height="82" class="cell"/><text x="697" y="246" text-anchor="middle" class="h">空监督 / 过长</text><text x="697" y="272" text-anchor="middle" class="b">截断后无目标</text>
-  <rect x="825" y="212" width="265" height="82" class="bad"/><text x="957" y="259" text-anchor="middle" class="h">返回数据工程</text>
-  <rect x="70" y="294" width="270" height="82" class="cell"/><text x="205" y="328" text-anchor="middle" class="h">重复与样例</text><text x="205" y="354" text-anchor="middle" class="b">重复率、任务覆盖</text>
-  <rect x="340" y="294" width="230" height="82" class="cell"/><text x="455" y="328" text-anchor="middle" class="h">代表性</text><text x="455" y="354" text-anchor="middle" class="b">抽样检查回答</text>
-  <rect x="570" y="294" width="255" height="82" class="cell"/><text x="697" y="328" text-anchor="middle" class="h">重复过高 / 任务偏斜</text><text x="697" y="354" text-anchor="middle" class="b">样例质量不稳定</text>
-  <rect x="825" y="294" width="265" height="82" class="ok"/><text x="957" y="341" text-anchor="middle" class="h">准入 SFT 项目</text>
-  <text x="580" y="440" text-anchor="middle" class="h">CPU 阶段输出的是数据准入证据；模型效果仍需后续训练和评测验证</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">SFT 数据准入与版本晋级判断</title>
+  <desc id="desc">先依据阻断项和可修复项确定拒绝、调优或接受，再判断清洗后的同源数据版本能否晋级。</desc>
+  <defs>
+    <marker id="neutral" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#475569"/></marker>
+    <marker id="red" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#dc2626"/></marker>
+    <marker id="amber" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#d97706"/></marker>
+    <marker id="green" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#16a34a"/></marker>
+    <style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;fill:#0f172a}.t{font-size:28px;font-weight:700}.h{font-size:19px;font-weight:700}.b{font-size:15px;fill:#334155}.neutral,.red,.amber,.green{fill:none;stroke-width:3}.neutral{stroke:#475569;marker-end:url(#neutral)}.red{stroke:#dc2626;marker-end:url(#red)}.amber{stroke:#d97706;marker-end:url(#amber)}.green{stroke:#16a34a;marker-end:url(#green)}</style>
+  </defs>
+  <rect width="1200" height="520" fill="#f8fafc"/>
+  <text x="600" y="43" text-anchor="middle" class="t">准入状态与清洗版本如何晋级</text>
+
+  <rect x="40" y="100" width="210" height="90" rx="14" fill="#dbeafe" stroke="#60a5fa" stroke-width="2"/>
+  <text x="145" y="136" text-anchor="middle" class="h">审计事实</text>
+  <text x="145" y="165" text-anchor="middle" class="b">失败项与固定阈值</text>
+  <path class="neutral" d="M250 145 H270"/>
+
+  <polygon points="400,90 520,145 400,200 280,145" fill="#fff7ed" stroke="#fb923c" stroke-width="2"/>
+  <text x="400" y="139" text-anchor="middle" class="h">存在阻断项？</text>
+  <text x="400" y="164" text-anchor="middle" class="b">空监督 / 泄漏 / 评测缺失</text>
+
+  <rect x="280" y="250" width="240" height="90" rx="14" fill="#fee2e2" stroke="#f87171" stroke-width="2"/>
+  <text x="400" y="285" text-anchor="middle" class="h">reject｜拒绝</text>
+  <text x="400" y="314" text-anchor="middle" class="b">修复阻断项并重新审计</text>
+  <path class="red" d="M400 200 V240"/>
+  <text x="416" y="225" class="b">是</text>
+
+  <polygon points="700,90 820,145 700,200 580,145" fill="#fefce8" stroke="#eab308" stroke-width="2"/>
+  <text x="700" y="139" text-anchor="middle" class="h">可修复项超限？</text>
+  <text x="700" y="164" text-anchor="middle" class="b">重复 / 截断 / 覆盖不足</text>
+  <path class="neutral" d="M520 145 H570"/>
+  <text x="545" y="132" text-anchor="middle" class="b">否</text>
+
+  <rect x="580" y="235" width="240" height="80" rx="14" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+  <text x="700" y="267" text-anchor="middle" class="h">tune｜调优</text>
+  <text x="700" y="294" text-anchor="middle" class="b">清洗或调整长度后重新审计</text>
+  <path class="amber" d="M700 200 V225"/>
+  <text x="716" y="219" class="b">是</text>
+
+  <rect x="860" y="100" width="250" height="90" rx="14" fill="#dcfce7" stroke="#4ade80" stroke-width="2"/>
+  <text x="985" y="136" text-anchor="middle" class="h">accept｜接受</text>
+  <text x="985" y="165" text-anchor="middle" class="b">冻结训练快照</text>
+  <path class="green" d="M820 145 H850"/>
+  <text x="835" y="132" text-anchor="middle" class="b">否</text>
+
+  <polygon points="700,330 835,400 700,470 565,400" fill="#ecfdf5" stroke="#22c55e" stroke-width="2"/>
+  <text x="700" y="383" text-anchor="middle" class="h">清洗版本可晋级？</text>
+  <text x="700" y="408" text-anchor="middle" class="b">同源 · 同规则 · 评测覆盖不降</text>
+  <text x="700" y="430" text-anchor="middle" class="b">保留率与风险检查通过</text>
+  <path class="neutral" d="M700 315 V320"/>
+
+  <rect x="270" y="355" width="250" height="90" rx="14" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+  <text x="395" y="390" text-anchor="middle" class="h">保留旧版本</text>
+  <text x="395" y="419" text-anchor="middle" class="b">继续修复并重新审计</text>
+  <path class="amber" d="M565 400 H530"/>
+  <text x="547" y="386" text-anchor="middle" class="b">否</text>
+
+  <rect x="880" y="355" width="260" height="90" rx="14" fill="#dcfce7" stroke="#4ade80" stroke-width="2"/>
+  <text x="1010" y="390" text-anchor="middle" class="h">新版本晋级</text>
+  <text x="1010" y="419" text-anchor="middle" class="b">替换旧快照并交接训练</text>
+  <path class="green" d="M835 400 H870"/>
+  <text x="852" y="386" text-anchor="middle" class="b">是</text>
 </svg>
