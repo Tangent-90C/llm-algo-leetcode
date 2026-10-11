@@ -1,42 +1,85 @@
-<svg width="1500" height="470" viewBox="0 0 1500 470" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <title>上下文窗口预算与 Packing</title>
-  <desc>目标窗口先扣除模板和回答预留，按监督完整性区分通过与溢出，再把通过准入的短样本装入 Packing 容器。</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="600" viewBox="0 0 1500 600" role="img" aria-labelledby="title desc">
+  <title id="title">窗口准入与边界隔离序列拼接</title>
+  <desc id="desc">完整 Token 账本先与目标窗口比较；溢出样本继续检查监督保留量和损失比例，只有完整保留或受控截断的样本才能进入边界隔离序列拼接。</desc>
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#F8FAFC"/>
+      <stop offset="100%" stop-color="#F5F3FF"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0 0L10 5L0 10Z" fill="#475569"/>
     </marker>
+    <style>
+      .title{font:700 30px "Inter","Noto Sans SC",sans-serif;fill:#0F172A}
+      .sub{font:500 17px "Inter","Noto Sans SC",sans-serif;fill:#475569}
+      .label{font:700 18px "Inter","Noto Sans SC",sans-serif;fill:#111827}
+      .small{font:500 14px "Inter","Noto Sans SC",sans-serif;fill:#334155}
+      .box{stroke-width:2.5}
+      .arrow{stroke:#475569;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+      .branch{font:700 15px "Inter","Noto Sans SC",sans-serif;fill:#475569}
+    </style>
   </defs>
-  <style>text{font-family:"Noto Sans CJK SC","Microsoft YaHei","Droid Sans Fallback",sans-serif!important}</style>
-  <rect width="1500" height="470" rx="24" fill="#F8FAFC"/>
-  <text x="62" y="64" fill="#0F172A" font-family="Noto Sans CJK SC, sans-serif" font-size="30" font-weight="700">窗口预算与样本拼接共用同一 Token 账本</text>
-  <text x="62" y="98" fill="#475569" font-family="Noto Sans CJK SC, sans-serif" font-size="18">先判断单条样本能否保留有效监督，再组织通过准入的样本；样本拼接不能修复已经溢出的样本。</text>
+  <rect width="1500" height="600" rx="24" fill="url(#bg)"/>
+  <text x="55" y="58" class="title">先决定样本如何进入窗口，再进行序列拼接</text>
+  <text x="55" y="90" class="sub">序列拼接只组织已通过窗口检查的样本，不能补回截断时丢失的监督目标。</text>
 
-  <rect x="62" y="152" width="286" height="126" rx="18" fill="#DBEAFE" stroke="#2563EB" stroke-width="2"/>
-  <text x="92" y="188" fill="#1E3A8A" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">目标窗口</text>
-  <text x="92" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">模板 + 提示 + 回答 + EOS</text>
-  <text x="92" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">总量不得超过容量</text>
+  <rect x="55" y="130" width="255" height="110" rx="17" class="box" fill="#EFF6FF" stroke="#3B82F6"/>
+  <text x="182" y="168" text-anchor="middle" class="label">单样本 Token 账本</text>
+  <text x="182" y="198" text-anchor="middle" class="small">模板 + 提示 + 回答 + EOS</text>
+  <text x="182" y="222" text-anchor="middle" class="small">记录原始监督 Token 数</text>
 
-  <rect x="422" y="152" width="286" height="126" rx="18" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/>
-  <text x="452" y="188" fill="#92400E" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">单样本总量</text>
-  <text x="452" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">模板 + 提示 + 真实回答</text>
-  <text x="452" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">按每条样本独立核算</text>
+  <path d="M365 185L455 120L545 185L455 250Z" fill="#F5F3FF" stroke="#8B5CF6" stroke-width="2.5"/>
+  <text x="455" y="179" text-anchor="middle" class="label">完整长度</text>
+  <text x="455" y="206" text-anchor="middle" class="small">是否不超过窗口 C？</text>
 
-  <rect x="782" y="152" width="286" height="126" rx="18" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
-  <text x="812" y="188" fill="#166534" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">监督完整性准入</text>
-  <text x="812" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">通过：回答目标仍完整</text>
-  <text x="812" y="250" fill="#991B1B" font-family="Noto Sans CJK SC, sans-serif" font-size="17">溢出：截断、切块或调窗</text>
+  <rect x="620" y="125" width="220" height="100" rx="17" class="box" fill="#ECFDF5" stroke="#10B981"/>
+  <text x="730" y="164" text-anchor="middle" class="label">完整保留</text>
+  <text x="730" y="194" text-anchor="middle" class="small">输入与监督均不截断</text>
 
-  <rect x="1142" y="152" width="296" height="126" rx="18" fill="#EDE9FE" stroke="#7C3AED" stroke-width="2"/>
-  <text x="1172" y="188" fill="#5B21B6" font-family="Noto Sans CJK SC, sans-serif" font-size="22" font-weight="700">样本拼接容器</text>
-  <text x="1172" y="222" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">仅组织通过准入的短样本</text>
-  <text x="1172" y="250" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="17">样本边界与监督区独立</text>
+  <rect x="385" y="315" width="260" height="105" rx="17" class="box" fill="#FFF7ED" stroke="#F59E0B"/>
+  <text x="515" y="353" text-anchor="middle" class="label">计算截断后的监督</text>
+  <text x="515" y="382" text-anchor="middle" class="small">保留 Token 数与损失比例</text>
+  <text x="515" y="405" text-anchor="middle" class="small">两项门槛分别记录</text>
 
-  <path d="M348 215H410" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
-  <path d="M708 215H770" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
-  <path d="M1068 215H1130" stroke="#475569" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M700 367L790 302L880 367L790 432Z" fill="#FEF3C7" stroke="#D97706" stroke-width="2.5"/>
+  <text x="790" y="361" text-anchor="middle" class="label">两项门槛</text>
+  <text x="790" y="388" text-anchor="middle" class="small">是否同时满足？</text>
 
-  <rect x="238" y="340" width="1024" height="76" rx="18" fill="#FFFFFF" stroke="#94A3B8" stroke-width="2"/>
-  <text x="278" y="374" fill="#0F172A" font-family="Noto Sans CJK SC, sans-serif" font-size="20" font-weight="700">检查顺序</text>
-  <text x="398" y="374" fill="#334155" font-family="Noto Sans CJK SC, sans-serif" font-size="18">监督是否保留 → 容量是否满足 → 样本是否守恒 → 样本拼接利用率是否改善</text>
-  <text x="398" y="402" fill="#64748B" font-family="Noto Sans CJK SC, sans-serif" font-size="16">任何一步失败都先修正数据或窗口，不把问题隐藏在更大的批次中。</text>
+  <rect x="930" y="295" width="220" height="105" rx="17" class="box" fill="#ECFDF5" stroke="#10B981"/>
+  <text x="1040" y="334" text-anchor="middle" class="label">受控截断</text>
+  <text x="1040" y="363" text-anchor="middle" class="small">保留足量监督</text>
+  <text x="1040" y="386" text-anchor="middle" class="small">记录被删除的 Token</text>
+
+  <rect x="930" y="445" width="220" height="100" rx="17" class="box" fill="#FEF2F2" stroke="#EF4444"/>
+  <text x="1040" y="484" text-anchor="middle" class="label">拒绝或更长窗口</text>
+  <text x="1040" y="514" text-anchor="middle" class="small">不进入当前训练窗口</text>
+
+  <rect x="1205" y="120" width="240" height="100" rx="17" class="box" fill="#ECFEFF" stroke="#0891B2"/>
+  <text x="1325" y="159" text-anchor="middle" class="label">通过检查的样本</text>
+  <text x="1325" y="189" text-anchor="middle" class="small">固定样本身份与监督标签</text>
+
+  <rect x="1205" y="295" width="240" height="105" rx="17" class="box" fill="#EDE9FE" stroke="#7C3AED"/>
+  <text x="1325" y="334" text-anchor="middle" class="label">边界隔离序列拼接</text>
+  <text x="1325" y="363" text-anchor="middle" class="small">在容量内组合多条样本</text>
+  <text x="1325" y="386" text-anchor="middle" class="small">不改变各样本监督顺序</text>
+
+  <rect x="1205" y="440" width="240" height="105" rx="17" class="box" fill="#FFFFFF" stroke="#64748B"/>
+  <text x="1325" y="477" text-anchor="middle" class="label">拼接结果检查</text>
+  <text x="1325" y="506" text-anchor="middle" class="small">容量、标签与位置正确</text>
+  <text x="1325" y="529" text-anchor="middle" class="small">跨样本注意力不可见</text>
+
+  <path d="M310 185H365" class="arrow"/>
+  <path d="M545 185H580V175H620" class="arrow"/>
+  <text x="577" y="152" text-anchor="middle" class="branch">是</text>
+  <path d="M455 250V315" class="arrow"/>
+  <text x="475" y="286" class="branch">否</text>
+  <path d="M645 367H700" class="arrow"/>
+  <path d="M880 367H905V347.5H930" class="arrow"/>
+  <text x="900" y="330" text-anchor="middle" class="branch">是</text>
+  <path d="M790 432V495H930" class="arrow"/>
+  <text x="812" y="477" class="branch">否</text>
+  <path d="M840 175H1205" class="arrow"/>
+  <path d="M1150 347.5H1205" class="arrow"/>
+  <path d="M1325 220V295" class="arrow"/>
+  <path d="M1325 400V440" class="arrow"/>
 </svg>
