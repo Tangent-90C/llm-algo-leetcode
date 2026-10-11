@@ -14,9 +14,9 @@
 | 去重后数据显著变少 | duplicate group、阈值与长尾覆盖 | 模板误判、近似阈值过强、同源内容被误删 | [02 清洗、去重与质量证据链](./02_cleaning_quality_chain.md) |
 | 训练结果很好但独立评测失真 | split、来源、时间与相似样本 | 评测泄漏、污染或重复数据 | [02 清洗、去重与质量证据链](./02_cleaning_quality_chain.md) |
 | loss 下降但目标能力没有提升 | schema、labels、数据配比与评测协议 | 模板错误、样本单一、任务与评测不匹配 | [05 后训练数据接口与诊断](./05_post_training_data_interfaces.md) |
-| 领域能力提高、通用能力回退 | 来源/长度/难度比例与采样 | 数据配方失衡、课程顺序不合适 | [03 数据配比与课程学习](./03_data_mixture_and_curriculum.md) |
+| 领域能力提高、通用能力回退 | 来源、长度、难度比例与采样 | 数据配方失衡、难度递进顺序不合适 | [03 数据配比与难度递进](./03_data_mixture_and_curriculum.md) |
 | RAG 回答不可靠 | 文档结构、chunk、元数据与索引输入 | 解析不完整、切分破坏语义、知识版本陈旧 | [00 数据生命周期与消费者契约](./00_data_lifecycle_and_contract.md) → 推理优化 |
-| 训练吞吐不稳定 | 长度、packing、DataLoader 与 H2D 阶段 | 输入分布变化、batch 准备或搬运等待 | [03 数据配比与课程学习](./03_data_mixture_and_curriculum.md) → 性能优化 |
+| 训练吞吐不稳定 | 长度、样本打包、数据加载与主机—设备搬运阶段 | 输入分布变化、批次准备或搬运等待 | [03 数据配比与难度递进](./03_data_mixture_and_curriculum.md) → 性能优化 |
 
 ## 证据层级
 
