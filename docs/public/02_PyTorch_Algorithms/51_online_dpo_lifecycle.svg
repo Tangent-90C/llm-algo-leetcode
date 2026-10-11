@@ -1,18 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
-  <title id="title">在线 DPO 生命周期</title><desc id="desc">在线反馈经过准入和有限更新形成候选，独立评测决定采用、延迟或回滚。</desc>
-  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#475569"/></marker><style>.t{font:700 25px Arial,sans-serif;fill:#172033}.s{font:15px Arial,sans-serif;fill:#475569}.h{font:700 16px Arial,sans-serif;fill:#172033}.c{font:14px Arial,sans-serif;fill:#334155}.l{fill:none;stroke:#475569;stroke-width:2.4;marker-end:url(#a)}.r{fill:none;stroke:#DC2626;stroke-width:2.4;marker-end:url(#a)}</style></defs>
+  <title id="title">在线 DPO 生命周期</title><desc id="desc">在线反馈经过准入和固定窗口更新形成候选，独立评测决定候选成为下一轮基线、保留当前基线、回滚或停止自动更新。</desc>
+  <defs><marker id="a" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker><marker id="ar" viewBox="0 0 10 10" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L10 5L0 10Z" fill="#DC2626"/></marker><style>.t{font:700 25px "Inter","Noto Sans SC",sans-serif;fill:#172033}.s{font:15px "Inter","Noto Sans SC",sans-serif;fill:#475569}.h{font:700 16px "Inter","Noto Sans SC",sans-serif;fill:#172033}.c{font:14px "Inter","Noto Sans SC",sans-serif;fill:#334155}.l{fill:none;stroke:#475569;stroke-width:3.5;marker-end:url(#a)}.r{fill:none;stroke:#DC2626;stroke-width:3.5;marker-end:url(#ar)}</style></defs>
   <rect width="1200" height="430" fill="#F8FAFC"/><rect x="28" y="24" width="1144" height="382" rx="24" fill="#FFF" stroke="#CBD5E1" stroke-width="2"/>
-  <text x="62" y="68" class="t">在线 DPO：反馈先形成候选，再由独立证据决定更新</text><text x="62" y="96" class="s">反馈准入、有限更新、独立复核和恢复路径共同组成闭环。</text>
+  <text x="62" y="68" class="t">在线 DPO：固定窗口生成候选，独立评测决定下一版本</text><text x="62" y="96" class="s">反馈准入固定样本清单，评测结果决定采用、补充证据或恢复检查点。</text>
   <rect x="50" y="151" width="176" height="112" rx="15" fill="#E0F2FE" stroke="#0284C7" stroke-width="2"/><text x="72" y="185" class="h">成对反馈</text><text x="72" y="215" class="c">优选 / 非优选回答</text><text x="72" y="239" class="c">轨迹先转偏好证据</text>
-  <rect x="270" y="151" width="176" height="112" rx="15" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/><text x="292" y="185" class="h">反馈准入</text><text x="292" y="215" class="c">身份 · 时效 · 风险</text><text x="292" y="239" class="c">切分与来源覆盖</text>
-  <rect x="490" y="151" width="176" height="112" rx="15" fill="#F3E8FF" stroke="#9333EA" stroke-width="2"/><text x="512" y="185" class="h">有限更新</text><text x="512" y="215" class="c">固定一轮反馈边界</text><text x="512" y="239" class="c">形成可恢复候选</text>
-  <rect x="710" y="151" width="176" height="112" rx="15" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/><text x="732" y="185" class="h">独立复核</text><text x="732" y="215" class="c">固定基线与评测条件</text><text x="732" y="239" class="c">质量 · 安全 · 稳定性</text>
+  <rect x="270" y="151" width="176" height="112" rx="15" fill="#FEF3C7" stroke="#D97706" stroke-width="2"/><text x="292" y="185" class="h">反馈准入</text><text x="292" y="215" class="c">身份 · 版本差 · 风险</text><text x="292" y="239" class="c">切分隔离与来源 ID</text>
+  <rect x="490" y="151" width="176" height="112" rx="15" fill="#F3E8FF" stroke="#9333EA" stroke-width="2"/><text x="512" y="185" class="h">固定窗口更新</text><text x="512" y="215" class="c">消费稳定样本清单</text><text x="512" y="239" class="c">生成候选检查点</text>
+  <rect x="710" y="151" width="176" height="112" rx="15" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/><text x="732" y="185" class="h">独立评测</text><text x="732" y="215" class="c">固定基线与评测条件</text><text x="732" y="239" class="c">胜率 · 重复通过率 · 安全</text>
   <g data-layout-role="glyph-group">
-    <rect x="958" y="108" width="184" height="62" rx="14" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/><text x="980" y="146" class="h">采用 / 继续观察</text>
-    <rect x="958" y="187" width="184" height="62" rx="14" fill="#FFF7ED" stroke="#EA580C" stroke-width="2"/><text x="980" y="225" class="h">延迟 / 补充证据</text>
-    <rect x="958" y="266" width="184" height="62" rx="14" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/><text x="980" y="304" class="h">回滚 / 停止更新</text>
+    <rect x="958" y="108" width="184" height="62" rx="14" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/><text x="980" y="146" class="h">采用为下一轮基线</text>
+    <rect x="958" y="187" width="184" height="62" rx="14" fill="#FFF7ED" stroke="#EA580C" stroke-width="2"/><text x="980" y="225" class="h">保留基线并补证</text>
+    <rect x="958" y="266" width="184" height="62" rx="14" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/><text x="980" y="304" class="h">回滚 / 停止自动更新</text>
   </g>
-  <path d="M226 207H262" class="l"/><path d="M446 207H482" class="l"/><path d="M666 207H702" class="l"/>
-  <path d="M886 179H918V139H950" class="l"/><path d="M886 207H950" class="l"/><path d="M886 235H918V297H950" class="l"/>
-  <path d="M958 315H908V360H578V271" class="r"/><text x="670" y="385" class="c">安全退化或失败集中：恢复到上一个可验证版本</text>
+  <path d="M226 207H270" class="l"/><path d="M446 207H490" class="l"/><path d="M666 207H710" class="l"/>
+  <path d="M886 179H918V139H958" class="l"/><path d="M886 207H918V218H958" class="l"/><path d="M886 235H918V297H958" class="l"/>
+  <path d="M1050 328V360H578V263" class="r"/><text x="650" y="385" class="c">安全、重复通过率或一票否决测试越界：恢复已通过评测的检查点</text>
 </svg>
