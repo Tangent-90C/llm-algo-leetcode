@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="610" viewBox="0 0 1200 610" role="img" aria-labelledby="title desc">
-  <title id="title">算子优化 Task0 到 Task6 路线</title><desc id="desc">路线先从硬件成本和图融合判断进入 Triton 实现与经典 kernel，再进入 Attention、调优和实现路径决策。</desc>
+  <title id="title">算子优化 Task0 到 Task6 路线</title><desc id="desc">路线先从硬件成本进入计算内核语义和经典数据路径，再判断图级融合、Attention、调优和实现路径。</desc>
   <style>.bg{fill:#f8fafc}.panel{stroke-width:2;rx:20}.box{stroke-width:2;rx:16}.blue{fill:#eff6ff;stroke:#60a5fa}.green{fill:#ecfdf5;stroke:#34d399}.orange{fill:#fff7ed;stroke:#fb923c}.slate{fill:#f1f5f9;stroke:#94a3b8}.line{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#a)}.title{font:700 25px sans-serif;fill:#0f172a}.h{font:700 18px sans-serif;fill:#0f172a}.s{font:14px sans-serif;fill:#475569}.tag{font:700 13px sans-serif;fill:#2563eb}</style>
   <defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0L10 3L0 6z" fill="#64748b"/></marker></defs>
   <rect class="bg" width="1200" height="610" rx="20"/><text x="55" y="55" class="title">算子优化：从成本判断到 kernel 实现与端到端证据</text>
   <rect class="panel" x="35" y="85" width="1130" height="205" fill="#f1f5f9" stroke="#cbd5e1"/><text x="60" y="116" class="tag">建立判断与实现基础</text>
   <rect class="box blue" x="60" y="140" width="240" height="110"/><text x="85" y="177" class="h">Task0 · 成本模型</text><text x="85" y="206" class="s">FLOPs、bytes、roofline</text><text x="85" y="230" class="s">计算 / 访存 / launch</text>
-  <rect class="box green" x="340" y="140" width="240" height="110"/><text x="365" y="177" class="h">Task1 · 图与融合</text><text x="365" y="206" class="s">rewrite、fusion、lowering</text><text x="365" y="230" class="s">减少中间张量与 launch</text>
-  <rect class="box orange" x="620" y="140" width="240" height="110"/><text x="645" y="177" class="h">Task2 · Triton 正确性</text><text x="645" y="206" class="s">block、mask、layout</text><text x="645" y="230" class="s">reference → kernel</text>
-  <rect class="box blue" x="900" y="140" width="240" height="110"/><text x="925" y="177" class="h">Task3 · 经典 Kernel</text><text x="925" y="206" class="s">GEMM、Softmax、Norm</text><text x="925" y="230" class="s">tile、归约、片上复用</text>
+  <rect class="box green" x="340" y="140" width="240" height="110"/><text x="365" y="177" class="h">Task1 · 语义与正确性</text><text x="365" y="206" class="s">分块、掩码、布局</text><text x="365" y="230" class="s">参考实现 → 计算内核</text>
+  <rect class="box orange" x="620" y="140" width="240" height="110"/><text x="645" y="177" class="h">Task2 · 经典数据路径</text><text x="645" y="206" class="s">GEMM、Softmax、归一化</text><text x="645" y="230" class="s">分块、归约、片上复用</text>
+  <rect class="box blue" x="900" y="140" width="240" height="110"/><text x="925" y="177" class="h">Task3 · 图改写与融合</text><text x="925" y="206" class="s">依赖、中间读写、后端</text><text x="925" y="230" class="s">语义等价 → 融合候选</text>
   <path class="line" d="M300 195H340"/><path class="line" d="M580 195H620"/><path class="line" d="M860 195H900"/>
   <rect class="panel" x="35" y="340" width="1130" height="205" fill="#f1f5f9" stroke="#cbd5e1"/><text x="60" y="371" class="tag">面向模型场景调优并证明收益</text>
   <rect class="box orange" x="165" y="395" width="250" height="110"/><text x="190" y="432" class="h">Task4 · Attention 算子</text><text x="190" y="461" class="s">RoPE、FlashAttention、分页</text><text x="190" y="485" class="s">分块算法与读写路径</text>

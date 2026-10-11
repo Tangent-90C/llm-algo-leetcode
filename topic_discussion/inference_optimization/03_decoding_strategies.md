@@ -1,4 +1,4 @@
-# 03. Decoding Strategies | 解码策略
+# 03 解码策略（Decoding Strategies）
 
 ## 学习问题
 

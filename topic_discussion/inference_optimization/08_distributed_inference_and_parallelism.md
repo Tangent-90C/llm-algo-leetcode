@@ -1,4 +1,4 @@
-# 08. Distributed Inference and Parallelism | 分布式推理与并行扩展
+# 08 分布式推理与并行扩展（Distributed Inference and Parallelism）
 
 ## 学习问题
 

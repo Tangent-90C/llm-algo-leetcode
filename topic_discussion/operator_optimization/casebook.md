@@ -1,46 +1,18 @@
 # 算子优化判断手册
 
-> 这份手册按性能现象选择排查方向，不替代 Task0–6 的顺序学习。先确认语义和 workload，再决定进入访存、融合、硬件执行还是 autotune。
+当候选实现已经能运行，但正确性、局部性能或端到端收益不符合预期时，先固定输入形状、布局、数据类型、设备、编译目标和测量协议。至少记录参考输出、误差、预热与重复样本、实际执行路径以及失败输入。
 
-统一判断链是：
+从“现象”列找到最接近的一行，按“先检查什么”采集最小证据；证据不足时不要直接改分块大小、融合范围或自动调优配置。
 
-```text
-现象 → 语义 / 访存 / 执行对象 → 候选机制 → 证据层级 → accept / tune / reject
-```
-
-![算子优化知识地图：语义、数据路径、硬件执行与验证证据](../../docs/public/topic_discussion/operator_optimization/operator_optimization_knowledge_map.svg)
-
-## 按现象选择方向
-
-| 现象 | 优先检查 | 可能机制 | 验证出口 |
-|:---|:---|:---|:---|
-| 输出 shape 对，但数值误差大 | dtype、mask、边界和累加路径 | 精度控制、边界 tile、参考实现对齐 | [02 Kernel 语义与访存](./02_kernel_semantics_and_memory.md) |
-| kernel 能运行但明显变慢 | layout、合并访存、tile 和工作集 | memory coalescing、tile、shared memory | [02 Kernel 语义与访存](./02_kernel_semantics_and_memory.md) |
-| fusion 后 kernel 变慢 | register、shared memory、occupancy | 减少写回与资源压力的权衡 | [03 算子融合](./03_fusion_and_kernel_composition.md) |
-| 图改写后没有进入候选 kernel | lowering、算子覆盖与 fallback | legalization、layout、生成路径 | [03 图级优化与融合](./03_fusion_and_kernel_composition.md) |
-| 某张 GPU 快，另一张 GPU 慢 | dtype、shape、编译目标和硬件资源 | Tensor Core、warp、block、stream | [04 CUDA 执行](./04_cuda_execution_and_hardware_constraints.md) |
-| 不同 backend 给出相反结论 | layout、编译缓存与 runtime 假设 | backend 成本模型、冷/热运行 | [05 成本模型与 Profiling](./05_cost_model_and_profiling.md) |
-| autotune 结果不稳定 | shape 分布、warmup、测量口径 | 配置搜索、分桶、缓存和编译成本 | [05 成本模型与 Profiling](./05_cost_model_and_profiling.md) |
-| kernel 变快但模型不变快 | launch、同步、其他算子或输入管线 | 端到端瓶颈不在当前 kernel | [06 Benchmark 与验证](./06_benchmark_and_project_validation.md) |
-
-## 证据层级
-
-| 证据 | 可以确认什么 | 不能确认什么 |
-|:---|:---|:---|
-| CPU correctness | 语义、shape、边界和误差 | GPU 带宽、真实 kernel 时间 |
-| GPU microbenchmark | 固定 shape 下的 kernel 相对成本 | 模型或服务端到端收益 |
-| profiling trace | 当前 workload 的热点和等待 | 所有 shape 都适用 |
-| workload benchmark | 固定模型与输入下的系统变化 | 其他 GPU 或其他请求分布 |
-
-## 常见决策
-
-- `accept`：语义对齐，目标 workload 上有可重复收益，且编译和维护成本可接受。
-- `tune`：方向合理，但 shape、tile、dtype、调度或证据还不稳定。
-- `reject`：语义不对齐、收益不足，或额外资源与维护成本超过预算。
-
-## 相关入口
-
-- 想顺序学习：回到[算子优化专题入口](./intro.md)。
-- 想沿一个 kernel 项目推进：阅读[算子优化问题链](./walkthrough.md)。
-- 想定位系统热点：转到[性能分析](../performance_analysis/intro.md)。
-- 想理解图变换与 lowering：从[03 图级优化、融合与 Kernel 组合](./03_fusion_and_kernel_composition.md)进入，再按需回查 Part01 · 09 与 Part04 的编译实践。
+| 现象或目标 | 先检查什么 | 最小证据 | 机制入口 | 验证或转交入口 |
+|:---|:---|:---|:---|:---|
+| 输出形状正确但数值误差超限 | 数据类型、掩码、边界分块和累加路径 | 参考输出、最大误差、失败索引与边界输入 | [02 计算内核语义与内存](./02_kernel_semantics_and_memory.md) | [Part 03 · 12 Triton 内存模型与调试](../../03_Triton_Kernels/12_Triton_Memory_Model_and_Debug.ipynb) |
+| 尾部分块越界或遗漏元素 | 程序 ID、有效范围和加载/写回掩码 | 非整除形状、访问范围与逐元素对照 | [02 计算内核语义与内存](./02_kernel_semantics_and_memory.md) | [Part 03 · 01 Triton 向量加法](../../03_Triton_Kernels/01_Triton_Vector_Addition.ipynb) |
+| 计算内核能运行但明显慢于参考实现 | 合并访存、布局、分块工作集和启动次数 | 固定形状的配对延迟、字节量与计算内核轨迹 | [02 计算内核语义与内存](./02_kernel_semantics_and_memory.md) | [Part 03 · 05 自动调优与性能剖析](../../03_Triton_Kernels/05_Triton_Autotune_and_Profiling.ipynb) |
+| 融合后计算内核更慢 | 寄存器、共享内存、占用率和重复计算 | 融合前后中间读写、资源用量与配对延迟 | [03 图级优化、融合与计算内核组合](./03_fusion_and_kernel_composition.md) | [Part 01 · 19 算子融合](../../01_Hardware_Math_and_Systems/19_Operator_Fusion_Introduction.ipynb) |
+| 图已改写但没有进入目标计算内核 | 后端支持、布局转换、动态形状与回退路径 | 编译图、实际计算内核名称和回退原因 | [03 图级优化、融合与计算内核组合](./03_fusion_and_kernel_composition.md) | [性能分析专题](../performance_analysis/intro.md) |
+| 同一实现换到另一张 GPU 后退化 | 编译目标、数据类型能力、分块资源和同步方式 | 两台设备的硬件信息、编译配置与同口径样本 | [04 执行与硬件约束](./04_cuda_execution_and_hardware_constraints.md) | [Part 04 · 21 CUDA / Triton / PyTorch](../../04_CUDA_and_System_Optimization/21_CUDA_vs_Triton_vs_PyTorch.ipynb) |
+| 自动调优结果在重复运行间变化 | 形状分布、预热、编译缓存和候选搜索空间 | 每个候选的重复样本、缓存状态和获胜配置 | [05 成本模型与性能剖析](./05_cost_model_and_profiling.md) | [Part 03 · 05 自动调优与性能剖析](../../03_Triton_Kernels/05_Triton_Autotune_and_Profiling.ipynb) |
+| 微基准变快但模型工作负载不变 | 局部计算内核占比、启动、同步和相邻阶段 | 局部收益、端到端配对结果与关键路径轨迹 | [06 基准测试与项目验证](./06_benchmark_and_project_validation.md) | [性能优化专题](../performance_optimization/intro.md) |
+| 低比特计算内核更快但质量下降 | 量化对象、缩放、累加精度和回退路径 | 质量结果、实际数据类型、计算内核与回退记录 | [04 执行与硬件约束](./04_cuda_execution_and_hardware_constraints.md) | [量化与压缩专题](../quantization_compression/intro.md) |
+| 多卡作业中本地计算内核不是关键路径 | 暴露通信、最慢进程和计算通信重叠 | 各进程时间线、集合通信载荷与暴露时间 | [05 成本模型与性能剖析](./05_cost_model_and_profiling.md) | [通信与并行专题](../communication_parallelism/intro.md) |

@@ -1,4 +1,4 @@
-# 07. Serving Scheduling, PD, and Heterogeneous Routing | Serving 调度、PD 与异构路由
+# 07 服务调度、预填充—解码分离与异构路由（Serving Scheduling, PD, and Heterogeneous Routing）
 
 ## 学习问题
 

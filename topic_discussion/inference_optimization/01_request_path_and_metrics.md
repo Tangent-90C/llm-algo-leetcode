@@ -1,4 +1,4 @@
-# 01. Request Path and Metrics | 请求链路与指标口径
+# 01 请求链路与指标（Request Path and Metrics）
 
 ## 学习问题
 

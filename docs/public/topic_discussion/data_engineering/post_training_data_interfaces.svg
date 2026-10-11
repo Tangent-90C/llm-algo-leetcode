@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">同一数据身份分流为三类后训练接口</title>
+  <desc id="desc">合格数据保留共同身份后，分别进入监督微调、偏好优化和在线强化学习接口，并接受各自的信号检查。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 26px sans-serif; fill: #0f172a; }
+      .label { font: 700 18px sans-serif; fill: #0f172a; }
+      .note { font: 15px sans-serif; fill: #475569; }
+      .line { fill: none; stroke: #475569; stroke-width: 3; marker-end: url(#arrow); }
+      .branch { fill: none; stroke: #64748b; stroke-width: 3; }
+      .node { stroke-width: 2; rx: 16; ry: 16; }
+    </style>
+  </defs>
+  <rect width="1200" height="560" fill="#f8fafc" rx="24"/>
+  <text x="600" y="46" text-anchor="middle" class="title">共同数据身份保留，监督信号分别检查</text>
+
+  <rect x="45" y="205" width="220" height="110" class="node" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="155" y="247" text-anchor="middle" class="label">合格数据版本</text>
+  <text x="155" y="276" text-anchor="middle" class="note">来源、去污染、评测隔离</text>
+
+  <path d="M265 260 H320" class="branch"/>
+  <path d="M320 120 V400" class="branch"/>
+  <path d="M320 120 H390" class="line"/>
+  <path d="M320 260 H390" class="line"/>
+  <path d="M320 400 H390" class="line"/>
+
+  <rect x="390" y="70" width="220" height="100" class="node" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="500" y="111" text-anchor="middle" class="label">监督微调接口</text>
+  <text x="500" y="139" text-anchor="middle" class="note">提示、回答、标签范围</text>
+
+  <rect x="390" y="210" width="220" height="100" class="node" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="500" y="251" text-anchor="middle" class="label">偏好优化接口</text>
+  <text x="500" y="279" text-anchor="middle" class="note">同一提示下的候选对</text>
+
+  <rect x="390" y="350" width="220" height="100" class="node" fill="#fef3c7" stroke="#d97706"/>
+  <text x="500" y="391" text-anchor="middle" class="label">在线强化学习接口</text>
+  <text x="500" y="419" text-anchor="middle" class="note">轨迹、奖励、策略版本</text>
+
+  <rect x="700" y="70" width="220" height="100" class="node" fill="#ffffff" stroke="#16a34a"/>
+  <text x="810" y="111" text-anchor="middle" class="label">标签对齐检查</text>
+  <text x="810" y="139" text-anchor="middle" class="note">模板、截断、有效词元</text>
+
+  <rect x="700" y="210" width="220" height="100" class="node" fill="#ffffff" stroke="#7c3aed"/>
+  <text x="810" y="251" text-anchor="middle" class="label">候选可比性检查</text>
+  <text x="810" y="279" text-anchor="middle" class="note">来源、一致性、偏好强度</text>
+
+  <rect x="700" y="350" width="220" height="100" class="node" fill="#ffffff" stroke="#d97706"/>
+  <text x="810" y="391" text-anchor="middle" class="label">轨迹有效性检查</text>
+  <text x="810" y="419" text-anchor="middle" class="note">终态、奖励、新鲜度</text>
+
+  <path d="M610 120 H700" class="line"/>
+  <path d="M610 260 H700" class="line"/>
+  <path d="M610 400 H700" class="line"/>
+
+  <rect x="1010" y="205" width="155" height="110" class="node" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="1087" y="246" text-anchor="middle" class="label">独立复测</text>
+  <text x="1087" y="274" text-anchor="middle" class="note">能力与失败切片</text>
+  <path d="M920 120 H965" class="branch"/>
+  <path d="M920 260 H965" class="branch"/>
+  <path d="M920 400 H965" class="branch"/>
+  <path d="M965 120 V400" class="branch"/>
+  <path d="M965 260 H1010" class="line"/>
+</svg>

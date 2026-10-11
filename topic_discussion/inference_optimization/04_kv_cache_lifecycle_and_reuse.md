@@ -1,4 +1,4 @@
-# 04. KV Cache Representation, Management and Reuse | KV Cache 表示、管理与复用
+# 04 KV Cache 表示、管理与复用（Representation, Management, and Reuse）
 
 ## 学习问题
 

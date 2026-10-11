@@ -1,4 +1,4 @@
-# 02. Prefill and Attention Kernel | 预填充与注意力计算内核
+# 02 预填充与注意力计算内核（Prefill and Attention Kernel）
 
 ## 学习问题
 
