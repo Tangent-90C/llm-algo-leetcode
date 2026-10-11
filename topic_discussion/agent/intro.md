@@ -1,38 +1,40 @@
-# Agent 基础设施（Agent Infrastructure）
+# 智能体基础设施（Agent Infrastructure）
 
-> 专题类型：领域专题（建设中）　主服务目标：让模型从单次生成走向可观测、可评估、可复现的多步任务执行
+> 专题类型：领域专题　主服务目标：让模型从单次生成走向可观测、可评估、可复现的多步任务执行。
 
-## 页面导语
+推理优化关注一次模型调用怎样更快、更省；智能体基础设施关注多步任务怎样可靠完成。一次智能体任务需要模型调用、工具调用、上下文管理、执行环境、轨迹日志与最终评估协同工作，其工作负载是可能失败、回退和分支的动态调用图。
 
-推理优化解决一次模型调用如何更快、更省；Agent Infra 处理的是多步任务如何可靠完成。一次 Agent 任务需要模型调用、工具调用、上下文管理、执行环境、轨迹日志与最终评估协同工作，workload 不再是固定的单轮请求，而是可能失败、回退和分支的动态调用图。
+本专题复用推理优化的服务指标、后训练优化的数据与奖励、性能优化的执行轨迹证据，重点解释工具使用、沙盒执行、轨迹调度与任务级评测之间的关系。
 
-本专题复用推理优化的服务指标、后训练优化的数据与奖励、性能优化的 trace 证据，但聚焦工具使用、沙盒执行、轨迹调度与任务级评测这一条独立能力链。
+## 学习路线
 
-## 如何开始
+先完成 Task0–2，建立组件全景、轨迹数据和安全执行环境；已有推理服务基础后再研究轨迹调度与可观测性；只有在任务、工具、沙盒和评测协议固定后，才进入框架选型与 Agentic RL。
 
-第一阶段从 Task0–2 开始：先建立组件全景，再学习轨迹数据生产和安全可复现的执行环境。已有 Serving 基础时再进入 Task3；已经具备训练和评测闭环后，才进入 Task5–6 的框架工程与 Agentic RL。
+| Task / 主题 | 本阶段要回答的问题 | 前置与机制入口 | 主要学习入口 | 阶段输出 |
+|:---|:---|:---|:---|:---|
+| Task0 · 智能体全景与核心链路 | 单次推理怎样演化为多步任务执行？ | [推理优化](../inference_optimization/intro.md)、[后训练优化](../post_training_optimization/intro.md) | [00 智能体工作负载与执行链](./00_agent_workload_and_trace.md) | 模型、工具、上下文、沙盒、执行轨迹和评估的组件图与工作负载卡 |
+| Task1 · 轨迹数据生产与验证 | 如何生成包含工具调用和环境反馈的训练数据？ | [数据工程](../data_engineering/intro.md)、[后训练优化](../post_training_optimization/intro.md) | [01 智能体轨迹数据与验证](./01_agent_trajectory_data.md) | 任务蓝图、候选轨迹、环境反馈与验证规则 |
+| Task2 · 沙盒与执行环境 | 如何隔离工具执行、限制资源并记录可复现反馈？ | [部署与异构](../deployment_heterogeneous/intro.md) | [02 智能体沙盒与执行环境](./02_agent_sandbox_environment.md) | 工具接口、资源配额、日志和环境快照 |
+| Task3 · 轨迹感知调度与上下文管理 | 多阶段、可失败任务怎样调度和复用状态？ | [推理优化](../inference_optimization/intro.md) | [Part 02 · 70 服务调度](../../02_PyTorch_Algorithms/70_Serving_Scheduler_Benchmark.ipynb) | 先来先服务、优先级与轨迹感知策略对照 |
+| Task4 · 任务评估与可观测性 | 如何同时评估完成率、工具正确性、轨迹质量、延迟与成本？ | [性能优化](../performance_optimization/intro.md) | [Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb) | 结构化执行轨迹、错误分类和任务级报告 |
+| Task5 · 框架与工具协议 | 编排框架、协作方式和工具接入协议应怎样选择？ | [00 智能体工作负载与执行链](./00_agent_workload_and_trace.md) | [Part 05 · 综合项目](../../05_Integrated_Projects_and_Decisions/intro.md) | 多工具调用闭环与框架选型记录 |
+| Task6 · Agentic RL 与综合交付 | 如何把数据、沙盒、轨迹采样、奖励和评估收束为训练闭环？ | [后训练优化](../post_training_optimization/intro.md) | [Part 05 · 后训练交付综合项目](../../05_Integrated_Projects_and_Decisions/02_Post_Training_Delivery_Project.md#小模型-agentic-rl-扩展) | 可复现实验、任务质量与成本报告、产物清单及采用决策 |
 
-## Agent Infra Task0–6
+## 扩展与跨专题入口
 
-| Task / 主题 | 要回答的问题 | 当前关联入口与后续建设 | 交付物 |
+| 专题 | 本专题复用的能力 | 本专题增加的对象 |
 |:---|:---|:---|
-| Task0 · Agent Infra 全景与核心链路 | 单次推理怎样演化为多步任务执行？ | [推理优化](../inference_optimization/intro.md) → [后训练优化](../post_training_optimization/intro.md) → [00 Agent 工作负载与执行链](./00_agent_workload_and_trace.md) | 模型、工具、上下文、沙盒、trace、评估的组件图与 workload 卡 |
-| Task1 · Agent 数据生产与合成 | 如何生成包含工具调用和完整执行轨迹的训练数据？ | [数据工程](../data_engineering/intro.md) → [后训练优化 Task1/4](../post_training_optimization/intro.md) → [01 Agent 轨迹数据与验证](./01_agent_trajectory_data.md) | 任务蓝图、候选轨迹、环境反馈与验证规则 |
-| Task2 · 沙盒与执行环境 | 如何隔离工具执行、限制资源并记录可复现反馈？ | [部署与异构](../deployment_heterogeneous/intro.md) → [02 Agent 沙盒与执行环境](./02_agent_sandbox_environment.md) | 工具 schema、资源配额、日志和环境快照 |
-| Task3 · 轨迹感知调度与上下文管理 | 多阶段、可失败任务怎样调度和复用状态？ | [推理优化 Task4](../inference_optimization/intro.md) → [70 Serving 调度](../../02_PyTorch_Algorithms/70_Serving_Scheduler_Benchmark.ipynb)；后续补 Agent 调度项目 | FCFS / 优先级 / 轨迹感知策略对照 |
-| Task4 · 任务评估与可观测性 | 如何同时评估完成率、工具正确性、轨迹质量、延迟与成本？ | [性能优化](../performance_optimization/intro.md) → [50 评测协议](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb)；新建 Agent trace 评测页 | 结构化 trace、错误分类和任务级报告 |
-| Task5 · 框架与 Harness 工程 | 编排、协作、编码 Agent 和 MCP 应怎样选型？ | 新建 LangGraph / AutoGen / MCP 选型页；连接[Part 05](../../05_Integrated_Projects_and_Decisions/intro.md) | 多工具调用 harness 与框架选型记录 |
-| Task6 · Agentic RL 与综合项目 | 如何把数据生产、沙盒、rollout、奖励和评估收束为训练闭环？ | [后训练优化 Task4–6](../post_training_optimization/intro.md)；后续 Part 05 Agent 综合项目 | 可复现实验、任务质量/成本报告与决策 |
-
-## 与现有专题的协作关系
-
-| 专题 | Agent 复用什么 | Agent 专题新增什么 |
-|:---|:---|:---|
-| 推理优化 | 请求指标、调度、KV 状态与 backend | 动态轨迹、工具依赖、任务失败与重试 |
-| 后训练优化 | SFT / 偏好数据、RL / RLVR、奖励与评测 | 工具轨迹、环境反馈与 Agentic RL 任务 |
+| 推理优化 | 请求指标、调度、KV 状态与推理后端 | 动态轨迹、工具依赖、任务失败与重试 |
+| 后训练优化 | SFT、偏好数据、RL / RLVR、奖励与评测 | 工具轨迹、环境反馈与 Agentic RL 任务 |
 | 数据工程 | 采集、清洗、去重、合成与血缘 | 任务蓝图、轨迹验证与执行反馈数据 |
-| 性能优化 | trace、成本、资源与 benchmark 方法 | 任务级 SLO、工具等待、沙盒资源与端到端成功率 |
+| 性能优化 | 执行轨迹、成本、资源与基准测试方法 | 任务级 SLO、工具等待、沙盒资源与端到端成功率 |
 
-## 分阶段建设
+MCP、函数调用和业务 API 都可以作为工具接入方式。本专题首先检查工具能力、参数约束、返回结果和失败状态是否满足任务需要，再比较具体协议或框架；框架名称不能替代任务成功率、轨迹正确性和资源成本证据。
 
-Task0–2 已提供概念、数据与环境契约；下一阶段建设 Task3–4：轨迹感知调度与可观测性，并复用推理/性能的指标框架。Task5–6 留到前两阶段有固定 workload、工具 schema、沙盒与评测协议后再建设；在此之前不宣称任何 Agent 框架、模型或调度器具有通用优势。
+## 实验与项目出口
+
+Task0–2 的学习结果应能够固定工作负载、工具接口、沙盒限制和轨迹字段。Task3–5 的对照只有在这些条件固定后才有可解释性；Task6 还需要策略版本、奖励分量、任务质量、采样成本和回滚状态共同支持采用决策。
+
+- 局部调度与服务行为由 Part 02 项目验证；
+- 跨数据、训练、沙盒和评测的组合由 Part 05 综合项目承接；
+- 场景或框架尚未形成稳定依赖时，可先作为 Part 05 的开放实践项目，不直接进入核心交付链。
