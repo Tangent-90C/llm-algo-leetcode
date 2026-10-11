@@ -20,7 +20,7 @@
 | 后训练优化 | 如何完成 SFT、偏好优化、RL 对齐及其工程交付？ | [后训练优化](./post_training_optimization/intro.md) | 数据、DPO、GRPO、RL 工程与评测 |
 | 推理优化 | 如何降低请求延迟、提高吞吐并稳定 Serving？ | [推理优化](./inference_optimization/intro.md) | decode、KV Cache、调度、PD 与分布式推理 |
 | 性能优化 | 如何定位计算、显存、通信与 I/O 瓶颈，并形成可信决策？ | [性能优化](./performance_optimization/intro.md) | 可观测性、显存账本、系统级复测 |
-| 算子优化 | 如何在 kernel、访存、融合和后端层消除局部瓶颈？ | [算子优化](./operator_optimization/intro.md) | Triton、经典算子、Attention 与 CUDA 下探 |
+| 算子优化 | 如何在计算内核、访存、融合和后端层消除局部瓶颈？ | [算子优化](./operator_optimization/intro.md) | Triton、经典算子、Attention 与 CUDA 下探 |
 
 ## 横向工程专题
 
@@ -30,7 +30,7 @@
 |:---|:---|:---|
 | [量化与压缩](./quantization_compression/intro.md) | 推理、后训练、部署 | 主线已覆盖对象、校准、PTQ、QLoRA、运行时低精度、artifact 与 Serving 决策；剪枝、蒸馏和稀疏化仍是后续扩展，不应被默认当作已覆盖内容。 |
 | [通信与并行](./communication_parallelism/intro.md) | 训练、推理、MoE、性能 | 覆盖通信原语、状态切分、并行、EP hotspot、overlap 与 benchmark；真实多卡项目提供最终证据。 |
-| [数据工程](./data_engineering/intro.md) | 后训练、RAG、性能 | 负责数据生命周期、解析、清洗、去重、质量、配比、合成与血缘；当前先建设路线和正文。 |
+| [数据工程](./data_engineering/intro.md) | 后训练、RAG、性能 | 已覆盖生命周期、解析、清洗、去重、配比、合成验证、后训练接口、血缘与下游采用。 |
 | [部署与异构系统](./deployment_heterogeneous/intro.md) | 推理、量化、通信、领域服务 | 把 artifact、backend、设备兼容、数据路径、服务分层、端边云、发布与成本收束为可交付部署方案。 |
 
 量化专题输出可复测的 artifact、质量与 Serving 候选；部署专题继续验证其目标设备、runtime、服务拓扑和成本。通信专题解释多设备机制；性能专题负责采集、归因和复测它们的系统代价。
@@ -39,8 +39,8 @@
 
 | 专题 | 关注的对象 | 当前建设阶段 |
 |:---|:---|:---|
-| [Agent 基础设施](./agent/intro.md) | 工具轨迹、沙盒、任务调度、可观测性与 Agentic RL | 已确定 Task0–6；优先建设数据生产与沙盒环境。 |
-| [多模态与视觉推理](./multimodal/intro.md) | 视觉 token、视觉 KV、VLM Serving、压缩与性能分析 | 已确定 Task0–6；先建设模型架构与多模态 workload。 |
+| [Agent 基础设施](./agent/intro.md) | 工具轨迹、沙盒、任务调度、可观测性与 Agentic RL | Task0–2 已有独立正文；Task3–6 仍主要依赖推理、评测和 Part 05 承接。 |
+| [多模态与视觉推理](./multimodal/intro.md) | 视觉表示、目标检测、VLM 请求、关键路径与部署决策 | 已形成检测与 VLM 两条图像主线；真实 GPU 和服务证据仍待补齐。 |
 
 领域专题复用推理、后训练、数据、性能和部署的共同证据字段，但应保留自己的质量协议，例如任务完成率、VQA/OCR 指标或轨迹正确性。
 
@@ -68,7 +68,7 @@ SFT / LoRA 已并入[后训练优化](./post_training_optimization/intro.md)的 
 
 ## 模型评测与决策的跨专题分工
 
-模型评测不是某一条路线末尾的附加步骤，而是所有会改变数据、模型表示、执行路径或部署环境的专题共同遵守的质量门槛。当前由[后训练优化 Task6](./post_training_optimization/09_preference_data_and_project_decision.md)维护共同的模型质量、对齐、鲁棒性、失败记录与 `accept / tune / reject` 协议；各专题只补充自己改变对象的专项证据。
+模型评测不是某一条路线末尾的附加步骤，而是所有会改变数据、模型表示、执行路径或部署环境的专题共同遵守的质量门槛。当前由[后训练优化 Task6](./post_training_optimization/10_evaluation_and_adoption_decision.md)维护共同的模型质量、对齐、鲁棒性、失败记录与 `accept / tune / reject` 协议；各专题只补充自己改变对象的专项证据。
 
 | 专题 | 模型评测中的主责 | 需要交给其他专题的部分 |
 |:---|:---|:---|
@@ -119,13 +119,6 @@ SFT / LoRA 已并入[后训练优化](./post_training_optimization/intro.md)的 
 | evidence | CPU 模拟、GPU 探针、load smoke、固定 benchmark 或真实部署；失败记录与 `accept / tune / reject` |
 
 同一个 Part 02 或 Part 05 项目可以被多个专题引用，但只能有一个主叙事：主专题定义问题、质量协议和最终判断；关联专题只解释其中的机制或复用相应证据。例如，量化项目 67 的主叙事是量化部署，部署专题复用它的 artifact 与 backend 结论，性能专题复用其测量证据。
-
-## 建设优先级
-
-1. 完成部署与异构的 Task2/3：07 兼容 gate、08 端边云放置已建立，下一步接入 72、81 与 Part 05 的真实项目字段。
-2. 完成数据工程的 Task0–2：全景、解析与清洗质量链。
-3. 完成 Agent 的 Task0–2 与多模态的 Task0–1，先建立各自的 workload、数据与环境概念。
-4. 继续收口性能优化与后训练优化的项目证据；算子优化在 Part 03/04 的实现资产稳定后继续下探。
 
 ## Part 05 收口
 
