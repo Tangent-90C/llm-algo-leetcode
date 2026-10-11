@@ -18,11 +18,11 @@
   <rect x="62" y="368" width="236" height="104" rx="15" fill="#EDE9FE" stroke="#7C3AED" stroke-width="2"/>
   <text x="84" y="402" class="head">策略候选回答</text><text x="84" y="430" class="copy">固定提示与生成配置</text><text x="84" y="454" class="copy">保留候选身份</text>
   <rect x="360" y="338" width="236" height="104" rx="15" fill="#FFE4E6" stroke="#E11D48" stroke-width="2"/>
-  <text x="382" y="372" class="head">校准后代理奖励</text><text x="382" y="400" class="copy">奖励模型分数与置信度</text><text x="382" y="424" class="copy">检查奖励排序是否上升</text>
+  <text x="382" y="372" class="head">校准后代理奖励</text><text x="382" y="400" class="copy">奖励模型分数与置信度</text><text x="382" y="424" class="copy">记录候选间奖励排序</text>
   <rect x="360" y="474" width="236" height="104" rx="15" fill="#ECFDF5" stroke="#16A34A" stroke-width="2"/>
-  <text x="382" y="508" class="head">独立隐藏质量</text><text x="382" y="536" class="copy">任务质量 · 安全 · 鲁棒性</text><text x="382" y="560" class="copy">不读取代理奖励</text>
+  <text x="382" y="508" class="head">独立隐藏质量</text><text x="382" y="536" class="copy">绝对门槛 · 相对基线变化</text><text x="382" y="560" class="copy">独立于代理奖励计算</text>
   <polygon points="786,370 900,458 786,546 672,458" fill="#FFF7ED" stroke="#EA580C" stroke-width="2"/>
-  <text x="728" y="450" class="head">两类证据一致？</text><text x="728" y="478" class="copy">奖励改善且质量达标</text>
+  <text x="728" y="450" class="head">三项检查通过？</text><text x="714" y="478" class="copy">质量 · 退化 · 排序背离</text>
   <rect x="1000" y="338" width="300" height="104" rx="15" fill="#DCFCE7" stroke="#16A34A" stroke-width="2"/>
   <text x="1022" y="372" class="head">继续受约束策略更新</text><text x="1022" y="400" class="copy">记录奖励、质量与版本</text><text x="1022" y="424" class="copy">进入下一轮候选复测</text>
   <rect x="1000" y="474" width="300" height="104" rx="15" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/>
