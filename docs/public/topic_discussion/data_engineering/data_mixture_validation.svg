@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" role="img" aria-labelledby="title desc">
+  <title id="title">数据配方从固定数据池进入下游消融</title>
+  <desc id="desc">固定数据池经过分层统计、候选配方、固定预算训练、能力与成本复测，最终形成采用、调整或拒绝决定。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 26px sans-serif; fill: #0f172a; }
+      .label { font: 700 19px sans-serif; fill: #0f172a; }
+      .note { font: 15px sans-serif; fill: #475569; }
+      .line { fill: none; stroke: #475569; stroke-width: 3; marker-end: url(#arrow); }
+      .node { stroke-width: 2; rx: 18; ry: 18; }
+    </style>
+  </defs>
+  <rect width="1200" height="500" fill="#f8fafc" rx="24"/>
+  <text x="600" y="48" text-anchor="middle" class="title">数据配方必须在固定预算下接受下游验证</text>
+
+  <rect x="80" y="120" width="220" height="90" class="node" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="190" y="156" text-anchor="middle" class="label">固定数据池</text>
+  <text x="190" y="184" text-anchor="middle" class="note">来源、版本、许可</text>
+
+  <rect x="390" y="120" width="220" height="90" class="node" fill="#e0f2fe" stroke="#0284c7"/>
+  <text x="500" y="156" text-anchor="middle" class="label">分层统计</text>
+  <text x="500" y="184" text-anchor="middle" class="note">领域、长度、难度</text>
+
+  <rect x="700" y="120" width="220" height="90" class="node" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="810" y="156" text-anchor="middle" class="label">候选配方</text>
+  <text x="810" y="184" text-anchor="middle" class="note">比例、权重、顺序</text>
+
+  <rect x="700" y="315" width="220" height="90" class="node" fill="#fef3c7" stroke="#d97706"/>
+  <text x="810" y="351" text-anchor="middle" class="label">固定预算对照</text>
+  <text x="810" y="379" text-anchor="middle" class="note">模型、词元、评测集</text>
+
+  <rect x="970" y="315" width="190" height="90" class="node" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="1065" y="351" text-anchor="middle" class="label">采用判断</text>
+  <text x="1065" y="379" text-anchor="middle" class="note">能力、回退、代价</text>
+
+  <path d="M300 165 H390" class="line"/>
+  <path d="M610 165 H700" class="line"/>
+  <path d="M810 210 V315" class="line"/>
+  <path d="M920 360 H970" class="line"/>
+
+</svg>

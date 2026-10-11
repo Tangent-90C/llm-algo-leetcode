@@ -1,16 +1,18 @@
 # 05 后训练数据接口与诊断
 
-## 页面目标
+## 学习问题
 
 后训练数据不是“文本拼成 JSONL”即可使用。SFT、偏好和推理数据共享来源、版本、去污染与评测隔离，但监督信号、格式契约和失败模式不同。本页将上游数据处理连接到训练可消费的接口与独立质量验证。
 
-## 三类训练接口
+## 三类监督信号需要什么数据接口
 
 | 数据类型 | 最小对象 | 核心契约 | 主要风险 |
 |:---|:---|:---|:---|
 | SFT | `prompt` / `messages`、`response`、`labels` | 对话模板与标签掩码对齐；不训练无关词元 | 模板错位、答案截断、重复指令 |
 | 偏好 | `prompt`、`chosen`、`rejected` | 同一上下文下的可比较候选；偏好来源可追溯 | 候选质量接近、标注不一致、泄漏 |
 | 推理过程 | 问题、过程、答案、验证信号 | 过程粒度可解释，结果可由规则或独立评测核验 | 过程伪造、答案泄漏、只拟合表面格式 |
+
+![同一数据身份分流为三类后训练接口](../../docs/public/topic_discussion/data_engineering/post_training_data_interfaces.svg)
 
 ## 训练前的最小检查
 
@@ -19,7 +21,7 @@
 | 字段结构 | 必填字段、类型、消息顺序与模板 | 拒绝写入训练集，保留失败原因 |
 | 分词器与标签 | 截断、特殊词元、损失掩码与目标词元 | 用小批样本逐项检查标签对齐 |
 | 数据切分与去污染 | 训练、验证、测试与外部基准隔离 | 记录匹配规则、重复组和例外 |
-| 数据分布 | 领域、长度、语言、难度与安全类别 | 回到 Task3 调整配比或补样本 |
+| 数据分布 | 领域、长度、语言、难度与安全类别 | 调整配比或补充缺失样本 |
 | 下游质量 | 独立任务、行为回归与人工失败样本 | 不以训练损失单独接受数据版本 |
 
 ## 评测数据如何交给后训练决策
@@ -47,10 +49,6 @@
 | 偏好训练不稳定 | 优选与拒选回答的可比性及标注一致性 | β、参考模型与目标函数 |
 | 推理过程冗长但答案错误 | 过程验证、结果验证与长度偏差 | 奖励与评审器设计 |
 
-## 下游训练与评测入口
+## 数据版本何时可以进入训练比较
 
-[后训练优化](../post_training_optimization/intro.md)负责 SFT、偏好优化、强化学习与评测决策；[Part 02 · 13 SFT 训练循环](../../02_PyTorch_Algorithms/13_SFT_Training_Loop.ipynb)、[Part 02 · 32 SFT 数据准入](../../02_PyTorch_Algorithms/32_Data_Engineering_for_SFT.ipynb)和[Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb)验证局部机制，[Part 02 · 62 SFT 训练交付](../../02_PyTorch_Algorithms/62_Instruction_Fine_Tuning_Project.ipynb)、[Part 02 · 64 SFT 数据质量](../../02_PyTorch_Algorithms/64_SFT_Data_Quality_Project.ipynb)、[Part 02 · 84 DPO](../../02_PyTorch_Algorithms/84_DPO_Preference_Project.ipynb)、[Part 02 · 85 GRPO / RLVR](../../02_PyTorch_Algorithms/85_GRPO_Groupwise_Alignment_Project.ipynb)和[Part 02 · 86 生命周期与采用决策](../../02_PyTorch_Algorithms/86_DPO_Online_Benchmark.ipynb)承担项目验证。本页定义数据接口、隔离与诊断证据，不替代训练算法或奖励设计。
-
-## 完成标准
-
-完成本页后，应能为一份 SFT、偏好或推理数据集给出字段结构、样本版本、污染检查、标签检查、分布摘要，以及可供基线与候选共同读取的评测快照和失败样本记录。
+一份 SFT、偏好或推理数据集需要同时提供字段结构、样本版本、污染检查、标签检查、分布摘要、冻结评测快照和失败样本记录。[后训练优化](../post_training_optimization/intro.md)在这些输入固定后比较训练候选；质量指标、评审器一致性和采用门槛由[独立评测与采用决策](../post_training_optimization/10_evaluation_and_adoption_decision.md)统一检查。

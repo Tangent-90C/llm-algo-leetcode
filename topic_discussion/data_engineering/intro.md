@@ -10,15 +10,19 @@
 
 先建立“来源—版本—处理—切分—消费者”的数据身份，再按问题进入清洗、配比、合成或后训练接口。评测集隔离和下游复测贯穿整条路线，不能等训练结束后再补。
 
-| Task / 主题 | 本阶段要回答的问题 | 前置与机制入口 | 主要学习入口 | 阶段输出 |
+| Task / 主题 | 本阶段要回答的问题 | 学习入口与验证出口 | 学习顺序 | 主要正文入口 |
 |:---|:---|:---|:---|:---|
-| Task0 · 数据生命周期与消费者 | 一份数据怎样从来源、版本和处理规则流向预训练、后训练与检索？ | [Part 00 · 04 配置与数据入口](../../00_Prerequisites/04_Python_Config_and_Data_Entry.ipynb)、[Part 02 · 32 SFT 数据准入](../../02_PyTorch_Algorithms/32_Data_Engineering_for_SFT.ipynb) | [00 数据生命周期与消费者契约](./00_data_lifecycle_and_contract.md) | 数据对象、版本、切分、处理记录与消费者地图 |
-| Task1 · 采集、解析与来源契约 | 异构文件怎样按内容检测、解析和路由，并保留来源与许可信息？ | [Part 00 · 04 配置与数据入口](../../00_Prerequisites/04_Python_Config_and_Data_Entry.ipynb) | [01 采集、解析与来源契约](./01_collection_parsing_contract.md) | 统一记录、解析状态、来源身份与失败样本 |
-| Task2 · 清洗、去重与质量过滤 | 怎样识别空值、乱码、重复、污染与低质量样本，并冻结独立评测快照？ | [Part 02 · 32 SFT 数据准入](../../02_PyTorch_Algorithms/32_Data_Engineering_for_SFT.ipynb)、[Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb) | [02 清洗、去重与质量证据链](./02_cleaning_quality_chain.md) | 去重组、质量规则、污染报告、评测快照与数据准入状态 |
-| Task3 · 数据配比与难度递进 | 来源、长度、难度与长尾样本怎样配比，并用消融确认收益？ | [Part 02 · 30 长上下文微调](../../02_PyTorch_Algorithms/30_Long_Context_Fine_Tuning.ipynb)、[Part 02 · 33 微调准入](../../02_PyTorch_Algorithms/33_Fine_Tuning_Readiness.ipynb) | [03 数据配比与难度递进](./03_data_mixture_and_curriculum.md) | 固定数据池、配比方案、采样记录与消融计划 |
-| Task4 · 合成数据与轨迹验证 | 怎样生成稀缺场景样本，并验证回答或执行轨迹是否可用？ | [Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb)、[Part 02 · 51 在线反馈](../../02_PyTorch_Algorithms/51_Online_DPO.ipynb) | [智能体 · 01 轨迹数据与验证](../agent/01_agent_trajectory_data.md) | 任务蓝图、候选生成记录、规则或执行验证结果与数据版本 |
-| Task5 · 后训练数据接口 | SFT、偏好与推理过程数据怎样格式化、去污染并交给训练和评测？ | [Part 02 · 13 SFT 训练循环](../../02_PyTorch_Algorithms/13_SFT_Training_Loop.ipynb)、[Part 02 · 15 端到端微调](../../02_PyTorch_Algorithms/15_End_to_End_Fine_Tuning_Experiment.ipynb) | [05 后训练数据接口与诊断](./05_post_training_data_interfaces.md) | SFT、偏好与推理过程数据契约，冻结评测快照及失败切片 |
-| Task6 · 流水线与下游验证 | 怎样让处理过程可复现、可增量运行、可审计，并验证数据变化的下游影响？ | [Part 02 · 64 SFT 数据质量项目](../../02_PyTorch_Algorithms/64_SFT_Data_Quality_Project.ipynb) | [Part 05 · 后训练交付综合项目](../../05_Integrated_Projects_and_Decisions/02_Post_Training_Delivery_Project.md) | 数据产物清单、处理血缘、失败恢复记录与下游采用决策 |
+| Task0 · 数据生命周期与消费者 | 一份数据怎样从来源、版本和处理规则流向预训练、后训练与检索？ | 核心：[Part 00 · 04 配置与数据入口](../../00_Prerequisites/04_Python_Config_and_Data_Entry.ipynb)、[Part 02 · 32 SFT 数据准入](../../02_PyTorch_Algorithms/32_Data_Engineering_for_SFT.ipynb) | 来源身份 → 数据版本 → 消费者契约 | [00 数据生命周期与消费者契约](./00_data_lifecycle_and_contract.md) |
+| Task1 · 采集、解析与来源契约 | 异构文件怎样变成保留来源和失败状态的统一记录？ | 核心：[Part 00 · 04 配置与数据入口](../../00_Prerequisites/04_Python_Config_and_Data_Entry.ipynb) | 内容检测 → 解析路由 → 失败留存 | [01 采集、解析与来源契约](./01_collection_parsing_contract.md) |
+| Task2 · 清洗、去重与质量过滤 | 样本怎样在不污染独立评测的前提下通过质量准入？ | 核心：[Part 02 · 32 SFT 数据准入](../../02_PyTorch_Algorithms/32_Data_Engineering_for_SFT.ipynb)、[Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb) | 清洗 → 去重 → 去污染 → 评测快照 | [02 清洗、去重与质量证据链](./02_cleaning_quality_chain.md) |
+| Task3 · 数据配比与难度递进 | 来源、长度、难度与长尾样本怎样形成可消融的数据配方？ | 核心：[Part 02 · 30 长上下文微调](../../02_PyTorch_Algorithms/30_Long_Context_Fine_Tuning.ipynb)、[Part 02 · 33 微调准入](../../02_PyTorch_Algorithms/33_Fine_Tuning_Readiness.ipynb) | 固定数据池 → 配比候选 → 下游消融 | [03 数据配比与难度递进](./03_data_mixture_and_curriculum.md) |
+| Task4 · 合成数据与轨迹验证 | 生成样本怎样通过规则、执行结果和独立复核后进入数据池？ | 核心：[Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb)；扩展：[智能体 · 01 轨迹数据与验证](../agent/01_agent_trajectory_data.md) | 任务蓝图 → 候选生成 → 验证分流 → 版本冻结 | [04 合成数据与轨迹验证](./04_synthetic_data_and_trajectory_validation.md) |
+| Task5 · 后训练数据接口 | 同一来源怎样转换为 SFT、偏好与强化学习数据而不丢失身份？ | 核心：[Part 02 · 13 SFT 训练循环](../../02_PyTorch_Algorithms/13_SFT_Training_Loop.ipynb)、[Part 02 · 15 端到端微调](../../02_PyTorch_Algorithms/15_End_to_End_Fine_Tuning_Experiment.ipynb) | 合格样本 → 监督接口 → 偏好/轨迹接口 → 失败切片 | [05 后训练数据接口与诊断](./05_post_training_data_interfaces.md) |
+| Task6 · 流水线与下游验证 | 数据变更怎样可重放、可审计，并由下游对照决定是否采用？ | 项目：[Part 02 · 64 SFT 数据质量项目](../../02_PyTorch_Algorithms/64_SFT_Data_Quality_Project.ipynb)、[Part 05 · 后训练交付综合项目](../../05_Integrated_Projects_and_Decisions/02_Post_Training_Delivery_Project.md) | 变更清单 → 增量执行 → 下游复测 → 采用或回滚 | [06 流水线血缘与下游验证](./06_pipeline_lineage_and_downstream_validation.md) |
+
+![数据工程学习路线：从来源身份到下游采用](../../docs/public/topic_discussion/data_engineering/data_engineering_roadmap.svg)
+
+![数据工程知识地图：对象、规则、消费者与证据](../../docs/public/topic_discussion/data_engineering/data_engineering_knowledge_map.svg)
 
 ## 扩展与跨专题入口
 
