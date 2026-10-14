@@ -22,10 +22,10 @@
 
 **导语：** 进入这个 benchmark 前，先能完成一次 LoRA 微调并固定有效 batch、训练步数和评测口径，再比较不同变体的资源与质量。
 
-- [10. LoRA Tutorial | LoRA 教程](./10_LoRA_Tutorial.md)
-- [12. Gradient Accumulation | 梯度累积](./12_Gradient_Accumulation.md)
-- [13. End-to-End Fine-Tuning Experiment | 端到端微调实验](./13_End_to_End_Fine_Tuning_Experiment.md)
-- [60. LoRA Fine-Tuning Project | LoRA 微调项目](./60_LoRA_Fine_Tuning_Project.md)
+- [14. LoRA Tutorial | LoRA 教程](./14_LoRA_Tutorial.md)
+- [11. Gradient Accumulation | 梯度累积](./11_Gradient_Accumulation.md)
+- [15. End-to-End Fine-Tuning Experiment | 端到端微调实验](./15_End_to_End_Fine_Tuning_Experiment.md)
+- [62. Instruction Fine-Tuning Project | 指令微调项目](./62_Instruction_Fine_Tuning_Project.md)
 ---
 
 ### Step 1（项目设计）：明确问题与单变量实验
@@ -52,7 +52,7 @@ CPU 代码至少要检查候选字段完整、rank/alpha/dropout 合法、target
 
 ### Step 3（项目设计）：确定机制、指标与候选方案
 
-GPU 验证沿用 60 节的训练数据、split、dtype、batch、seq_len、steps 和 seed；只替换 Step 1 选定的 LoRA 变量。每个候选都要完成相同的 warmup、训练和验证，不能用不同步数换取更低 loss。
+GPU 验证沿用 62 节的训练数据、split、dtype、batch、seq_len、steps 和 seed；只替换 Step 1 选定的 LoRA 变量。每个候选都要完成相同的 warmup、训练和验证，不能用不同步数换取更低 loss。
 
 记录 `train_loss`、`val_loss`、`step_time_ms`、`tokens_per_s`、`peak_memory_mb`、`trainable_params` 和 OOM 状态。单一分数只用于发现候选，不能替代质量、资源和复现条件。
 
@@ -68,7 +68,7 @@ GPU 验证沿用 60 节的训练数据、split、dtype、batch、seq_len、steps
 
 ![63 Step 5：LoRA 变体的 CPU 决策实现](../public/02_PyTorch_Algorithms/63_lora_cpu_todo_flow.svg)
 <div align="center"><strong>LoRA 变体的 CPU 决策实现：</strong>先校验候选，再计算成本、排序并执行预算决策。</div>
-#### 图解：10-60 如何收束到 63 LoRA Benchmark
+#### 图解：10-62 如何收束到 63 LoRA Benchmark
 
 `63` 把 LoRA 机制和项目经验收成一张统一的 benchmark 表。
 
@@ -79,7 +79,7 @@ GPU 验证沿用 60 节的训练数据、split、dtype、batch、seq_len、steps
       │
 13 E2E report    train loss / val loss / step time / memory
       │
-60 LoRA project  baseline vs LoRA artifact and ledger
+62 SFT / LoRA project baseline, artifact and ledger
       │
       ▼
 63 LoRA bench    variant ranking + budget-aware delivery decision
