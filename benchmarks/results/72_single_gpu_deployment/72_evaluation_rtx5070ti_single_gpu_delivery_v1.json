@@ -1,0 +1,88 @@
+{
+  "schema_version": "inference-deployment-evaluation/v1",
+  "semantic_id": "INF-SINGLE-GPU-DEPLOY",
+  "run_label": "rtx5070ti_single_gpu_delivery_v1",
+  "profile_id": "INF-VLLM-011-CU128",
+  "workload": {
+    "path": "benchmarks/workloads/fixed.jsonl",
+    "num_prompts": 30,
+    "max_tokens": 64,
+    "batch": 1,
+    "concurrency": 1,
+    "warmup": 5,
+    "repeats": 3
+  },
+  "candidate_records": [
+    {
+      "group": "G0_vllm_default",
+      "role": "single_gpu_reference",
+      "backend": "vllm",
+      "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "dtype": "bfloat16",
+      "workload_path": "benchmarks/workloads/fixed.jsonl",
+      "enabled_strategies": [],
+      "result_source": "benchmarks/results/66_g0_vllm_baseline.json",
+      "observed": {
+        "success_rate": 1.0,
+        "ttft_p95_ms": 46.1171,
+        "tpot_p95_ms": 5.4064,
+        "throughput_tokens_per_s": 175.2218,
+        "peak_memory_gib": 10.2060546875,
+        "headroom_to_limit_gib": 0.7939453125
+      },
+      "gates": {
+        "success_rate": true,
+        "ttft_p95": true,
+        "tpot_p95": true,
+        "throughput": true,
+        "peak_memory": true,
+        "operational_quality": true,
+        "independent_task_quality": false
+      },
+      "decision": "tune",
+      "handoff_status": "not_ready"
+    }
+  ],
+  "strategy_portfolio": {
+    "speculative": {
+      "decision": "reject",
+      "same_model": false,
+      "same_workload": false,
+      "source_workload": null,
+      "disposition": "exclude_rejected",
+      "source": "benchmarks/results/68_evidence_record_rtx5070ti_speculative_ngram_smoke_v3.json"
+    },
+    "prefix_cache": {
+      "decision": "tune",
+      "same_model": true,
+      "same_workload": false,
+      "source_workload": "benchmarks/workloads/prefix_reuse_long.jsonl",
+      "disposition": "hold_for_more_evidence",
+      "source": "benchmarks/results/69_evidence_record_rtx5070ti_prefix_cache_v4.json"
+    },
+    "scheduler": {
+      "decision": "accept",
+      "same_model": true,
+      "same_workload": false,
+      "source_workload": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/scheduler_priority.jsonl",
+      "disposition": "retain_as_specialized_profile",
+      "source": "benchmarks/results/70_serving_scheduler/70_evidence_record_rtx5070ti_scheduler_priority_v4.json"
+    }
+  },
+  "quality_evidence": null,
+  "decision": {
+    "decision": "tune",
+    "reason": "provide_independent_task_quality_evidence",
+    "hard_failures": [],
+    "failed_gates": [
+      "independent_task_quality"
+    ]
+  },
+  "rollback": {
+    "ready": true,
+    "baseline_result": "benchmarks/results/66_g0_vllm_baseline.json",
+    "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775"
+  },
+  "evidence_level": "reused_real_backend_with_deployment_audit"
+}
