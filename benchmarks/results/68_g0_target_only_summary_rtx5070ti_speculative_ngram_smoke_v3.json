@@ -1,0 +1,189 @@
+{
+  "schema_version": "speculative-selection/v1",
+  "project": "68",
+  "run_label": "rtx5070ti_speculative_ngram_smoke_v3",
+  "group": "g0_target_only",
+  "strategy": {
+    "enabled": true,
+    "family": "baseline",
+    "method": null,
+    "asset": null
+  },
+  "admission": {
+    "run_status": "runnable",
+    "reason": "baseline_ready",
+    "resolved_asset": "/data/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
+  },
+  "environment": {
+    "repo_root": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode",
+    "kernel_python": "/home/yulinlin/anaconda3/envs/llm_vllm_cu128/bin/python",
+    "configured_env": "llm_vllm_cu128",
+    "profile_id": "INF-VLLM-011-CU128",
+    "upgrade_env": "llm_vllm_spec025_cu129",
+    "upgrade_profile_id": "INF-VLLM-SPEC025",
+    "upgrade_vllm_version": "0.25.1+cu129",
+    "optional_retest_profile_id": "INF-VLLM-MTP",
+    "upgrade_min_driver": "575.57",
+    "detected_driver": "570.211.01",
+    "vllm_command": "/home/yulinlin/anaconda3/envs/llm_vllm_cu128/bin/vllm",
+    "vllm_version": "0.11.0",
+    "speculative_interface": "speculative_config",
+    "declared_methods": [
+      "ngram",
+      "eagle",
+      "eagle3",
+      "medusa",
+      "mlp_speculator",
+      "draft_model",
+      "deepseek_mtp",
+      "ernie_mtp",
+      "qwen3_next_mtp",
+      "mimo_mtp",
+      "longcat_flash_mtp",
+      "mtp"
+    ],
+    "gpu_available": true,
+    "gpu_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+    "gpu_total_gb": 11.48,
+    "model_cache_mode": "auto",
+    "model_cache_candidates": [
+      "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/model_cache",
+      "/data/huggingface/hub"
+    ],
+    "resolved_target_snapshot": "/data/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+    "result_collisions": [],
+    "audit_errors": [],
+    "workloads": {
+      "general": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/speculative_general.jsonl",
+      "repetition": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/speculative_repetition.jsonl"
+    },
+    "runtime": {
+      "python": "3.12.15 (main, Oct  6 2026, 23:50:18) [GCC 15.3.0]",
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.8.0+cu128",
+      "torch_cuda": "12.8",
+      "device": "NVIDIA GeForce RTX 5070 Ti Laptop GPU"
+    }
+  },
+  "run_status": "completed",
+  "evidence_status": "not_evaluated",
+  "decision": {
+    "decision": "not_evaluated",
+    "reason": "not_executed"
+  },
+  "execution_path": "target_only",
+  "capability": {
+    "resolved_target_snapshot": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
+  },
+  "backend_log": "benchmarks/results/68_g0_target_only_backend_rtx5070ti_speculative_ngram_smoke_v3.log",
+  "scenarios": {
+    "general-c1": {
+      "raw_path": "benchmarks/results/68_g0_target_only_general-c1_raw_rtx5070ti_speculative_ngram_smoke_v3.json",
+      "workload": {
+        "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/speculative_general.jsonl",
+        "requests": 8,
+        "max_tokens": 64,
+        "concurrency": 1,
+        "warmup": 2,
+        "repeats": 1,
+        "workload_priority_sent": false
+      },
+      "metrics": {
+        "successful_requests": 8,
+        "failed_requests": 0,
+        "request_throughput_per_s": 1.2861,
+        "output_token_throughput_per_s": 76.3599,
+        "ttft_ms": {
+          "mean": 49.694,
+          "p50": 45.5145,
+          "p95": 60.11345,
+          "p99": 60.64909
+        },
+        "tpot_ms": {
+          "mean": 12.72,
+          "p50": 12.39,
+          "p95": 14.961500000000001,
+          "p99": 15.7595
+        },
+        "e2e_ms": {
+          "mean": 777.238,
+          "p50": 829.848,
+          "p95": 861.95415,
+          "p99": 869.3492299999999
+        },
+        "output_tokens": 475,
+        "prompt_tokens_mean": 42.375,
+        "duration_s": 6.2205,
+        "priority_order_score": null,
+        "peak_memory_mb": 10372.0,
+        "draft_rounds": null,
+        "proposed_tokens": null,
+        "accepted_tokens": null,
+        "acceptance_rate": null,
+        "mean_accepted_length": null,
+        "mechanism_active": null,
+        "source": "not_exported"
+      },
+      "resource_measurement": {
+        "metric": "device_memory_used_peak_mb",
+        "scope": "visible_gpu_0_total_device_usage",
+        "sample_count": 34,
+        "includes_non_service_processes": true
+      }
+    },
+    "repetition-c1": {
+      "raw_path": "benchmarks/results/68_g0_target_only_repetition-c1_raw_rtx5070ti_speculative_ngram_smoke_v3.json",
+      "workload": {
+        "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/speculative_repetition.jsonl",
+        "requests": 8,
+        "max_tokens": 64,
+        "concurrency": 1,
+        "warmup": 2,
+        "repeats": 1,
+        "workload_priority_sent": false
+      },
+      "metrics": {
+        "successful_requests": 8,
+        "failed_requests": 0,
+        "request_throughput_per_s": 2.4311,
+        "output_token_throughput_per_s": 73.8435,
+        "ttft_ms": {
+          "mean": 53.502,
+          "p50": 51.8665,
+          "p95": 66.03765,
+          "p99": 67.10753
+        },
+        "tpot_ms": {
+          "mean": 12.264,
+          "p50": 11.9225,
+          "p95": 14.928799999999999,
+          "p99": 15.75536
+        },
+        "e2e_ms": {
+          "mean": 410.885,
+          "p50": 330.9125,
+          "p95": 807.1771500000001,
+          "p99": 815.5914300000001
+        },
+        "output_tokens": 243,
+        "prompt_tokens_mean": 59.125,
+        "duration_s": 3.2907,
+        "priority_order_score": null,
+        "peak_memory_mb": 10372.0,
+        "draft_rounds": null,
+        "proposed_tokens": null,
+        "accepted_tokens": null,
+        "acceptance_rate": null,
+        "mean_accepted_length": null,
+        "mechanism_active": null,
+        "source": "not_exported"
+      },
+      "resource_measurement": {
+        "metric": "device_memory_used_peak_mb",
+        "scope": "visible_gpu_0_total_device_usage",
+        "sample_count": 17,
+        "includes_non_service_processes": true
+      }
+    }
+  }
+}

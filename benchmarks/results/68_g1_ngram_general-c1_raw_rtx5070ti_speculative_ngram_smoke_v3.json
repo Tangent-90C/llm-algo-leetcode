@@ -1,0 +1,290 @@
+{
+  "label": "g1_ngram",
+  "base_url": "http://127.0.0.1:44489",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "workload": {
+    "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/speculative_general.jsonl",
+    "requests": 8,
+    "max_tokens": 64,
+    "concurrency": 1,
+    "warmup": 2,
+    "repeats": 1,
+    "workload_priority_sent": false
+  },
+  "metrics": {
+    "successful_requests": 8,
+    "failed_requests": 0,
+    "request_throughput_per_s": 1.3632,
+    "output_token_throughput_per_s": 80.9413,
+    "ttft_ms": {
+      "mean": 46.103,
+      "p50": 44.9785,
+      "p95": 49.81555,
+      "p99": 50.142309999999995
+    },
+    "tpot_ms": {
+      "mean": 12.056,
+      "p50": 11.6225,
+      "p95": 14.579900000000002,
+      "p99": 15.43838
+    },
+    "e2e_ms": {
+      "mean": 733.238,
+      "p50": 769.559,
+      "p95": 826.7327,
+      "p99": 838.99054
+    },
+    "output_tokens": 475,
+    "prompt_tokens_mean": 42.375,
+    "duration_s": 5.8684,
+    "priority_order_score": null,
+    "peak_memory_mb": 10318.0,
+    "draft_rounds": 10.0,
+    "proposed_tokens": 50.0,
+    "accepted_tokens": 10.0,
+    "acceptance_rate": 0.2,
+    "mean_accepted_length": 2.0,
+    "mechanism_active": true,
+    "source": "vllm_prometheus_counter_delta"
+  },
+  "results": [
+    {
+      "ok": true,
+      "prompt": "Explain the difference between prefill and decode in two concise sentences.",
+      "request_id": "general-0",
+      "priority": 0,
+      "output_text": "Prefill involves filling in missing values in a dataset with known values, while decode involves converting categorical data into numerical values for analysis.",
+      "ttft_ms": 44.38,
+      "tpot_ms": 15.653,
+      "e2e_ms": 451.354,
+      "output_tokens": 27,
+      "estimated_output_tokens": false,
+      "stream_chunks": 26,
+      "usage": {
+        "prompt_tokens": 43,
+        "total_tokens": 70,
+        "completion_tokens": 27
+      },
+      "completion_rank": 1
+    },
+    {
+      "ok": true,
+      "prompt": "Give three practical metrics for evaluating an online LLM inference service.",
+      "request_id": "general-1",
+      "priority": 0,
+      "output_text": "1. Response Time: This metric measures the time it takes for the LLM to generate a response to a user's query. A fast response time is crucial for providing a good user experience, especially for real-time applications.\n\n2. Accuracy: This metric measures the level of accuracy of the LLM's responses. It",
+      "ttft_ms": 49.057,
+      "tpot_ms": 12.587,
+      "e2e_ms": 842.055,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 62,
+      "usage": {
+        "prompt_tokens": 42,
+        "total_tokens": 106,
+        "completion_tokens": 64
+      },
+      "completion_rank": 2
+    },
+    {
+      "ok": true,
+      "prompt": "Why can a high speculative-token acceptance rate still fail to improve throughput?",
+      "request_id": "general-2",
+      "priority": 0,
+      "output_text": "A high speculative-token acceptance rate can indeed be a desirable feature in a blockchain system, as it allows for faster transactions by allowing nodes to process transactions before they are confirmed. However, it can also lead to a higher speculative cost, which can reduce the overall throughput of the network. Here are some reasons why a high speculative",
+      "ttft_ms": 43.966,
+      "tpot_ms": 10.768,
+      "e2e_ms": 722.333,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 62,
+      "usage": {
+        "prompt_tokens": 43,
+        "total_tokens": 107,
+        "completion_tokens": 64
+      },
+      "completion_rank": 3
+    },
+    {
+      "ok": true,
+      "prompt": "Describe one quality risk and one capacity risk when changing an inference backend.",
+      "request_id": "general-3",
+      "priority": 0,
+      "output_text": "When changing an inference backend, there are several potential risks that can impact the quality and capacity of the system. Here are two key risks:\n\n1. **Quality Risk**:\n   - **Latency Issues**: If the new inference backend is slower or less responsive than the old one, it can lead to increased latency in",
+      "ttft_ms": 50.224,
+      "tpot_ms": 11.42,
+      "e2e_ms": 769.653,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 63,
+      "usage": {
+        "prompt_tokens": 43,
+        "total_tokens": 107,
+        "completion_tokens": 64
+      },
+      "completion_rank": 4
+    },
+    {
+      "ok": true,
+      "prompt": "Write a short comparison of latency optimization and throughput optimization.",
+      "request_id": "general-4",
+      "priority": 0,
+      "output_text": "Latency optimization and throughput optimization are two important aspects of network performance optimization, each with its own focus and impact on different aspects of network operations.\n\nLatency optimization focuses on reducing the time it takes for data to travel from one point to another. This is typically measured in milliseconds and is often the primary concern for applications that",
+      "ttft_ms": 44.665,
+      "tpot_ms": 11.962,
+      "e2e_ms": 798.277,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 63,
+      "usage": {
+        "prompt_tokens": 40,
+        "total_tokens": 104,
+        "completion_tokens": 64
+      },
+      "completion_rank": 5
+    },
+    {
+      "ok": true,
+      "prompt": "Explain why a target-only baseline must use the same workload as its candidate.",
+      "request_id": "general-5",
+      "priority": 0,
+      "output_text": "A target-only baseline, also known as a target baseline, is a baseline that is used to measure the performance of a new system or process against a specific target. The target is typically a set of performance metrics that the new system or process is expected to achieve. A candidate baseline, on the other hand, is a",
+      "ttft_ms": 44.93,
+      "tpot_ms": 11.746,
+      "e2e_ms": 784.904,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 63,
+      "usage": {
+        "prompt_tokens": 45,
+        "total_tokens": 109,
+        "completion_tokens": 64
+      },
+      "completion_rank": 6
+    },
+    {
+      "ok": true,
+      "prompt": "What evidence proves that a speculative decoding path actually executed?",
+      "request_id": "general-6",
+      "priority": 0,
+      "output_text": "Speculative decoding paths are a technique used in machine learning and artificial intelligence to improve the efficiency and accuracy of model training. They work by making predictions about the next step in a sequence of operations and then executing that prediction if it is deemed likely to be correct. This can help the model to converge faster and to avoid getting",
+      "ttft_ms": 45.027,
+      "tpot_ms": 11.499,
+      "e2e_ms": 769.465,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 40,
+        "total_tokens": 104,
+        "completion_tokens": 64
+      },
+      "completion_rank": 7
+    },
+    {
+      "ok": true,
+      "prompt": "Summarize the role of warmup runs in a GPU benchmark.",
+      "request_id": "general-7",
+      "priority": 0,
+      "output_text": "Warmup runs in a GPU benchmark serve a crucial role in ensuring the accuracy and reliability of the results. Here are the key points about their importance:\n\n1. **Preparation for Performance Measurement**: Warmup runs are typically a series of initial measurements that are performed before the actual benchmarking begins. These runs help to stabilize",
+      "ttft_ms": 46.575,
+      "tpot_ms": 10.814,
+      "e2e_ms": 727.866,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 61,
+      "usage": {
+        "prompt_tokens": 43,
+        "total_tokens": 107,
+        "completion_tokens": 64
+      },
+      "completion_rank": 8
+    }
+  ],
+  "schema_version": "inference-benchmark/v1",
+  "normalized_result": {
+    "schema_version": "inference-benchmark/v1",
+    "project": "68",
+    "strategy": "g1_ngram",
+    "role": "candidate",
+    "config": {
+      "model": "Qwen/Qwen2.5-1.5B-Instruct",
+      "backend": "vllm",
+      "dtype": "bfloat16",
+      "prompt_tokens": 42.375,
+      "generated_tokens": 64,
+      "batch": 1,
+      "concurrency": 1,
+      "cache_policy": "default",
+      "role": "candidate",
+      "workload": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/speculative_general.jsonl"
+    },
+    "metrics": {
+      "ttft_ms": {
+        "mean": 46.103,
+        "p50": 44.9785,
+        "p95": 49.81555,
+        "p99": 50.142309999999995
+      },
+      "tpot_ms": {
+        "mean": 12.056,
+        "p50": 11.6225,
+        "p95": 14.579900000000002,
+        "p99": 15.43838
+      },
+      "throughput_tokens_per_s": 80.9413,
+      "throughput_requests_per_s": 1.3632,
+      "p95_ms": null,
+      "p99_ms": 838.99054,
+      "peak_memory_mb": 10318.0,
+      "queue_wait_ms": null,
+      "input_transfer_bytes": null,
+      "input_transfer_ms": null,
+      "transfer_bytes": null,
+      "handoff_ms": null,
+      "recompute_ms": null,
+      "network_wait_ms": null,
+      "communication_ms": null,
+      "exposed_comm_ms": null,
+      "overlap_ratio": null,
+      "idle_gap_ms": null,
+      "model_load_ms": null,
+      "stream_output_ms": null,
+      "e2e_latency_ms": {
+        "mean": 733.238,
+        "p50": 769.559,
+        "p95": 826.7327,
+        "p99": 838.99054
+      },
+      "successful_requests": 8,
+      "failed_requests": 0,
+      "duration_s": 5.8684
+    },
+    "quality": {},
+    "status": "not_recorded",
+    "evidence_level": "not_recorded",
+    "failure": {
+      "failure_reason": null,
+      "retest_path": null
+    },
+    "decision": {
+      "decision": "not_evaluated"
+    },
+    "source": "http://127.0.0.1:44489"
+  },
+  "resource_measurement": {
+    "metric": "device_memory_used_peak_mb",
+    "scope": "visible_gpu_0_total_device_usage",
+    "sample_count": 34,
+    "includes_non_service_processes": true
+  },
+  "mechanism_metrics": {
+    "draft_rounds": 10.0,
+    "proposed_tokens": 50.0,
+    "accepted_tokens": 10.0,
+    "acceptance_rate": 0.2,
+    "mean_accepted_length": 2.0,
+    "mechanism_active": true,
+    "source": "vllm_prometheus_counter_delta"
+  }
+}

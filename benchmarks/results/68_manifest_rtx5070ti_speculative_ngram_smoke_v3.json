@@ -1,0 +1,98 @@
+{
+  "schema_version": "speculative-selection-manifest/v1",
+  "project": "68",
+  "run_label": "rtx5070ti_speculative_ngram_smoke_v3",
+  "config": {
+    "target_model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "workloads": {
+      "general": "benchmarks/workloads/speculative_general.jsonl",
+      "repetition": "benchmarks/workloads/speculative_repetition.jsonl"
+    },
+    "concurrency_levels": [
+      1
+    ],
+    "num_prompts": 8,
+    "warmup": 2,
+    "repeats": 1,
+    "max_tokens": 64,
+    "temperature": 0.0,
+    "common_speculative_tokens": 5
+  },
+  "groups": [
+    {
+      "group": "g0_target_only",
+      "summary_path": "benchmarks/results/68_g0_target_only_summary_rtx5070ti_speculative_ngram_smoke_v3.json",
+      "run_status": "completed",
+      "admission": {
+        "run_status": "runnable",
+        "reason": "baseline_ready",
+        "resolved_asset": "/data/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/989aa7980e4cf806f80c7fef2b1adb7bc71aa306"
+      }
+    },
+    {
+      "group": "g1_ngram",
+      "summary_path": "benchmarks/results/68_g1_ngram_summary_rtx5070ti_speculative_ngram_smoke_v3.json",
+      "run_status": "completed",
+      "admission": {
+        "run_status": "runnable",
+        "reason": "static_admission_passed",
+        "family": "ngram",
+        "backend_method": "ngram",
+        "resolved_asset": null,
+        "min_version_ok": true
+      }
+    },
+    {
+      "group": "g2_mtp",
+      "summary_path": "benchmarks/results/68_g2_mtp_summary_rtx5070ti_speculative_ngram_smoke_v3.json",
+      "run_status": "asset_missing",
+      "admission": {
+        "run_status": "asset_missing",
+        "reason": "required_model_asset_unavailable",
+        "family": "mtp",
+        "backend_method": "mtp",
+        "resolved_asset": null,
+        "min_version_ok": true
+      }
+    },
+    {
+      "group": "g3_eagle",
+      "summary_path": "benchmarks/results/68_g3_eagle_summary_rtx5070ti_speculative_ngram_smoke_v3.json",
+      "run_status": "asset_missing",
+      "admission": {
+        "run_status": "asset_missing",
+        "reason": "required_model_asset_unavailable",
+        "family": "eagle",
+        "backend_method": "eagle3",
+        "resolved_asset": null,
+        "min_version_ok": true
+      }
+    },
+    {
+      "group": "g4_dflash",
+      "summary_path": "benchmarks/results/68_g4_dflash_summary_rtx5070ti_speculative_ngram_smoke_v3.json",
+      "run_status": "unsupported",
+      "admission": {
+        "run_status": "unsupported",
+        "reason": "backend_method_unavailable",
+        "family": "dflash",
+        "backend_method": null,
+        "resolved_asset": null,
+        "min_version_ok": false
+      }
+    },
+    {
+      "group": "g5_dspark",
+      "summary_path": "benchmarks/results/68_g5_dspark_summary_rtx5070ti_speculative_ngram_smoke_v3.json",
+      "run_status": "unsupported",
+      "admission": {
+        "run_status": "unsupported",
+        "reason": "backend_method_unavailable",
+        "family": "dspark",
+        "backend_method": null,
+        "resolved_asset": null,
+        "min_version_ok": false
+      }
+    }
+  ]
+}

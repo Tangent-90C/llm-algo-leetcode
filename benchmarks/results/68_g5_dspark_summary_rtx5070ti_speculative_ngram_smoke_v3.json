@@ -1,0 +1,78 @@
+{
+  "schema_version": "speculative-selection/v1",
+  "project": "68",
+  "run_label": "rtx5070ti_speculative_ngram_smoke_v3",
+  "group": "g5_dspark",
+  "strategy": {
+    "enabled": true,
+    "family": "dspark",
+    "method": null,
+    "asset": null,
+    "min_vllm": "0.25.1"
+  },
+  "admission": {
+    "run_status": "unsupported",
+    "reason": "backend_method_unavailable",
+    "family": "dspark",
+    "backend_method": null,
+    "resolved_asset": null,
+    "min_version_ok": false
+  },
+  "environment": {
+    "repo_root": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode",
+    "kernel_python": "/home/yulinlin/anaconda3/envs/llm_vllm_cu128/bin/python",
+    "configured_env": "llm_vllm_cu128",
+    "profile_id": "INF-VLLM-011-CU128",
+    "upgrade_env": "llm_vllm_spec025_cu129",
+    "upgrade_profile_id": "INF-VLLM-SPEC025",
+    "upgrade_vllm_version": "0.25.1+cu129",
+    "optional_retest_profile_id": "INF-VLLM-MTP",
+    "upgrade_min_driver": "575.57",
+    "detected_driver": "570.211.01",
+    "vllm_command": "/home/yulinlin/anaconda3/envs/llm_vllm_cu128/bin/vllm",
+    "vllm_version": "0.11.0",
+    "speculative_interface": "speculative_config",
+    "declared_methods": [
+      "ngram",
+      "eagle",
+      "eagle3",
+      "medusa",
+      "mlp_speculator",
+      "draft_model",
+      "deepseek_mtp",
+      "ernie_mtp",
+      "qwen3_next_mtp",
+      "mimo_mtp",
+      "longcat_flash_mtp",
+      "mtp"
+    ],
+    "gpu_available": true,
+    "gpu_name": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+    "gpu_total_gb": 11.48,
+    "model_cache_mode": "auto",
+    "model_cache_candidates": [
+      "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/model_cache",
+      "/data/huggingface/hub"
+    ],
+    "resolved_target_snapshot": "/data/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct/snapshots/989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+    "result_collisions": [],
+    "audit_errors": [],
+    "workloads": {
+      "general": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/speculative_general.jsonl",
+      "repetition": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/speculative_repetition.jsonl"
+    },
+    "runtime": {
+      "python": "3.12.15 (main, Oct  6 2026, 23:50:18) [GCC 15.3.0]",
+      "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+      "torch": "2.8.0+cu128",
+      "torch_cuda": "12.8",
+      "device": "NVIDIA GeForce RTX 5070 Ti Laptop GPU"
+    }
+  },
+  "run_status": "unsupported",
+  "evidence_status": "not_evaluated",
+  "decision": {
+    "decision": "not_evaluated",
+    "reason": "not_executed"
+  }
+}
