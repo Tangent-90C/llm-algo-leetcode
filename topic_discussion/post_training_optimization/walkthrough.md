@@ -22,6 +22,8 @@
 
 ![预训练、监督微调、偏好优化、在线奖励优化与评测的关系](../../docs/public/topic_discussion/post_training_optimization/training_lifecycle_context.svg)
 
+![后训练知识地图：数据、信号、状态与证据如何连接](../../docs/public/topic_discussion/post_training_optimization/post_training_knowledge_map.svg)
+
 ## 二、从监督目标建立最小 SFT 基线
 
 同一条提示与目标回答经过聊天模板和分词后形成词元序列、注意力掩码和标签。标签掩码决定哪些词元进入监督损失；样本契约、任务输入指纹、样本指纹和数据切分决定样本能否进入训练池。训练后在冻结验证集上比较更新前后的任务结果，并重新加载保存的模型或适配器复测，得到后续候选共同使用的 SFT 基线。数据与标签关系见[监督数据契约](./01_sft_data_and_loss.md)，保存、恢复和验证关系见[SFT 基线与交付](./04_end_to_end_experiment.md)。
@@ -60,7 +62,7 @@ RLHF 与 RLVR 描述反馈来源，不与某一种更新算法一一绑定。人
 
 ## 五、轨迹怎样进入在线训练系统
 
-强化学习需要把轨迹采样、奖励或验证器、参数更新与评测拆成可测阶段。每条轨迹记录提示、回复词元或环境动作、生成它的策略版本、奖励分量和消费状态；学习器比较轨迹策略版本与当前版本，只接纳版本差未超过实验门槛且尚未消费的轨迹。对象与准入关系见[轨迹生命周期与环境交互](./08_trajectory_lifecycle_and_environment_interaction.md)；拆分采样、奖励和训练工作进程后，还要按[RL 执行系统与效率](./09_rl_execution_system_and_efficiency.md)检查队列等待、权重同步、失败重试和恢复位置。
+强化学习需要把轨迹采样、奖励或验证器、参数更新与候选交付拆成可测阶段。每条轨迹记录提示、回复词元或环境动作、生成它的策略版本、奖励分量和消费状态；学习器比较轨迹策略版本与当前版本，只接纳版本差未超过实验门槛且尚未消费的轨迹。对象与准入关系见[轨迹生命周期与环境交互](./08_trajectory_lifecycle_and_environment_interaction.md)；拆分采样、奖励和训练工作进程后，还要按[在线训练交付与执行系统](./09_rl_execution_system_and_efficiency.md)检查队列等待、权重同步、失败重试和恢复位置。
 
 ![模型动作、环境观察和奖励形成版本化轨迹并接受消费准入检查](../../docs/public/topic_discussion/post_training_optimization/trajectory_lifecycle.svg)
 
@@ -68,6 +70,6 @@ RLHF 与 RLVR 描述反馈来源，不与某一种更新算法一一绑定。人
 
 ## 六、用独立评测决定采用、调整或回滚
 
-训练损失、奖励或胜率上升都不足以直接采用。回到开头冻结的提示和评测样本，对基线与候选执行相同解码与评分协议，再检查任务正确性、通用能力保持、安全、鲁棒性、评审一致性、资源成本和失败切片。全部门槛通过时采用候选（`accept`）；方向有效但仍有可修复失败时调整后复测（`tune`）；核心质量无增益或触发安全、资源约束时拒绝并保留原基线（`reject`）。具体判断条件见[独立评测与采用决策](./10_evaluation_and_adoption_decision.md)。
+训练损失、奖励或胜率上升都不足以直接采用。回到开头冻结的提示和评测样本，对基线与候选执行相同解码与评分协议，再检查任务正确性、通用能力保持、安全、鲁棒性、评审一致性、资源成本和失败切片。全部门槛通过时采用候选（`accept`）；方向有效但仍有可修复失败时调整后复测（`tune`）；核心质量无增益或触发安全、资源约束时拒绝并保留原基线（`reject`）。具体判断条件见[独立评测、能力回归与采用决策](./10_evaluation_and_adoption_decision.md)。
 
 ![目标质量、能力保持、安全、评分一致性与资源证据共同约束采用决策](../../docs/public/topic_discussion/post_training_optimization/post_training_decision_conflicts.svg)

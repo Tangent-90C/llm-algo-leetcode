@@ -28,4 +28,4 @@ Agentic RL 改变的是策略作用对象，不是重新定义一种策略优化
 
 SFT 可以模仿经过验证的成功轨迹，DPO 可以比较同一初始状态下的两条轨迹，PPO 可以用价值基线估计多步优势，GRPO 可以比较同一任务生成的多条候选轨迹。无论采用哪种更新方式，模型动作、环境观察和奖励来源都必须分开保存。
 
-[Agent 工作负载与执行链](../agent/00_agent_workload_and_trace.md)定义任务级交互，[Agent 轨迹数据与验证](../agent/01_agent_trajectory_data.md)定义回放证据，[Agent 沙盒与执行环境](../agent/02_agent_sandbox_environment.md)定义工具权限与环境隔离。轨迹通过准入后，进入[09 RL 执行系统与效率](./09_rl_execution_system_and_efficiency.md)的采样、奖励和训练系统。
+[Agent 工作负载与执行链](../agent/00_agent_workload_and_trace.md)定义任务级交互，[Agent 轨迹数据与验证](../agent/01_agent_trajectory_data.md)定义回放证据，[Agent 沙盒与执行环境](../agent/02_agent_sandbox_environment.md)定义工具权限与环境隔离。轨迹通过准入后，进入[09 在线训练交付与执行系统](./09_rl_execution_system_and_efficiency.md)的采样、奖励和训练系统。

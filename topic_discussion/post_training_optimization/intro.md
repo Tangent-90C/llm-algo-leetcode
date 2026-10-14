@@ -6,9 +6,11 @@
 
 ![预训练、监督微调、偏好优化、在线奖励优化与评测的关系](../../docs/public/topic_discussion/post_training_optimization/training_lifecycle_context.svg)
 
+![后训练优化对象与最小干预路径](../../docs/public/topic_discussion/post_training_optimization/post_training_optimization_targets.svg)
+
 ## 学习路线
 
-Task 编号表示认知顺序，不表示所有算法必须串行执行。主路径是 `Task0 → Task1 → Task2 →（Task3 离线偏好 / Task4 在线奖励 → Task5 在线系统）→ Task6`：Task3 与 Task4 是反馈条件不同的候选分支，只有在线采样与持续反馈路径继续进入 Task5，所有候选最终在 Task6 汇合。需要连续理解因果关系时进入[后训练优化问题链](./walkthrough.md)，已有数据、训练日志或评测报告时使用[后训练优化判断手册](./casebook.md)，术语差异查询[专题术语表](./glossary.md)。
+Task 编号表示认知顺序，不表示所有算法必须串行执行。主路径是 `Task0 → Task1 → Task2 →（Task3 离线偏好 / Task4 在线策略候选 → Task5 在线训练交付）→ Task6`：Task3 与 Task4 是反馈条件不同的候选分支，只有在线采样与持续反馈路径继续进入 Task5，SFT、DPO 和在线策略候选最终都在 Task6 汇合。需要连续理解因果关系时进入[后训练优化问题链](./walkthrough.md)，已有数据、训练日志或评测报告时使用[后训练优化判断手册](./casebook.md)，术语差异查询[专题术语表](./glossary.md)。
 
 | Task / 主题 | 本阶段要回答的问题 | 学习入口与验证出口 | 学习顺序 | 主要正文入口 |
 |:---|:---|:---|:---|:---|
@@ -16,9 +18,9 @@ Task 编号表示认知顺序，不表示所有算法必须串行执行。主路
 | Task1 · 监督目标与最小 SFT 基线 | 样本怎样经过契约校验、模板和标签掩码变成有效监督词元；长样本又怎样在不破坏监督边界的前提下进入训练？ | 核心：[Part 02 · 32 SFT 数据契约与泄漏审计](../../02_PyTorch_Algorithms/32_Data_Engineering_for_SFT.ipynb) → [Part 02 · 13 SFT 训练循环](../../02_PyTorch_Algorithms/13_SFT_Training_Loop.ipynb) → [Part 02 · 15 端到端微调](../../02_PyTorch_Algorithms/15_End_to_End_Fine_Tuning_Experiment.ipynb)；项目：[Part 02 · 64 数据准入](../../02_PyTorch_Algorithms/64_SFT_Data_Quality_Project.ipynb) → [Part 02 · 62 训练交付](../../02_PyTorch_Algorithms/62_Instruction_Fine_Tuning_Project.ipynb)；扩展：[Part 02 · 30 长上下文微调](../../02_PyTorch_Algorithms/30_Long_Context_Fine_Tuning.ipynb) | 样本契约与切分隔离 → 模板、分词与标签边界 → 有效监督词元与损失 → 最小更新与冻结验证 → 长样本窗口 / 截断 / Packing → 可恢复 SFT 基线 | [01 SFT 数据、监督与长上下文契约](./01_sft_data_and_loss.md) |
 | Task2 · 更新范围与参数高效适配 | 监督目标与输入工作负载固定后，哪些参数需要更新，怎样在全参数、LoRA、QLoRA 和 LoRA 变体之间选择？ | 核心：[Part 02 · 14 LoRA](../../02_PyTorch_Algorithms/14_LoRA_Tutorial.ipynb) → [Part 02 · 31 LoRA 变体](../../02_PyTorch_Algorithms/31_LoRA_Variants_Theory.ipynb)；项目：[Part 02 · 63 LoRA 选型](../../02_PyTorch_Algorithms/63_LoRA_Variants_Benchmark.ipynb) / [Part 02 · 65 QLoRA 选型](../../02_PyTorch_Algorithms/65_QLoRA_Selection_Project.ipynb) → [Part 02 · 62 SFT 训练交付](../../02_PyTorch_Algorithms/62_Instruction_Fine_Tuning_Project.ipynb)；扩展：[Part 02 · 26 QLoRA](../../02_PyTorch_Algorithms/26_QLoRA_and_4bit_Quantization.ipynb) | 全参数 / 适配器选择 → 目标模块、秩与缩放 → 固定秩或固定参数预算比较 → 基座显存不足时进入 QLoRA → 可恢复适配器产物 | [02 LoRA / PEFT](./02_lora_peft_design.md) |
 | Task3 · 偏好数据与离线策略优化 | 已有同提示的优选与非优选回答时，怎样固定参考策略、形成偏好边际并完成离线 DPO 更新？ | 核心：[Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb) → [Part 02 · 17 DPO](../../02_PyTorch_Algorithms/17_DPO_Loss_Tutorial.ipynb)；项目：[Part 02 · 84 离线 DPO](../../02_PyTorch_Algorithms/84_DPO_Preference_Project.ipynb) | 同提示偏好对 → 固定参考策略 → 偏好边际 → 离线更新与独立复测 → 候选清单 | [05 DPO 与离线偏好优化](./05_dpo_and_preference_optimization.md) |
-| Task4 · 奖励信号与在线策略更新 | 偏好对或验证结果怎样经过留出排序、校准和独立质量检查形成奖励；当前策略生成的回答又怎样经过基线和优势估计，形成 PPO / GRPO 更新？ | 核心：[Part 02 · PT-REWARD-MODEL 奖励模型训练、校准与过度优化](../../02_PyTorch_Algorithms/PT-REWARD-MODEL_Reward_Model_Training_and_Calibration.ipynb) → [Part 02 · PT-REWARD-SIGNAL 奖励、价值与优势](../../02_PyTorch_Algorithms/PT-REWARD-SIGNAL_Reward_Model_Value_and_Advantage.ipynb)，再选择 [Part 02 · 16 PPO](../../02_PyTorch_Algorithms/16_RLHF_PPO_Memory.ipynb) 或 [Part 02 · 18 GRPO](../../02_PyTorch_Algorithms/18_GRPO_Loss_Tutorial.ipynb)；项目：[Part 02 · 85 GRPO / RLVR](../../02_PyTorch_Algorithms/85_GRPO_Groupwise_Alignment_Project.ipynb) | 偏好或规则反馈 → 奖励训练与留出校准 → 在线采样 → 奖励、价值或组内基线 → 优势 → 受约束更新 → 独立新轨迹复测 | [06 奖励信号、PPO / RLHF](./06_rlhf_and_ppo_system_cost.md) |
-| Task5 · 轨迹生命周期与在线训练系统 | 多轮在线更新中，怎样判断轨迹仍可用于当前策略，并让采样、奖励与训练系统完成同步和恢复？ | 核心：[Part 02 · PT-ROLLOUT-LIFECYCLE 轨迹与策略新鲜度](../../02_PyTorch_Algorithms/PT-ROLLOUT-LIFECYCLE_Rollout_and_Policy_Freshness.ipynb)，再选择 [Part 02 · PT-RL-SYSTEM 采样、训练与奖励系统](../../02_PyTorch_Algorithms/PT-RL-SYSTEM_Rollout_Training_and_Reward_System.ipynb) 或 [Part 02 · 51 在线 DPO](../../02_PyTorch_Algorithms/51_Online_DPO.ipynb)；项目：[Part 02 · 85 真实轨迹与更新](../../02_PyTorch_Algorithms/85_GRPO_Groupwise_Alignment_Project.ipynb) → [Part 02 · 86 生命周期与恢复](../../02_PyTorch_Algorithms/86_DPO_Online_Benchmark.ipynb) | 策略版本 → 轨迹身份与环境交互 → 新鲜度和消费准入 → 采样 / 奖励 / 训练拓扑 → 同步、检查点与恢复 | [08 轨迹生命周期与环境交互](./08_trajectory_lifecycle_and_environment_interaction.md) |
-| Task6 · 独立评测与采用决策 | 训练后的候选与固定基线相比，是否同时通过目标能力、通用能力、安全、鲁棒性、成本和回滚门槛？ | 核心：[Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb) / [Part 02 · 51 在线更新与回滚](../../02_PyTorch_Algorithms/51_Online_DPO.ipynb)；项目：[Part 02 · 86 生命周期与采用决策](../../02_PyTorch_Algorithms/86_DPO_Online_Benchmark.ipynb)，读取 [Part 02 · 84 DPO 候选](../../02_PyTorch_Algorithms/84_DPO_Preference_Project.ipynb) 或 [Part 02 · 85 GRPO / RLVR 候选](../../02_PyTorch_Algorithms/85_GRPO_Groupwise_Alignment_Project.ipynb) 的模型版本、评测结果和资源记录 | 冻结评测集与评分协议 → 基线 / 候选 → 目标增益与能力保持 → 安全、鲁棒性与评审一致性 → 资源、失败切片与回滚 → `accept / tune / reject` | [10 独立评测与采用决策](./10_evaluation_and_adoption_decision.md) |
+| Task4 · 奖励构造与在线策略候选 | 当前策略生成的回答由人类偏好、奖励模型还是规则验证器评分；评分怎样经过校准、基线和优势估计形成受约束的 PPO 或 GRPO 更新，并产出可独立复测的候选策略？ | 核心：[Part 02 · PT-REWARD-MODEL 奖励模型训练、校准与过度优化](../../02_PyTorch_Algorithms/PT-REWARD-MODEL_Reward_Model_Training_and_Calibration.ipynb) → [Part 02 · PT-REWARD-SIGNAL 奖励、价值与优势](../../02_PyTorch_Algorithms/PT-REWARD-SIGNAL_Reward_Model_Value_and_Advantage.ipynb)，再选择 [Part 02 · 16 PPO](../../02_PyTorch_Algorithms/16_RLHF_PPO_Memory.ipynb) 或 [Part 02 · 18 GRPO](../../02_PyTorch_Algorithms/18_GRPO_Loss_Tutorial.ipynb)；项目：[Part 02 · 85 GRPO / RLVR 候选](../../02_PyTorch_Algorithms/85_GRPO_Groupwise_Alignment_Project.ipynb) | 人类偏好或规则反馈 → 奖励训练与留出校准 → 在线采样 → 回报、价值或组内基线 → 优势 → 受约束更新 → 候选策略与新轨迹 | [06 奖励信号、PPO 与 RLHF](./06_rlhf_and_ppo_system_cost.md) → [07 GRPO、RLVR 与组内奖励](./07_grpo_and_groupwise_alignment.md) |
+| Task5 · 轨迹治理与在线训练交付 | 在线轨迹怎样绑定策略、奖励和环境版本，经过新鲜度与消费状态检查进入更新；采样、奖励和训练组件又怎样同步权重、保存检查点并从失败中恢复？ | 核心：[Part 02 · PT-ROLLOUT-LIFECYCLE 轨迹与策略新鲜度](../../02_PyTorch_Algorithms/PT-ROLLOUT-LIFECYCLE_Rollout_and_Policy_Freshness.ipynb) → [Part 02 · PT-RL-SYSTEM 采样、训练与奖励系统](../../02_PyTorch_Algorithms/PT-RL-SYSTEM_Rollout_Training_and_Reward_System.ipynb)；扩展：[Part 02 · 51 在线 DPO](../../02_PyTorch_Algorithms/51_Online_DPO.ipynb)；项目：[Part 02 · 85 在线奖励候选](../../02_PyTorch_Algorithms/85_GRPO_Groupwise_Alignment_Project.ipynb) → [Part 02 · 86 生命周期与恢复](../../02_PyTorch_Algorithms/86_DPO_Online_Benchmark.ipynb) | 策略版本 → 轨迹身份与环境状态 → 奖励版本 → 新鲜度与消费准入 → 采样 / 奖励 / 训练拓扑 → 权重同步、检查点、恢复与候选交接 | [08 轨迹生命周期与环境交互](./08_trajectory_lifecycle_and_environment_interaction.md) → [09 在线训练交付与执行系统](./09_rl_execution_system_and_efficiency.md) |
+| Task6 · 独立评测、能力回归与采用决策 | 在冻结评测集和评分协议下，候选是否获得目标能力增益并保持通用能力、安全性和鲁棒性；其训练与服务成本、失败切片和回滚条件是否允许采用？ | 核心：[Part 02 · 50 偏好数据与评测](../../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.ipynb) / [Part 02 · 51 在线更新与回滚](../../02_PyTorch_Algorithms/51_Online_DPO.ipynb)；项目：[Part 05 · 后训练交付综合项目](../../05_Integrated_Projects_and_Decisions/02_Post_Training_Delivery/index.md)，读取 [Part 02 · 86 生命周期交接](../../02_PyTorch_Algorithms/86_DPO_Online_Benchmark.ipynb) | 冻结评测集与评分协议 → SFT 基线 / 已交接候选 → 目标增益与能力保持 → 安全、鲁棒性与评审一致性 → 资源、失败切片与回滚 → `accept / tune / reject` | [10 独立评测、能力回归与采用决策](./10_evaluation_and_adoption_decision.md) |
 
 ### 监督目标与参数方案怎样汇合
 
@@ -30,7 +32,7 @@ Task 编号表示认知顺序，不表示所有算法必须串行执行。主路
 
 ![后训练路线：共同训练基础分流到偏好、奖励和在线系统](../../docs/public/topic_discussion/post_training_optimization/post_training_roadmap.svg)
 
-![后训练知识地图：数据、信号、状态与证据如何连接](../../docs/public/topic_discussion/post_training_optimization/post_training_knowledge_map.svg)
+数据对象、学习信号、运行状态与独立证据的对应关系见[后训练优化问题链](./walkthrough.md#一先判断是否需要改变模型参数)。
 
 ## 扩展与跨专题入口
 
@@ -54,4 +56,4 @@ Task 编号表示认知顺序，不表示所有算法必须串行执行。主路
 | 单卡偏好与奖励 | 奖励头、偏好边际、组内优势和奖励信号是否按预期变化？ | `PT-RL-CUDA`；PT-REWARD-MODEL、PT-REWARD-SIGNAL、17、18 |
 | 多工作进程系统 | 轨迹采样、奖励、更新、通信和恢复能否在固定策略版本下运行？ | 项目指定的分布式环境；状态登记见实验资产表 |
 | 项目交付 | 数据、参数方案、SFT 基线与后训练候选是否形成可追溯产物？ | 64 → 63 / 65 → 62 → 84 / 85 |
-| 采用决策 | 候选是否通过质量、安全、资源与回滚门槛？ | 86 读取 62、84、85 的模型版本、评测、资源和恢复记录；当前登记结论为 `tune` |
+| 采用决策 | 候选是否通过质量、安全、资源与回滚门槛？ | Part 05 读取 86 的生命周期交接清单，在冻结协议下复测后形成最终状态 |
