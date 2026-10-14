@@ -5,6 +5,8 @@ from __future__ import annotations
 import socket
 import shutil
 import json
+import os
+import signal
 import subprocess
 import sys
 import time
@@ -68,13 +70,25 @@ def probe_vllm_speculative_support(
     """
 
     executable = resolve_vllm_command(command, environment)
-    completed = subprocess.run(
-        [executable, "serve", "--help"],
-        capture_output=True,
-        text=True,
-        check=False,
+    # vLLM's default help is intentionally abbreviated in some releases and
+    # can omit engine options such as ``--speculative-config``.  Inspect the
+    # complete help first, while retaining the ordinary help as a fallback for
+    # versions that do not implement ``--help=all``.
+    attempts = []
+    for help_flag in ("--help=all", "--help"):
+        completed = subprocess.run(
+            [executable, "serve", help_flag],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        attempts.append(completed)
+        if completed.returncode == 0:
+            break
+    help_text = "\n".join(
+        (attempt.stdout or "") + "\n" + (attempt.stderr or "")
+        for attempt in attempts
     )
-    help_text = (completed.stdout or "") + "\n" + (completed.stderr or "")
     has_config = "--speculative-config" in help_text
     has_legacy = "--speculative-model" in help_text and "--num-speculative-tokens" in help_text
     if has_config:
@@ -83,12 +97,94 @@ def probe_vllm_speculative_support(
         mode = "legacy_flags"
     else:
         mode = "unsupported"
+    methods: list[str] = []
+    version: str | None = None
+    if mode == "speculative_config":
+        # Ask the Python interpreter from the same environment which methods
+        # its SpeculativeConfig accepts.  This avoids treating the presence of
+        # the generic --speculative-config flag as proof that every proposer is
+        # implemented by that vLLM build.
+        python_executable = str(Path(executable).with_name("python"))
+        method_probe = subprocess.run(
+            [
+                python_executable,
+                "-c",
+                (
+                    "from typing import get_args; "
+                    "from vllm.config.speculative import SpeculativeMethod; "
+                    "print('|'.join(get_args(SpeculativeMethod)))"
+                ),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if method_probe.returncode == 0:
+            method_line = (method_probe.stdout or "").strip().splitlines()
+            if method_line:
+                methods = [item for item in method_line[-1].split("|") if item]
+        version_probe = subprocess.run(
+            [
+                python_executable,
+                "-c",
+                "import importlib.metadata as m; print(m.version('vllm'))",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if version_probe.returncode == 0:
+            version_lines = (version_probe.stdout or "").strip().splitlines()
+            version = version_lines[-1] if version_lines else None
+    elif mode == "legacy_flags":
+        methods = ["draft_model"]
     return {
         "status": "supported" if mode != "unsupported" else "unsupported",
         "mode": mode,
+        "methods": methods,
+        "version": version,
         "command": executable,
-        "returncode": completed.returncode,
+        "returncode": attempts[-1].returncode,
+        "help_mode": "all" if len(attempts) == 1 else "fallback",
     }
+
+
+def build_vllm_speculative_strategy_args(
+    capability: Mapping[str, Any],
+    *,
+    method: str | None,
+    proposal_length: int,
+    model: str | None = None,
+    method_options: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Build arguments for one explicitly admitted speculative strategy.
+
+    Capability discovery, asset admission and server startup remain separate:
+    constructing JSON here does not claim that a target/proposer pair is
+    compatible.  That distinction is important for project 68's evidence
+    states.
+    """
+
+    if proposal_length <= 0:
+        raise ValueError("proposal_length 必须大于 0")
+    mode = capability.get("mode")
+    methods = set(capability.get("methods") or ())
+    if methods and method is not None and method not in methods:
+        raise RuntimeError(f"当前 vLLM 不声明 speculative method={method!r}")
+    if mode == "speculative_config":
+        config: dict[str, Any] = {"num_speculative_tokens": proposal_length}
+        if method is not None:
+            config["method"] = method
+        if model:
+            config["model"] = model
+        config.update(dict(method_options or {}))
+        return ["--speculative-config", json.dumps(config, ensure_ascii=False)]
+    if mode == "legacy_flags" and method in (None, "draft_model") and model:
+        return [
+            "--speculative-model", model,
+            "--num-speculative-tokens", str(proposal_length),
+        ]
+    raise RuntimeError(f"当前 vLLM CLI 不能安全构造 method={method!r} 的启动参数")
 
 
 def build_vllm_speculative_args(
@@ -103,27 +199,12 @@ def build_vllm_speculative_args(
         raise ValueError("draft_model 不能为空")
     if proposal_length <= 0:
         raise ValueError("proposal_length 必须大于 0")
-    mode = capability.get("mode")
-    if mode == "speculative_config":
-        return [
-            "--speculative-config",
-            json.dumps(
-                {
-                    "method": "draft_model",
-                    "model": draft_model,
-                    "num_speculative_tokens": proposal_length,
-                },
-                ensure_ascii=False,
-            ),
-        ]
-    if mode == "legacy_flags":
-        return [
-            "--speculative-model",
-            draft_model,
-            "--num-speculative-tokens",
-            str(proposal_length),
-        ]
-    raise RuntimeError("当前 vLLM CLI 未发现可用的 speculative 参数")
+    return build_vllm_speculative_strategy_args(
+        capability,
+        method="draft_model",
+        proposal_length=proposal_length,
+        model=draft_model,
+    )
 
 
 def probe_vllm_quantization_support(
@@ -197,11 +278,18 @@ def start_vllm(model_path: str, dtype: str = "auto", port: int | None = None,
                gpu_memory_utilization: float = 0.8,
                enforce_eager: bool = False, served_model_name: str | None = None,
                enable_prefix_caching: bool = False,
+               scheduling_policy: str = "fcfs",
+               max_num_seqs: int | None = None,
                speculative_args: list[str] | None = None,
-               quantization_args: list[str] | None = None):
+               quantization_args: list[str] | None = None,
+               generation_config: str | None = None):
     port = port or find_free_port()
     dtype = choose_dtype(dtype)
     vllm_command = resolve_vllm_command(vllm_command, vllm_environment)
+    if scheduling_policy not in {"fcfs", "priority"}:
+        raise ValueError("scheduling_policy 只能是 fcfs 或 priority")
+    if max_num_seqs is not None and max_num_seqs <= 0:
+        raise ValueError("max_num_seqs 必须为正数")
     Path(log_path).parent.mkdir(parents=True, exist_ok=True)
     log_file = open(log_path, "w", encoding="utf-8")
     command = [
@@ -216,13 +304,30 @@ def start_vllm(model_path: str, dtype: str = "auto", port: int | None = None,
         command.extend(speculative_args)
     if quantization_args:
         command.extend(quantization_args)
+    if generation_config:
+        command.extend(["--generation-config", generation_config])
     if enforce_eager:
         command.append("--enforce-eager")
+    # vLLM V1 enables prefix caching by default.  A controlled cache-off
+    # baseline therefore needs the explicit negative form instead of simply
+    # omitting the positive flag.
     if enable_prefix_caching:
         command.append("--enable-prefix-caching")
+    else:
+        command.append("--no-enable-prefix-caching")
     if served_model_name:
         command.extend(["--served-model-name", served_model_name])
-    process = subprocess.Popen(command, stdout=log_file, stderr=subprocess.STDOUT)
+    command.extend(["--scheduling-policy", scheduling_policy])
+    if max_num_seqs is not None:
+        command.extend(["--max-num-seqs", str(max_num_seqs)])
+    # vLLM spawns EngineCore children.  A dedicated session lets stop_backend
+    # reclaim the whole serving tree instead of leaving GPU-resident workers.
+    process = subprocess.Popen(
+        command,
+        stdout=log_file,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
     try:
         wait_until_ready(port)
     except Exception:
@@ -232,12 +337,19 @@ def start_vllm(model_path: str, dtype: str = "auto", port: int | None = None,
 
 
 def stop_backend(process, log_file=None) -> None:
+    """Stop a backend process group, including vLLM EngineCore children."""
     if process is not None and process.poll() is None:
-        process.terminate()
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
         try:
             process.wait(timeout=10)
         except subprocess.TimeoutExpired:
-            process.kill()
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
             process.wait()
     if log_file is not None:
         log_file.close()
