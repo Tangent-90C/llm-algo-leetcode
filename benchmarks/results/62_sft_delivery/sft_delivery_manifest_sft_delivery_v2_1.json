@@ -1,0 +1,53 @@
+{
+  "schema_version": "fine-tuning-project/v1",
+  "semantic_id": "PT-SFT-DELIVERY",
+  "run_label": "sft_delivery_v2_1",
+  "decision": "accept",
+  "decision_details": {
+    "decision": "accept",
+    "failed_checks": []
+  },
+  "source_evidence": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/62_sft_delivery/sft_delivery_evidence_sft_delivery_v2_1.json",
+  "model": {
+    "id": "Qwen/Qwen2.5-0.5B",
+    "resolved_commit": "060db6499f32faf8b98477b0a26969ef7d8b9987"
+  },
+  "data": {
+    "manifest": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/64_sft_data_quality/sft_data_manifest_alpaca_qwen25_v2.json",
+    "sample_ids_hash": "903063adbef140239984151fb069e4b54ea24f638d4aa5c4f52ff0d16ea4face"
+  },
+  "selected_config": {
+    "name": "rank4",
+    "rank": 4,
+    "alpha": 16,
+    "dropout": 0.0,
+    "target_modules": [
+      "q_proj",
+      "v_proj"
+    ]
+  },
+  "checkpoint": {
+    "path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/62_sft_delivery/checkpoint_sft_delivery_v2_1",
+    "sha256": "629455a0572499fc484e429eaef38b0df2acaee8e7b5228516bcbf39053729e1",
+    "saved_step": 12,
+    "resumed_from_step": 12,
+    "completed_step": 24,
+    "training_update_count": 24,
+    "optimizer_state_present": true
+  },
+  "artifacts": {
+    "adapter": {
+      "role": "training.sft_baseline",
+      "path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/62_sft_delivery/adapter_sft_delivery_v2_1",
+      "sha256": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021"
+    }
+  },
+  "quality": {
+    "final_eval_loss": 1.7079639425501227,
+    "reload_loss_abs_diff": 0.0
+  },
+  "next_consumer": [
+    "PT-DPO-OFFLINE",
+    "PT-GRPO-GROUPWISE"
+  ]
+}
