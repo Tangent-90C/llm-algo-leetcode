@@ -16,12 +16,12 @@
 ## 前置阅读
 
 **导语：** 先把 DPO 损失、偏好优化主线、偏好数据评测和在线 DPO 背景理顺，再进入这个项目；本节默认你已经知道离线偏好优化的基本对象，重点转向 DPO 方案是否值得继续训练。
-- [15. DPO Loss Tutorial | DPO 损失教程](./15_DPO_Loss_Tutorial.md)
+- [17. DPO Loss Tutorial | DPO 损失教程](./17_DPO_Loss_Tutorial.md)
 - [2.4](./2_4.md)
 - [50. Preference Data and Evaluation | 偏好数据与评测](./50_Preference_Data_and_Evaluation.md)
 - [51. Online DPO | 在线 DPO](./51_Online_DPO.md)
-- [后训练与对齐专题入口](../topic_discussion/post_training_optimization/intro.md)
-- [06 Project Decision and Delivery | 项目决策与交付](../topic_discussion/post_training_optimization/06_project_decision_and_delivery.md)
+- [后训练优化专题入口](../topic_discussion/post_training_optimization/intro.md)
+- [09 Preference Data and Project Decision | 偏好数据与项目决策](../topic_discussion/post_training_optimization/09_preference_data_and_project_decision.md)
 
 ## 相关阅读
 
@@ -44,11 +44,13 @@
 - `loss` 回答 candidate 是否更容易优化。
 - `margin_mean` 和 `margin_min` 回答 chosen 是否真的被稳定拉开。
 - `valid_ratio` 回答偏好数据是否足够干净，避免拿脏数据做错结论。
+- 进入真实训练后，还要记录 policy/reference 的驻留方式、pair tokens、step time、tokens/s 和 peak memory；这些字段用于解释代价，不改变本节 CPU 题目的偏好机制职责。
 ### Step 4: 输出项目结论
 
 - DPO 项目最终不是输出“loss 有没有降”，而是输出这套离线偏好优化方案在当前数据口径下是否值得继续保留、微调或放弃。
 - 最终建议统一为 `accept / tune / reject`。
 - 若进入 `tune`，下一轮优先回偏好数据、模板一致性和 beta，而不是直接加训练步数。
+- `accept` 需要质量与资源证据同时成立；CPU 结果只能验证数据、比较和决策逻辑，不能替代 GPU 上的多模型驻留与训练吞吐。
 #### 图解：15-50-51 如何收束到 84 DPO 项目
 
 ```text
@@ -61,6 +63,7 @@
 | baseline | loss、margin、valid_ratio | 保证比较口径合法 |
 | candidate | beta、loss、margin、样本覆盖 | 解释离线收益来源 |
 | 对比 | loss 改善、margin 改善、coverage 风险 | 判断是否值得继续训练 |
+| 性能证据（真实训练） | policy/reference 驻留、pair tokens、step time、tokens/s、peak memory、失败状态 | 判断质量收益对应的资源代价；CPU 路径留空并标记未测 |
 | 决策 | accept / tune / reject | 输出项目结论 |
 
 ```python
