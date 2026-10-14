@@ -14,7 +14,7 @@
 
 ## 本节导读
 
-本节先不训练模型，而是判断一批 SFT 数据是否具备进入正式训练的条件。它是第 62 节指令微调和第 60 节 LoRA 项目的数据准入环节：先检查空回答、字段缺失、模板一致性、重复样本和评测覆盖，再把发现的问题按风险和修复成本整理出来。最终给出数据可直接训练、需要回修，还是应当暂缓使用的结论。
+本节先不训练模型，而是判断一批 SFT 数据是否具备进入正式训练的条件。它是第 62 节 SFT / LoRA 项目的数据准入环节：先检查空回答、字段缺失、模板一致性、重复样本和评测覆盖，再把发现的问题按风险和修复成本整理出来。最终给出数据可直接训练、需要回修，还是应当暂缓使用的结论。
 
 **关键词：** `SFT`, `data quality`, `template`, `evaluation`, `project`
 
@@ -22,10 +22,10 @@
 ## 前置阅读
 
 **导语：** 进入本项目前，先能说明 SFT 样本如何进入 loss，并能识别字段、模板和长度问题，再判断一批数据是否值得进入正式训练。
-- [09. SFT Training Loop | SFT 训练循环](./09_SFT_Training_Loop.md)
-- [13. End-to-End Fine-Tuning Experiment | 端到端微调实验](./13_End_to_End_Fine_Tuning_Experiment.md)
-- [30. Long Context Fine-Tuning | 长上下文微调](./30_Long_Context_Fine_Tuning.md)
-- [32. Data Engineering for SFT | SFT 数据工程](./32_Data_Engineering_for_SFT.md)
+- [13. SFT Training Loop | SFT 训练循环](./13_SFT_Training_Loop.md)
+- [15. End-to-End Fine-Tuning Experiment | 端到端微调实验](./15_End_to_End_Fine_Tuning_Experiment.md)
+- [30. Long-Context Fine-Tuning Mechanics | 长上下文微调机制](./30_Long_Context_Fine_Tuning.md)
+- [32. SFT Data Admission and Length Audit | SFT 数据准入与长度审计](./32_Data_Engineering_for_SFT.md)
 ---
 
 ### Step 1（项目设计）：明确数据准入问题
