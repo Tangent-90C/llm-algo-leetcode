@@ -1,0 +1,177 @@
+{
+  "schema_version": "architecture-mechanism-gpu/v1",
+  "identity": {
+    "semantic_id": "ARCH-MLA-REPRESENTATION-MECHANISM",
+    "workload_id": "arch-mla-representation-v2",
+    "run_label": "rtx5070ti_mla_v3",
+    "profile_id": "ARCH-CUDA-MECHANISM"
+  },
+  "mechanism": "kv_representation",
+  "workload": {
+    "dtype": "bfloat16",
+    "sequence_lengths": [
+      512,
+      2048,
+      8192
+    ],
+    "batch_size": 1,
+    "query_heads": 16,
+    "head_dim": 64,
+    "warmup": 10,
+    "repeats": 100,
+    "kv_heads": 4,
+    "latent_dim": 256,
+    "rope_dim": 64
+  },
+  "framework": {
+    "torch": "2.11.0+cu128"
+  },
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+    "cuda": "12.8",
+    "dtype": "bfloat16",
+    "total_memory_bytes": 12328960000
+  },
+  "baseline": {
+    "name": "mha_full_kv"
+  },
+  "candidates": [
+    "gqa_shared_kv",
+    "latent_kv_reconstruction_proxy",
+    "latent_kv_absorbed_proxy"
+  ],
+  "metrics": {
+    "comparison_type": "controlled_content_path_proxy",
+    "rows": [
+      {
+        "sequence_length": 512,
+        "representation": "mha_full_kv",
+        "cache_bytes": 2097152,
+        "materialized_kv_bytes": 2097152,
+        "mean_step_ms": 0.01234,
+        "peak_memory_mb": 2.016,
+        "reconstruction": false,
+        "output_finite": true
+      },
+      {
+        "sequence_length": 512,
+        "representation": "gqa_shared_kv",
+        "cache_bytes": 524288,
+        "materialized_kv_bytes": 524288,
+        "mean_step_ms": 0.0114,
+        "peak_memory_mb": 0.516,
+        "reconstruction": false,
+        "output_finite": true
+      },
+      {
+        "sequence_length": 512,
+        "representation": "latent_kv_reconstruction_proxy",
+        "cache_bytes": 327680,
+        "materialized_kv_bytes": 524288,
+        "mean_step_ms": 0.02493,
+        "peak_memory_mb": 9.203,
+        "reconstruction": true,
+        "output_finite": true
+      },
+      {
+        "sequence_length": 512,
+        "representation": "latent_kv_absorbed_proxy",
+        "cache_bytes": 327680,
+        "materialized_kv_bytes": 0,
+        "mean_step_ms": 0.04632,
+        "peak_memory_mb": 9.74,
+        "reconstruction": false,
+        "cosine_vs_reconstruction": 0.99998766,
+        "max_abs_diff_vs_reconstruction": 0.03125,
+        "output_finite": true
+      },
+      {
+        "sequence_length": 2048,
+        "representation": "mha_full_kv",
+        "cache_bytes": 8388608,
+        "materialized_kv_bytes": 8388608,
+        "mean_step_ms": 0.02466,
+        "peak_memory_mb": 16.152,
+        "reconstruction": false,
+        "output_finite": true
+      },
+      {
+        "sequence_length": 2048,
+        "representation": "gqa_shared_kv",
+        "cache_bytes": 2097152,
+        "materialized_kv_bytes": 2097152,
+        "mean_step_ms": 0.01465,
+        "peak_memory_mb": 10.168,
+        "reconstruction": false,
+        "output_finite": true
+      },
+      {
+        "sequence_length": 2048,
+        "representation": "latent_kv_reconstruction_proxy",
+        "cache_bytes": 1310720,
+        "materialized_kv_bytes": 2097152,
+        "mean_step_ms": 0.02898,
+        "peak_memory_mb": 11.668,
+        "reconstruction": true,
+        "output_finite": true
+      },
+      {
+        "sequence_length": 2048,
+        "representation": "latent_kv_absorbed_proxy",
+        "cache_bytes": 1310720,
+        "materialized_kv_bytes": 0,
+        "mean_step_ms": 0.05904,
+        "peak_memory_mb": 10.775,
+        "reconstruction": false,
+        "cosine_vs_reconstruction": 0.99999064,
+        "max_abs_diff_vs_reconstruction": 0.01953125,
+        "output_finite": true
+      },
+      {
+        "sequence_length": 8192,
+        "representation": "mha_full_kv",
+        "cache_bytes": 33554432,
+        "materialized_kv_bytes": 33554432,
+        "mean_step_ms": 0.06322,
+        "peak_memory_mb": 40.156,
+        "reconstruction": false,
+        "output_finite": true
+      },
+      {
+        "sequence_length": 8192,
+        "representation": "gqa_shared_kv",
+        "cache_bytes": 8388608,
+        "materialized_kv_bytes": 8388608,
+        "mean_step_ms": 0.02787,
+        "peak_memory_mb": 16.2,
+        "reconstruction": false,
+        "output_finite": true
+      },
+      {
+        "sequence_length": 8192,
+        "representation": "latent_kv_reconstruction_proxy",
+        "cache_bytes": 5242880,
+        "materialized_kv_bytes": 8388608,
+        "mean_step_ms": 0.07907,
+        "peak_memory_mb": 21.45,
+        "reconstruction": true,
+        "output_finite": true
+      },
+      {
+        "sequence_length": 8192,
+        "representation": "latent_kv_absorbed_proxy",
+        "cache_bytes": 5242880,
+        "materialized_kv_bytes": 0,
+        "mean_step_ms": 0.15586,
+        "peak_memory_mb": 14.9,
+        "reconstruction": false,
+        "cosine_vs_reconstruction": 0.99999267,
+        "max_abs_diff_vs_reconstruction": 0.015625,
+        "output_finite": true
+      }
+    ]
+  },
+  "failure": null,
+  "evidence_level": "single_gpu_mechanism_benchmark",
+  "decision": "accept_latent_representation_and_absorbed_path_mechanism"
+}

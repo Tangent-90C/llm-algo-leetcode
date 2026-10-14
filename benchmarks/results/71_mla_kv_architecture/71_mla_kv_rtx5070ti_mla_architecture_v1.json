@@ -1,0 +1,95 @@
+{
+  "schema_version": "architecture-evaluation/v1",
+  "record_type": "architecture_evidence",
+  "semantic_id": "ARCH-MLA-KV",
+  "source": {
+    "notebook": "02_PyTorch_Algorithms/71_MLA_KV_Cache_Architecture_Benchmark.ipynb",
+    "mechanism_result": "benchmarks/results/arch_mla_representation_rtx5070ti_mla_v3.json",
+    "raw_result_paths": {}
+  },
+  "runtime": {
+    "backend": "vllm",
+    "dtype": "bfloat16",
+    "device": "cuda",
+    "gpu_memory_limit_gb": 10.5,
+    "run_label": "rtx5070ti_mla_architecture_v1"
+  },
+  "workload": {
+    "source": "benchmarks/workloads/mla_architecture.jsonl",
+    "num_prompts": 4,
+    "max_tokens": 64,
+    "temperature": 0.0,
+    "concurrency": 1,
+    "warmup": 2,
+    "repeats": 3
+  },
+  "baseline": {
+    "name": "gqa_reference",
+    "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "snapshot": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/02_PyTorch_Algorithms/model_cache/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775",
+    "asset_ready": true,
+    "representation": "gqa",
+    "expected_representation": "gqa",
+    "representation_ok": true,
+    "weight_files_gb": 0.92,
+    "estimated_runtime_gb": 2.104,
+    "capacity_ok": true
+  },
+  "candidates": [
+    {
+      "name": "mla_candidate",
+      "model_id": "deepseek-ai/DeepSeek-V2-Lite",
+      "asset_ready": false,
+      "representation": null,
+      "expected_representation": "mla",
+      "reason": "asset_missing"
+    }
+  ],
+  "quality": {
+    "status": "not_recorded",
+    "reason": "independent matched quality set is required"
+  },
+  "cost": {
+    "theoretical_mechanism": {
+      "gqa_shared_kv": {
+        "sequence_length": 8192,
+        "cache_bytes": 8388608,
+        "materialized_kv_bytes": 8388608
+      },
+      "latent_kv_absorbed_proxy": {
+        "sequence_length": 8192,
+        "cache_bytes": 5242880,
+        "materialized_kv_bytes": 0
+      }
+    }
+  },
+  "status": "blocked",
+  "failure": {
+    "reason": "backend_admission_blocked",
+    "details": [
+      "candidate.asset_missing"
+    ]
+  },
+  "evidence_level": "theoretical",
+  "decision": {
+    "status": "tune",
+    "reason": "机制证据有效，但真实 MLA 候选尚未通过资产与容量准入",
+    "next_action": "provide a local MLA artifact that fits the memory budget"
+  },
+  "role": "producer",
+  "comparison_mode": "observational",
+  "mechanism": {
+    "source_identity": {
+      "semantic_id": "ARCH-MLA-REPRESENTATION-MECHANISM",
+      "workload_id": "arch-mla-representation-v2",
+      "run_label": "rtx5070ti_mla_v3",
+      "profile_id": "ARCH-CUDA-MECHANISM"
+    },
+    "mechanism_accepted": true,
+    "baseline_representation": "gqa",
+    "candidate_representation": "mla",
+    "backend_capability_observed": false,
+    "theoretical_ledger_is_measured_memory": false
+  }
+}

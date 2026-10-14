@@ -1,0 +1,4 @@
+{"request_id":"mla-01","prompt":"Explain why compact KV representations can reduce long-context inference memory.","priority":0}
+{"request_id":"mla-02","prompt":"Compare GQA and MLA state representations without assuming that either implementation is faster.","priority":0}
+{"request_id":"mla-03","prompt":"List the evidence needed before adopting a new attention architecture in a serving backend.","priority":0}
+{"request_id":"mla-04","prompt":"Explain why a cross-model latency comparison cannot isolate the effect of KV-cache representation.","priority":0}
