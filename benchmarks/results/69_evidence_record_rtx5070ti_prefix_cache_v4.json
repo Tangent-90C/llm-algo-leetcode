@@ -1,0 +1,173 @@
+{
+  "schema_version": "inference-benchmark/v1",
+  "project": "69",
+  "semantic_id": "INF-PREFIX-CACHE",
+  "asset_id": "inference.prefix_cache_evidence",
+  "run_label": "rtx5070ti_prefix_cache_v4",
+  "recorded_on": "2026-10-14",
+  "status": "registered",
+  "evidence_level": "real_backend_paired",
+  "config": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "resolved_model_snapshot": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "backend": "vllm",
+    "vllm_version": "0.11.0",
+    "dtype": "bfloat16",
+    "max_model_len": 2048,
+    "gpu_memory_utilization": 0.8,
+    "enforce_eager": true,
+    "execution_order": "baseline_then_candidate",
+    "seed": 0
+  },
+  "workload": {
+    "source": "benchmarks/workloads/prefix_reuse_long.jsonl",
+    "requests": 30,
+    "unique_prompts": 5,
+    "repeats_per_prompt": 6,
+    "prompt_tokens_mean": 590.8,
+    "max_tokens": 64,
+    "concurrency": 1,
+    "warmup": 5,
+    "repeats": 3,
+    "temperature": 0.0
+  },
+  "metrics": {
+    "g0_cache_off": {
+      "successful_requests": 30,
+      "failed_requests": 0,
+      "throughput_tokens_per_s": 168.5445,
+      "throughput_requests_per_s": 2.6335,
+      "ttft_p50_ms": 50.0192,
+      "ttft_p95_ms": 56.72,
+      "tpot_p50_ms": 5.1185,
+      "e2e_p95_ms": 410.4222
+    },
+    "g1_prefix_cache": {
+      "successful_requests": 30,
+      "failed_requests": 0,
+      "throughput_tokens_per_s": 171.3468,
+      "throughput_requests_per_s": 2.6773,
+      "ttft_p50_ms": 39.6243,
+      "ttft_p95_ms": 47.6839,
+      "tpot_p50_ms": 5.2863,
+      "e2e_p95_ms": 400.6392
+    },
+    "comparison": {
+      "throughput_speedup": 1.0166264695673843,
+      "throughput_delta_tokens_per_s": 2.8023,
+      "ttft_p50_delta_ms": -10.3949,
+      "ttft_p95_delta_ms": -9.0361,
+      "ttft_p95_improvement_ratio": 0.15931064880112833,
+      "tpot_p50_delta_ms": 0.1678,
+      "e2e_p95_delta_ms": -9.783,
+      "e2e_p95_improvement_ratio": 0.023836429900721656
+    },
+    "execution_order_robustness": {
+      "baseline_then_candidate": {
+        "throughput_speedup": 1.0166264695673843,
+        "ttft_p95_improvement_ratio": 0.15931064880112833,
+        "e2e_p95_improvement_ratio": 0.023836429900721656
+      },
+      "candidate_then_baseline": {
+        "source_run_label": "rtx5070ti_prefix_long_rev_v1",
+        "throughput_speedup": 1.0270243342689584,
+        "ttft_p95_improvement_ratio": 0.1885367411391775,
+        "e2e_p95_improvement_ratio": 0.013584212089707393
+      },
+      "direction_consistent": true
+    }
+  },
+  "mechanism_evidence": {
+    "g0_prefix_cache_enabled": false,
+    "g0_hit_rate": 0.0,
+    "g1_prefix_cache_enabled": true,
+    "g1_hit_rate": 0.965,
+    "g1_cache_queries": 62037,
+    "g1_cache_hits": 59840,
+    "cache_capacity_blocks": 37077,
+    "source": "vllm_metrics_and_server_log",
+    "status": "passed"
+  },
+  "quality": {
+    "request_completeness": "passed",
+    "prompt_pairing": {
+      "matched": 30,
+      "total": 30
+    },
+    "exact_output_equivalence": {
+      "status": "failed",
+      "matched": 12,
+      "total": 30,
+      "match_rate": 0.4
+    },
+    "repeat_stability": {
+      "g0_cache_off": {
+        "stable_prompt_groups": 5,
+        "total_prompt_groups": 5
+      },
+      "g1_prefix_cache": {
+        "stable_prompt_groups": 1,
+        "total_prompt_groups": 5
+      }
+    },
+    "semantic_quality": "not_evaluated",
+    "note": "性能收益不能替代输出等价性；在补充任务级质量评测或解释 cache-on 重复输出差异前，不形成部署采用结论。"
+  },
+  "decision": {
+    "decision": "tune",
+    "reason": "performance_passed_but_output_equivalence_unresolved",
+    "handoff_to_project_72": false,
+    "next_action": "增加自动输出等价性门槛，并用确定性短答案或带参考答案 workload 区分数值非确定性与缓存正确性问题。"
+  },
+  "limitations": [
+    "当前仅覆盖单卡、单并发、长共享前缀，不代表高并发、容量压力或驱逐场景。",
+    "未记录独立峰值显存，不能判断缓存容量成本。",
+    "严格文本一致性失败，语义质量尚未评测。",
+    "原始结果内 normalized role 未显式传入；本记录以 manifest 的 G0 baseline / G1 candidate 角色为准。"
+  ],
+  "history": {
+    "rtx5070ti_prefix_long_rev_v1": {
+      "status": "supporting_performance_evidence",
+      "prior_decision": "accept",
+      "current_interpretation": "性能方向得到 v4 互证，但旧结论未检查输出等价性，不能单独作为部署采用依据。"
+    },
+    "rtx5070ti_prefix_cache_v1_to_v3": {
+      "status": "diagnostic_history",
+      "current_interpretation": "包含短前缀退化和开关对照无效记录，不作为当前采用证据。"
+    }
+  },
+  "sources": {
+    "manifest": {
+      "path": "benchmarks/results/69_manifest_rtx5070ti_prefix_cache_v4.json",
+      "sha256": "5a9a7e953d8f257e08f1dae2da20c83a02cfe4285ad046e58ba2b8add040e929"
+    },
+    "baseline_result": {
+      "path": "benchmarks/results/69_g0_cache_off_vllm_rtx5070ti_prefix_cache_v4.json",
+      "sha256": "a9341bc67f8c0dd5146621ac226a3b90fd576200c6fefa8243241db67a256805"
+    },
+    "candidate_result": {
+      "path": "benchmarks/results/69_g1_prefix_cache_vllm_rtx5070ti_prefix_cache_v4.json",
+      "sha256": "4d38d2e1c08a2e21cc0d53cc08e66945b5d3e0c92cf8a9847b694462e8839f31"
+    },
+    "baseline_log": {
+      "path": "benchmarks/results/69_g0_cache_off_vllm_rtx5070ti_prefix_cache_v4.log",
+      "sha256": "d6618867650b80913e58235821bc395f84bbe34e1eb57c313e2f3d7a0401a243"
+    },
+    "candidate_log": {
+      "path": "benchmarks/results/69_g1_prefix_cache_vllm_rtx5070ti_prefix_cache_v4.log",
+      "sha256": "575857064d222a43ea1a3108d22f2d4db7d139e594903265a964a9201441005e"
+    },
+    "reverse_order_manifest": {
+      "path": "benchmarks/results/69_manifest_rtx5070ti_prefix_long_rev_v1.json",
+      "sha256": "09682a27443c2ef5cbdb7b01523e3783cc6fc9763da190377caa5e7ccd2b4283"
+    },
+    "reverse_order_baseline": {
+      "path": "benchmarks/results/69_g0_cache_off_vllm_rtx5070ti_prefix_long_rev_v1.json",
+      "sha256": "c45c1a64289ace39e275a32a4d64fb0c0619d3026aa72b3045f4dfa6ff5907fd"
+    },
+    "reverse_order_candidate": {
+      "path": "benchmarks/results/69_g1_prefix_cache_vllm_rtx5070ti_prefix_long_rev_v1.json",
+      "sha256": "ff194908d4c192e570b5a2ae1b7c8f9a73d72c8ede27a315ab1678727e843cbd"
+    }
+  }
+}

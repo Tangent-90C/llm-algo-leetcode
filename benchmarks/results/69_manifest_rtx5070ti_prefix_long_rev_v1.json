@@ -1,0 +1,104 @@
+{
+  "schema_version": "inference-project-manifest/v1",
+  "project": "69",
+  "experiment": "prefix_cache_reuse",
+  "config": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "backend": "vllm",
+    "dtype": "auto",
+    "workload": "benchmarks/workloads/prefix_reuse_long.jsonl",
+    "generated_tokens": 64,
+    "num_prompts": 30,
+    "concurrency": 1,
+    "warmup": 5,
+    "repeats": 3,
+    "execution_order": "candidate_then_baseline",
+    "groups": [
+      "g1_prefix_cache",
+      "g0_cache_off"
+    ]
+  },
+  "environment": {
+    "python": "3.12.15 (main, Oct  6 2026, 23:50:18) [GCC 15.3.0]",
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35"
+  },
+  "groups": [
+    {
+      "group": {
+        "name": "g1_prefix_cache",
+        "role": "candidate",
+        "cache_policy": "prefix_cache",
+        "enabled": true
+      },
+      "role": "candidate",
+      "report_path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/69_g1_prefix_cache_vllm_rtx5070ti_prefix_long_rev_v1.json",
+      "status": "ok",
+      "quality": {
+        "status": "not_evaluated"
+      },
+      "failure": null,
+      "evidence_level": "real_backend_paired"
+    },
+    {
+      "group": {
+        "name": "g0_cache_off",
+        "role": "baseline",
+        "cache_policy": "off",
+        "enabled": false
+      },
+      "role": "baseline",
+      "report_path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/69_g0_cache_off_vllm_rtx5070ti_prefix_long_rev_v1.json",
+      "status": "ok",
+      "quality": {
+        "status": "not_evaluated"
+      },
+      "failure": null,
+      "evidence_level": "real_backend_paired"
+    }
+  ],
+  "artifact": {
+    "manifest_path": "benchmarks/results/69_manifest_rtx5070ti_prefix_long_rev_v1.json",
+    "group_result_paths": [
+      "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/69_g1_prefix_cache_vllm_rtx5070ti_prefix_long_rev_v1.json",
+      "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/69_g0_cache_off_vllm_rtx5070ti_prefix_long_rev_v1.json"
+    ]
+  },
+  "failure": null,
+  "quality": {
+    "g1_prefix_cache": {
+      "status": "passed",
+      "expected_requests": 30,
+      "successful_requests": 30,
+      "nonempty_outputs": true
+    },
+    "g0_cache_off": {
+      "status": "passed",
+      "expected_requests": 30,
+      "successful_requests": 30,
+      "nonempty_outputs": true
+    }
+  },
+  "evidence_level": "real_backend_paired",
+  "decision": {
+    "decision": "accept",
+    "reason": "当前共享前缀 workload 中，直接命中证据、输出完整性、TTFT P95 与吞吐对照均通过",
+    "scope": "单卡、单并发、固定共享前缀 workload；不代表高并发或容量压力下的收益"
+  },
+  "paired_summary": {
+    "ttft_p50_delta_ms": -9.5808,
+    "ttft_p95_delta_ms": -9.6531,
+    "tpot_p50_delta_ms": -0.0145,
+    "throughput_delta_tokens_per_s": 4.7196,
+    "e2e_p95_delta_ms": -5.1219
+  },
+  "direct_hit_evidence": {
+    "group": "g1_prefix_cache",
+    "hit_rate": 0.962,
+    "source": "vllm_server_log_prefix_cache_hit_rate"
+  },
+  "run_identity_correction": {
+    "corrected_from_label": "rtx5070ti_prefix_long_fwd_v1",
+    "corrected_to_label": "rtx5070ti_prefix_long_rev_v1",
+    "reason": "5.1 used candidate_then_baseline while retaining the prior forward label; files renamed after the completed run."
+  }
+}

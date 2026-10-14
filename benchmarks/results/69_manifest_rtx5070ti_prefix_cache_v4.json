@@ -1,0 +1,75 @@
+{
+  "schema_version": "inference-project-manifest/v1",
+  "project": "69",
+  "experiment": "prefix_cache_reuse",
+  "config": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "backend": "vllm",
+    "dtype": "bfloat16",
+    "workload": "benchmarks/workloads/prefix_reuse_long.jsonl",
+    "generated_tokens": 64,
+    "num_prompts": 30,
+    "concurrency": 1,
+    "warmup": 5,
+    "repeats": 3,
+    "execution_order": "baseline_then_candidate",
+    "groups": [
+      "g0_cache_off",
+      "g1_prefix_cache"
+    ]
+  },
+  "environment": {
+    "python": "3.12.15 (main, Oct  6 2026, 23:50:18) [GCC 15.3.0]",
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35"
+  },
+  "groups": [
+    {
+      "group": {
+        "name": "g0_cache_off",
+        "role": "baseline",
+        "cache_policy": "off",
+        "enabled": false
+      },
+      "role": "baseline",
+      "report_path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/69_g0_cache_off_vllm_rtx5070ti_prefix_cache_v4.json",
+      "status": "ok",
+      "quality": {
+        "status": "not_evaluated"
+      },
+      "failure": null,
+      "evidence_level": "real_backend_paired"
+    },
+    {
+      "group": {
+        "name": "g1_prefix_cache",
+        "role": "candidate",
+        "cache_policy": "prefix_cache",
+        "enabled": true
+      },
+      "role": "candidate",
+      "report_path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/69_g1_prefix_cache_vllm_rtx5070ti_prefix_cache_v4.json",
+      "status": "ok",
+      "quality": {
+        "status": "not_evaluated"
+      },
+      "failure": null,
+      "evidence_level": "real_backend_paired"
+    }
+  ],
+  "artifact": {
+    "manifest_path": "benchmarks/results/69_manifest_rtx5070ti_prefix_cache_v4.json",
+    "group_result_paths": [
+      "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/69_g0_cache_off_vllm_rtx5070ti_prefix_cache_v4.json",
+      "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/69_g1_prefix_cache_vllm_rtx5070ti_prefix_cache_v4.json"
+    ]
+  },
+  "failure": null,
+  "quality": {
+    "status": "not_evaluated"
+  },
+  "evidence_level": "real_backend_paired",
+  "decision": {
+    "decision": "tune",
+    "reason": "运行 5.5、5.6 汇总命中、质量和性能证据后再判断"
+  }
+}
