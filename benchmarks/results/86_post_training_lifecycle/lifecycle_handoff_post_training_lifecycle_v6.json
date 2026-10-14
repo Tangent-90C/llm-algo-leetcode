@@ -1,0 +1,90 @@
+{
+  "schema_version": "post-training-lifecycle/v1",
+  "semantic_id": "PT-POST-TRAINING-LIFECYCLE",
+  "run_label": "post_training_lifecycle_v6",
+  "handoff_status": "ready",
+  "baseline_manifest": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/62_sft_delivery/sft_delivery_manifest_sft_delivery_v2_1.json",
+  "candidate_records": [
+    {
+      "path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/84_dpo_preference/dpo_manifest_dpo_offline_len1024_v5.json",
+      "semantic_id": "PT-DPO-OFFLINE",
+      "upstream_decision": "accept",
+      "freshness": {
+        "fresh": true,
+        "failed_checks": []
+      },
+      "artifact": {
+        "path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/84_dpo_preference/adapter_dpo_offline_len1024_v5",
+        "sha256": "132c6001efa1229aae14ea19a23e4bdcd5ab398a36f865d16d5a7fd7215db39b"
+      },
+      "evidence": {
+        "rollback_ready": true,
+        "artifact_verified": true,
+        "artifact_check": {
+          "expected": "132c6001efa1229aae14ea19a23e4bdcd5ab398a36f865d16d5a7fd7215db39b",
+          "actual": "132c6001efa1229aae14ea19a23e4bdcd5ab398a36f865d16d5a7fd7215db39b"
+        },
+        "rollback_check": {
+          "expected": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "actual": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021"
+        }
+      },
+      "handoff_status": "ready_for_evaluation",
+      "hard_failures": []
+    },
+    {
+      "path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/85_grpo_alignment/grpo_manifest_grpo_rlvr_len384_v7.json",
+      "semantic_id": "PT-GRPO-GROUPWISE",
+      "upstream_decision": "accept",
+      "freshness": {
+        "fresh": true,
+        "failed_checks": []
+      },
+      "artifact": {
+        "path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/85_grpo_alignment/adapter_grpo_rlvr_len384_v7",
+        "sha256": "efbfa85c17c8f301839005499866b1d9f2ff046a4a0c722c3992ba80f708764d"
+      },
+      "evidence": {
+        "rollback_ready": true,
+        "artifact_verified": true,
+        "artifact_check": {
+          "expected": "efbfa85c17c8f301839005499866b1d9f2ff046a4a0c722c3992ba80f708764d",
+          "actual": "efbfa85c17c8f301839005499866b1d9f2ff046a4a0c722c3992ba80f708764d"
+        },
+        "rollback_check": {
+          "expected": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "actual": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021"
+        }
+      },
+      "handoff_status": "ready_for_evaluation",
+      "hard_failures": []
+    }
+  ],
+  "source_evidence": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/86_post_training_lifecycle/lifecycle_evidence_post_training_lifecycle_v6.json",
+  "recovery_scenarios": [
+    {
+      "stage": "sampling",
+      "required_state": "prompt_queue",
+      "reused_state": true,
+      "action": "retry_sampling_from_prompt_queue"
+    },
+    {
+      "stage": "reward",
+      "required_state": "trajectories",
+      "reused_state": true,
+      "action": "resume_reward_from_saved_trajectories"
+    },
+    {
+      "stage": "update",
+      "required_state": "pre_update_checkpoint",
+      "reused_state": true,
+      "action": "restore_pre_update_checkpoint"
+    },
+    {
+      "stage": "artifact_validation",
+      "required_state": "verified_baseline",
+      "reused_state": true,
+      "action": "rollback_to_verified_baseline"
+    }
+  ]
+}
