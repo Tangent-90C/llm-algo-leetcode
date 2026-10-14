@@ -31,6 +31,47 @@ python -m jupyter lab
 
 预检只确认环境、CUDA、依赖和仓库运行时可用，不代表某个候选一定更快。具体运行顺序、固定工作负载和证据状态见[实验资产表](./experiment_assets.md#单卡机制验证顺序)。
 
+<a id="inf-service-delivery"></a>
+
+## INF-SERVICE-DELIVERY：推理服务交付控制环境
+
+Part 05 推理服务交付项目使用轻量控制环境发送固定请求、读取 Part 02 交接证据并生成最终决策。vLLM、SGLang 与量化加载器仍运行在各自隔离环境中，不安装到这个控制环境。
+
+```bash
+PIP_INDEX_URL=https://pypi.org/simple \
+python tools/install_environment_profile.py \
+  --profile INF-SERVICE-DELIVERY \
+  --env-name llm_inf_delivery
+
+conda activate llm_inf_delivery
+python tools/register_notebook_runtime.py --check
+python -m pip check
+python tools/environment_preflight.py --profile INF-SERVICE-DELIVERY
+python -m jupyter lab
+```
+
+运行时保留两个终端：服务终端使用候选对应的 backend Profile；控制终端使用本环境。单卡上切换候选前先停止旧服务，保持 YAML 中的请求集、生成参数、并发、预热和重复次数不变。
+
+<a id="inf-vllm-spec025-quickstart"></a>
+
+## INF-VLLM-SPEC025：投机解码选型 CUDA 12.9 环境
+
+第 68 节使用独立的 vLLM 0.25.1 CUDA 12.9 环境完成 N-gram、原生 MTP、EAGLE、DFlash 与 DSpark 的候选准入和配对测量。0.25.1 是本项目覆盖 DFlash 与 DSpark 的最低推荐补丁版本；0.31 仅作为后续复测，不是第 68 节的硬依赖。该环境不能覆盖历史 `INF-VLLM-011-CU128` 基线。
+
+```bash
+PIP_INDEX_URL=https://pypi.org/simple \
+python tools/install_environment_profile.py \
+  --profile INF-VLLM-SPEC025 \
+  --env-name llm_vllm_spec025_cu129
+
+conda activate llm_vllm_spec025_cu129
+python tools/register_notebook_runtime.py --check
+python -m pip check
+python tools/environment_preflight.py --profile INF-VLLM-SPEC025
+```
+
+正式安装前主机驱动必须满足 CUDA 12.9 Update 1 的门禁；本仓库按 Linux R575.57 或更高版本验收。先运行 target-only 启动与固定请求 smoke，再开放 G1–G5；每个候选仍需分别通过方法声明、checkpoint 资产和显存门禁。
+
 <a id="inf-vllm-mtp-quickstart"></a>
 
 ## INF-VLLM-MTP：原生 MTP CUDA 12.9 单卡环境

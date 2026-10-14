@@ -93,7 +93,7 @@
 
 ## 第六段：最后回到同一 workload 做结论
 
-前面几段都还是局部判断，真正做结论时，必须回到同一个基准框架里。规划中的项目层由 66 固定基线，68、69、70 分别承接解码、缓存和服务调度，72 汇总单卡候选；这些页面统一重构前，不计为已完成证据。当单实例无法满足容量或服务目标时，再进入 Task6 的模型内部并行、MoE 专家并行和分布式推理决策：
+前面几段都还是局部判断，真正做结论时，必须回到同一个基准框架里。66 固定通用基线，68、69、70 分别承接解码、缓存和服务调度，82 → 67 → 83 形成量化服务候选，72 把这些结果整理为单卡部署交接清单。Part 05 再用冻结请求协议复测候选并检查质量、容量和回滚条件。当单实例无法满足容量或服务目标时，再进入 Task6 的模型内部并行、MoE 专家并行和分布式推理决策：
 
 ![Benchmark 决策流程](../../docs/public/topic_discussion/inference_optimization/benchmark_decision_zh.svg)
 
@@ -105,5 +105,6 @@
 - **扩展项目：** Part 02 [70 Serving Scheduler Benchmark](../../02_PyTorch_Algorithms/70_Serving_Scheduler_Benchmark.ipynb)
 - **分布式机制与项目：** Part 02 [46 Communication Profiling with NCCL](../../02_PyTorch_Algorithms/47_Communication_Profiling_with_NCCL.ipynb) → [48 Communication Hotspots and Mitigation](../../02_PyTorch_Algorithms/48_Communication_Hotspots_and_Mitigation.ipynb) → [49 Parallelism Strategy Selection](../../02_PyTorch_Algorithms/49_Parallelism_Strategy_Selection.ipynb) → [79 Distributed Parallel Benchmark](../../02_PyTorch_Algorithms/79_Distributed_Parallel_Benchmark.ipynb) → [81 Distributed Inference Logic Validation](../../02_PyTorch_Algorithms/81_Distributed_Inference_Project.ipynb)；MoE 分支进入 [47](../../02_PyTorch_Algorithms/46_MoE_Expert_Parallel.ipynb) → [80](../../02_PyTorch_Algorithms/80_MoE_Expert_Parallel_Benchmark.ipynb)
 - **部署收口：** Part 02 [72 Multi-Model Deployment Comparison](../../02_PyTorch_Algorithms/72_Multi_Model_Deployment_Comparison.ipynb)
+- **综合交付：** Part 05 [推理服务交付综合项目](../../05_Integrated_Projects_and_Decisions/01_Inference_Service/index.md)
 
 真正的 benchmark 收口不是“这个方法更先进”，而是 `accept / tune / reject`：它是否适合当前 workload 和服务目标。把这条故事走完以后，一个更像真实交付的结论通常是：长 prompt 下先解决 prefill，随后瓶颈转到 decode 与调度，再往后是 cache 和量化共同决定服务边界，最终被接受的不是某个单点技巧，而是一组在同一 workload 下同时站得住的链路优化组合。
