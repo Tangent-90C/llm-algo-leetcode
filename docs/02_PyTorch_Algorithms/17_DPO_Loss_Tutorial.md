@@ -1,482 +1,902 @@
-# 17. DPO Loss Tutorial | 直接偏好优化损失
+# 17. 直接偏好优化：从偏好数据到 DPO 的推导与训练
 
-**难度：** Hard | **环境：** CPU-first | **标签：** `后训练对齐`, `DPO`, `偏好优化` | **目标人群：** 训练机制学习者
+模型能写出两种回答，并不意味着它更愿意写出人们想要的那一种。怎样利用“这条回答比那条好”的反馈，改变模型的选择？这就是本章的问题。
 
-> 🚀 **云端运行环境**
->
-> 本章节的实战代码可以点击以下链接在免费 GPU 算力平台上直接运行：
->
-> [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/datawhalechina/llm-algo-leetcode/blob/main/02_PyTorch_Algorithms/17_DPO_Loss_Tutorial.ipynb)
-> [![Open In Studio](https://img.shields.io/badge/Open%20In-ModelScope-blueviolet?logo=alibabacloud)](https://modelscope.cn/my/mynotebook) *(国内推荐：魔搭社区免费实例)*
+DPO（Direct Preference Optimization，直接偏好优化）给出了一个很简洁的损失。但如果只记住最后几行代码，就会留下更重要的疑问：为什么要有参考模型？为什么比较两个对数概率比？奖励模型去了哪里？训练损失下降，是否真的意味着回答变好了？
 
+我们先把这些问题一一讲清，再写代码。全章只讨论**原始的离线 DPO**，不要求你先学会 PPO，也不把算法变体混进第一遍学习。
 
----
+阅读所需的基础是条件概率、对数、求导，以及 PyTorch 的前向与反向传播。第 4 节会在有限回答集合上完整推导最优策略；遇到 KL 散度时，我们也会先解释它在这里做什么。代码只需要 PyTorch，默认在 CPU 上运行，不下载模型。
 
-## 本节导读
+本章分为三段：第 1—3 节建立概率与偏好模型，第 4—7 节推导并解释 DPO，第 8—11 节实现、训练和判断结果。代码作业只要求你写三件事：**算回答概率、算 DPO 损失、完成一次参数更新**。
 
-RLHF 能把模型往人类偏好方向拉，但 PPO 训练链路很重：要维护策略模型、参考模型、奖励模型和价值模型，还要处理采样、打分和策略更新的稳定性问题。
+## 1. 从“模仿好回答”到“学习两条回答的比较”
 
-DPO 的切入点更直接：偏好数据已经给出同一提示下的优选回答（`chosen`）与非优选回答（`rejected`），因此可以把二者的比较关系写成可优化的损失，让当前策略相对参考策略更偏向优选回答。完成后，你应该能解释偏好比较如何转成对数概率差值，以及 DPO 为什么能简化完整 RLHF 闭环。
+假设用户问：“做梯度累积时，什么时候更新模型参数？”我们得到两条候选回答：
 
-**关键词：** `DPO`, `preference`, `loss`
+- **回答 A**：多个微批次分别反向传播，累积梯度，然后统一更新一次参数。
+- **回答 B**：每个微批次反向传播后都更新参数，这样就是梯度累积。
 
----
-## 前置阅读
+在这个问题下，标注者选择 A。我们把一条记录写成
 
-**导语：** 先理解 SFT 如何给出稳定的初始策略、PPO 为什么需要较重的在线链路，再用偏好数据看 DPO 如何把 chosen / rejected 的比较写成离线损失。
+$$
+(x,y_w,y_l),
+$$
 
-- [15. End-to-End Fine-Tuning Experiment | 端到端微调实验](../02_PyTorch_Algorithms/15_End_to_End_Fine_Tuning_Experiment.md)
-- [16. RLHF PPO Memory | RLHF / PPO 资源桥接](../02_PyTorch_Algorithms/16_RLHF_PPO_Memory.md)
+其中 $x$ 是输入，$y_w$ 是被选中的回答（chosen），$y_l$ 是另一条回答（rejected）。下标 $w,l$ 来自 winner、loser，只表示**这一次比较的结果**，不表示一条回答在所有场景都好，另一条在所有场景都坏。
 
+监督微调（SFT）可以只拿 A 当示范，增加模型生成 A 的概率。偏好学习还希望利用另一半信息：**面对同一个问题，为什么 A 应当排在 B 前面？** 这个“相对于谁更好”的信息，不能仅靠把 chosen 当作普通示范就完整表达。
 
----
-### Step 1：离线偏好对为什么可以替代 PPO 的一部分链路
+实践中，DPO 常从一个已经完成 SFT 的模型开始：复制它作为固定参考模型，再继续更新当前模型。SFT 负责先建立任务能力和输出习惯，DPO 根据偏好对调整选择。参考模型不必在数学上专指 SFT 模型；这里采用这一常见设置，是为了让偏好调整有一个明确的起点。
 
-DPO 的前提是已经有可信的离线偏好对：同一个输入下，优选回答比非优选回答更符合既定质量、安全或帮助性标准。它不再为每轮更新单独训练奖励模型和价值模型，而是比较当前策略与冻结参考策略对同一对回答的相对偏好。
+先记住一项数据要求：一对回答必须对应**同一个输入和同一套要求**。如果 A 回答的是一个问题，B 回答的是另一个问题，后面的成对比较就失去了原来的含义。
 
-| 维度 | PPO / RLHF | DPO |
-| --- | --- | --- |
-| 主要反馈 | 采样后的奖励与优势 | 已标注的优选 / 非优选回答对 |
-| 主要模型状态 | 策略、参考、奖励与价值模型 | 当前策略与冻结参考策略 |
-| 是否主动探索 | 是，依赖采样与反馈 | 否，依赖离线数据覆盖 |
-| 适合的条件 | 环境反馈、探索或可验证奖励 | 偏好对已可靠、需要稳定离线训练 |
+## 2. 一整条回答，怎样得到一个概率？
 
-![DPO 从偏好数据到策略更新的总览](../public/02_PyTorch_Algorithms/17_dpo_overview_cn.svg)
+### 2.1 先逐 token 相乘，再取对数
 
-### Step 2：偏好对与参考策略构成什么训练契约
+给定输入 $x$，自回归语言模型逐个预测回答 token。若回答为 $y=(y_1,\ldots,y_T)$，则
 
-一条 DPO 样本必须让当前策略与参考策略比较同一输入下的优选和非优选回答。参考策略通常来自已完成监督微调的固定版本：监督微调先建立格式和基本任务能力，DPO 才能把后续变化解释为偏好调整，而不是重新学习任务格式。
+$$
+\pi_\theta(y\mid x)
+=\prod_{t=1}^{T}\pi_\theta(y_t\mid x,y_{<t}),
+$$
 
-| 契约 | 需要确认的事实 | 不满足时的风险 |
-| --- | --- | --- |
-| 成对性 | 优选与非优选回答对应同一输入和约束 | 比较到的不是偏好差异 |
-| 偏好来源 | 差异来自正确性、帮助性或安全标准 | 模型学习长度、模板或泄漏线索 |
-| 参考策略 | 来自固定的监督微调版本 | 无法判断当前策略偏离了什么基线 |
-| 回答范围 | 两个策略评价完全相同的回答内容 | 输入提示或长度差异混入比较 |
-| 数据切分 | 训练与评测相互隔离 | 训练记忆被误判为偏好质量提升 |
+所以整条回答的对数概率是
 
-### Step 3：隐式奖励、β 与 DPO 损失如何连接
+$$
+\ell_\theta(x,y)
+:=\log\pi_\theta(y\mid x)
+=\sum_{t=1}^{T}\log\pi_\theta(y_t\mid x,y_{<t}). \tag{1}
+$$
 
-DPO 先比较当前策略相对参考策略对两种回答的偏移，再放大优选回答与非优选回答之间的偏移差。系数 $\beta$ 控制偏好信号的尺度：它不是“越大越好”的质量旋钮，而要与数据噪声和参考策略距离一起复测。
+这里的 $\pi_\theta$ 就是当前语言模型。在强化学习的说法里，它也叫“策略”；本章中这两个词指向同一对象。
 
-$$d_y = s_{\pi}(y\mid x)-s_{\mathrm{ref}}(y\mid x), \qquad z=\beta(d_{+}-d_{-}), \qquad L_{\mathrm{DPO}}=-\log \sigma(z)$$
+**例 1：一条只有两个 token 的回答。** 假设模型对第一个正确 token 给出概率 $0.4$；读入这个 token 后，对第二个正确 token 给出概率 $0.5$。整条回答的概率是 $0.4\times0.5=0.2$，对数概率是 $\log0.4+\log0.5=\log0.2$。
 
-| 量 | 计算 | 作用 |
-| --- | --- | --- |
-| 优选回答偏移 $d_{+}$ | 当前策略相对参考策略的变化 | 衡量优选回答被增强多少 |
-| 非优选回答偏移 $d_{-}$ | 当前策略相对参考策略的变化 | 衡量非优选回答被增强或抑制多少 |
-| 偏好间隔 $z$ | 两类回答偏移之差乘以 $\beta$ | 希望优选回答获得更大相对偏移 |
-| DPO 目标 | 偏好间隔的对数逻辑目标 | 间隔越大，损失越小 |
+代码中直接加对数，而不先乘很多小概率：这样既对应式 (1)，也能避免长序列概率乘积过小。
 
-![DPO 损失计算路径](../public/02_PyTorch_Algorithms/17_dpo_loss_flow_cn.svg)
-
-### Step 4：实现 DPO 的成对偏好损失
-
-题目区先把 token log probability 按 response mask 聚合为每条回复的可比得分，再建立 Policy 相对 Reference 的 chosen / rejected 偏移，最后构造数值稳定的成对偏好损失。聚合方式由调用方固定；同一次比较不能混用 sum 与 mean。
-
-| TODO / 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
-| --- | --- | --- | --- |
-| TODO 1 / `aggregate_response_logps` | 只聚合 response mask 内的 token log probability | 每条回复至少一个有效 token；sum / mean 口径显式固定 | prompt 屏蔽、变长回复与空 mask |
-| TODO 2 / `dpo_loss`：隐式奖励 | 计算 chosen / rejected 相对 Reference 的偏移 | 四组回复得分形状一致，Reference 固定且不接收梯度 | 隐式奖励与梯度隔离 |
-| TODO 3 / `dpo_loss`：偏好目标 | 构造 preference logit 与稳定 loss | `beta` 为正，chosen / rejected 方向不能颠倒 | 对调偏好、较大 logit 与输入契约 |
-
+这里的 $T$ 指实际评分的回答 token 数。若把 EOS（结束符）作为完整回答的一部分，就应把它也计入。后面的实验会明确加入 EOS，并使用与它不同的 padding token。
 
 ```python
-import torch
-import torch.nn.functional as F
-
-```
-
-
-```python
-def aggregate_response_logps(token_logps, response_mask, normalize=False):
-    """按 response mask 聚合每条回复的 token log probability。"""
-    if token_logps.shape != response_mask.shape or token_logps.ndim != 2:
-        raise ValueError("token_logps 与 response_mask 必须是同形二维张量")
-    counts = response_mask.bool().sum(dim=-1)
-    if torch.any(counts == 0):
-        raise ValueError("每条回复至少需要一个有效 token")
-
-    # ==========================================
-    # TODO 1：只聚合 response mask 内的 token；normalize=True 时按有效长度归一化。
-    # response_logps = ???
-    # ==========================================
-    raise NotImplementedError("TODO 1：聚合 response token log probability")
-    return response_logps
-
-
-def dpo_loss(
-    policy_chosen_logps: torch.Tensor,
-    policy_rejected_logps: torch.Tensor,
-    reference_chosen_logps: torch.Tensor,
-    reference_rejected_logps: torch.Tensor,
-    beta: float = 0.1,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """计算同一 prompt 下 chosen / rejected 的 DPO 损失。
-
-    四组 log probability 必须使用同一 tokenization 和回复范围；Reference 固定为
-    SFT 基线，用于度量 Policy 的偏好偏移。
-    """
-    if not (policy_chosen_logps.shape == policy_rejected_logps.shape == reference_chosen_logps.shape == reference_rejected_logps.shape):
-        raise ValueError("policy / reference 的 chosen-rejected logps 形状必须一致")
-    if beta <= 0:
-        raise ValueError("beta 必须是正数")
-
-    # ==========================================
-    # TODO 2：冻结 Reference，分别计算 chosen / rejected 的 Policy—Reference 偏移。
-    # chosen_log_ratio = ???
-    # rejected_log_ratio = ???
-    # ==========================================
-    raise NotImplementedError("TODO 2：计算 chosen / rejected 相对 Reference 的偏移")
-
-    chosen_rewards = beta * chosen_log_ratio
-    rejected_rewards = beta * rejected_log_ratio
-
-    # ==========================================
-    # TODO 3：用两条隐式奖励形成 preference logit，并计算稳定的 DPO loss。
-    # preference_logits = ???
-    # losses = ???
-    # ==========================================
-    raise NotImplementedError("TODO 3：构造 preference logit 与 DPO loss")
-    return losses, chosen_rewards, rejected_rewards
-
-```
-
-
-```python
-# 测试目标：分别检查 response 聚合、隐式奖励、偏好方向、数值稳定性与输入契约。
-
-def _dpo_fixture():
-    """构造 Policy 与 Reference 的成对偏好 log-prob 样例。"""
-    return (
-        torch.tensor([-1.0, -1.2, -0.8, -1.5], requires_grad=True),
-        torch.tensor([-3.0, -2.5, -4.0, -2.8], requires_grad=True),
-        torch.tensor([-2.0, -2.0, -2.0, -2.0], requires_grad=True),
-        torch.tensor([-2.0, -2.0, -2.0, -2.0], requires_grad=True),
-    )
-
-def test_response_logp_aggregation():
-    """验证回复掩码下的总和与长度归一化聚合。"""
-    token_logps = torch.tensor([[-1.0, -2.0, -9.0], [-0.5, -1.5, -2.5]])
-    mask = torch.tensor([[True, True, False], [False, True, True]])
-    assert torch.allclose(aggregate_response_logps(token_logps, mask), torch.tensor([-3.0, -4.0]))
-    assert torch.allclose(aggregate_response_logps(token_logps, mask, normalize=True), torch.tensor([-1.5, -2.0]))
-
-
-def test_dpo_implicit_rewards():
-    """验证 chosen 与 rejected 的隐式奖励方向和形状。"""
-    values = _dpo_fixture()
-    losses, chosen_rewards, rejected_rewards = dpo_loss(*values, beta=0.1)
-    assert losses.shape == chosen_rewards.shape == rejected_rewards.shape == (4,)
-    assert torch.allclose(chosen_rewards[0], torch.tensor(0.1))
-    assert torch.allclose(rejected_rewards[0], torch.tensor(-0.1))
-
-def test_dpo_preference_direction_and_stability():
-    """验证偏好方向、数值稳定性和成对顺序反例。"""
-    values = _dpo_fixture()
-    losses, _, _ = dpo_loss(*values, beta=0.1)
-    assert torch.all(torch.isfinite(losses))
-    expected = -F.logsigmoid(torch.tensor(0.2))
-    assert torch.allclose(losses[0], expected)
-    worse = dpo_loss(values[1], values[0], values[2], values[3], beta=0.1)[0]
-    assert torch.all(worse > losses), "chosen / rejected 颠倒后 loss 应变大"
-
-def test_dpo_gradient_path():
-    """验证 Policy 接收梯度而 Reference 保持冻结。"""
-    values = _dpo_fixture()
-    losses, _, _ = dpo_loss(*values, beta=0.1)
-    losses.mean().backward()
-    assert values[0].grad is not None and values[1].grad is not None, "Policy 应接收梯度"
-    assert values[2].grad is None and values[3].grad is None, "Reference 必须保持冻结"
-
-def test_dpo_input_contract():
-    """验证 log-prob 形状与 beta 的输入契约。"""
-    values = _dpo_fixture()
-    try:
-        dpo_loss(values[0], values[1][:-1], values[2], values[3])
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("不一致的 log-prob 形状应被拒绝")
-    try:
-        dpo_loss(*values, beta=0.0)
-    except ValueError:
-        return
-    raise AssertionError("非正 beta 应被拒绝")
-
-def run_dpo_tests():
-    """运行 DPO 题目区的全部具名机制测试。"""
-    test_response_logp_aggregation()
-    test_dpo_implicit_rewards()
-    test_dpo_preference_direction_and_stability()
-    test_dpo_gradient_path()
-    test_dpo_input_contract()
-    print("✅ DPO 回复聚合、隐式奖励、偏好方向、梯度隔离、稳定性与输入契约测试通过。")
-
-run_dpo_tests()
-
-```
-
-## 参考代码与解析
-
-### 代码
-
-```python
-def aggregate_response_logps(token_logps, response_mask, normalize=False):
-    """按 response mask 聚合每条回复的 token log probability。"""
-    if token_logps.shape != response_mask.shape or token_logps.ndim != 2:
-        raise ValueError("token_logps 与 response_mask 必须是同形二维张量")
-    mask = response_mask.bool()
-    counts = mask.sum(dim=-1)
-    if torch.any(counts == 0):
-        raise ValueError("每条回复至少需要一个有效 token")
-    # TODO 1：prompt / padding 不进入回复得分；normalize 控制 sum 或 mean 口径。
-    response_logps = (token_logps * mask).sum(dim=-1)
-    if normalize:
-        response_logps = response_logps / counts
-    return response_logps
-
-
-def dpo_loss(
-    policy_chosen_logps: torch.Tensor,
-    policy_rejected_logps: torch.Tensor,
-    reference_chosen_logps: torch.Tensor,
-    reference_rejected_logps: torch.Tensor,
-    beta: float = 0.1,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """计算同一 prompt 下 chosen / rejected 的 DPO 损失。
-
-    四组 log probability 必须使用同一 tokenization 和回复范围；Reference 固定为
-    SFT 基线，用于度量 Policy 的偏好偏移。
-    """
-    if not (policy_chosen_logps.shape == policy_rejected_logps.shape == reference_chosen_logps.shape == reference_rejected_logps.shape):
-        raise ValueError("policy / reference 的 chosen-rejected logps 形状必须一致")
-    if beta <= 0:
-        raise ValueError("beta 必须是正数")
-
-    # TODO 2：分别计算 chosen / rejected 的 Policy—Reference 偏移。
-    chosen_log_ratio = policy_chosen_logps - reference_chosen_logps.detach()
-
-    rejected_log_ratio = policy_rejected_logps - reference_rejected_logps.detach()
-
-    # TODO 3：用两条隐式奖励形成 preference logit，并构造数值稳定的 DPO loss。
-    chosen_rewards = beta * chosen_log_ratio
-    rejected_rewards = beta * rejected_log_ratio
-    preference_logits = chosen_rewards - rejected_rewards
-    losses = -F.logsigmoid(preference_logits)
-    return losses, chosen_rewards, rejected_rewards
-
-```
-
-### 解析
-
-#### TODO 1：聚合回复 log-prob
-
-- 使用 `masked_fill(~response_mask, 0)` 排除 prompt 与 padding，再沿 token 维求和。
-- `normalize=True` 时除以有效 token 数；测试分别核对 sum、mean 与变长 mask。
-
-#### TODO 2：计算相对 Reference 的偏移
-
-- chosen 与 rejected 分别计算 `policy_logp - reference_logp.detach()`。
-- Reference 固定为比较锚点，梯度测试确认只有 Policy 两支接收梯度。
-
-#### TODO 3：构造成对偏好损失
-
-- `beta` 缩放两条隐式奖励，`chosen_reward - rejected_reward` 形成 preference logit。
-- 使用 `-F.logsigmoid(preference_logits)` 保持数值稳定；方向对调测试确认 loss 增大。
-
-### Step 5：可选 GPU 实验——真实模型偏好边际与有限更新
-
-CPU 题目确认 DPO 目标的方向、数值稳定性与梯度隔离；GPU 实验在同一模型快照、同一偏好对和同一 LoRA 配置下扫描 `beta`，观察真实模型的偏好边际、更新代价与显存。环境创建见[后训练优化实验 Quickstart](../topic_discussion/post_training_optimization/quickstart.md#pt-rl-cuda-quickstart)。
-
-| 学习问题 | CPU 已确认 | GPU 要确认 |
-|:---|:---|:---|
-| DPO 是否把更新推向 chosen | 张量级 loss 与梯度方向 | 真实回复 log-prob 的 chosen/rejected 边际是否增大 |
-| `beta` 改变什么 | 偏好 logit 的缩放 | 同一更新预算下的 loss、边际和梯度变化 |
-| 单卡机制证据能说明什么 | Reference 保持冻结 | LoRA 更新可执行、资源可记录；不替代数据集级质量评测 |
-
-#### 5.1 环境与固定工作负载
-
-普通复测只修改 `RUN_MODE` 与 `RUN_LABEL`。模型、偏好对、LoRA 配置和候选 `beta` 共同定义工作负载；改变其中任一项时递增 `WORKLOAD_VERSION`。
-
-| 配置项 | 默认值 | 作用 |
-|:---|:---|:---|
-| Profile | `PT-RL-CUDA` | 单卡 DPO / GRPO 机制环境，参考显存 12 GiB |
-| 模型 | `Qwen/Qwen2.5-0.5B-Instruct@main` | 5.2 自动解析并记录不可变 commit |
-| 偏好数据 | 4 组固定 prompt/chosen/rejected | 隔离数据变化，只比较 DPO 更新机制 |
-| 候选 | `beta = 0.05 / 0.10 / 0.30` | 比较约束缩放对真实偏好边际的影响 |
-| 更新预算 | LoRA，4 个 optimizer step | 在 12 GiB 单卡内形成可复查的有限更新证据 |
-
-
-```python
-# 学习者入口：普通复测通常只修改这两项。
-RUN_MODE = "dry_run"  # 默认值 dry_run；改为 real_gpu 才执行真实 DPO 更新。
-RUN_LABEL = "default"  # 默认值 default；正式复测改为唯一标签，避免覆盖结果。
-
-# 模型快照：main 会在 5.2 自动解析并记录为不可变 commit。
-MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
-MODEL_REVISION = "main"
-LOCAL_FILES_ONLY = False  # 默认值 False；相同快照已缓存且需离线运行时改为 True。
-
-# 固定工作负载：改变以下参数后递增 WORKLOAD_VERSION。
-ENVIRONMENT_PROFILE = "PT-RL-CUDA"
-WORKLOAD_ID = "pt-dpo-real-model-update"
-WORKLOAD_VERSION = "v1"
-BETA_CANDIDATES = [0.05, 0.10, 0.30]  # DPO 偏好 logit 的三档缩放候选。
-MAX_LENGTH = 128  # prompt 与 response 合并后的最大 Token 数。
-LORA_RANK = 8  # 低秩适配器秩；固定可训练参数预算。
-LORA_ALPHA = 16  # LoRA 缩放分子，实际缩放为 alpha / rank。
-UPDATE_STEPS = 4  # 每个 beta 使用相同的有效 optimizer update 数。
-LEARNING_RATE = 2e-4  # 仅更新 LoRA 参数。
-SEED = 42
-OUTPUT_RELATIVE_PATH = f"benchmarks/results/pt_dpo/{WORKLOAD_ID}_{RUN_LABEL}.json"
-
-```
-
-#### 5.2 执行配对实验并保存 JSON
-
-5.2 对每个 `beta` 从同一不可变模型快照重新开始：先关闭 LoRA 得到冻结 Reference 分数，再执行相同次数的 DPO 更新，最后记录真实偏好边际、耗时与峰值显存。
-
-
-```python
-import gc
-import platform
-import time
+import math
+from copy import deepcopy
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-from tools.notebook_runtime import failure_record, hash_ids, package_version, resolve_model_commit, save_json
-from tools.post_training_runtime import build_response_batch, move_response_batch, response_sequence_logps
-from tools.project_runtime import resolve_project_root
-from tools.training_mechanism_runtime import cuda_hardware_snapshot, gradient_l2_norm, median_and_p95
 
-PREFERENCE_PAIRS = [
-    {"prompt": "Answer with one sentence: Why do gradients accumulate?", "chosen": "Gradients add across micro-batches before one optimizer update.", "rejected": "Gradients disappear after every backward pass."},
-    {"prompt": "Answer with one sentence: What does LoRA train?", "chosen": "LoRA trains small low-rank adapters while keeping the base weights frozen.", "rejected": "LoRA retrains every base-model parameter."},
-    {"prompt": "Answer with one sentence: What is a validation split for?", "chosen": "It estimates behavior on examples excluded from parameter updates.", "rejected": "It supplies extra gradients when training loss is high."},
-    {"prompt": "Answer with one sentence: Why freeze a DPO reference model?", "chosen": "A fixed reference makes policy preference shifts measurable.", "rejected": "A changing reference guarantees every response is correct."},
+print(f"回答概率：{0.4 * 0.5:.3f}")
+print(f"逐 token 相加：{math.log(0.4) + math.log(0.5):.6f}")
+print(f"整条概率取对数：{math.log(0.2):.6f}")
+```
+
+```text
+回答概率：0.200
+逐 token 相加：-1.609438
+整条概率取对数：-1.609438
+```
+
+### 2.2 哪些 token 要计分？
+
+把输入和回答拼在一起送入模型，不意味着两部分都进入式 (1)。我们要算的是“**给定输入，回答的概率**”，因此只对回答 token 求和。
+
+用一个很短的序列看位置关系：
+
+| 输入位置 | 0 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| token | BOS | 问题 | 回答 A | 回答 B | EOS |
+| 是否属于回答 | 否 | 否 | 是 | 是 | 是 |
+| 本位置的输出预测 | 问题 | 回答 A | 回答 B | EOS | 下一个 token |
+
+“回答 A”的概率，要从**前一位置**的模型输出中提取。因此，后面实现时会配对 `logits[:, :-1]` 与 `input_ids[:, 1:]`，回答掩码也必须对应目标 token，使用 `response_mask[:, 1:]`。
+
+注意区分两件事：
+
+- prompt token 的预测得分不计入回答得分；
+- prompt 仍然是预测回答的上下文，不能从模型输入中删掉或全部屏蔽。
+
+另外，**标准 DPO 使用式 (1) 的总和，不是 token 对数概率的平均值**。长度归一化可以作为另一个目标研究，但不能一边声称实现原始 DPO，一边悄悄把求和改成平均。若回答长度不同，这个改动尤其不能忽略。
+
+## 3. 怎样把“更喜欢 A”写成一个概率模型？
+
+### 3.1 用奖励差，而不是奖励的绝对值
+
+暂时假设存在一个得分函数 $r(x,y)$，它衡量回答在输入 $x$ 下的好坏。我们还不知道这个函数，也没有得到它的数值标签。数据只告诉我们谁更受偏好。
+
+一种常用的建模方法是 Bradley–Terry 模型：
+
+$$
+\begin{aligned}
+P_r(y_a\succ y_b\mid x)
+&=\frac{e^{r(x,y_a)}}{e^{r(x,y_a)}+e^{r(x,y_b)}}\\
+&=\sigma\bigl(r(x,y_a)-r(x,y_b)\bigr).
+\end{aligned} \tag{2}
+$$
+
+其中 $\sigma(u)=1/(1+e^{-u})$。
+
+如果两条回答得分相同，预测偏好概率为 $1/2$；如果 A 比 B 高 2 分，则预测偏好 A 的概率约为 $0.881$。给两条回答同时加 100 分，比较结果并不会改变。
+
+这不是在宣布人类偏好天然服从 sigmoid。**它是一个建模假设**：用单个标量得分及其差值来解释成对选择。偏好标准相互冲突、标注噪声很大，或者存在循环偏好时，拟合就可能有局限。
+
+### 3.2 一条偏好记录怎样形成损失？
+
+数据说 $y_w$ 胜过 $y_l$，模型应该为这个事件分配较高概率。最小化它的负对数似然：
+
+$$
+L_r(x,y_w,y_l)
+=-\log\sigma\bigl(r(x,y_w)-r(x,y_l)\bigr). \tag{3}
+$$
+
+把许多记录的损失取平均，就能训练一个显式奖励模型。典型的 PPO-based RLHF 还会用这个奖励模型提供反馈，再进行策略优化。
+
+DPO 的问题是：**能不能不先训练一个独立的奖励模型，而直接用语言模型表示式 (3) 中需要的奖励差？** 为此，我们先看看奖励与最优策略之间究竟有什么关系。
+
+## 4. 给定奖励，什么样的策略才最优？
+
+### 4.1 为什么引入参考模型？
+
+如果只最大化期望奖励，模型会倾向于把概率集中到高奖励回答上。可是奖励可能不准确，我们也不希望模型为了迎合一个评分规则，任意丢掉原有的表达与任务能力。
+
+设固定参考策略为 $\pi_{\mathrm{ref}}$，考虑最大化下列目标：
+
+$$
+\begin{aligned}
+J(\pi)
+&=\mathbb E_{y\sim\pi(\cdot\mid x)}[r(x,y)]\\
+&\quad-\beta D_{\mathrm{KL}}\bigl(\pi(\cdot\mid x)\Vert
+\pi_{\mathrm{ref}}(\cdot\mid x)\bigr),\quad \beta>0.
+\end{aligned} \tag{4}
+$$
+
+这里先固定一个输入 $x$，把符号减到最少。最后对数据中的输入求平均即可。
+
+KL 散度在这里是
+
+$$
+D_{\mathrm{KL}}(\pi\Vert\pi_{\mathrm{ref}})
+=\sum_y\pi(y\mid x)
+\log\frac{\pi(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)}.
+$$
+
+它非负，在两个分布相同时为零。式 (4) 因而在两种愿望之间做取舍：得到高奖励，同时不要无代价地偏离参考分布。注意它的方向：期望由当前策略 $\pi$ 加权，而不是由参考策略加权。它也不是两份模型参数的欧氏距离。
+
+为了完整地算一次，我们先假设回答只有有限种，参考概率均为正，奖励有限。真实语言模型的回答空间更大，推导需要相应的支持与可归一化条件；我们暂时不让这些技术细节挡住主线。
+
+### 4.2 构造一个分布，把目标写成 KL
+
+我们希望找到一个分布，使它同时保留参考概率，并偏向高奖励回答。自然尝试
+
+$$
+\begin{aligned}
+q_r(y\mid x)
+&=\frac{\pi_{\mathrm{ref}}(y\mid x)e^{r(x,y)/\beta}}{Z(x)},\\
+Z(x)&=\sum_y\pi_{\mathrm{ref}}(y\mid x)e^{r(x,y)/\beta}.
+\end{aligned} \tag{5}
+$$
+
+分子中的指数使高奖励回答获得更大权重；$Z(x)$ 把所有权重加起来，使概率和等于 1。这个构造是否真能解决式 (4)，还需要验证，不能只凭直觉认定。
+
+对式 (5) 取对数，有
+
+$$
+\log\frac{\pi(y\mid x)}{q_r(y\mid x)}
+=\log\frac{\pi(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)}
+-\frac{r(x,y)}{\beta}+\log Z(x).
+$$
+
+两边用 $\pi(y\mid x)$ 加权求和，再乘 $\beta$，得到
+
+$$
+\beta D_{\mathrm{KL}}(\pi\Vert q_r)
+=\beta D_{\mathrm{KL}}(\pi\Vert\pi_{\mathrm{ref}})
+-\mathbb E_\pi[r]+\beta\log Z(x).
+$$
+
+把项移回去，原目标恰好变成
+
+$$
+J(\pi)=\beta\log Z(x)-\beta D_{\mathrm{KL}}(\pi\Vert q_r). \tag{6}
+$$
+
+对固定奖励和参考模型，$Z(x)$ 不依赖我们正在优化的 $\pi$。KL 非负，因此当 $\pi=q_r$ 时目标达到最大值：
+
+$$
+\boxed{\displaystyle
+\pi_r^*(y\mid x)
+=\frac{\pi_{\mathrm{ref}}(y\mid x)e^{r(x,y)/\beta}}{Z(x)}.
+} \tag{7}
+$$
+
+这里用到的 KL 非负性也能直接验证。对正数 $u$，有 $-\log u\geq1-u$，令 $u=q_r(y\mid x)/\pi(y\mid x)$，用 $\pi$ 加权求和，便得 $D_{\mathrm{KL}}(\pi\Vert q_r)\geq\sum_y(\pi(y\mid x)-q_r(y\mid x))=0$；零概率项用极限理解。
+
+这就是所需的最优策略。我们证明的是**在允许任意回答分布的空间中**，式 (4) 的解长什么样；有限容量神经网络和有限步训练未必能到达这个解。
+
+### 4.3 用三个回答看懂 $\beta$
+
+固定奖励和参考分布。$\beta$ 较小时，奖励差经过 $1/\beta$ 放大，最优策略更集中在高奖励回答上；$\beta$ 较大时，奖励的影响减弱，最优策略更接近参考分布。
+
+下面只计算式 (7)，不训练任何模型。这样不会把优化器、学习率和训练步数的影响混进来。
+
+```python
+reference_probs = torch.tensor([0.5, 0.3, 0.2], dtype=torch.float64)
+fixed_rewards = torch.tensor([0.0, 1.0, 2.0], dtype=torch.float64)
+print("beta    最优策略对三个回答的概率            KL(policy || reference)")
+for beta in [0.5, 1.0, 2.0]:
+    optimal = (reference_probs.log() + fixed_rewards / beta).softmax(dim=0)
+    kl = (optimal * (optimal.log() - reference_probs.log())).sum()
+    probs = ", ".join(f"{p:.3f}" for p in optimal)
+    print(f"{beta:4.1f}    [{probs}]              {kl:.4f}")
+```
+
+```text
+beta    最优策略对三个回答的概率            KL(policy || reference)
+ 0.5    [0.037, 0.163, 0.801]              0.9155
+ 1.0    [0.179, 0.292, 0.529]              0.3228
+ 2.0    [0.325, 0.322, 0.353]              0.0835
+```
+
+## 5. DPO 的关键：把奖励改写成策略的函数
+
+### 5.1 反过来看式 (7)
+
+对最优策略的表达式取对数并整理：
+
+$$
+r(x,y)
+=\beta\log\frac{\pi_r^*(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)}
++\beta\log Z(x). \tag{8}
+$$
+
+乍看并没有更容易：未知奖励变成了未知最优策略，还多了一个难算的 $Z(x)$。但我们真正需要的不是每条回答的奖励绝对值，而是**同一个输入下，两条回答的奖励差**。
+
+将式 (8) 对 $y_w$ 和 $y_l$ 分别写一次，相减：
+
+$$
+\begin{aligned}
+r(x,y_w)-r(x,y_l)
+&=\beta\log\frac{\pi_r^*(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}\\
+&\quad-\beta\log\frac{\pi_r^*(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}.
+\end{aligned} \tag{9}
+$$
+
+**两项 $\beta\log Z(x)$ 消掉了。** 这也再次说明，为什么必须比较同一个输入下的回答：如果输入不同，归一化项一般就不能这样消去。
+
+### 5.2 从最优策略的关系，得到可训练的模型
+
+现在用参数化语言模型 $\pi_\theta$ 表示待学习的策略，定义
+
+$$
+\begin{aligned}
+\Delta_\theta
+&=\underbrace{\ell_\theta(x,y_w)-\ell_{\mathrm{ref}}(x,y_w)}_{\text{chosen 相对参考的变化}}\\
+&\quad-\underbrace{\bigl(\ell_\theta(x,y_l)-\ell_{\mathrm{ref}}(x,y_l)\bigr)}_{\text{rejected 相对参考的变化}}.
+\end{aligned} \tag{10}
+$$
+
+把式 (9) 代入第 3 节的偏好模型，并拟合观察到的选择，得到
+
+$$
+\widehat P_\theta(y_w\succ y_l\mid x)
+=\sigma(\beta\Delta_\theta),
+$$
+
+$$
+\boxed{\displaystyle
+L_{\mathrm{DPO}}(\theta)
+=-\frac1N\sum_{i=1}^N
+\log\sigma\bigl(\beta\Delta_\theta(x_i,y_{w,i},y_{l,i})\bigr).
+} \tag{11}
+$$
+
+到这里，训练所需的量全都能由 Policy、固定 Reference 和已有偏好对算出。不必先拟合一个独立奖励模型，也不必在每次更新时生成新回答再做 PPO 更新。离线 DPO 仍需要有人或某种可靠规则在训练前提供偏好标签；它没有消除反馈的成本。
+
+为什么可以改用策略来参数化，而不是任意把 $\pi_r^*$ 换个符号？对任意在参考支持内为正的归一化策略 $\pi_\theta$，定义 $r_\theta=\beta\log(\pi_\theta/\pi_{\mathrm{ref}})$，它在式 (5) 中的归一化常数就是
+
+$$
+Z_\theta(x)=\sum_y\pi_{\mathrm{ref}}(y\mid x)
+\exp\!\left(\frac{r_\theta(x,y)}{\beta}\right)
+=\sum_y\pi_\theta(y\mid x)=1.
+$$
+
+所以这个策略确实对应一组奖励，并且是那组奖励下式 (4) 的最优解。偏好数据的任务，则是从这些可由策略表示的奖励中，找出能解释观察选择的一组。
+
+注意这一步的性质：我们是利用理论关系**重参数化偏好似然**，然后在数据上训练 $\pi_\theta$。不是说任意一个当前策略已经是未知真实奖励下的最优策略，也不是说有限数据下的 DPO 与运行 PPO 会得到完全相同的参数。
+
+### 5.3 “隐式奖励”是什么意思？
+
+常把
+
+$$
+\widehat r_\theta(x,y)
+=\beta\log\frac{\pi_\theta(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)}
+$$
+
+称为隐式奖励。这里的“隐式”是说：它由策略与参考策略共同定义，不需要另一个独立网络输出这个分数。
+
+它不等于标注者给出的真实质量分。对同一个输入，给所有奖励加同一个常数，并不改变任何成对偏好概率。被识别的是奖励差，而不是一个跨所有输入都天然校准的绝对分数。因此，日志中“chosen reward 上升”不能直接翻译成“人类满意度提高了这么多”。
+
+传统流程先拟合奖励再优化策略；DPO 用策略来参数化偏好模型。省掉的是一条训练链路，不是对偏好数据质量的要求。
+
+## 6. 三个算例：损失究竟在比较什么？
+
+### 例 2：Policy 与 Reference 相同
+
+此时每条回答的 $\ell_\theta-\ell_{\mathrm{ref}}$ 都为零，故
+
+$$
+\Delta_\theta=0,\qquad
+\widehat P_\theta=\tfrac12,\qquad
+L=\log2\approx0.6931.
+$$
+
+即使 Reference 原本认为 chosen 比 rejected 更可能，结论也一样。DPO 的偏好概率来自**相对参考策略的变化**，不是原始生成概率之间的比较。
+
+### 例 3：先看四个对数概率
+
+假设 chosen 的 Policy、Reference 得分分别为 $-2,-3$，rejected 的两个得分分别为 $-5,-4$。chosen 相对参考上升了 1，rejected 相对参考下降了 1，故 $\Delta=2$。取 $\beta=0.1$，偏好 logit 为 $0.2$，损失约为 $0.5981$。
+
+请注意，这里的 $-2,-3$ 等都是**整条回答**的对数概率，不是单个位置的词表 logits。
+
+```python
+policy_w, reference_w = -2.0, -3.0
+policy_l, reference_l = -5.0, -4.0
+margin = (policy_w - reference_w) - (policy_l - reference_l)
+z = torch.tensor(0.1 * margin)
+print(f"相对偏好间隔 Δ = {margin:.1f}")
+print(f"预测偏好概率 = {z.sigmoid().item():.4f}")
+print(f"单条损失 = {-F.logsigmoid(z).item():.4f}")
+```
+
+```text
+相对偏好间隔 Δ = 2.0
+预测偏好概率 = 0.5498
+单条损失 = 0.5981
+```
+
+### 例 4：chosen 概率下降，损失也可能下降
+
+考虑同一个输入的完整回答分布：
+
+| 回答 | Reference，也就是初始 Policy | 更新后的 Policy |
+|---|---:|---:|
+| chosen | 0.4 | 0.3 |
+| rejected | 0.2 | 0.1 |
+| 其他回答合计 | 0.4 | 0.6 |
+
+chosen 的绝对概率从 $0.4$ 降到 $0.3$，但 rejected 降得更多。相对偏好间隔变为
+
+$$
+\Delta
+=\log\frac{0.3}{0.4}-\log\frac{0.1}{0.2}
+=\log1.5>0.
+$$
+
+初始间隔是零；对任意正 $\beta$，更新后的 DPO 损失更小。这是一个归一化、概率均为正的合法例子。
+
+所以，“损失下降”不能被解释为“chosen 概率必然上升”，更不能直接解释为“模型整体回答质量改善”。DPO 约束的是一个成对的相对量；其他回答的概率也会随着模型更新而变化。
+
+## 7. 梯度、参考模型与 $\beta$
+
+把一条记录的式 (11) 记为 $L(\Delta)=-\log\sigma(\beta\Delta)$。直接求导：
+
+$$
+\frac{\partial L}{\partial\Delta}
+=-\beta\sigma(-\beta\Delta). \tag{12}
+$$
+
+设四个回答得分中的 Policy 两项为 $a=\ell_\theta(x,y_w)$、$b=\ell_\theta(x,y_l)$，Reference 固定。把 $a,b$ **暂时当作独立变量**，就有
+
+$$
+\frac{\partial L}{\partial a}=-\beta\sigma(-\beta\Delta),
+\qquad
+\frac{\partial L}{\partial b}=+\beta\sigma(-\beta\Delta).
+$$
+
+梯度下降因而推动增大 chosen 相对 rejected 的得分间隔。若间隔已很大且为正，权重接近零；若排序方向很差，权重更大。这是 sigmoid 损失与简单地无限拉大两个得分差的区别。
+
+但实际的 $a,b$ 由**同一套模型参数**产生，不是两个可以任意独立调节的旋钮。对整套参数更新后，不能保证所有样本的 chosen 概率都上升，或所有 rejected 概率都下降。上一节的反例正是提醒我们不要越过这个边界。
+
+### 7.1 为什么 Reference 必须固定？
+
+式 (10) 中的 Reference 是基线，不是第二个待优化的偏好模型。标准离线 DPO 训练过程中不随每一步 Policy 一起更新它。否则，目标中“相对哪个分布”的含义也在变化。
+
+代码中需要分清：
+
+- `requires_grad_(False)` 冻结参考参数；
+- `torch.no_grad()` 让参考前向不构造反向图；
+- `eval()` 控制 dropout 等层的行为，**它本身不冻结参数**。
+
+参数被冻结、计算图不记录，并不意味着模型无法做前向。参考得分也可以预先算好缓存，只要模型版本、模板和评分 token 范围始终一致。
+
+### 7.2 为什么不能只记“$\beta$ 越大越保守”？
+
+第 4 节讨论的是**固定奖励下的最优分布**。实际 DPO 训练还受到损失梯度影响。由式 (12)，当初始 Policy 等于 Reference 时，$\Delta=0$，于是
+
+$$
+\frac{\partial L}{\partial\Delta}=-\frac\beta2.
+$$
+
+同样的初始模型与学习率下，增大 $\beta$ 并不意味着第一步梯度更小。同时，当正间隔逐渐变大，sigmoid 的饱和速度也会改变。目标中的 KL 系数、当前梯度大小、有限步训练后的实际 KL，不能混为一个概念。
+
+DPO 损失没有在每一批数据上显式计算整个回答空间的 KL，也没有保证实际 KL 始终小于某个阈值。选 $\beta$ 要结合训练稳定性和独立评测，不能只挑训练对上间隔最大的那一个。
+
+## 8. 开始写代码：只实现三件核心的事
+
+到这里应该先能用纸笔解释式 (1)、(10)、(11)，再把它们写成程序。下面不让你搭环境管理器、记录 JSON 或实现模型架构。
+
+三道作业依次完成：
+
+1. 从 logits 算出 response 的序列 log-prob；
+2. 从四组回答得分算出 DPO 损失；
+3. 把它们接成一次真正的参数更新。
+
+题目函数留空，不会自动调用。**写完一题后，取消该题测试调用前的 `#` 再运行。** 参考解答在第 9 节，使用独立函数名，不会覆盖你写的函数。直接顺序运行全本，会执行讲解示例和参考实验，不会把未完成的作业假装成已经通过。
+
+### 作业一：回答的序列 log-prob
+
+实现下面的函数，返回形状为 `[B]` 的得分。`response_mask[b, t]` 表示 `input_ids[b, t]` 这个**目标 token**是否属于要评分的回答。
+
+输入已保证有效：每条回答至少有一个可评分 token，PAD 与 EOS 不同。你不用写参数检查。请自己完成位置对齐、取目标概率、掩码和求和，不要调用仓库中的评分辅助函数。
+
+```python
+def response_logps(logits, input_ids, response_mask):
+    """logits: [B,T,V]；input_ids、response_mask: [B,T]；返回 [B]。"""
+    # 在这里实现式 (1)，注意“本位置预测下一个 token”。
+    raise NotImplementedError("请实现 response-only 序列 log-prob")
+```
+
+**先手算，再运行测试。** 下列测试用“已经归一化的概率的对数”作为 logits，因此 `log_softmax` 不会改变其值。第一条回答应得到 $\log(0.5\times0.6)$，第二条应得到 $\log0.25$。
+
+第二条只有一个回答 token，所以不能按长度取平均。更改只预测 prompt 或 padding 的位置，不应改变回答得分。测试还会检查梯度是否确实流经用于预测回答的位置。
+
+```python
+def check_response_logps(score_fn):
+    probabilities = torch.tensor([
+        [[0.1, 0.2, 0.7], [0.2, 0.3, 0.5], [0.6, 0.1, 0.3], [0.3, 0.4, 0.3]],
+        [[0.25, 0.5, 0.25], [0.1, 0.2, 0.7], [0.4, 0.4, 0.2], [0.3, 0.3, 0.4]],
+    ], dtype=torch.float64)
+    logits = probabilities.log().requires_grad_()
+    ids = torch.tensor([[0, 1, 2, 0], [1, 0, 2, 2]])
+    mask = torch.tensor([[False, False, True, True], [False, True, False, False]])
+    expected = torch.tensor([math.log(0.5 * 0.6), math.log(0.25)], dtype=logits.dtype)
+    scores = score_fn(logits, ids, mask)
+    assert scores.shape == (2,)
+    torch.testing.assert_close(scores, expected)
+
+    # 只扰动“不负责预测回答”的位置。
+    unused = torch.tensor([[True, False, False, True], [False, True, True, True]])
+    changed = logits.detach().clone()
+    changed[unused] = torch.tensor([8.0, -4.0, 1.0], dtype=changed.dtype)
+    torch.testing.assert_close(score_fn(changed, ids, mask), expected)
+    scores.sum().backward()
+    assert torch.count_nonzero(logits.grad[unused]) == 0
+    assert torch.count_nonzero(logits.grad[~unused]) > 0
+    print("作业一通过：预测位置、回答范围、序列求和与梯度都正确。")
+
+# 完成后取消下一行注释：
+# check_response_logps(response_logps)
+```
+
+### 作业二：DPO 损失
+
+输入四组形状为 `[B]` 的**整条回答**的 log-prob，以及正数 `beta`。Reference 得分已在计算图外得到；本函数不用负责冻结模型。返回逐样本损失 `losses` 和**未乘 beta**的相对偏好间隔 `margins`，两者形状都是 `[B]`。
+
+请根据式 (10)、(11) 独立组织计算。使用 `F.logsigmoid` 或等价的稳定表达式，不要先算 sigmoid 再对很小的结果取对数。这里不对 batch 求平均，留给训练步骤处理。
+
+```python
+def dpo_loss(policy_chosen, policy_rejected, reference_chosen, reference_rejected, beta):
+    """返回逐样本 (losses, margins)，margins 不含 beta。"""
+    raise NotImplementedError("请实现相对偏好间隔与 DPO 损失")
+```
+
+测试中特意让 Reference 对 chosen、rejected 的得分不同。如果只用 Policy 两个得分做减法，测试会失败。我们也检查初始 $\log2$、偏导符号和极端间隔下的数值稳定性，而不是让你处理一堆非法参数。
+
+```python
+def check_dpo_loss(loss_fn):
+    dtype = torch.float64
+    ref_w = torch.tensor([-2.0, -4.0], dtype=dtype)
+    ref_l = torch.tensor([-5.0, -1.0], dtype=dtype)
+    losses, margins = loss_fn(ref_w, ref_l, ref_w, ref_l, beta=0.2)
+    torch.testing.assert_close(margins, torch.zeros(2, dtype=dtype))
+    torch.testing.assert_close(losses, torch.full((2,), math.log(2), dtype=dtype))
+
+    pw = torch.tensor([-1.0, -5.0], dtype=dtype, requires_grad=True)
+    pl = torch.tensor([-6.0, -1.0], dtype=dtype, requires_grad=True)
+    losses, margins = loss_fn(pw, pl, ref_w, ref_l, beta=0.2)
+    torch.testing.assert_close(margins, torch.tensor([2.0, -1.0], dtype=dtype))
+    expected = torch.logaddexp(torch.zeros_like(margins), -0.2 * margins)
+    torch.testing.assert_close(losses, expected)
+    losses.sum().backward()
+    weights = 0.2 * torch.sigmoid(-0.2 * margins.detach())
+    torch.testing.assert_close(pw.grad, -weights)
+    torch.testing.assert_close(pl.grad, weights)
+
+    # 同时对调 Policy 与 Reference 中的回答身份，间隔应反号。
+    swapped, swapped_margin = loss_fn(pl.detach(), pw.detach(), ref_l, ref_w, beta=0.2)
+    torch.testing.assert_close(swapped_margin, -margins.detach())
+    torch.testing.assert_close(swapped - losses.detach(), 0.2 * margins.detach())
+    extreme_w = torch.tensor([-2e4, -1.0], dtype=dtype)
+    extreme_l = extreme_w.flip(0)
+    extreme_ref = torch.full_like(extreme_w, -1.0)
+    stable, _ = loss_fn(extreme_w, extreme_l, extreme_ref, extreme_ref, beta=0.2)
+    assert torch.isfinite(stable).all()
+    print("作业二通过：参考校正、偏好方向、梯度大小与数值稳定性正确。")
+
+# 完成后取消下一行注释：
+# check_dpo_loss(dpo_loss)
+```
+
+### 作业三的材料：一个小型自回归模型和四组数据
+
+先提供模型和数据，随后由你写更新逻辑。这里用一个小 GRU 逐 token 预测，接口同样输出 `[B,T,V]` 的 logits。**DPO 不依赖 Transformer 的内部结构**；换成大模型后，需要改变的是模型调用与数据准备，不是损失公式。
+
+四组数据都是简单算术问题。模型从随机初始化开始，因此这个实验只用来观察偏好更新，不是在模拟一个已经具备通用能力的 SFT 模型，更不声称四个样本能教会算术泛化。
+
+为避免 tokenizer 边界问题，字符串按空格分词。BOS 是输入起点，EOS 是回答结束，PAD 只用于右侧补齐。下面把所有 chosen 放在 batch 前半，所有 rejected 放在后半；一对回答的 prompt 完全相同。
+
+```python
+PAIRS = [
+    ("1 + 1 =", "2", "3"),
+    ("1 + 2 =", "3", "2"),
+    ("2 + 2 =", "4", "3"),
+    ("2 + 3 =", "5", "4"),
 ]
-REPO_ROOT = resolve_project_root()
-OUTPUT_PATH = REPO_ROOT / OUTPUT_RELATIVE_PATH
-result = {
-    "schema_version": "post-training-mechanism-gpu/v1",
-    "semantic_id": "PT-DPO-LOSS",
-    "environment_profile": ENVIRONMENT_PROFILE,
-    "run_mode": RUN_MODE, "run_label": RUN_LABEL,
-    "framework": {"python": platform.python_version(), "torch": torch.__version__, "transformers": package_version("transformers"), "peft": package_version("peft")},
-    "hardware": {"cuda_available": torch.cuda.is_available(), "cuda": torch.version.cuda},
-    "model": {"id": MODEL_ID, "requested_revision": MODEL_REVISION, "resolved_commit": None},
-    "dataset": {"source": "embedded_fixed_preference_pairs", "pairs": len(PREFERENCE_PAIRS), "sample_hash": hash_ids([str(item) for item in PREFERENCE_PAIRS])},
-    "workload": {"id": WORKLOAD_ID, "version": WORKLOAD_VERSION, "beta_candidates": BETA_CANDIDATES, "max_length": MAX_LENGTH, "lora_rank": LORA_RANK, "lora_alpha": LORA_ALPHA, "update_steps": UPDATE_STEPS, "learning_rate": LEARNING_RATE, "seed": SEED},
-    "baseline": {"name": "frozen_reference", "initial_preference_margin": 0.0},
-    "candidates": [], "failure": None, "evidence_level": "dry_run", "decision": "not_measured",
-}
+VOCAB = ["<pad>", "<bos>", "<eos>", "1", "2", "3", "4", "5", "+", "="]
+TOKEN_ID = {token: i for i, token in enumerate(VOCAB)}
+PAD, BOS, EOS = [TOKEN_ID[token] for token in ["<pad>", "<bos>", "<eos>"]]
 
-execution_stage = "environment_preflight"
-if RUN_MODE == "real_gpu":
-    model = optimizer = None
-    try:
-        if not torch.cuda.is_available():
-            raise RuntimeError("RUN_MODE=real_gpu，但 CUDA 不可用")
-        from peft import LoraConfig, TaskType, get_peft_model
-        from transformers import AutoModelForCausalLM, AutoTokenizer
 
-        device = torch.device("cuda")
-        dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-        execution_stage = "revision_and_tokenization"
-        model_commit, revision_source = resolve_model_commit(MODEL_ID, MODEL_REVISION, local_files_only=LOCAL_FILES_ONLY)
-        result["model"].update({"resolved_commit": model_commit, "resolution_source": revision_source})
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, revision=model_commit, local_files_only=LOCAL_FILES_ONLY)
-        prompts = [item["prompt"] for item in PREFERENCE_PAIRS]
-        chosen_batch = build_response_batch(tokenizer, prompts, [item["chosen"] for item in PREFERENCE_PAIRS], max_length=MAX_LENGTH)
-        rejected_batch = build_response_batch(tokenizer, prompts, [item["rejected"] for item in PREFERENCE_PAIRS], max_length=MAX_LENGTH)
-        chosen_batch = move_response_batch(chosen_batch, device)
-        rejected_batch = move_response_batch(rejected_batch, device)
+def make_batch(pairs):
+    rows, masks = [], []
+    for answer_index in (1, 2):  # chosen 在前，rejected 在后。
+        for pair in pairs:
+            prompt = [BOS] + [TOKEN_ID[token] for token in pair[0].split()]
+            answer = [TOKEN_ID[token] for token in pair[answer_index].split()] + [EOS]
+            rows.append(prompt + answer)
+            masks.append([False] * len(prompt) + [True] * len(answer))
+    width = max(map(len, rows))
+    return {
+        "input_ids": torch.tensor([row + [PAD] * (width - len(row)) for row in rows]),
+        "response_mask": torch.tensor([mask + [False] * (width - len(mask)) for mask in masks]),
+        "n_pairs": len(pairs),
+    }
 
-        for beta in BETA_CANDIDATES:
-            execution_stage = f"beta_{beta}"
-            gc.collect(); torch.cuda.empty_cache(); torch.cuda.reset_peak_memory_stats()
-            torch.manual_seed(SEED); torch.cuda.manual_seed_all(SEED)
-            base = AutoModelForCausalLM.from_pretrained(MODEL_ID, revision=model_commit, local_files_only=LOCAL_FILES_ONLY, dtype=dtype).to(device)
-            base.config.use_cache = False
-            model = get_peft_model(base, LoraConfig(r=LORA_RANK, lora_alpha=LORA_ALPHA, lora_dropout=0.0, target_modules=["q_proj", "v_proj"], bias="none", task_type=TaskType.CAUSAL_LM))
-            trainable = [parameter for parameter in model.parameters() if parameter.requires_grad]
-            optimizer = torch.optim.AdamW(trainable, lr=LEARNING_RATE)
-            model.eval()
-            with torch.no_grad(), model.disable_adapter(), torch.autocast("cuda", dtype=dtype):
-                ref_chosen, _ = response_sequence_logps(model, chosen_batch)
-                ref_rejected, _ = response_sequence_logps(model, rejected_batch)
-            update_times_ms, losses, gradient_norms = [], [], []
-            model.train()
-            for _ in range(UPDATE_STEPS):
-                optimizer.zero_grad(set_to_none=True)
-                torch.cuda.synchronize(); started = time.perf_counter()
-                with torch.autocast("cuda", dtype=dtype):
-                    policy_chosen, _ = response_sequence_logps(model, chosen_batch)
-                    policy_rejected, _ = response_sequence_logps(model, rejected_batch)
-                    logits = beta * ((policy_chosen - ref_chosen) - (policy_rejected - ref_rejected))
-                    loss = -F.logsigmoid(logits).mean()
-                loss.backward(); gradient_norms.append(gradient_l2_norm(trainable)); optimizer.step()
-                torch.cuda.synchronize(); update_times_ms.append((time.perf_counter() - started) * 1000); losses.append(float(loss.detach()))
-            model.eval()
-            with torch.no_grad(), torch.autocast("cuda", dtype=dtype):
-                final_chosen, _ = response_sequence_logps(model, chosen_batch)
-                final_rejected, _ = response_sequence_logps(model, rejected_batch)
-            chosen_shift = final_chosen - ref_chosen
-            rejected_shift = final_rejected - ref_rejected
-            preference_margin = chosen_shift - rejected_shift
-            median_ms, p95_ms = median_and_p95(update_times_ms)
-            result["candidates"].append({"beta": beta, "losses": losses, "mean_chosen_shift": float(chosen_shift.mean()), "mean_rejected_shift": float(rejected_shift.mean()), "mean_preference_margin": float(preference_margin.mean()), "preference_accuracy": float((preference_margin > 0).float().mean()), "gradient_norms": gradient_norms, "median_update_ms": median_ms, "p95_update_ms": p95_ms, "peak_allocated_bytes": int(torch.cuda.max_memory_allocated())})
-            del optimizer, model, base; optimizer = model = None
 
-        selected = max(result["candidates"], key=lambda item: (item["preference_accuracy"], item["mean_preference_margin"]))
-        passed = selected["preference_accuracy"] >= 0.75 and selected["mean_preference_margin"] > 0
-        result.update({"hardware": cuda_hardware_snapshot(), "selected_candidate": {"beta": selected["beta"]}, "evidence_level": "real_model_dpo_mechanism_benchmark", "decision": "accept_mechanism" if passed else "tune"})
-    except Exception as error:
-        result.update({"failure": failure_record(execution_stage, error), "evidence_level": "failed_real_gpu_attempt", "decision": "reject_until_fixed"})
-    finally:
-        del optimizer, model
-        gc.collect(); torch.cuda.empty_cache()
-elif RUN_MODE != "dry_run":
-    raise ValueError("RUN_MODE 只能是 dry_run 或 real_gpu")
+class TinyLM(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.embedding = nn.Embedding(len(VOCAB), 16, padding_idx=PAD)
+        self.rnn = nn.GRU(16, 24, batch_first=True)
+        self.output = nn.Linear(24, len(VOCAB))
 
-save_json(OUTPUT_PATH, result)
-print(OUTPUT_PATH)
-print(result["decision"], result["failure"])
+    def forward(self, input_ids):
+        hidden, _ = self.rnn(self.embedding(input_ids))
+        return self.output(hidden)
 
+
+def make_models(seed=7):
+    # 不改动读者在 Notebook 其他地方的随机数状态。
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(seed)
+        policy = TinyLM()
+    reference = deepcopy(policy).eval()
+    reference.requires_grad_(False)
+    return policy, reference
+
+
+batch = make_batch(PAIRS)
+print("第一条输入：", " ".join(VOCAB[i] for i in batch["input_ids"][0].tolist()))
+print("回答掩码：  ", batch["response_mask"][0].tolist())
 ```
 
-#### 5.3 读取结果
+```text
+第一条输入： <bos> 1 + 1 = 2 <eos>
+回答掩码：   [False, False, False, False, False, True, True]
+```
 
-本节只读取当前 `RUN_LABEL` 对应的 JSON，不回退到其他运行。先检查 failure，再比较三档 `beta` 的偏好准确率、平均边际、更新时间与峰值显存。
+这个 GRU 没有 dropout。右侧 padding 不会反过来影响前面的有效预测，评分时也被掩码排除。真实 Transformer 还需要正确传入 `attention_mask`；这里没有故意让你额外处理另一套模型接口。
 
+### 作业三：完成一次参数更新
+
+实现 `dpo_step`，复用你在前两题写的函数。完成以下整条路径，不要手工改参数来“制造”正确方向：
+
+```text
+Policy / Reference 前向
+    → response-only log-prob
+    → 拆出 chosen / rejected
+    → 逐样本 DPO loss 取平均
+    → 反向传播与 optimizer.step()
+```
+
+Reference 的前向在 `no_grad` 中进行；Policy 的评分必须保留计算图。每一步清空上一步梯度。本实验的优化器只持有 Policy 参数。函数返回**更新前**的平均损失，作为 Python 浮点数；更新后的效果会通过重新前向检查。
 
 ```python
-import json
-
-if not OUTPUT_PATH.exists():
-    print(f"尚未找到结果文件：{OUTPUT_PATH}")
-else:
-    record = json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
-    print(json.dumps({key: record.get(key) for key in ("run_label", "model", "selected_candidate", "failure", "evidence_level", "decision")}, ensure_ascii=False, indent=2))
-    for candidate in record.get("candidates", []):
-        print({key: candidate.get(key) for key in ("beta", "mean_preference_margin", "preference_accuracy", "median_update_ms", "p95_update_ms", "peak_allocated_bytes")})
-
+def dpo_step(policy, reference, batch, optimizer, beta=0.1):
+    """复用 response_logps、dpo_loss，更新一次 Policy，返回更新前 loss。"""
+    raise NotImplementedError("请接通前向、DPO 损失与一次参数更新")
 ```
 
-#### 5.4 解释证据与决策
+```python
+def check_dpo_step(step_fn):
+    policy, reference = make_models()
+    optimizer = torch.optim.SGD(policy.parameters(), lr=0.05)
+    before_policy = [p.detach().clone() for p in policy.parameters()]
+    before_reference = [p.detach().clone() for p in reference.parameters()]
+    local_batch = make_batch(PAIRS)
+    initial_loss = step_fn(policy, reference, local_batch, optimizer, beta=0.2)
+    assert isinstance(initial_loss, float)
+    assert math.isclose(initial_loss, math.log(2), rel_tol=1e-5)
+    assert any(not torch.equal(old, p) for old, p in zip(before_policy, policy.parameters()))
 
-先确认三档候选来自同一模型 commit、偏好对与更新预算，再判断边际方向；速度和显存只用于描述这次有限更新，不据此声称模型整体偏好质量已经改善。
+    # 故意残留旧梯度：正确的一步更新应先清空它，结果不受它影响。
+    dirty_policy, dirty_reference = make_models()
+    dirty_optimizer = torch.optim.SGD(dirty_policy.parameters(), lr=0.05)
+    for parameter in dirty_policy.parameters():
+        parameter.grad = torch.ones_like(parameter)
+    step_fn(dirty_policy, dirty_reference, local_batch, dirty_optimizer, beta=0.2)
+    for clean, dirty in zip(policy.parameters(), dirty_policy.parameters()):
+        torch.testing.assert_close(clean, dirty)
 
-| 观察结果 | 机制解释 | 本节决策 |
-|:---|:---|:---|
-| 多数偏好对的边际为正，且 loss 有限 | DPO 更新方向与 chosen/rejected 契约一致 | `accept_mechanism` |
-| 边际方向正确，但不同 `beta` 波动明显 | 缩放与学习率需要联合复测 | `tune` |
-| 边际为负、Reference 未冻结或运行失败 | 目标方向、回复掩码或环境不成立 | `reject_until_fixed` |
+    second_loss = step_fn(policy, reference, local_batch, optimizer, beta=0.2)
+    assert second_loss < initial_loss
+    for old, parameter in zip(before_reference, reference.parameters()):
+        torch.testing.assert_close(old, parameter, rtol=0, atol=0)
+        assert parameter.grad is None
+    assert all(p.grad is not None and torch.isfinite(p.grad).all() for p in policy.parameters())
+    print("作业三通过：Policy 已更新，重新评分的 loss 下降，Reference 保持不变。")
 
-## 相关阅读
+# 完成后取消下一行注释：
+# check_dpo_step(dpo_step)
+```
 
-- [Part 02 · 18 GRPO：组相对策略优化损失](../02_PyTorch_Algorithms/18_GRPO_Loss_Tutorial.md)
-- [Part 02 · 50 偏好数据与评测](../02_PyTorch_Algorithms/50_Preference_Data_and_Evaluation.md)
-- [DPO 原论文](https://arxiv.org/abs/2305.18290)
-- [TRL DPOTrainer 文档](https://huggingface.co/docs/trl/dpo_trainer)
+### 再做一个反例，不必搭新框架
+
+请自己构造三个回答上的两组合法概率分布，满足：
+
+1. 初始 Policy 等于 Reference；
+2. 更新后的 chosen 概率下降；
+3. 用你写的 `dpo_loss` 算，损失也下降。
+
+不要直接抄第 6 节的数字。把概率和为 1 也检查一遍，然后用两句话说明：损失下降到底约束了什么，没有约束什么？这道题的重点是解释你写出的目标，不是增加代码量。
+
+---
+
+## 9. 参考解答与容易写错的地方
+
+下面三个函数使用 `_solution` 后缀，不会覆盖你的作业。先看自己哪个测试没通过，再比较相应位置，比整段照抄更有帮助。
+
+### 9.1 从 logits 到回答得分
+
+```python
+def response_logps_solution(logits, input_ids, response_mask):
+    prediction_logits = logits[:, :-1]
+    if prediction_logits.dtype in (torch.float16, torch.bfloat16):
+        prediction_logits = prediction_logits.float()
+    log_probs = F.log_softmax(prediction_logits, dim=-1)
+    targets = input_ids[:, 1:]
+    token_logps = log_probs.gather(-1, targets.unsqueeze(-1)).squeeze(-1)
+    return token_logps.masked_fill(~response_mask[:, 1:], 0.0).sum(dim=-1)
+
+
+check_response_logps(response_logps_solution)
+```
+
+```text
+作业一通过：预测位置、回答范围、序列求和与梯度都正确。
+```
+
+最容易错的是**目标位置**。位置 $t$ 的输出负责预测位置 $t+1$ 的 token，所以三者必须同时对齐：前一位置的 logits、后一位置的 token id、后一位置的回答掩码。只移动其中一项，得到的数字可能仍然有限，却不再是我们要的条件概率。
+
+`gather` 从词表维中取实际 token 的得分；`masked_fill` 排除不计分位置；最后沿 token 维求和。半精度输入先把 log-softmax 提升到 FP32，避免把数值敏感的归一化也放在低精度中；这不切断梯度。
+
+这里没有除以回答长度。对 batch 的平均发生在训练损失上，不是对每条回答的 token 得分做平均。
+
+### 9.2 从四个得分到损失
+
+```python
+def dpo_loss_solution(policy_chosen, policy_rejected, reference_chosen, reference_rejected, beta):
+    chosen_change = policy_chosen - reference_chosen
+    rejected_change = policy_rejected - reference_rejected
+    margins = chosen_change - rejected_change
+    losses = -F.logsigmoid(beta * margins)
+    return losses, margins
+
+
+check_dpo_loss(dpo_loss_solution)
+```
+
+```text
+作业二通过：参考校正、偏好方向、梯度大小与数值稳定性正确。
+```
+
+这五行分别对应式 (10) 的两项、它们的差，以及式 (11) 的逐样本负对数似然。`-F.logsigmoid(z)` 与 `F.softplus(-z)` 等价；不要因为最终 loss 很短，就跳过前面解释它来源的过程。
+
+Reference 的冻结发生在模型准备与前向阶段。损失函数没有用 `.detach()` 掩盖一个本应在调用方处理清楚的模型状态问题。反过来，也不能把 Policy 得分 `.detach()`，否则损失就无法更新模型。
+
+### 9.3 完成一次真实更新
+
+```python
+def dpo_step_solution(policy, reference, batch, optimizer, beta=0.1):
+    optimizer.zero_grad(set_to_none=True)
+    ids, mask, n = batch["input_ids"], batch["response_mask"], batch["n_pairs"]
+    with torch.no_grad():
+        reference_scores = response_logps_solution(reference(ids), ids, mask)
+    policy_scores = response_logps_solution(policy(ids), ids, mask)
+    losses, _ = dpo_loss_solution(
+        policy_scores[:n], policy_scores[n:],
+        reference_scores[:n], reference_scores[n:], beta,
+    )
+    loss = losses.mean()
+    loss.backward()
+    optimizer.step()
+    return loss.detach().item()
+
+
+check_dpo_step(dpo_step_solution)
+```
+
+```text
+作业三通过：Policy 已更新，重新评分的 loss 下降，Reference 保持不变。
+```
+
+拼在同一个 batch 中做前向，是为了少写重复代码，不会让两个回答彼此看到对方：它们位于不同 batch 行。由于 chosen 和 rejected 的行顺序已经约定，切片即可恢复四组得分。
+
+这次训练没有做梯度累积，所以每一步先清梯度。`no_grad` 只包住 Reference 前向；对 Policy 使用它，会在最需要梯度的地方切断计算图。最后对**样本损失**取平均，再更新 Policy。返回的 `loss` 对应更新前的前向，不能把它当作更新后模型重新评分的结果。
+
+## 10. 观察训练，而不只是看一个“通过”
+
+下面连续更新小模型。默认使用参考实现；如果前三题已经完成并通过测试，把 `step_fn` 换成你写的 `dpo_step` 即可。这里没有自动用参考答案修补作业。
+
+每个检查点都在**当前参数上重新评分**。输出 chosen、rejected 的平均 log-prob，是为了不让“间隔变好”遮住两项各自怎样变化。`chosen 变化` 和 `rejected 变化` 均相对于固定 Reference。
+
+```python
+@torch.no_grad()
+def inspect_policy(policy, reference, batch, beta):
+    ids, mask, n = batch["input_ids"], batch["response_mask"], batch["n_pairs"]
+    policy_scores = response_logps_solution(policy(ids), ids, mask)
+    reference_scores = response_logps_solution(reference(ids), ids, mask)
+    losses, margins = dpo_loss_solution(
+        policy_scores[:n], policy_scores[n:], reference_scores[:n], reference_scores[n:], beta,
+    )
+    return {
+        "loss": losses.mean().item(),
+        "margin": margins.mean().item(),
+        "chosen_logp": policy_scores[:n].mean().item(),
+        "rejected_logp": policy_scores[n:].mean().item(),
+        "chosen_change": (policy_scores[:n] - reference_scores[:n]).mean().item(),
+        "rejected_change": (policy_scores[n:] - reference_scores[n:]).mean().item(),
+    }
+
+
+step_fn = dpo_step_solution  # 作业完成后，可明确改成 dpo_step。
+policy, reference = make_models()
+optimizer = torch.optim.Adam(policy.parameters(), lr=0.01)
+beta = 0.1
+history = []
+print("step    loss      Δ       chosen logp   rejected logp   chosen 变化   rejected 变化")
+for step in range(61):
+    if step in (0, 1, 5, 15, 30, 60):
+        record = {"step": step, **inspect_policy(policy, reference, batch, beta)}
+        history.append(record)
+        print(f"{step:4d}  {record['loss']:7.4f}  {record['margin']:7.2f}"
+              f"  {record['chosen_logp']:12.2f}  {record['rejected_logp']:13.2f}"
+              f"  {record['chosen_change']:11.2f}  {record['rejected_change']:13.2f}")
+    if step < 60:
+        step_fn(policy, reference, batch, optimizer, beta)
+```
+
+```text
+step    loss      Δ       chosen logp   rejected logp   chosen 变化   rejected 变化
+   0   0.6931     0.00         -4.53          -4.62         0.00           0.00
+   1   0.6828     0.21         -4.47          -4.77         0.06          -0.15
+   5   0.6379     1.18         -4.33          -5.60         0.20          -0.98
+  15   0.4447     6.04         -4.05         -10.18         0.49          -5.56
+  30   0.1431    19.42         -3.21         -22.72         1.32         -18.10
+  60   0.0221    39.08         -1.63         -40.81         2.90         -36.19
+```
+
+读这张表时，先不要急着下“模型学好了”的结论。
+
+1. 初始 loss 应接近 $\log2$，相对间隔应为零，因为两份模型来自同一初始状态。
+2. 如果 loss 下降、间隔增大，说明对这四组固定数据的拟合在发生。观察 chosen、rejected 两项：相对间隔可能主要靠压低 rejected 增大。
+3. 即使所有训练对都排对了，也还没有测试新的输入，更没有证明模型学会普遍的算术规则。
+
+还有一件值得亲自看：**模型真的会生成完整的 chosen 吗？** 评分是 teacher forcing 下对给定整条序列的概率计算；生成则要让模型把自己上一步输出接回去。两者有关，却不是同一个测试。
+
+```python
+@torch.no_grad()
+def greedy_answer(model, prompt, max_new_tokens=5):
+    ids = torch.tensor([[BOS] + [TOKEN_ID[token] for token in prompt.split()]])
+    generated = []
+    for _ in range(max_new_tokens):
+        next_id = model(ids)[0, -1].argmax().item()
+        if next_id == EOS:
+            return " ".join(generated) or "（立即结束）"
+        generated.append(VOCAB[next_id])
+        ids = torch.cat([ids, torch.tensor([[next_id]])], dim=1)
+    return " ".join(generated) + "（未在上限内结束）"
+
+
+with torch.no_grad():
+    ids, mask, n = batch["input_ids"], batch["response_mask"], batch["n_pairs"]
+    changes = (response_logps_solution(policy(ids), ids, mask)
+               - response_logps_solution(reference(ids), ids, mask))
+    pair_margins = changes[:n] - changes[n:]
+
+for i, (prompt, chosen, _) in enumerate(PAIRS):
+    print(f"{prompt:10s}  Δ={pair_margins[i].item():6.2f}"
+          f"  生成：{greedy_answer(policy, prompt):18s}  期望：{chosen}")
+```
+
+```text
+1 + 1 =     Δ= 45.61  生成：2 4                 期望：2
+1 + 2 =     Δ= 32.55  生成：4                   期望：3
+2 + 2 =     Δ= 37.64  生成：4                   期望：4
+2 + 3 =     Δ= 40.54  生成：5                   期望：5
+```
+
+如果更新后仍然生成了多余 token、没有及时结束，或者没有在每个输入上选中 chosen，这不应被删掉重跑直到“好看”。**偏好间隔的提高不保证某条回答成为贪心解码的输出。** 它可能通过更强地降低 rejected，而不是充分提高完整 chosen 的概率实现。
+
+具体看 `1 + 2 =`：训练记录只比较回答 `3` 与 `2`，没有直接要求 `3` 胜过所有其他回答。即使这一对的相对间隔很大，生成时仍可能选择 `4`。逐 token 的贪心决策和完整序列的成对评分之间，也不能简单画等号。这就是为什么我们同时展示间隔和实际生成，而不是只保留好看的损失曲线。
+
+你可以保留同一初始模型，改变训练步数或 $\beta$，再解释评分与生成发生了什么。一次只改一个因素；不要把“把训练表调漂亮”当作选择算法配置的方法。
+
+### 可选小实验：穷举三个回答，直接看真实 KL
+
+第 6 节的反例还可以变成一个无需语言模型的训练实验：把三种回答的概率参数化为 `softmax(logits)`，只提供“回答 0 胜过回答 1”的标签。每步计算 DPO 损失，并对完整三个回答求出精确的 KL。这样能直接观察概率质量怎样在未标注的第三个回答上变化，而不必从两个分数猜整个分布。这个实验不是额外必做作业，前三题已包含主要实现路径。
+
+## 11. 换成真实语言模型以后，哪些地方不能省？
+
+数学上的一条偏好记录很简洁，实际训练却可能把错误悄悄带进这几个环节。
+
+### 11.1 先保证算的是同一个事件
+
+Policy 和 Reference 必须评价同一套 token、同一个聊天模板和同一段回答。多轮对话里，历史消息是上下文，待优化的回复才是评分范围。不要假设“分别 tokenize 输入和回答再拼接”必然等价于对完整文本 tokenize；真实 tokenizer 的边界处理可能不同。应使用可靠的模板与边界处理，并核对一对回答的 prompt token 前缀。
+
+明确 EOS、padding 与截断规则。如果回答被截断，评分对象就不再是原来的完整回答；如果 chosen、rejected 的关键区别被截掉，标签也可能不再适用。若 PAD 与 EOS 共用 id，不能仅凭 id 就把所有 EOS 当 padding 排除，应使用实际位置的掩码。
+
+本章的小数据不截断，并显式区分 PAD、EOS，是为了先把这些问题从核心算法练习里分离出来，不是说真实训练可以忽略它们。
+
+### 11.2 再检查偏好对里究竟有什么信号
+
+DPO 不会自动辨别标签背后的真正原因。如果 chosen 总是更长、总有某种开头，模型可能学到这些表面线索。错误标签、重复记录、泄漏、偏好标准不一致，也不会被漂亮的损失公式修复。
+
+训练和验证至少按输入或来源隔离，避免同一个问题的近重复版本跨集合。保留不同长度、任务类型和难度的切片，检查收益是否只集中在一个容易投机的子集。
+
+### 11.3 最后区分三种“变好”
+
+- **训练拟合变好**：训练记录的损失降低、隐式奖励间隔增大。
+- **留出偏好预测变好**：在未参与更新的偏好对上，排序更符合标签，负对数似然更低。
+- **生成回答变好**：在独立输入上生成新回答，与基线做盲评或任务评测，检查正确性、帮助性、安全性和原有能力回归。
+
+这三层不能互相代替。DPO 的 `reward accuracy` 通常指隐式奖励把 chosen 排在 rejected 前面的比例，不是实际生成回答的人工胜率。仅观察训练间隔，也不能证明完整回答空间的 KL 受控。
+
+为选取 $\beta$、学习率和训练轮数，先用留出评测筛选，再按预先约定的方法评估最终候选；别反复窥视最终测试集来调参。比较生成结果时固定解码设置，警惕长度偏好和评审器偏差，并查看具体失败样例。
+
+### 11.4 DPO 简化了什么，没有解决什么？
+
+原始离线 DPO 不需要在更新循环内调用一个独立奖励模型、价值模型或进行在线 rollout。它适合已有可靠成对反馈、希望直接调整策略的场景。
+
+但它只看到已有数据覆盖到的回答，不会自动探索尚未出现的更优答案。它也不会凭空提供缺失的知识、保证遵守所有安全要求，或把相互矛盾的人类偏好变成唯一标准。若需要持续交互反馈与探索，那已经超出了本章原始离线算法的范围。
+
+## 12. 合上本章前，试着独立回答
+
+1. 不看现成公式，能否从式 (4) 推出最优策略，再解释归一化项为什么在偏好差中消失？
+2. Reference 原本就更喜欢 chosen，为什么初始 DPO 损失仍是 $\log2$？
+3. 只对回答求和，为什么预测第一个回答 token 还需要 prompt 最后一个位置的输出？
+4. 把 response log-prob 的总和改成平均，改变的是哪个目标？
+5. 对两个得分的偏导符号已知，为什么仍不能保证一次共享参数更新让所有 chosen 概率上升？
+6. 隐式奖励排序准确率达到 100%，为什么仍然要检查新输入上的实际生成？
+
+如果第 1、2 题含糊，回到推导与算例；如果第 3、4 题含糊，回到作业一；如果第 5、6 题含糊，保留训练结果，逐项比较得分与生成，不要用一句“DPO 有局限”代替具体解释。
+
+你真正需要带走的不是四个 log-prob 的固定写法，而是这一条完整思路：**用偏好模型描述比较，用 KL 正则化建立奖励与策略的关系，再把奖励差改写成可训练的策略概率差。**
+
+### 出处与后续阅读
+
+- Rafailov 等，*Direct Preference Optimization: Your Language Model is Secretly a Reward Model*：[原论文](https://arxiv.org/abs/2305.18290)，重点是第 3—4 节与附录 A。本文的推导采用同一数学目标，使用有限回答集合逐步展开，并另行构造教学算例。
+- [作者实现中的 trainers.py](https://github.com/eric-mitchell/direct-preference-optimization/blob/main/trainers.py)：可对照序列 log-prob 和标准 DPO 目标。阅读时先找这两段，不必先研究分布式训练设施。
+- [TRL 的 DPOTrainer 文档](https://huggingface.co/docs/trl/dpo_trainer)：在理解本章以后，再查看训练框架的数据格式、指标和实现选项；不同损失变体不是本章原始目标的同义词。
+- 仓库中的 [偏好数据与评测](./50_Preference_Data_and_Evaluation.md) 与 [离线 DPO 项目](./84_DPO_Preference_Project.md)：用于继续研究数据集与真实训练。它们不是理解本章推导和完成三道作业的前提。
