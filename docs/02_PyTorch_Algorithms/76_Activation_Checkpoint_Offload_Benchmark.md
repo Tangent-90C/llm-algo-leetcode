@@ -19,6 +19,7 @@
 **关键词：** `activation`, `checkpoint`, `offload`, `memory`, `benchmark`
 
 ---
+
 ## 前置阅读
 
 **导语：** 先理解 checkpoint 和 offload 如何改变激活值的保存与计算，再参考 73 节的测量口径，比较同一训练任务下不同策略的显存收益和速度代价。
@@ -28,32 +29,33 @@
 
 
 ---
-### Step 1：确定显存策略与实验输入输出
-训练前向会产生反向传播需要的激活值。本节固定同一训练任务，只比较激活值的保存、重算和搬运方式，观察显存峰值、训练速度与训练结果如何变化。
 
-| 实验要素 | 本节固定或比较的内容 | 最终输出 |
+### Step 1：把固定训练基线转换为策略候选实验
+本项目接收训练性能基线和其中的容量假设，固定模型、数据与更新过程，只改变反向传播所需激活值的保存位置和恢复方式。最终交付不是显存最低的单个数字，而是一组可配对的策略记录，供预算项目判断哪些候选值得采用。
+
+| 输入资产 | 项目操作 | 证据与交付物 |
 |:---|:---|:---|
-| 比较对象 | baseline、checkpoint、offload、hybrid | 四种策略的可比较集合 |
-| 共同任务 | 固定模型、输入、训练目标和 workload | 排除任务差异造成的结果变化 |
-| 变化变量 | 只改变激活值的保存、重算或搬运方式 | 每种策略的显存、速度和训练结果 |
-| 实验输出 | 汇总峰值显存、step time、吞吐、loss 和运行状态 | 策略对照结果与后续预算判断依据 |
+| 训练性能基线 | 核对模型、数据、精度、批次、序列长度和更新配置 | 可追溯的共同训练任务 |
+| 激活策略候选 | 分别运行完整保存、选择性重算、主机卸载和混合策略 | 每种策略的真实执行记录 |
+| 配对测量协议 | 统一预热、重复次数、随机种子和测量边界 | 峰值显存、训练步耗时、吞吐与 loss |
+| 候选门禁 | 检查失败、质量、显存收益和吞吐保留率 | `accept`、`tune` 或 `reject` 的候选报告 |
 
 
 
 ![76 训练激活值的保存方式与代价](../public/02_PyTorch_Algorithms/76_strategy_lifecycle.svg)
-### Step 2：统一实验条件与实验协议
-统一实验条件，只改变显存策略；不同 workload 或 dtype 另存报告。随机输入只保证策略间可比，不能替代真实数据集质量评估。
 
-| 项目 | 固定内容 | 目的 |
-|:---|:---|:---|
-| 模型与输入 | 同一模型、dtype、backend、随机输入、标签和初始化 seed | 保证策略间训练任务一致 |
-| 训练配置 | optimizer、学习率、训练步数、Gradient Accumulation、effective batch | 排除训练过程差异 |
-| workload | batch、seq_len、warmup、iters、seed、dtype | 保证压力和统计口径一致 |
-| 对照关系 | baseline 作为显存、速度、吞吐和 loss 的参照；候选来自 Step1 | 保证差值方向一致 |
+### Step 2：区分保存、重算和搬运的生命周期
+四种候选改变的是激活值在前向结束到反向使用之间的生命周期。完整保存以容量换取直接读取；选择性重算减少保存量但增加前向计算；主机卸载把容量压力转成传输和同步；混合策略同时引入重算与搬运。比较时必须证明声明路径真实生效。
 
+| 策略 | 前向后的激活状态 | 反向前的恢复动作 | 主要代价 |
+|:---|:---|:---|:---|
+| 完整保存 | 激活保留在设备显存 | 直接读取 | 容量占用 |
+| 选择性重算 | 只保留边界输入或部分激活 | 重新执行选定前向区域 | 额外计算 |
+| 主机卸载 | 保存张量移到主机内存 | 搬回设备并等待可用 | 传输与同步 |
+| 混合策略 | 部分激活丢弃，部分移到主机 | 重算与搬运共同恢复 | 计算、传输与调度 |
 
 ### Step 3：指标与项目判定
-显存最低的方案不一定最值得采用。先统一指标，再比较容量、速度和训练状态；需要预算取舍时，再使用 75 节的决策表。
+显存最低的方案不一定最值得采用。先确认训练任务与执行路径可比，再联合峰值显存、训练步耗时、吞吐、loss 和失败状态判断候选。项目只产出候选证据，不在这里替代后续预算敏感性决策。
 
 | 指标 | 含义 | 用于判断 |
 |:---|:---|:---|
@@ -61,74 +63,66 @@
 | peak reserved | allocator 保留的显存峰值 | 观察缓存和碎片影响 |
 | step time / samples/s | 重算、搬运和同步的时间代价 | 观察吞吐损失 |
 | val loss / OOM | 训练质量和可运行性 | 过滤不可接受方案 |
-| 判定规则 | 未 OOM、质量达标，并满足显存收益和吞吐保留率 | 输出 `accept / tune / reject` |
+| 执行路径 | 重算活动、主机保存与传输证据 | 排除声明启用但实际回退的候选 |
+| 判定规则 | 无硬失败和关键缺证，质量达标，并满足显存收益与吞吐保留率 | 输出 `accept / tune / reject` |
 
 ![76 显存策略指标与预算决策](../public/02_PyTorch_Algorithms/76_strategy_decision_flow.svg)
 
+### Step 4：形成可移交的策略证据
 
-### Step 4：实现 CPU 决策逻辑
+请补全下方 3 个函数，把同一训练任务下的基线与策略候选整理成可移交给预算项目的配对证据。CPU 题目区只检查实验身份、证据派生和移交条件；真实保存、重算与搬运路径由 Step 5 采集。
 
-请补全下方 3 个函数，把实验报告字段转换为可复核的显存策略决策。完成后先运行 CPU 测试；这里不启动模型、不读取 GPU 状态，真实指标由 Step 5 单独采集。
-
-| TODO | 函数职责 | 实现重点 | 主要输出 |
+| 任务与目的 | 已知条件 | 完成标准 | 测试验证 |
 |:---|:---|:---|:---|
-| TODO 1 | `validate_strategy_budget` | 检查预算和质量阈值 | 校验结果 |
-| TODO 2 | `summarize_memory_strategy_candidates` | 汇总候选状态和收益 | 候选状态、可行候选、收益指标 |
-| TODO 3 | `decide_memory_strategy_project` | 根据阈值形成项目决策 | `decision`、`reason`、`next_action` |
-
+| TODO 1：绑定实验身份 | 已有基线、策略报告和固定训练任务 | 拒绝工作负载、硬件或重复次数不一致的比较 | 身份不一致和重复策略均被发现 |
+| TODO 2：构造配对证据 | 已通过身份检查的基线与候选 | 保留失败状态，并计算显存、吞吐和质量差异 | OOM 不伪造成收益，正常候选产生完整差异 |
+| TODO 3：形成移交状态 | 配对证据与最低证据门槛 | 区分可移交、需复测和无有效候选 | 只有执行路径和重复运行均完整的候选进入 75 |
 
 
 ```python
+import math
 from typing import Dict, List
 
 ```
 
 
 ```python
-# 3 个核心 TODO：预算检查、候选汇总、项目结论
-# 目标：把 baseline / checkpoint / offload / hybrid 的方案比较收束成一份项目报告。
-# CPU 题目区只验证预算与决策逻辑；真实策略、saved tensors、重算和搬运代价属于 GPU 实验。
+# 3 个核心 TODO：实验身份、配对证据、预算项目移交。
+# 指标读取与数值检查已给出；学习者负责决定哪些证据可以比较、怎样形成差异、何时允许移交。
 
-def validate_strategy_budget(budget: Dict[str, float], quality_floor: Dict[str, float]) -> Dict[str, object]:
-    """校验显存、吞吐和质量阈值，返回可供后续筛选使用的诊断结果。"""
+def _metrics_are_finite(report: Dict[str, object]) -> bool:
+    values = [report.get('peak_memory_mb'), report.get('samples_per_s'), report.get('eval_loss')]
+    return all(isinstance(value, (int, float)) and math.isfinite(value) for value in values)
+
+def validate_strategy_experiment(baseline: Dict[str, object], candidates: List[Dict[str, object]]) -> Dict[str, object]:
+    """确认候选与基线属于同一训练任务和设备条件。"""
     # ==========================================
-    # TODO 1：完成预算和质量阈值校验。
-    # 提示：先列出两组必需字段，再分别收集缺失字段和非法数值。
-    # required_budget_keys = ???
-    # required_quality_keys = ???
-    # missing_keys = ???
-    # invalid_keys = ???
-    # 返回 is_valid、missing_keys 和 invalid_keys；不负责判断某个策略是否最优。
+    # TODO 1：绑定实验身份。
+    # 比较 workload_id、hardware_id 与 repeat_count，并拒绝名称重复或缺少执行路径证据的候选。
+    # issues = ???
+    # candidate_names = ???
+    # 返回 is_valid、issues 和 candidate_names；不要在这里按收益挑选策略。
     # ==========================================
     raise NotImplementedError("请先完成 TODO 代码！")
 
-def summarize_memory_strategy_candidates(candidates: List[Dict[str, object]], budget: Dict[str, float], quality_floor: Dict[str, float]) -> Dict[str, object]:
-    """按统一预算筛选候选策略，并保留 OOM、无效指标和拒绝原因。"""
+def build_strategy_pair_evidence(baseline: Dict[str, object], candidates: List[Dict[str, object]]) -> Dict[str, object]:
+    """以固定基线构造候选差异，并保留失败运行。"""
     # ==========================================
-    # TODO 2：完成候选汇总，区分无效候选、不可行候选和可行候选。
-    # 候选字段：name、status、peak_memory_mb、samples_per_s、eval_loss / val_loss。
-    # 提示：先处理 OOM、重复和无效指标，再检查显存、吞吐和质量条件。
-    # evaluations = ???
-    # feasible = ???
-    # seen_names = ???
-    #       memory_ok、speed_ok、quality_ok 是每个候选的派生判断，不单独挖空；
-    # evaluations 保存每个候选的可追溯状态，feasible 只保存通过全部门槛的候选。
+    # TODO 2：构造配对证据。
+    # 对正常候选计算 memory_saving_mb、throughput_ratio 和 quality_delta；OOM、failed、invalid 原样保留。
+    # comparisons = ???
+    # comparable_count = ???
+    # 返回 baseline、comparisons 和各状态计数；不要在这里使用预算阈值。
     # ==========================================
     raise NotImplementedError("请先完成 TODO 代码！")
 
-def decide_memory_strategy_project(summary: Dict[str, object]) -> Dict[str, object]:
-    """根据可行候选和显存收益输出 accept、tune 或 reject。
-
-    accept 仅表示当前 workload 和预算下值得继续保留，不表示普遍有效。
-    """
+def decide_strategy_handoff(evidence: Dict[str, object], minimum_repeats: int = 3) -> Dict[str, object]:
+    """判断配对证据是否足以移交给显存预算项目。"""
     # ==========================================
-    # TODO 3：完成项目决策。
-    # 提示：先检查 baseline，再检查可行候选，最后判断显存收益和吞吐保留率。
-    # baseline_available = ???
-    # feasible_count = ???
-    # best_candidate = ???
-    #       meaningful_memory_gain、acceptable_throughput 根据 summary 派生；不单独挖空。
-    # 返回 decision、reason 和 next_action；不要硬编码具体策略名称。
+    # TODO 3：形成移交状态。
+    # 先检查基线与候选的重复次数，再检查是否至少存在一个执行路径完整的可比较候选。
+    # eligible_candidates = ???
+    # 返回 status、reason、eligible_candidates 和 next_action。
     # ==========================================
     raise NotImplementedError("请先完成 TODO 代码！")
 
@@ -139,101 +133,36 @@ def decide_memory_strategy_project(summary: Dict[str, object]) -> Dict[str, obje
 # 测试你的实现
 def test_memory_strategy_project():
     try:
-        budget = {'memory_cap_mb': 12000.0, 'min_samples_per_s': 6.0, 'min_memory_saving_mb': 512.0, 'min_throughput_ratio': 0.70}
-        quality_floor = {'max_val_loss': 1.15}
-        check = validate_strategy_budget(budget, quality_floor)
-        assert check['is_valid'] is True, '预算检查应通过'
-        assert check['missing_keys'] == [], '完整预算不应缺字段'
-        missing = validate_strategy_budget({'memory_cap_mb': 12000.0}, quality_floor)
-        assert missing['is_valid'] is False, '缺少吞吐门槛时应拒绝预算配置'
-        assert 'min_samples_per_s' in missing['missing_keys'], '应指出缺少的预算字段'
-        invalid = validate_strategy_budget(
-            {'memory_cap_mb': -1.0, 'min_samples_per_s': 0.0, 'min_memory_saving_mb': 512.0, 'min_throughput_ratio': 1.2},
-            {'max_val_loss': 1.15},
-        )
-        assert invalid['is_valid'] is False, '非法预算值应被拒绝'
-        assert {'memory_cap_mb', 'min_throughput_ratio'} <= set(invalid['invalid_keys'])
-
+        baseline = {
+            'name': 'baseline', 'workload_id': 'train-b2-s1024', 'hardware_id': 'gpu-a',
+            'repeat_count': 5, 'status': 'ok', 'execution_path_verified': True,
+            'peak_memory_mb': 11000.0, 'samples_per_s': 8.0, 'eval_loss': 1.06,
+        }
         candidates = [
-            {'name': 'baseline', 'peak_memory_mb': 18000.0, 'samples_per_s': 8.0, 'val_loss': 1.06},
-            {'name': 'checkpoint', 'peak_memory_mb': 11800.0, 'samples_per_s': 6.6, 'val_loss': 1.08},
-            {'name': 'offload', 'peak_memory_mb': 10500.0, 'samples_per_s': 5.2, 'val_loss': 1.09},
-            {'name': 'hybrid', 'peak_memory_mb': 9800.0, 'samples_per_s': 6.1, 'val_loss': 1.11},
+            {**baseline, 'name': 'checkpoint', 'peak_memory_mb': 8200.0, 'samples_per_s': 6.8, 'eval_loss': 1.08},
+            {**baseline, 'name': 'offload', 'status': 'oom', 'peak_memory_mb': None, 'samples_per_s': None, 'eval_loss': None},
         ]
-        summary = summarize_memory_strategy_candidates(candidates, budget, quality_floor)
-        assert summary['feasible_count'] == 2, '应有两个方案满足预算与质量'
-        assert summary['best_candidate'] == 'hybrid', 'hybrid 应成为最省显存的可行方案'
-        evaluation_by_name = {item['name']: item for item in summary['evaluations']}
-        assert evaluation_by_name['baseline']['status'] == 'rejected'
-        assert 'memory_over_budget' in evaluation_by_name['baseline']['reasons']
-        assert evaluation_by_name['checkpoint']['status'] == 'feasible'
-        assert evaluation_by_name['offload']['status'] == 'rejected'
-        assert 'throughput_below_floor' in evaluation_by_name['offload']['reasons']
-        assert evaluation_by_name['hybrid']['status'] == 'feasible'
+        contract = validate_strategy_experiment(baseline, candidates)
+        assert contract['is_valid'] is True
+        mismatch = validate_strategy_experiment(baseline, [{**candidates[0], 'hardware_id': 'gpu-b'}])
+        assert mismatch['is_valid'] is False and 'checkpoint:hardware_id_mismatch' in mismatch['issues']
+        duplicate = validate_strategy_experiment(baseline, [candidates[0], dict(candidates[0])])
+        assert 'checkpoint:duplicate_name' in duplicate['issues']
 
-        decision = decide_memory_strategy_project(summary)
-        assert decision['decision'] == 'accept', '可行且最优的方案应被接受'
-        custom_summary = summarize_memory_strategy_candidates(
-            [
-                {'name': 'baseline', 'peak_memory_mb': 18000.0, 'samples_per_s': 8.0, 'val_loss': 1.06},
-                {'name': 'activation_checkpoint', 'peak_memory_mb': 11800.0, 'samples_per_s': 6.6, 'val_loss': 1.08},
-            ],
-            budget,
-            quality_floor,
-        )
-        assert decide_memory_strategy_project(custom_summary)['decision'] == 'accept', '自定义策略也应可被接受'
-        no_baseline = summarize_memory_strategy_candidates(
-            [{'name': 'checkpoint', 'peak_memory_mb': 10000.0, 'samples_per_s': 7.0, 'val_loss': 1.05}],
-            budget,
-            quality_floor,
-        )
-        assert decide_memory_strategy_project(no_baseline)['reason'] == 'baseline_missing_or_invalid'
+        evidence = build_strategy_pair_evidence(baseline, candidates)
+        checkpoint = next(item for item in evidence['comparisons'] if item['name'] == 'checkpoint')
+        assert checkpoint['memory_saving_mb'] == 2800.0
+        assert round(checkpoint['throughput_ratio'], 2) == 0.85
+        assert round(checkpoint['quality_delta'], 2) == 0.02
+        assert evidence['oom_count'] == 1 and evidence['comparable_count'] == 1
 
-        hard_summary = summarize_memory_strategy_candidates(
-            [
-                {'name': 'checkpoint', 'peak_memory_mb': 13000.0, 'samples_per_s': 6.4, 'val_loss': 1.10},
-                {'name': 'offload', 'peak_memory_mb': 11000.0, 'samples_per_s': 4.8, 'val_loss': 1.12},
-            ],
-            budget,
-            quality_floor,
-        )
-        hard_decision = decide_memory_strategy_project(hard_summary)
-        assert hard_decision['decision'] == 'reject', '没有满足预算与质量时应 reject'
-
-        edge_summary = summarize_memory_strategy_candidates(
-            [
-                {'name': 'oom_candidate', 'status': 'oom'},
-                {'name': 'incomplete', 'peak_memory_mb': 10000.0},
-            ],
-            budget,
-            quality_floor,
-        )
-        assert edge_summary['oom_count'] == 1, 'OOM 候选应单独计数'
-        assert edge_summary['invalid_count'] == 1, '缺少指标的候选应标记为 invalid'
-        edge_evaluations = {item['name']: item for item in edge_summary['evaluations']}
-        assert edge_evaluations['oom_candidate']['status'] == 'oom'
-        assert edge_evaluations['incomplete']['status'] == 'invalid'
-        assert decide_memory_strategy_project(edge_summary)['decision'] == 'reject', '没有可行策略时应 reject'
-
-        invalid_baseline = summarize_memory_strategy_candidates(
-            [
-                {'name': 'baseline', 'peak_memory_mb': float('nan'), 'samples_per_s': 8.0, 'eval_loss': 1.06},
-                {'name': 'checkpoint', 'peak_memory_mb': 11800.0, 'samples_per_s': 6.6, 'eval_loss': 1.08},
-            ],
-            budget,
-            quality_floor,
-        )
-        assert invalid_baseline['baseline_available'] is False, 'NaN baseline 不应进入收益计算'
-
-        small_gain = summarize_memory_strategy_candidates(
-            [
-                {'name': 'baseline', 'peak_memory_mb': 12000.0, 'samples_per_s': 8.0, 'eval_loss': 1.06},
-                {'name': 'checkpoint', 'peak_memory_mb': 11700.0, 'samples_per_s': 7.0, 'eval_loss': 1.07},
-            ],
-            budget,
-            quality_floor,
-        )
-        assert decide_memory_strategy_project(small_gain)['decision'] == 'tune', '显存节省不足时应 tune'
+        handoff = decide_strategy_handoff(evidence, minimum_repeats=3)
+        assert handoff['status'] == 'ready_for_budget_review'
+        assert handoff['eligible_candidates'] == ['checkpoint']
+        low_repeat = build_strategy_pair_evidence({**baseline, 'repeat_count': 2}, [{**candidates[0], 'repeat_count': 2}])
+        assert decide_strategy_handoff(low_repeat, minimum_repeats=3)['status'] == 'rerun_required'
+        failed_only = build_strategy_pair_evidence(baseline, [{**candidates[1], 'status': 'failed'}])
+        assert decide_strategy_handoff(failed_only)['status'] == 'no_valid_candidate'
         print('所有测试通过！')
     except NotImplementedError:
         print('请先完成 TODO 代码！')
@@ -250,11 +179,12 @@ test_memory_strategy_project()
 
 ```
 
-### Step 4 测试区补充：CPU 正确性检查
+#### Step 4 测试：核对四种策略的梯度语义
 
 没有 GPU 时，不能验证真实 peak memory、CUDA kernel 或 CPU-GPU 搬运速度，但仍可以用一个小型网络检查策略语义：baseline、checkpoint、offload 和 hybrid 应该得到一致的 loss 与参数梯度。测试还会观察 baseline / checkpoint 的 saved tensors；`save_on_cpu` 会接管 offload 的保存钩子，因此 offload / hybrid 不伪造张量数量。这个测试验证的是 autograd 正确性，不是显存收益；真实显存结论由 Step 5 的 GPU benchmark 给出。
 
 运行这个 cell 前不需要下载模型或准备 CUDA。重点检查三件事：四种策略的 loss 是否一致、参数梯度是否一致、offload 是否确实改变了保存位置。
+
 
 ```python
 # CPU 正确性 cell：使用小型网络验证四种策略的 autograd 语义，不启动 GPU benchmark。
@@ -343,247 +273,190 @@ print('CPU correctness test passed; this does not measure real GPU memory saving
 ```python
 import math
 from typing import Dict, List
-def validate_strategy_budget(budget: Dict[str, float], quality_floor: Dict[str, float]) -> Dict[str, object]:
-    # ==========================================
-    # TODO 1 对应变量 required_budget_keys / required_quality_keys：收集两组契约字段。
-    required_budget_keys = ['memory_cap_mb', 'min_samples_per_s', 'min_memory_saving_mb', 'min_throughput_ratio']  # 预算必需字段
-    required_quality_keys = ['max_val_loss']
-    # TODO 1 对应变量 missing_keys / invalid_keys：分别记录缺失字段和非法数值。
-    missing_keys = [key for key in required_budget_keys if key not in budget]
-    missing_keys += [key for key in required_quality_keys if key not in quality_floor]
-    numeric_values = {key: budget.get(key) for key in required_budget_keys}
-    numeric_values.update({key: quality_floor.get(key) for key in required_quality_keys})
-    invalid_keys = [
-        key for key, value in numeric_values.items()
-        if key not in missing_keys and (not isinstance(value, (int, float)) or not math.isfinite(value))
-    ]
-    memory_cap = budget.get('memory_cap_mb')
-    min_throughput = budget.get('min_samples_per_s')
-    min_saving = budget.get('min_memory_saving_mb')
-    throughput_ratio = budget.get('min_throughput_ratio')
-    max_loss = quality_floor.get('max_val_loss')
-    if isinstance(memory_cap, (int, float)) and memory_cap <= 0:
-        invalid_keys.append('memory_cap_mb')
-    if isinstance(min_throughput, (int, float)) and min_throughput < 0:
-        invalid_keys.append('min_samples_per_s')
-    if isinstance(min_saving, (int, float)) and min_saving < 0:
-        invalid_keys.append('min_memory_saving_mb')
-    if isinstance(throughput_ratio, (int, float)) and not 0 <= throughput_ratio <= 1:
-        invalid_keys.append('min_throughput_ratio')
-    if isinstance(max_loss, (int, float)) and max_loss < 0:
-        invalid_keys.append('max_val_loss')
-    invalid_keys = list(dict.fromkeys(invalid_keys))
-    return {
-        'is_valid': len(missing_keys) == 0 and len(invalid_keys) == 0,
-        'missing_keys': missing_keys,
-        'invalid_keys': invalid_keys,
-    }
 
+def _metrics_are_finite(report: Dict[str, object]) -> bool:
+    values = [report.get('peak_memory_mb'), report.get('samples_per_s'), report.get('eval_loss')]
+    return all(isinstance(value, (int, float)) and math.isfinite(value) for value in values)
 
-def summarize_memory_strategy_candidates(candidates: List[Dict[str, object]], budget: Dict[str, float], quality_floor: Dict[str, float]) -> Dict[str, object]:
-    # ==========================================
-    # TODO 2 对应变量 evaluations / feasible / seen_names：记录候选状态、可行候选和去重名称。
-    # 提示：memory_ok / speed_ok / quality_ok 是每个候选的派生门槛，不作为独立挖空。
-    # ==========================================
-    feasible: List[Dict[str, float]] = []  # 通过全部门槛的候选
-    quality_failed = 0
-    invalid_count = 0
-    oom_count = 0
-    evaluations = []
-    seen_names = set()
-
+def validate_strategy_experiment(baseline: Dict[str, object], candidates: List[Dict[str, object]]) -> Dict[str, object]:
+    issues = []
+    candidate_names = []
+    identity_keys = ('workload_id', 'hardware_id', 'repeat_count')
     for candidate in candidates:
-        # 依次处理名称、OOM、指标完整性，再判断预算、吞吐和质量条件。
         name = candidate.get('name')
-        if not isinstance(name, str) or not name or name in seen_names:
-            invalid_count += 1
-            evaluations.append({'name': name, 'status': 'invalid', 'reasons': ['missing_or_duplicate_name']})
+        if not isinstance(name, str) or not name:
+            issues.append('candidate:missing_name')
             continue
-        seen_names.add(name)
-        if candidate.get('status', 'ok') == 'oom':
-            oom_count += 1
-            evaluations.append({'name': name, 'status': 'oom', 'reasons': ['oom']})
+        if name in candidate_names:
+            issues.append(f'{name}:duplicate_name')
+        candidate_names.append(name)
+        for key in identity_keys:
+            if candidate.get(key) != baseline.get(key):
+                issues.append(f'{name}:{key}_mismatch')
+        if candidate.get('execution_path_verified') is not True:
+            issues.append(f'{name}:execution_path_unverified')
+    if not _metrics_are_finite(baseline):
+        issues.append('baseline:invalid_metrics')
+    return {'is_valid': not issues, 'issues': issues, 'candidate_names': candidate_names}
+
+def build_strategy_pair_evidence(baseline: Dict[str, object], candidates: List[Dict[str, object]]) -> Dict[str, object]:
+    comparisons = []
+    counts = {'comparable': 0, 'oom': 0, 'failed': 0, 'invalid': 0}
+    for candidate in candidates:
+        name = candidate.get('name')
+        status = candidate.get('status', 'ok')
+        if status in {'oom', 'failed'}:
+            counts[status] += 1
+            comparisons.append({'name': name, 'status': status})
             continue
-        memory = candidate.get('peak_memory_mb')
-        throughput = candidate.get('samples_per_s')
-        eval_loss = candidate.get('eval_loss', candidate.get('val_loss'))
-        if not all(isinstance(value, (int, float)) and math.isfinite(value) for value in (memory, throughput, eval_loss)):
-            invalid_count += 1
-            evaluations.append({'name': name, 'status': 'invalid', 'reasons': ['missing_or_non_numeric_metric']})
+        if not _metrics_are_finite(candidate):
+            counts['invalid'] += 1
+            comparisons.append({'name': name, 'status': 'invalid'})
             continue
-        memory_ok = memory <= budget['memory_cap_mb']
-        speed_ok = throughput >= budget['min_samples_per_s']
-        quality_ok = eval_loss <= quality_floor['max_val_loss']
-        if not quality_ok:
-            quality_failed += 1
-        reasons = []
-        if not memory_ok:
-            reasons.append('memory_over_budget')
-        if not speed_ok:
-            reasons.append('throughput_below_floor')
-        if not quality_ok:
-            reasons.append('quality_over_floor')
-        evaluations.append({
-            'name': name,
-            'status': 'feasible' if not reasons else 'rejected',
-            'reasons': reasons,
+        counts['comparable'] += 1
+        comparisons.append({
+            'name': name, 'status': 'comparable',
+            'repeat_count': candidate['repeat_count'],
+            'execution_path_verified': candidate.get('execution_path_verified') is True,
+            'candidate_peak_memory_mb': candidate['peak_memory_mb'],
+            'candidate_samples_per_s': candidate['samples_per_s'],
+            'candidate_eval_loss': candidate['eval_loss'],
+            'memory_saving_mb': baseline['peak_memory_mb'] - candidate['peak_memory_mb'],
+            'throughput_ratio': candidate['samples_per_s'] / baseline['samples_per_s'],
+            'quality_delta': candidate['eval_loss'] - baseline['eval_loss'],
         })
-        if memory_ok and speed_ok and quality_ok:
-            feasible.append(candidate)
-
-    # 优先选择峰值显存更低的方案，再用吞吐和质量处理并列情况。
-    feasible.sort(key=lambda x: (x['peak_memory_mb'], -x['samples_per_s'], x.get('eval_loss', x.get('val_loss'))))
-    best_candidate = feasible[0]['name'] if feasible else None
-    baseline = next((item for item in candidates if item.get('name') == 'baseline' and item.get('status', 'ok') == 'ok' and all(isinstance(item.get(key), (int, float)) and math.isfinite(item.get(key)) for key in ('peak_memory_mb', 'samples_per_s'))), None)
-    best = feasible[0] if feasible else None
     return {
-        'candidate_count': len(candidates),
-        'measured_count': len(candidates) - oom_count - invalid_count,
-        'oom_count': oom_count,
-        'invalid_count': invalid_count,
-        'feasible_count': len(feasible),
-        'best_candidate': best_candidate,
-        'quality_failed_count': quality_failed,
-        'feasible_names': [item['name'] for item in feasible],
-        'baseline_peak_memory_mb': baseline['peak_memory_mb'] if baseline else None,
-        'baseline_available': baseline is not None,
-        'best_peak_memory_mb': best['peak_memory_mb'] if best else None,
-        'memory_saving_mb': (baseline['peak_memory_mb'] - best['peak_memory_mb']) if baseline and best else 0.0,
-        'throughput_ratio': (best['samples_per_s'] / baseline['samples_per_s']) if baseline and best else None,
-        'min_memory_saving_mb': budget['min_memory_saving_mb'],
-        'min_throughput_ratio': budget['min_throughput_ratio'],
-        'evaluations': evaluations,
+        'baseline': baseline, 'comparisons': comparisons,
+        'comparable_count': counts['comparable'], 'oom_count': counts['oom'],
+        'failed_count': counts['failed'], 'invalid_count': counts['invalid'],
     }
 
-
-def decide_memory_strategy_project(summary: Dict[str, object]) -> Dict[str, object]:
-    """根据基线、可行候选和预算阈值输出 accept、tune 或 reject。"""
-    # 决策顺序固定为：基线完整性、可行候选、显存收益和吞吐保留率。
-    # ==========================================
-    # TODO 3 对应变量 baseline_available / feasible_count / best_candidate：确定决策输入。
-    # 提示：meaningful_memory_gain / acceptable_throughput 根据 summary 派生，再按顺序输出结论。
-    # ==========================================
-    feasible_count = summary['feasible_count']  # 可行候选数量
-    best_candidate = summary['best_candidate']
-    quality_failed_count = summary['quality_failed_count']
-
-    if not summary.get('baseline_available', False):
-        return {
-            'decision': 'reject',
-            'reason': 'baseline_missing_or_invalid',
-            'next_action': 'rerun_baseline_before_comparing_candidates',
-        }
-    if feasible_count == 0:
-        return {
-            'decision': 'reject',
-            'reason': 'no_strategy_meets_budget_and_quality',
-            'next_action': 'rework_checkpoint_or_offload_scope',
-        }
-    # 显存收益和吞吐保留率都达标，才允许进入 accept 分支。
-    meaningful_memory_gain = summary.get('memory_saving_mb', 0.0) >= summary['min_memory_saving_mb']
-    acceptable_throughput = summary.get('throughput_ratio') is not None and summary['throughput_ratio'] >= summary['min_throughput_ratio']
-    if best_candidate != 'baseline' and meaningful_memory_gain and acceptable_throughput:
-        # 只有显存收益和吞吐保留率同时达标，才接受策略变更。
-        return {
-            'decision': 'accept',
-            'reason': 'strategy_is_best_feasible_option',
-            'next_action': 'promote_to_training_run',
-        }
-    if quality_failed_count > 0:
-        return {
-            'decision': 'tune',
-            'reason': 'strategy_needs_quality_recovery',
-            'next_action': 'adjust_checkpoint_granularity_or_offload_scope',
-        }
-    if not meaningful_memory_gain:
-        return {
-            'decision': 'tune',
-            'reason': 'memory_saving_below_meaningful_threshold',
-            'next_action': 'test_pressure_or_offload_scope',
-        }
-    if not acceptable_throughput:
-        return {
-            'reason': 'throughput_loss_exceeds_budget',
-            'decision': 'tune',
-            'next_action': 'reduce_checkpoint_or_offload_scope',
-        }
-    return {
-        'decision': 'tune',
-        'reason': 'baseline_still_best_under_current_budget',
-        'next_action': 'revisit_strategy_mix',
-    }
+def decide_strategy_handoff(evidence: Dict[str, object], minimum_repeats: int = 3) -> Dict[str, object]:
+    baseline = evidence.get('baseline', {})
+    comparable = [item for item in evidence.get('comparisons', []) if item.get('status') == 'comparable']
+    if baseline.get('repeat_count', 0) < minimum_repeats or any(item.get('repeat_count', 0) < minimum_repeats for item in comparable):
+        return {'status': 'rerun_required', 'reason': 'insufficient_repeats', 'eligible_candidates': [], 'next_action': 'repeat_paired_runs'}
+    eligible_candidates = [item['name'] for item in comparable if item.get('execution_path_verified') is True]
+    if not eligible_candidates:
+        return {'status': 'no_valid_candidate', 'reason': 'no_comparable_strategy', 'eligible_candidates': [], 'next_action': 'repair_strategy_execution'}
+    return {'status': 'ready_for_budget_review', 'reason': 'paired_evidence_complete', 'eligible_candidates': eligible_candidates, 'next_action': 'send_to_memory_budget_project'}
 
 ```
 
 ### 解析
 
-**1. TODO 1: 检查预算与质量阈值**
-- **实现方式**：先把显存上限、吞吐下限和验证损失上限检查齐，再进入方案比较。
-- **关键点**：没有统一预算口径时，checkpoint / offload / hybrid 之间的比较都没有解释力。
-- **项目意义**：这一步把 `76` 固定成预算约束下的显存策略对比页，而不是泛技巧列表。
+**1. 机制：绑定实验身份**
+- 基线与候选只有在训练任务、设备和重复次数一致时才能形成配对比较。策略名称去重和执行路径验证可以阻止不同实验被误拼成一组。
+- 不变量：身份不一致的报告不得进入收益计算。
+- 测试证据：测试分别覆盖硬件不一致和候选名称重复。
 
-**2. TODO 2: 汇总显存策略候选**
-- **实现方式**：按 peak memory、samples/s 和 val loss 统一过滤候选，再选出最省显存的可行方案。
-- **关键点**：显存收益只有在质量和吞吐都没有跌出边界时，才值得被保留。
-- **项目意义**：这一步把 `19 / 42 / 43 / 73` 的机制与测量知识收成真正可比较的工程候选。
+**2. 机制：构造配对证据**
+- 正常候选相对固定基线计算显存节省、吞吐保留率和质量变化；OOM 与执行失败作为失败证据保留，不参与收益排序。
+- 不变量：失败运行不能被缺失指标伪装成低显存候选。
+- 测试证据：测试同时检查正常候选的三个差异量和 OOM 计数。
 
-**3. TODO 3: 输出项目结论**
-- **实现方式**：把候选可行性和最优方案统一收成 `accept / tune / reject`。
-- **关键点**：项目结论必须回答“当前预算下哪种显存策略值得继续采用”，而不是只输出一个峰值显存最小值。
-- **项目意义**：这一步把 `76` 收成显存优化路线中的正式策略对比项目。
+**3. 机制：形成移交状态**
+- 重复次数不足时要求复测；至少有一个执行路径完整的可比较候选时，才把证据移交给 75 进行预算与敏感性判断。
+- 不变量：76 只确认候选证据可用，不替代 75 选择最终策略。
+- 测试证据：测试覆盖可移交、重复次数不足和无有效候选三种状态。
 
-### Step 5（可选）：真实 GPU 显存策略 benchmark
+### Step 5（项目实验）：比较训练显存策略
 
-#### 5.1 实验目标与条件
+本实验分两步：G0 在固定 AdamW 训练配置下比较 baseline、checkpoint、offload 和 hybrid；G1 使用无动量 SGD 长度阶梯单独观察激活显存。两步使用同一唯一标签，运行顺序是 `prepare → g0 → g1 → close`。
 
-本 Step 复用 73 的训练口径，在真实 GPU 上比较四种激活显存策略。表中先固定实验条件，再说明只改变什么以及要保存哪些结果；随后按 5.2–5.5 的顺序完成检查、配置、运行和记录。环境依赖按维护文档准备；自动安装只补普通 Python 依赖，不替代 CUDA 驱动或 PyTorch wheel。
+#### 5.1 本次运行配置
 
-| 实验要素 | 固定或设置的内容 | 形成的证据 |
-|:---|:---|:---|
-| 实验对象 | baseline、checkpoint、offload、hybrid | 四种策略的可比较集合 |
-| 共同条件 | `Qwen/Qwen2.5-0.5B-Instruct`、FP32、AdamW、batch=1、seq_len=768、seed=42 | `73_real_gpu_training.json` 与当前配置 |
-| 变化变量 | 只改变激活值的保存、重算或搬运策略 | 每个策略的重复运行结果 |
-| 输出指标 | step time（ms）、吞吐（samples/s）、peak allocated / reserved（MiB）、eval loss、OOM | `76_real_gpu_memory.json` |
+只需填写本次标签和运行阶段。修改阶段后按 5.1–5.6 顺序运行。
 
-**策略与代价口径**
+| `RUN_STAGE` | 操作 | 是否使用 GPU |
+| --- | --- | --- |
+| `prepare` | 核对固定配置和已登记结果 | 否 |
+| `g0` | 重复测量四种完整训练策略 | 是 |
+| `g1` | 在同标签完整 G0 基础上运行长度阶梯 | 是 |
+| `close` | 读取 G0/G1 并生成分范围结论 | 否 |
 
-| 策略 | 用什么换显存 | 主要观察点 |
-|:---|:---|:---|
-| baseline | 不引入额外重算或搬运 | 显存和速度参照 |
-| checkpoint | 用额外 forward 计算换激活值驻留 | 重算时间与峰值显存 |
-| offload | 用 CPU-GPU 搬运和同步换 GPU 驻留空间 | 搬运时间与峰值显存 |
-| hybrid | 同时承担部分重算和搬运代价 | 折中后的速度与显存 |
-
-<div align="center"><strong>先校验 73 的条件，再采集策略指标并保存 JSON。</strong></div>
-
-![76 GPU 策略对比流程](../public/02_PyTorch_Algorithms/76_gpu_strategy_benchmark.svg)
-
-
-#### 5.2 环境预检
-
-先检查项目路径、Python、PyTorch 和 CUDA。这个单元只报告环境状态，不加载模型、不开始测量；预检未通过时，先根据输出修复环境。
 
 ```python
-"""GPU benchmark 的独立环境预检：只确认路径和运行时，不安装依赖、不加载模型。"""
-# 只检查项目路径、Python、PyTorch 和 CUDA；不安装依赖、不加载模型。
+# ===== 学习者配置：本单元只声明本次运行意图 =====
+RUN_LABEL = 'replace_with_unique_label'  # 默认占位符；执行 g0 前改为本次唯一标签，后续阶段保持不变。
+RUN_STAGE = 'prepare'  # 默认 prepare 只读检查；可选 prepare / g0 / g1 / close。
+
+```
+
+#### 5.2 固定实验配置与环境预检
+
+检查项目路径、Python、PyTorch、CUDA、模型文件和固定输入清单。`prepare` 只读文件，不加载模型。
+
+
+```python
+"""加载固定项目合同并检查运行环境；不安装依赖、不加载模型。"""
 from pathlib import Path
+import hashlib
+import json
 import os
-import subprocess
 import sys
 
-GPU_PROJECT_ROOT = Path(os.environ.get('LLM_ALGO_PROJECT_ROOT', Path.cwd())).expanduser().resolve()
-if not (GPU_PROJECT_ROOT / 'tools/project_runtime.py').is_file():
+# ===== 固定实验配置 =====
+PROJECT_ID = '76'
+SEMANTIC_ID = 'PERF-MEMORY-STRATEGY'
+SCHEMA_VERSION = 'training-performance-project/v1'
+DECISION_SCHEMA_VERSION = 'memory-strategy-decision/v1'
+MODEL_ID = 'Qwen/Qwen2.5-0.5B-Instruct'
+MODEL_SOURCE = 'local'
+MODEL_CACHE_DIR = 'model_cache'
+DTYPE_MODE = 'fp32'
+WORKLOAD = 'pressure'
+WORKLOADS = {
+    'pressure': {'batch_size': 1, 'seq_len': 768, 'warmup': 2, 'iters': 5},
+}
+BOUNDARY_SEQ_LENS = [1024, 1280, 1536, 1792]
+STRATEGIES = ['baseline', 'checkpoint', 'offload', 'hybrid']
+SEED = 42
+MEMORY_CAP_MB = 11200.0
+MIN_SAMPLES_PER_S = 1.0
+MAX_VAL_LOSS = None
+INPUT_MANIFEST_SCHEMA_VERSION = 'memory-strategy-input-manifest/v1'
+INPUT_MANIFEST_RELATIVE_PATH = Path('benchmarks/results/76_input_manifest_rtx5070ti_activation_memory_v1.json')
+APPROVED_G0_RELATIVE_PATH = Path('benchmarks/results/76_real_gpu_memory_rtx5070ti_activation_memory_v1.json')
+APPROVED_G1_RELATIVE_PATH = Path('benchmarks/results/76_real_gpu_memory_boundary_rtx5070ti_activation_memory_v1.json')
+OUTPUT_RELATIVE_PATH = Path(f'benchmarks/results/{PROJECT_ID}_real_gpu_memory_{RUN_LABEL}.json')
+BOUNDARY_OUTPUT_RELATIVE_PATH = Path(f'benchmarks/results/{PROJECT_ID}_real_gpu_memory_boundary_{RUN_LABEL}.json')
+DECISION_OUTPUT_RELATIVE_PATH = Path(f'benchmarks/results/{PROJECT_ID}_memory_strategy_decision_{RUN_LABEL}.json')
+
+if RUN_STAGE not in {'prepare', 'g0', 'g1', 'close'}:
+    raise ValueError("RUN_STAGE 只能是 'prepare'、'g0'、'g1' 或 'close'。")
+if RUN_STAGE in {'g0', 'g1', 'close'} and RUN_LABEL == 'replace_with_unique_label':
+    raise ValueError('执行或收口前请把 RUN_LABEL 改为本次唯一标签。')
+configured_root = os.environ.get('LLM_ALGO_PROJECT_ROOT')
+start_dir = Path(configured_root).expanduser().resolve() if configured_root else Path.cwd().resolve()
+GPU_PROJECT_ROOT = next(
+    (candidate for candidate in (start_dir, *start_dir.parents)
+     if (candidate / 'tools/project_runtime.py').is_file()),
+    None,
+)
+if GPU_PROJECT_ROOT is None:
     colab_root = Path('/content/llm-algo-leetcode')
     if (colab_root / 'tools/project_runtime.py').is_file():
         GPU_PROJECT_ROOT = colab_root
-    elif Path('/content').is_dir() and not colab_root.exists():
-        subprocess.run(['git', 'clone', 'https://github.com/datawhalechina/llm-algo-leetcode.git', str(colab_root)], check=True)
-        GPU_PROJECT_ROOT = colab_root
-if not (GPU_PROJECT_ROOT / 'tools/project_runtime.py').is_file():
+if GPU_PROJECT_ROOT is None:
     raise RuntimeError('找不到项目根目录：请设置 LLM_ALGO_PROJECT_ROOT，或先把仓库放到 /content/llm-algo-leetcode。')
 os.chdir(GPU_PROJECT_ROOT)
 if str(GPU_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(GPU_PROJECT_ROOT))
+
+manifest_path = GPU_PROJECT_ROOT / INPUT_MANIFEST_RELATIVE_PATH
+if not manifest_path.is_file():
+    raise FileNotFoundError(f'找不到输入清单：{manifest_path}')
+input_manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+if input_manifest.get('schema_version') != INPUT_MANIFEST_SCHEMA_VERSION:
+    raise ValueError('76 输入清单 schema 不匹配')
+baseline_entry = input_manifest.get('source_artifacts', {}).get('training_baseline', {})
+BASELINE_73_RELATIVE_PATH = Path(baseline_entry.get('path', ''))
+baseline_path = GPU_PROJECT_ROOT / BASELINE_73_RELATIVE_PATH
+if not baseline_path.is_file():
+    raise FileNotFoundError(f'找不到 73 训练基线：{baseline_path}')
+if hashlib.sha256(baseline_path.read_bytes()).hexdigest() != baseline_entry.get('sha256'):
+    raise ValueError('73 训练基线 SHA256 与输入清单不一致')
 print(f'project_root: {GPU_PROJECT_ROOT}')
 try:
     import torch
@@ -598,58 +471,54 @@ else:
 
 ```
 
-#### 5.3 配置变量
+#### 5.3 对照合同与结果路径
 
-先用 `smoke` 检查流程，再用 `pressure` 进行重复测量。通常只修改运行开关、workload、策略集合和预算阈值；模型、输入和指标计算逻辑保持不变。
+从固定配置派生工作负载和结果路径。`prepare` 读取已登记结果；`g0`、`g1`、`close` 只读取当前标签的文件，G1 不会自动补跑 G0。
+
 
 ```python
-# 通常只修改本 cell 的运行开关、WORKLOAD、STRATEGIES 和预算阈值。
-# 先用 smoke 检查流程，再用 pressure 进行重复测量；不要修改下一 cell 的测量和 JSON 写入逻辑。
-from pathlib import Path
+# 只读派生：需要改变运行意图时回到 5.1。
+if WORKLOAD not in WORKLOADS:
+    raise ValueError(f'未知 WORKLOAD: {WORKLOAD}')
+if not STRATEGIES or 'baseline' not in STRATEGIES:
+    raise ValueError('STRATEGIES 必须包含 baseline')
+if BOUNDARY_SEQ_LENS != sorted(set(BOUNDARY_SEQ_LENS)) or any(
+    length <= WORKLOADS[WORKLOAD]['seq_len'] for length in BOUNDARY_SEQ_LENS
+):
+    raise ValueError('BOUNDARY_SEQ_LENS 必须严格递增、不能重复，并且全部大于 G0 seq_len')
 
-AUTO_INSTALL_REAL_DEPS = True  # 真实 GPU 开启时，只安装当前内核缺失的普通依赖。
-AUTO_INSTALL_ALLOW_BREAK_SYSTEM_PACKAGES = True  # 云端 PEP 668 环境允许安装普通依赖；不会重装 PyTorch。
-RUN_REAL_GPU = False  # 默认先运行 CPU 正确性检查；GPU benchmark 时显式改为 True。
-DTYPE_MODE = 'fp32'  # fp32：主线；bf16：显式扩展实验，启用 CUDA autocast。
-MODEL_ID = 'Qwen/Qwen2.5-0.5B-Instruct'  # 固定基座模型。
-MODEL_SOURCE = 'auto'  # 模型来源：auto / huggingface / modelscope / local。
-MODEL_CACHE_DIR = 'model_cache'  # 模型缓存目录。
-BATCH_SIZE = 1  # 实际值由 WORKLOADS 覆盖；增大它会提高 activation 压力。
-WORKLOAD = 'pressure'  # pressure(seq_len=768)：与 73 主线对齐；pressure_1024 是长序列扩展。
-WORKLOADS = {
-    'smoke': {'batch_size': 1, 'seq_len': 512, 'warmup': 2, 'iters': 5},
-    'pressure': {'batch_size': 1, 'seq_len': 768, 'warmup': 2, 'iters': 5},
-    'pressure_1024': {'batch_size': 1, 'seq_len': 1024, 'warmup': 2, 'iters': 5},
+workload_config = dict(WORKLOADS[WORKLOAD])
+BATCH_SIZE = workload_config['batch_size']
+SEQ_LEN = workload_config['seq_len']
+WARMUP = workload_config['warmup']
+ITERS = workload_config['iters']
+REPEATS = 3
+READ_G0_RELATIVE_PATH = APPROVED_G0_RELATIVE_PATH if RUN_STAGE == 'prepare' else OUTPUT_RELATIVE_PATH
+READ_G1_RELATIVE_PATH = APPROVED_G1_RELATIVE_PATH if RUN_STAGE == 'prepare' else BOUNDARY_OUTPUT_RELATIVE_PATH
+if RUN_STAGE == 'g1' and (GPU_PROJECT_ROOT / BOUNDARY_OUTPUT_RELATIVE_PATH).is_file():
+    raise FileExistsError('同标签 G1 已完成；请改用 close，或更换 RUN_LABEL 后重新实验。')
+EXPERIMENT_IDENTITY = {
+    'model_id': MODEL_ID, 'workload': WORKLOAD, 'dtype_mode': DTYPE_MODE,
+    'strategies': list(STRATEGIES), 'batch_size': BATCH_SIZE, 'seq_len': SEQ_LEN,
+    'repeats': REPEATS, 'boundary_seq_lens': list(BOUNDARY_SEQ_LENS), 'seed': SEED,
+    'run_label': RUN_LABEL, 'run_stage': RUN_STAGE,
+    'read_g0': str(READ_G0_RELATIVE_PATH), 'read_g1': str(READ_G1_RELATIVE_PATH),
 }
-WARMUP = 2  # 预热轮数，不计入正式平均值；正式报告建议至少 2。
-ITERS = 5  # 每种策略的正式测量轮数；这是教学 smoke，稳定性要求高时应增加。
-SEED = 42  # 固定输入，保证策略间 workload 一致；不代表真实数据集质量。
-STRATEGIES = ['baseline', 'checkpoint', 'offload', 'hybrid']  # 四种策略在同一 workload 下比较；资源不足时可先删 offload，但要记录。
-
-# 完成 smoke 后，可改为：['baseline', 'checkpoint', 'offload', 'hybrid']
-# BF16 / 长序列扩展允许先比较子集，但报告必须保留实际 strategies。
-REPEATS = 1 if WORKLOAD == 'smoke' else 3  # smoke 快速检查；pressure 默认重复 3 次，形成可比较的稳定性证据。
-MEMORY_CAP_MB = 11200.0  # 硬显存预算；需为系统和桌面进程留余量。
-MIN_SAMPLES_PER_S = 1.0  # 最低吞吐；低于此值的策略判为不可行。
-# None 表示按当前固定 workload 的 baseline eval_loss 自动生成质量上限
-MAX_VAL_LOSS = None  # 只是质量代理门槛，不是完整任务质量门槛。
-# 主线与 73 的 FP32 / pressure 报告对齐；BF16 / seq1024 扩展时显式修改这两条路径。
-BASELINE_73_RELATIVE_PATH = Path('benchmarks/results/73_real_gpu_training.json')
-OUTPUT_RELATIVE_PATH = Path('benchmarks/results/76_real_gpu_memory.json')
+print(EXPERIMENT_IDENTITY)
 
 ```
 
-#### 5.4 运行与保存
+#### 5.4 采集策略测量
 
-运行 cell 会按当前配置加载模型、测量四种策略并写入 JSON；每个策略使用相同 workload，正式结论应查看重复运行、稳定性和 OOM 状态，而不是只看一次结果。若口径不一致或预检失败，程序会在加载模型前停止，相关记录统一放在 5.5 的证据状态中。
+`g0` 运行 AdamW 完整训练对照；`g1` 要求同标签且重复完整的 G0，再运行无动量 SGD 长度阶梯。每个更长序列开始前先检查显存余量，余量不足时记录安全边界，不用实际 OOM 探测。
+
 
 ```python
-# 按配置完成环境预检、模型准备、策略测量、重复运行和 JSON 写入。
-# RUN_REAL_GPU=False 时只输出跳过信息；运行后查看 environment_preflight、config、candidates[*].runs、stability 和 decision。
+# 根据 RUN_STAGE 执行单一 GPU 阶段；prepare/close 不加载模型。
 import json
+import hashlib
 import gc
 import os
-import subprocess
 import sys
 import time
 from contextlib import nullcontext
@@ -667,15 +536,17 @@ if not (PROJECT_ROOT / 'tools/project_runtime.py').is_file():
                 PROJECT_ROOT = candidate
                 break
         else:
-            if Path('/content').is_dir() and not colab_root.exists():
-                subprocess.run(['git', 'clone', 'https://github.com/datawhalechina/llm-algo-leetcode.git', str(colab_root)], check=True)
-            if (colab_root / 'tools/project_runtime.py').is_file():
-                PROJECT_ROOT = colab_root
+            raise RuntimeError('找不到项目根目录；请设置 LLM_ALGO_PROJECT_ROOT。')
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-from tools.project_runtime import ensure_output_path, resolve_project_root, environment_preflight, runtime_snapshot, standard_experiment_config, standard_training_metrics, validate_training_config
+from tools.project_runtime import ensure_output_path, resolve_project_root, environment_preflight, runtime_snapshot, save_json_record_once, standard_experiment_config, standard_training_metrics, validate_training_config
 from tools.training_memory_runtime import measure_training_run
+import importlib
+import tools.memory_strategy_runtime as memory_strategy_runtime
+importlib.reload(memory_strategy_runtime)  # Jupyter 可能缓存了升级前的共享模块。
 from tools.memory_strategy_runtime import (
+    summarize_memory_boundary,
+    decide_memory_boundary,
     summarize_memory_strategy_candidates,
     decide_memory_strategy_project,
 )
@@ -683,25 +554,12 @@ from tools.memory_strategy_runtime import (
 PROJECT_ROOT = resolve_project_root(PROJECT_ROOT)
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-OUTPUT_PATH = ensure_output_path(PROJECT_ROOT, OUTPUT_RELATIVE_PATH)
+OUTPUT_PATH = PROJECT_ROOT / OUTPUT_RELATIVE_PATH
 print(f'项目根目录: {PROJECT_ROOT}')
 print(f'结果保存路径: {OUTPUT_PATH}')
 
-if RUN_REAL_GPU:
+if RUN_STAGE in {'g0', 'g1'}:
     import torch
-    if AUTO_INSTALL_REAL_DEPS:
-        import importlib.util
-        missing = [name for name in ('transformers',) if importlib.util.find_spec(name) is None]
-        if missing:
-            install_cmd = [sys.executable, '-m', 'pip', 'install', '-U', *missing]
-            markers = [Path(sys.prefix) / 'EXTERNALLY-MANAGED', Path(sys.executable).parent.parent / 'EXTERNALLY-MANAGED']
-            if any(marker.is_file() for marker in markers):
-                if not AUTO_INSTALL_ALLOW_BREAK_SYSTEM_PACKAGES:
-                    raise RuntimeError('检测到 PEP 668 受管 Python，请启用 AUTO_INSTALL_ALLOW_BREAK_SYSTEM_PACKAGES 或改用独立虚拟环境。')
-                install_cmd[3:3] = ['--break-system-packages']
-            print('使用当前 Notebook 内核安装缺失依赖：', missing)
-            subprocess.check_call(install_cmd)
-            print('依赖安装完成；如当前内核仍找不到 transformers，请重启内核后继续。')
     valid_dtype_modes = {'fp32', 'bf16'}
     valid_strategies = {'baseline', 'checkpoint', 'offload', 'hybrid'}
     if DTYPE_MODE not in valid_dtype_modes:
@@ -729,7 +587,7 @@ if RUN_REAL_GPU:
         raise RuntimeError('环境预检未通过，请先按 next_actions 修复；没有加载模型。')
     print({'runtime': runtime_snapshot(torch)})
     if not torch.cuda.is_available():
-        raise RuntimeError('RUN_REAL_GPU=True 但 CUDA 不可用。')
+        raise RuntimeError(f'RUN_STAGE={RUN_STAGE!r} 需要 CUDA，但当前 CUDA 不可用。')
 
     torch.manual_seed(SEED)
     torch.cuda.manual_seed_all(SEED)
@@ -758,27 +616,32 @@ if RUN_REAL_GPU:
     model_path = resolve_model(MODEL_ID, source=MODEL_SOURCE, cache_dir=MODEL_CACHE_DIR)
     print(f'模型路径: {model_path}')
     model_config = AutoConfig.from_pretrained(model_path)
-    generator = torch.Generator(device='cpu').manual_seed(SEED)
-    shared_input_ids_cpu = torch.randint(
-        0, model_config.vocab_size, (BATCH_SIZE, SEQ_LEN), generator=generator
-    )
-    eval_input_ids_cpu = torch.randint(
-        0, model_config.vocab_size, (BATCH_SIZE, SEQ_LEN), generator=generator
-    )
+
+    def make_inputs(seq_len):
+        generator = torch.Generator(device='cpu').manual_seed(SEED + seq_len)
+        train_ids = torch.randint(0, model_config.vocab_size, (BATCH_SIZE, seq_len), generator=generator)
+        eval_ids = torch.randint(0, model_config.vocab_size, (BATCH_SIZE, seq_len), generator=generator)
+        return train_ids, eval_ids
 
     def strategy_context(name):
         if name in {'offload', 'hybrid'}:
             return torch.autograd.graph.save_on_cpu(pin_memory=False)
         return nullcontext()
 
-    def run_strategy(name):
+    def run_strategy(name, *, seq_len=SEQ_LEN, warmup=WARMUP, iters=ITERS, optimizer_name='adamw'):
         torch.manual_seed(SEED)
+        shared_input_ids_cpu, eval_input_ids_cpu = make_inputs(seq_len)
         model = AutoModelForCausalLM.from_pretrained(model_path, dtype=torch.float32)
         model.config.use_cache = False
         if name in {'checkpoint', 'hybrid'}:
             model.gradient_checkpointing_enable()
         model.to(device).train()
-        optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)
+        if optimizer_name == 'adamw':
+            optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)
+        elif optimizer_name == 'sgd':
+            optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.0)
+        else:
+            raise ValueError(f'未知 optimizer_name: {optimizer_name}')
         input_ids = shared_input_ids_cpu.to(device)
         labels = input_ids.clone()
         eval_input_ids = eval_input_ids_cpu.to(device)
@@ -795,7 +658,7 @@ if RUN_REAL_GPU:
 
         result = measure_training_run(
             train_step, torch_module=torch, batch_size=BATCH_SIZE,
-            warmup=WARMUP, iters=ITERS,
+            warmup=warmup, iters=iters,
         )
         model.eval()
         with torch.no_grad():
@@ -803,6 +666,8 @@ if RUN_REAL_GPU:
                 eval_loss = float(model(input_ids=eval_input_ids, labels=eval_labels).loss.item())
         result = {
             'name': name,
+            'seq_len': seq_len,
+            'optimizer': optimizer_name,
             'status': 'ok',
             'step_time_ms': result['step_time_ms'],
             'samples_per_s': result['samples_per_s'],
@@ -817,22 +682,25 @@ if RUN_REAL_GPU:
         return result
 
     raw_run_strategy = run_strategy
-    def run_strategy(name):
+    def run_strategy(name, *, seq_len=SEQ_LEN, warmup=WARMUP, iters=ITERS, optimizer_name='adamw'):
         try:
-            return raw_run_strategy(name)
+            return raw_run_strategy(name, seq_len=seq_len, warmup=warmup, iters=iters, optimizer_name=optimizer_name)
         except torch.cuda.OutOfMemoryError as exc:
-            torch.cuda.empty_cache()
-            return {
+            oom_result = {
                 'name': name,
+                'seq_len': seq_len,
+                'optimizer': optimizer_name,
                 'status': 'oom',
                 'error': str(exc).split('\n')[0],
             }
+        gc.collect()  # 在异常作用域退出后释放 traceback 持有的模型张量。
+        torch.cuda.empty_cache()
+        return oom_result
 
-    def run_strategy_repeated(name):
-        runs = [run_strategy(name) for _ in range(REPEATS)]
+    def aggregate_strategy_runs(name, runs):
         successful = [item for item in runs if item.get('status') == 'ok']
         if not successful:
-            return {**runs[0], 'runs': runs}
+            return {**runs[0], 'runs': runs, 'successful_runs': 0, 'oom_runs': len(runs), 'stability': None}
         numeric_keys = ('step_time_ms', 'samples_per_s', 'loss', 'eval_loss', 'peak_memory_mb', 'peak_reserved_mb')
         aggregated = {
             key: round(sum(item[key] for item in successful) / len(successful), 3)
@@ -851,7 +719,43 @@ if RUN_REAL_GPU:
         status = 'ok' if len(successful) == len(runs) else 'partial_oom'
         return {**successful[0], **aggregated, 'status': status, 'runs': runs, 'successful_runs': len(successful), 'oom_runs': len(runs) - len(successful), 'stability': stability}
 
-    candidates = [run_strategy_repeated(name) for name in STRATEGIES]
+    def run_strategy_repeated(name, *, seq_len=SEQ_LEN, repeats=REPEATS, warmup=WARMUP, iters=ITERS, optimizer_name='adamw', first_run=None):
+        runs = [] if first_run is None else [first_run]
+        runs.extend(run_strategy(name, seq_len=seq_len, warmup=warmup, iters=iters, optimizer_name=optimizer_name) for _ in range(repeats - len(runs)))
+        return aggregate_strategy_runs(name, runs)
+
+    # 同口径 G0 可作为 G1 血缘；完整性只约束完整训练采用结论。
+    g0_reused = False
+    g0_complete = False
+    existing_g0 = None
+    if Path(OUTPUT_PATH).exists():
+        try:
+            existing_g0 = json.loads(Path(OUTPUT_PATH).read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError):
+            existing_g0 = None
+    expected_g0_identity = {
+        'model_id': MODEL_ID, 'workload': WORKLOAD, 'batch_size': BATCH_SIZE,
+        'seq_len': SEQ_LEN, 'mode': DTYPE_MODE, 'optimizer': 'AdamW',
+    }
+    if existing_g0 is not None:
+        if existing_g0.get('run_label') != RUN_LABEL:
+            raise ValueError(f'76 结果标签不匹配：{existing_g0.get("run_label")} != {RUN_LABEL}')
+        existing_config = existing_g0.get('config', {})
+        existing_candidates = existing_g0.get('candidates', [])
+        g0_reused = (
+            all(existing_config.get(key) == value for key, value in expected_g0_identity.items())
+            and [item.get('name') for item in existing_candidates] == STRATEGIES
+        )
+        g0_complete = g0_reused and all(
+            item.get('successful_runs', 0) >= REPEATS for item in existing_candidates
+        )
+    if RUN_STAGE == 'g1' and not g0_reused:
+        raise RuntimeError('G1 要求同一 RUN_LABEL 且口径匹配的 G0；请先设置 RUN_STAGE=\'g0\'。')
+    if g0_reused:
+        candidates = existing_candidates
+        print(f'复用已有 G0：{OUTPUT_PATH}；complete={g0_complete}')
+    else:
+        candidates = [run_strategy_repeated(name) for name in STRATEGIES]
     budget = {'memory_cap_mb': MEMORY_CAP_MB, 'min_samples_per_s': MIN_SAMPLES_PER_S, 'min_memory_saving_mb': 512.0, 'min_throughput_ratio': 0.70}
     baseline_candidate = next((item for item in candidates if item.get('name') == 'baseline' and item.get('status', 'ok') == 'ok'), None)
     if MAX_VAL_LOSS is None and baseline_candidate is not None:
@@ -862,12 +766,15 @@ if RUN_REAL_GPU:
         max_eval_loss = MAX_VAL_LOSS
     quality_floor = {'max_val_loss': round(max_eval_loss, 6)}
     summary = summarize_memory_strategy_candidates(candidates, budget, quality_floor)
-    decision = decide_memory_strategy_project(summary)
     result = {
+        'schema_version': SCHEMA_VERSION, 'semantic_id': SEMANTIC_ID,
+        'run_mode': 'real_gpu', 'run_label': RUN_LABEL,
         'task': 'task3_training_memory_optimization',
+        'g0_reused': g0_reused,
         'environment_preflight': preflight,
         'stage': 'activation_checkpoint_offload_benchmark',
         'source_baseline': str(baseline_report_path.relative_to(PROJECT_ROOT)),
+        'source_baseline_sha256': hashlib.sha256(baseline_report_path.read_bytes()).hexdigest(),
         'baseline_validation': {'status': 'matched', 'config': expected_baseline},
         'evidence_level': 'fixed_workload_strategy_smoke' if DTYPE_MODE == 'fp32' else 'bf16_capacity_strategy_smoke',
         'config': {
@@ -878,7 +785,7 @@ if RUN_REAL_GPU:
             'device': torch.cuda.get_device_name(0), 'seed': SEED,
         },
         'budget': budget, 'quality_floor': quality_floor,
-        'candidates': candidates, 'summary': summary, 'decision': decision,
+        'candidates': candidates, 'summary': summary,
         'repeat_summary': {
             item['name']: {
                 'status': item.get('status'),
@@ -892,124 +799,238 @@ if RUN_REAL_GPU:
     result['experiment'] = standard_experiment_config(result['config'])
     result['standard_metrics'] = {item['name']: standard_training_metrics(item) for item in candidates}
     output_path = Path(OUTPUT_PATH)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+    if not g0_reused:
+        save_json_record_once(output_path, result)
     print(json.dumps(result, ensure_ascii=False, indent=2))
+
+    if RUN_STAGE == 'g1':
+        # G1：用无 momentum SGD 隔离激活显存，并在每个更长序列前做安全门禁。
+        g1_warmup, g1_iters, g1_repeats = 1, 3, 3
+        print('G1 activation isolation baseline: optimizer=SGD, seq_len=', SEQ_LEN)
+        g1_base_candidates = [
+            run_strategy_repeated(
+                name, seq_len=SEQ_LEN, repeats=g1_repeats, warmup=g1_warmup,
+                iters=g1_iters, optimizer_name='sgd',
+            )
+            for name in STRATEGIES
+        ]
+        g1_baseline_candidate = next(item for item in g1_base_candidates if item.get('name') == 'baseline' and item.get('status') == 'ok')
+        g1_quality_floor = {'max_val_loss': round(g1_baseline_candidate['eval_loss'] * 1.02, 6)}
+        boundary_records = [{'seq_len': SEQ_LEN, 'source': 'g1_sgd_baseline', 'candidates': g1_base_candidates}]
+        total_memory_mb = torch.cuda.get_device_properties(device).total_memory / 2**20
+        safety_margin_mb = max(2048.0, total_memory_mb * 0.15)
+        admission_checks = []
+        boundary_blocked = False
+        previous_seq_len = SEQ_LEN
+        previous_baseline = next(item for item in g1_base_candidates if item.get('name') == 'baseline')
+        for boundary_seq_len in BOUNDARY_SEQ_LENS:
+            gc.collect()
+            torch.cuda.empty_cache()
+            free_memory_mb, _ = torch.cuda.mem_get_info(device)
+            free_memory_mb /= 2**20
+            projected_peak_mb = previous_baseline['peak_memory_mb'] * boundary_seq_len / previous_seq_len
+            safe_process_limit_mb = free_memory_mb - safety_margin_mb
+            admitted = projected_peak_mb <= safe_process_limit_mb
+            admission_check = {
+                'seq_len': boundary_seq_len,
+                'status': 'admitted' if admitted else 'blocked',
+                'free_memory_mb': round(free_memory_mb, 2),
+                'safety_margin_mb': round(safety_margin_mb, 2),
+                'safe_process_limit_mb': round(safe_process_limit_mb, 2),
+                'projected_peak_mb': round(projected_peak_mb, 2),
+                'projection': 'conservative_linear_from_previous_sgd_peak_allocated',
+            }
+            admission_checks.append(admission_check)
+            if not admitted:
+                boundary_blocked = True
+                print(f'G1 safety stop before seq_len={boundary_seq_len}: {admission_check}')
+                break
+            print(f'G1 admitted: seq_len={boundary_seq_len}')
+            boundary_candidates = [
+                run_strategy_repeated(
+                    name, seq_len=boundary_seq_len, repeats=g1_repeats,
+                    warmup=g1_warmup, iters=g1_iters, optimizer_name='sgd',
+                )
+                for name in STRATEGIES
+            ]
+            boundary_records.append({'seq_len': boundary_seq_len, 'source': 'g1_sgd', 'candidates': boundary_candidates})
+            previous_baseline = next(item for item in boundary_candidates if item.get('name') == 'baseline')
+            if previous_baseline.get('status') != 'ok':
+                boundary_blocked = True
+                break
+            previous_seq_len = boundary_seq_len
+
+        boundary_summary = summarize_memory_boundary(boundary_records, budget, g1_quality_floor)
+        boundary_admission = {
+            'status': 'completed_with_safety_boundary' if boundary_blocked else 'completed',
+            'total_memory_mb': round(total_memory_mb, 2),
+            'safety_margin_mb': round(safety_margin_mb, 2),
+            'checks': admission_checks,
+        }
+        boundary_result = {
+            'schema_version': SCHEMA_VERSION, 'semantic_id': SEMANTIC_ID,
+            'run_mode': 'real_gpu', 'run_label': RUN_LABEL,
+            'task': 'task3_training_memory_optimization',
+            'stage': 'activation_memory_boundary',
+            'source_g0': str(output_path.relative_to(PROJECT_ROOT)),
+            'source_g0_sha256': hashlib.sha256(output_path.read_bytes()).hexdigest(),
+            'environment_preflight': preflight,
+            'status': boundary_admission['status'],
+            'evidence_level': 'safe_activation_isolation_length_ladder',
+            'config': {
+                **result['config'], 'optimizer': 'SGD', 'optimizer_momentum': 0.0,
+                'warmup': g1_warmup, 'iters': g1_iters, 'repeats': g1_repeats,
+                'seq_lens': [SEQ_LEN, *BOUNDARY_SEQ_LENS],
+                'comparison_scope': 'activation_memory_isolation',
+            },
+            'budget': budget,
+            'quality_floor': g1_quality_floor,
+            'admission': boundary_admission,
+            'length_records': boundary_records,
+            'summary': boundary_summary,
+            'assessment': decide_memory_boundary(boundary_summary),
+        }
+        BOUNDARY_OUTPUT_PATH = ensure_output_path(PROJECT_ROOT, BOUNDARY_OUTPUT_RELATIVE_PATH)
+        save_json_record_once(BOUNDARY_OUTPUT_PATH, boundary_result)
+        print(f'G1 结果保存路径: {BOUNDARY_OUTPUT_PATH}')
+        print(json.dumps({'summary': boundary_summary, 'admission': boundary_admission}, ensure_ascii=False, indent=2))
+    else:
+        print(f'G0 已完成：{OUTPUT_PATH}')
 else:
-    print('跳过真实 GPU benchmark：保持 CPU-first 模式。')
+    print(f'跳过 GPU 执行：当前 RUN_STAGE={RUN_STAGE!r}。')
 
 ```
 
-#### 5.5 读取与复测
+#### 5.5 核对 G0/G1 结果
 
-先运行上一个 benchmark cell，再运行下面的读取 cell。它只读取结果文件，不会启动模型、不重复测量，也不会覆盖 JSON。读取 JSON 后，先核对实际运行环境和统一口径，再查看已保存结果和学习者复测位置。
+读取 G0/G1 文件，核对配置、重复次数、稳定性、OOM 和显存安全检查。本单元不加载模型、不覆盖文件。
 
 
 ```python
-# 结果读取 cell：把 JSON 中的配置、重复运行和聚合指标打印成可抄录的表格。
-# 如果文件不存在，先回到配置 cell 和 benchmark cell；不要手动创建空 JSON。
-import json
-from pathlib import Path
-
-result_path = PROJECT_ROOT / OUTPUT_RELATIVE_PATH
-if not result_path.exists():
-    raise FileNotFoundError(f'找不到结果文件：{result_path}。请先运行 GPU benchmark cell。')
+import hashlib
+result_path = PROJECT_ROOT / READ_G0_RELATIVE_PATH
+if not result_path.is_file():
+    raise FileNotFoundError(f'找不到 G0 结果：{result_path}')
 report = json.loads(result_path.read_text(encoding='utf-8'))
-print('结果文件:', result_path)
-print('实验配置:', report.get('config', {}))
-print('决策:', report.get('decision', {}))
-
-rows = []
-for candidate in report.get('candidates', []):
-    rows.append({
-        '策略': candidate.get('name'),
-        '状态': candidate.get('status'),
-        'runs': candidate.get('runs', []),
-        '平均 step time(ms)': candidate.get('step_time_ms'),
-        'step time 范围(ms)': candidate.get('stability', {}).get('step_time_range_ms'),
-        '平均吞吐(samples/s)': candidate.get('samples_per_s'),
-        '吞吐范围(samples/s)': candidate.get('stability', {}).get('throughput_range_samples_per_s'),
-        '峰值显存(MiB)': candidate.get('peak_memory_mb'),
-        '成功次数': candidate.get('successful_runs', 0),
-        'OOM 次数': candidate.get('oom_runs', 0),
-    })
-for row in rows:
-    print(row)
+rows = [{
+    'strategy': item.get('name'), 'status': item.get('status'),
+    'successful_runs': item.get('successful_runs', 0), 'oom_runs': item.get('oom_runs', 0),
+    'step_time_ms': item.get('step_time_ms'), 'samples_per_s': item.get('samples_per_s'),
+    'peak_memory_mb': item.get('peak_memory_mb'), 'eval_loss': item.get('eval_loss'),
+    'stability': item.get('stability'),
+} for item in report.get('candidates', [])]
+boundary_path = PROJECT_ROOT / READ_G1_RELATIVE_PATH
+boundary_report = json.loads(boundary_path.read_text(encoding='utf-8')) if boundary_path.is_file() else None
+evidence_review = {
+    'g0_path': str(result_path.relative_to(PROJECT_ROOT)),
+    'g0_sha256': hashlib.sha256(result_path.read_bytes()).hexdigest(),
+    'schema_version': report.get('schema_version'), 'semantic_id': report.get('semantic_id'),
+    'run_label': report.get('run_label'), 'config': report.get('config'),
+    'candidate_rows': rows, 'summary': report.get('summary'),
+    'g1_path': str(boundary_path.relative_to(PROJECT_ROOT)) if boundary_report else None,
+    'g1_status': boundary_report.get('status') if boundary_report else 'not_recorded',
+    'g1_summary': boundary_report.get('summary') if boundary_report else None,
+    'g1_admission': boundary_report.get('admission') if boundary_report else None,
+}
+evidence_review['g0_complete'] = (
+    len(rows) == len(STRATEGIES)
+    and all(row['successful_runs'] >= REPEATS for row in rows)
+)
+evidence_review['g1_ready'] = (
+    boundary_report is not None
+    and boundary_report.get('schema_version') == SCHEMA_VERSION
+    and boundary_report.get('semantic_id') == SEMANTIC_ID
+)
+evidence_review['ready_for_decision'] = (
+    evidence_review['schema_version'] == SCHEMA_VERSION
+    and evidence_review['semantic_id'] == SEMANTIC_ID
+    and len(rows) == len(STRATEGIES)
+    and evidence_review['g1_ready']
+)
+print(evidence_review)
 
 ```
 
-**实测环境与统一口径**
+#### 5.6 形成分范围结论
 
-| 项目 | 实际配置 |
-|:---|:---|
-| 系统 / GPU | Linux `6.8.0-138-generic`、RTX 5070 Ti Laptop GPU / 12227 MiB |
-| 驱动 | `570.211.01` |
-| PyTorch / CUDA | `2.11.0+cu128` / `12.8` |
-| 模型 | `Qwen/Qwen2.5-0.5B-Instruct` |
-| workload | `pressure`：batch=1、seq_len=768 |
-| 训练设置 | FP32、AdamW、learning rate=1e-5、warmup=2、iters=5、seed=42 |
-| 预算 | 显存上限 11200 MiB、吞吐下限 1 sample/s |
-| 输出文件 | `benchmarks/results/76_real_gpu_memory.json` |
+| 结论 | 依据 | 用途 |
+| --- | --- | --- |
+| 完整训练 `accept / tune / reject` | G0 的 AdamW 固定训练配置 | 交给 75 做预算分析 |
+| `accept_for_activation_memory_scope` | G1 长度阶梯通过显存和吞吐门槛 | 仅说明激活显存范围内有效 |
+| `measure / tune` | 未观察到足够长度，或质量、显存、吞吐未同时通过 | 扩大安全长度阶梯或调整策略 |
 
-**主线结果与复测记录**
-
-本地历史结果使用 FP32 / `seq_len=768`；下面展示 JSON 中的汇总值，并保留 Run 1–3 和学习者复测位置。原始文件为 `benchmarks/results/76_real_gpu_memory.json`。
-
-Run 1–3 用于填写逐次结果，均值和范围来自 JSON 中的 `runs` 字段；当前均值标注为历史值，少于 3 次完整运行时应标记为 `gpu_smoke`。
-
-| 策略 | Run 1 | Run 2 | Run 3 | 平均 step time（ms） | step time 范围（ms） | 平均吞吐（samples/s） | 吞吐范围（samples/s） | 峰值显存（MiB） | eval loss | 状态 |
-|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|:---|
-| baseline | 待填写 | 待填写 | 待填写 | 497.839（历史） | 待填写 | 2.009（历史） | 待填写 | 9782.74 | 12.356503 | 待复核 |
-| checkpoint | 待填写 | 待填写 | 待填写 | 567.740（历史） | 待填写 | 1.761（历史） | 待填写 | 9450.76 | 12.356503 | 待复核 |
-| offload | 待填写 | 待填写 | 待填写 | 1877.559（历史） | 待填写 | 0.533（历史） | 待填写 | 9448.33 | 12.356503 | 待复核 |
-| hybrid | 待填写 | 待填写 | 待填写 | 783.478（历史） | 待填写 | 1.276（历史） | 待填写 | 9454.64 | 12.356503 | 待复核 |
-
-下表用于填写自己的硬件或其他 workload；策略比较必须复用同一模型、输入、训练条件和重复次数。
-
-| 策略 | GPU / 显存 | 模型 | dtype | batch | seq_len | repeats | step time (ms) | throughput (samples/s) | peak allocated (MiB) | peak reserved (MiB) | eval loss | 状态 | evidence level |
-|:---|:---|:---|:---|---:|---:|---:|---:|---:|---:|---:|---:|:---|:---|
-| baseline | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
-| checkpoint | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
-| offload | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
-| hybrid | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
+若长度阶梯被显存余量检查提前停止，结果状态记录为 `completed_with_safety_boundary`，同时保留最后一个安全长度。G1 不会把限定范围结论改写成完整训练 `accept`；顶层结论由 G0 决定。
 
 
-#### 5.6 解释与决策
+```python
+if RUN_STAGE == 'close':
+    if not evidence_review['ready_for_decision']:
+        raise RuntimeError(f'G0/G1 证据身份复核未通过：{evidence_review}')
+    if evidence_review['g0_complete']:
+        g0_decision = decide_memory_strategy_project(report['summary'])
+    else:
+        g0_decision = {
+            'decision': 'tune',
+            'reason': 'g0_incomplete_repeats',
+            'next_action': 'rerun_g0_with_a_new_label_after_freeing_gpu_memory',
+            'incomplete_candidates': [
+                row['strategy'] for row in evidence_review['candidate_rows']
+                if row['successful_runs'] < REPEATS
+            ],
+        }
+    if boundary_report is None:
+        g1_decision = {'decision': 'not_recorded', 'reason': 'missing_boundary_evidence'}
+    elif boundary_report.get('status') == 'blocked' and not boundary_report.get('summary', {}).get('eligible_strategies'):
+        g1_decision = {'decision': 'blocked', 'reason': 'safety_headroom_guard', 'next_action': 'keep_last_safe_length_or_use_a_dedicated_gpu'}
+    else:
+        g1_decision = decide_memory_boundary(boundary_report['summary'])
+    g1_decision.setdefault('scope', 'activation_memory_isolation')
+    g1_decision.setdefault('promotable_to_full_training', False)
+    if boundary_report is not None:
+        g1_decision['evidence_status'] = boundary_report.get('status')
+        g1_decision['tested_seq_lens'] = boundary_report.get('summary', {}).get('tested_seq_lens', [])
+        g1_decision['limitations'] = [
+            'optimizer_state_is_intentionally_removed_with_zero_momentum_sgd',
+            'result_does_not_establish_adamw_full_training_adoption',
+        ]
+        if boundary_report.get('status') == 'blocked':
+            g1_decision['limitations'].append('length_ladder_stopped_at_the_safety_boundary')
+    g1_sha256 = hashlib.sha256(boundary_path.read_bytes()).hexdigest() if boundary_report else None
+    decision_asset = {
+        'schema_version': 'memory-strategy-decision/v1', 'semantic_id': SEMANTIC_ID,
+        'run_label': RUN_LABEL, 'source_g0': evidence_review['g0_path'],
+        'source_g0_sha256': evidence_review['g0_sha256'], 'source_g1': evidence_review['g1_path'],
+        'source_g1_sha256': g1_sha256,
+        'top_level_decision_scope': 'full_training_adoption',
+        'decision': g0_decision,
+        'decision_scopes': {
+            'full_training_adoption': {**g0_decision, 'scope': 'full_training_adoption'},
+            'activation_memory_mechanism': g1_decision,
+        },
+        'g0_decision': g0_decision, 'g1_decision': g1_decision,
+        'handoff': {'consumer': '75_memory_budget_compression', 'status': g0_decision.get('decision')},
+    }
+    decision_output_path = PROJECT_ROOT / DECISION_OUTPUT_RELATIVE_PATH
+    if decision_output_path.exists():
+        existing_decision = json.loads(decision_output_path.read_text(encoding='utf-8'))
+        if existing_decision != decision_asset:
+            raise RuntimeError('同名决策资产内容不一致；请更换 RUN_LABEL，禁止覆盖。')
+        decision_status = 'already_complete'
+    else:
+        save_json_record_once(decision_output_path, decision_asset)
+        decision_status = 'written'
+    print({'status': decision_status, 'saved': str(decision_output_path), 'decision': decision_asset})
+else:
+    print(f'跳过决策写入：当前 RUN_STAGE={RUN_STAGE!r}；只有 close 会写入。')
 
-**证据状态与失败记录**
-
-口径检查会在加载模型前执行；以下记录说明一次 workload 不一致，不属于 benchmark 结果。
-
-| 检查项 | 73 已保存结果 | 76 当前配置 | 处理动作 |
-|:---|:---|:---|:---|
-| workload | `pressure_1024` | `pressure` | 报错并停止，先让两节使用同一 workload |
-| 检查目的 | 序列长度和压力条件可能不同 | 需要复用 73 baseline | 重跑 73，或同步修改 76 后再运行 |
-| 结论状态 | 不能直接作为对照 | 尚未开始测量 | 不生成本次策略比较结论 |
-
-**主线策略判断**
-
-本地结果显示：checkpoint 比 baseline 少占 331.98 MiB 显存，但吞吐下降约 12.3%；offload 和 hybrid 的速度代价更高，四种策略的 eval loss 一致。当前没有方案达到 512 MiB 显存收益阈值，因此结论为 `tune`；这些结果只适用于本模型、序列长度和全参数训练口径。
-
-**扩展实测：BF16 / seq_len=1024**
-
-该组实验改变了 dtype 和序列长度，因此单独作为扩展证据，不与主线结果合并。配置为 `Qwen/Qwen2.5-0.5B-Instruct`、batch=1、BF16 autocast、AdamW，仅比较 baseline 与 checkpoint。
-这组实测表明 BF16 使 `seq_len=1024` 在当前 12GB GPU 上成功运行；checkpoint 额外节省约 27.16 MiB，吞吐保留约 86.7%。它只说明当前 workload 下的结果，不代表所有长序列任务。76 提供策略实测证据，75 再据此进行预算决策。
-
-| 策略 | step time | throughput | peak allocated | peak reserved | eval loss | 状态 |
-|:---|---:|---:|---:|---:|---:|:---|
-| baseline | 297.060 ms | 3.366 samples/s | 10037.52 MiB | 10542.00 MiB | 12.202896 | ok |
-| checkpoint | 342.564 ms | 2.919 samples/s | 10010.36 MiB | 10876.00 MiB | 12.202565 | ok |
-
+```
 
 ---
 ## 相关阅读
 
-以下资料按“训练显存机制 → 官方实现 → 项目决策”排列，用于把 checkpoint、offload 和重算代价连接到实际训练系统。
-
 - [Training Deep Nets with Sublinear Memory Cost 论文](https://arxiv.org/abs/1604.06174)
-- [ZeRO-Offload 论文：民主化大模型训练](https://arxiv.org/abs/2101.06840)
-- [PyTorch `torch.utils.checkpoint` 文档](https://pytorch.org/docs/stable/checkpoint.html)
-- [43. Unified Memory Management | 统一内存管理](./43_Unified_Memory_Management.md)
+- [ZeRO-Offload 论文](https://arxiv.org/abs/2101.06840)
+- [PyTorch activation checkpointing 文档](https://pytorch.org/docs/stable/checkpoint.html)
 - [73 训练性能分析](./73_Training_Performance_Analysis.md)
 - [75 显存预算压缩项目](./75_Memory_Budget_Compression_Project.md)
 - [74 Profiling 驱动的端到端优化](./74_Profiling_Driven_End_to_End_Optimization.md)

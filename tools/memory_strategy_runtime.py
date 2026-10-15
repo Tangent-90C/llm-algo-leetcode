@@ -110,6 +110,7 @@ def summarize_memory_strategy_candidates(
         "quality_failed_count": quality_failed,
         "feasible_names": [item["name"] for item in feasible],
         "baseline_peak_memory_mb": baseline["peak_memory_mb"] if baseline else None,
+        "baseline_available": baseline is not None,
         "best_peak_memory_mb": best["peak_memory_mb"] if best else None,
         "memory_saving_mb": (
             baseline["peak_memory_mb"] - best["peak_memory_mb"]
@@ -182,4 +183,150 @@ def decide_memory_strategy_project(summary: Dict[str, object]) -> Dict[str, obje
         "decision": "tune",
         "reason": "baseline_still_best_under_current_budget",
         "next_action": "revisit_strategy_mix",
+    }
+
+
+def summarize_memory_boundary(
+    length_records: List[Dict[str, object]],
+    budget: Dict[str, float],
+    quality_floor: Dict[str, float],
+) -> Dict[str, object]:
+    """Summarize maximum runnable length and common-length trade-offs."""
+
+    strategy_names = list(
+        dict.fromkeys(
+            candidate.get("name")
+            for record in length_records
+            for candidate in record.get("candidates", [])
+            if isinstance(candidate.get("name"), str)
+        )
+    )
+    successful: Dict[str, Dict[int, Dict[str, object]]] = {
+        name: {} for name in strategy_names
+    }
+    quality_failed: List[Dict[str, object]] = []
+    for record in length_records:
+        seq_len = record.get("seq_len")
+        if not isinstance(seq_len, int) or seq_len <= 0:
+            continue
+        for candidate in record.get("candidates", []):
+            name = candidate.get("name")
+            eval_loss = candidate.get("eval_loss")
+            metrics_ok = all(
+                isinstance(candidate.get(key), (int, float))
+                and math.isfinite(candidate[key])
+                for key in ("peak_memory_mb", "samples_per_s", "eval_loss")
+            )
+            if candidate.get("status") == "ok" and metrics_ok:
+                if eval_loss <= quality_floor["max_val_loss"]:
+                    successful[name][seq_len] = candidate
+                else:
+                    quality_failed.append({"name": name, "seq_len": seq_len})
+
+    max_runnable = {
+        name: max(rows) if rows else None for name, rows in successful.items()
+    }
+    baseline_rows = successful.get("baseline", {})
+    baseline_max = max_runnable.get("baseline")
+    baseline_oom_lengths = [
+        record["seq_len"]
+        for record in length_records
+        for candidate in record.get("candidates", [])
+        if candidate.get("name") == "baseline" and candidate.get("status") == "oom"
+    ]
+    comparisons = []
+    eligible = []
+    for name in strategy_names:
+        if name == "baseline":
+            continue
+        candidate_rows = successful[name]
+        common_lengths = sorted(set(baseline_rows) & set(candidate_rows))
+        comparison_length = common_lengths[-1] if common_lengths else None
+        if comparison_length is None:
+            throughput_ratio = None
+            memory_saving_mb = None
+        else:
+            baseline = baseline_rows[comparison_length]
+            candidate = candidate_rows[comparison_length]
+            throughput_ratio = candidate["samples_per_s"] / baseline["samples_per_s"]
+            memory_saving_mb = baseline["peak_memory_mb"] - candidate["peak_memory_mb"]
+        capacity_extended = (
+            baseline_max is not None
+            and max_runnable[name] is not None
+            and max_runnable[name] > baseline_max
+        )
+        meaningful_memory_gain = (
+            memory_saving_mb is not None
+            and memory_saving_mb >= budget["min_memory_saving_mb"]
+        )
+        acceptable_throughput = (
+            throughput_ratio is not None
+            and throughput_ratio >= budget["min_throughput_ratio"]
+        )
+        accepted = acceptable_throughput and (
+            capacity_extended or meaningful_memory_gain
+        )
+        comparison = {
+            "name": name,
+            "max_runnable_seq_len": max_runnable[name],
+            "comparison_seq_len": comparison_length,
+            "capacity_extended": capacity_extended,
+            "memory_saving_mb": memory_saving_mb,
+            "throughput_ratio": throughput_ratio,
+            "meaningful_memory_gain": meaningful_memory_gain,
+            "acceptable_throughput": acceptable_throughput,
+            "accepted": accepted,
+        }
+        comparisons.append(comparison)
+        if accepted:
+            eligible.append(name)
+
+    return {
+        "tested_seq_lens": [record.get("seq_len") for record in length_records],
+        "baseline_available": baseline_max is not None,
+        "baseline_max_runnable_seq_len": baseline_max,
+        "baseline_oom_seq_len": min(baseline_oom_lengths) if baseline_oom_lengths else None,
+        "boundary_observed": bool(baseline_oom_lengths),
+        "max_runnable_seq_len": max_runnable,
+        "quality_failed": quality_failed,
+        "comparisons": comparisons,
+        "eligible_strategies": eligible,
+        "min_memory_saving_mb": budget["min_memory_saving_mb"],
+        "min_throughput_ratio": budget["min_throughput_ratio"],
+    }
+
+
+def decide_memory_boundary(summary: Dict[str, object]) -> Dict[str, object]:
+    """Decide the activation-memory scope without promoting it to full training."""
+
+    if not summary.get("baseline_available"):
+        return {
+            "decision": "reject",
+            "reason": "baseline_missing_or_invalid",
+            "next_action": "rerun_boundary_from_the_first_length",
+        }
+    if summary.get("eligible_strategies"):
+        return {
+            "decision": "accept_for_activation_memory_scope",
+            "reason": "capacity_or_memory_gain_meets_throughput_guardrail",
+            "next_action": "validate_candidate_in_the_matched_full_training_workload",
+            "scope": "activation_memory_isolation",
+            "promotable_to_full_training": False,
+        }
+    if summary.get("quality_failed"):
+        return {
+            "decision": "tune",
+            "reason": "boundary_strategy_failed_quality_floor",
+            "next_action": "inspect_numerics_before_capacity_claim",
+        }
+    if not summary.get("boundary_observed"):
+        return {
+            "decision": "measure",
+            "reason": "baseline_boundary_not_reached",
+            "next_action": "extend_sequence_length_ladder",
+        }
+    return {
+        "decision": "tune",
+        "reason": "no_strategy_meets_boundary_and_throughput_guardrails",
+        "next_action": "adjust_checkpoint_or_offload_scope",
     }
