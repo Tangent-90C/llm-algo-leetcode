@@ -89,12 +89,11 @@ $$
 
 题目区模拟一次 QLoRA 前向：NF4 索引先经查表和缩放恢复近似底座权重，再与 LoRA 的低秩增量合并；训练状态账本进一步区分冻结底座与可训练适配器。三个 TODO 各补一个机制动作，测试分别检查码点、输出、梯度流向和状态归属。
 
-| TODO | 实现对象 | 机制责任 | 关键测试 |
+| TODO / 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
 |:---|:---|:---|:---|
-| TODO 1 | NF4 底座路径 | 把 0–15 的 index 查表并乘缩放因子，恢复近似底座权重 | 索引数据类型、恢复形状、有限值 |
-| TODO 2 | LoRA 旁路与合并 | 分别计算底座输出和低秩增量，再按缩放合并 | 输出参考式、旁路贡献、梯度流向 |
-| TODO 3 | `qlora_trainable_state_ledger` | 只选择 `requires_grad=True` 的适配器参数 | 可训练参数与优化器状态字节 |
-| 骨架状态 | 缓冲区与参数 | 同时记录 INT8 教学容器和理论 4-bit 打包字节 | 底座无梯度、适配器有梯度、两种口径不混用 |
+| TODO 1：恢复 NF4 底座权重<br>`QLoRALinearSim.forward` | 将 0–15 的索引映射到 NF4 码点并应用缩放因子 | 索引转换为长整型，恢复权重形状与底座一致且保持冻结 | 索引数据类型、恢复形状与有限值 |
+| TODO 2：合并 LoRA 旁路<br>`QLoRALinearSim.forward` | 分别计算底座输出与低秩增量，再按 LoRA 缩放合并 | 输出形状不变，梯度只流向 LoRA 参数 | 显式参考式、旁路贡献与梯度流向 |
+| TODO 3：统计可训练状态<br>`qlora_trainable_state_ledger` | 统计可训练适配器参数及其优化器状态字节 | 只累计 `requires_grad=True` 的参数，不把 NF4 缓冲区计入训练状态 | 参数归属、优化器状态与两种底座字节口径 |
 
 
 ```python
@@ -131,13 +130,19 @@ class QLoRALinearSim(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """计算冻结 NF4 底座输出与可训练 LoRA 增量的和。"""
-        # TODO 1（NF4 查表）：索引必须转为 long，再从 nf4_table 取值并乘 weight_scale。
+        # ==========================================
+        # TODO 1：恢复 NF4 底座权重
+        # ==========================================
         # indices = ???                  # 数据类型为 torch.long，形状与 weight_nf4_indices 相同。
         # dequantized_base_weight = ???  # 形状为 [out_features, in_features]。
+        raise NotImplementedError('TODO 1：恢复 NF4 底座权重')
 
-        # TODO 2（LoRA 旁路）：底座和低秩旁路分别计算，再用缩放合并。
+        # ==========================================
+        # TODO 2：合并 LoRA 旁路
+        # ==========================================
         # base_out = ???  # 使用 F.linear(x, dequantized_base_weight)。
         # lora_out = ???  # 依次经过 lora_A、lora_B，并乘 self.scaling。
+        raise NotImplementedError('TODO 2：合并 LoRA 旁路')
         return base_out + lora_out
 
 
@@ -147,10 +152,12 @@ def qlora_trainable_state_ledger(
     """分开统计冻结 NF4 底座与可训练适配器状态。"""
     if optimizer_bytes_per_parameter <= 0:
         raise ValueError('optimizer_bytes_per_parameter must be positive')
-    # TODO 3（可训练参数筛选）：只累加 requires_grad=True 的 LoRA 参数。
+    # ==========================================
+    # TODO 3：统计可训练状态
+    # ==========================================
     # 注意：不要把 register_buffer 保存的 NF4 底座状态计入可训练参数。
     # trainable_parameters = ???  # 只累加 requires_grad=True 参数的元素数。
-    raise NotImplementedError('TODO 3: count trainable adapter parameters')
+    raise NotImplementedError('TODO 3：统计可训练状态')
     index_container_bytes = layer.weight_nf4_indices.numel() * layer.weight_nf4_indices.element_size()
     scale_metadata_bytes = layer.weight_scale.numel() * layer.weight_scale.element_size()
     packed_nf4_bytes = (layer.weight_nf4_indices.numel() + 1) // 2 + scale_metadata_bytes
@@ -303,11 +310,11 @@ class QLoRALinearSim(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """计算冻结 NF4 底座输出与可训练 LoRA 增量的和。"""
-        # TODO 1：用 long index 查表并恢复近似底座权重。
+        # TODO 1：恢复 NF4 底座权重。
         indices = self.weight_nf4_indices.long()
         dequantized_base_weight = self.nf4_table[indices] * self.weight_scale
 
-        # TODO 2：分别计算底座与 LoRA 旁路，再按缩放合并。
+        # TODO 2：合并 LoRA 旁路。
         base_out = F.linear(x, dequantized_base_weight)
         lora_out = (x @ self.lora_A.T) @ self.lora_B.T * self.scaling
         return base_out + lora_out
@@ -316,9 +323,10 @@ class QLoRALinearSim(nn.Module):
 def qlora_trainable_state_ledger(
     layer: QLoRALinearSim, *, optimizer_bytes_per_parameter: int = 8
 ) -> dict[str, int]:
-    """TODO 3：只把 LoRA 参数及其优化器状态计入训练状态。"""
+    """分开统计冻结 NF4 底座与可训练适配器状态。"""
     if optimizer_bytes_per_parameter <= 0:
         raise ValueError('optimizer_bytes_per_parameter must be positive')
+    # TODO 3：统计可训练状态。
     trainable_parameters = sum(parameter.numel() for parameter in layer.parameters() if parameter.requires_grad)
     index_container_bytes = layer.weight_nf4_indices.numel() * layer.weight_nf4_indices.element_size()
     scale_metadata_bytes = layer.weight_scale.numel() * layer.weight_scale.element_size()
@@ -340,33 +348,26 @@ def qlora_trainable_state_ledger(
 
 ### 解析
 
-**TODO 1：从 NF4 index 恢复底座权重**
+#### TODO 1：恢复 NF4 底座权重
 
-- `weight_nf4_indices` 保存的是 0–15 的码点索引，不是可直接参与矩阵乘法的浮点权重。
-- PyTorch 查表要求 `long` index；查表结果再乘 `weight_scale`，得到与原权重形状相同的近似底座权重。
-- 这个底座放在缓冲区中，不参与梯度更新。
+- NF4 状态保存 0–15 的码点索引和缩放因子，矩阵乘前必须恢复为与底座相同形状的浮点近似权重。
+- 答案将索引转换为长整型后查表并应用缩放；索引类型、恢复形状和有限值测试证明表示关系成立。
 
-**TODO 2：计算 LoRA 旁路并合并**
+#### TODO 2：合并 LoRA 旁路
 
-- 底座路径用 `F.linear(x, dequantized_base_weight)`；旁路先投影到秩 `r` 的空间，再投影回输出维度。
-- `scaling = alpha / r` 控制旁路增量的幅度。测试将合并输出与显式参考式比较，并检查 `lora_A/B` 有梯度而底座状态没有梯度。
+- 底座输出与低秩增量分别计算，增量乘以 `alpha / r` 后才能与底座输出相加。
+- 答案完成两条路径并合并；显式参考式、旁路贡献和梯度测试证明输出关系与更新范围正确。
 
-**TODO 3：筛选可训练适配器参数**
+#### TODO 3：统计可训练状态
 
-- `layer.parameters()` 只遍历参数，NF4 索引、缩放因子和码点表由缓冲区保存，不会被误算为可训练参数。
-- `requires_grad=True` 是本题区分适配器参数的机制条件；优化器状态字节再由可训练参数量乘以每参数状态字节得到。
-- 教学代码用 INT8 张量承载 4-bit 索引，因此同时报告容器实际字节和理论打包字节；前者描述 PyTorch 张量，后者才描述两个 4-bit 索引共享一个字节的存储口径。
-
-**把模拟与真实训练连接起来**
-
-- 本题用一个缩放因子和 INT8 索引讲清查表关系；真实 QLoRA 通常按块保存 4-bit 权重与缩放因子，并可对量化元数据做 double quantization。
-- 因此本题的输出正确性说明“底座冻结 + LoRA 更新”的机制成立；实际显存、训练时间、独立测试损失和适配器交付请在 Step 5 的 BF16 LoRA / NF4 QLoRA 配对矩阵中复测。
+- 训练状态只包含启用梯度的 LoRA 参数，NF4 索引、缩放因子和码点表属于冻结缓冲区。
+- 答案按 `requires_grad` 统计参数与优化器状态；状态归属和字节测试证明训练状态没有混入量化底座。
 
 ### Step 5：可选 GPU 实验——BF16 LoRA 与 NF4 QLoRA 配对矩阵
 
 CPU 题目已经确认冻结底座、低秩旁路和可训练状态的关系；GPU 实验进一步比较同一 LoRA 更新在 BF16 底座与 NF4 底座上的显存、训练时间和评测损失。只有真实 4-bit 参数状态与配对结果同时成立，才能判断量化底座是否降低训练资源。
 
-| 学习问题 | CPU 已确认 | GPU 要确认与后续使用 |
+| 学习问题 | CPU 已确认 | GPU 要确认 |
 |---|---|---|
 | NF4 底座能否以可接受的质量代价降低 LoRA 训练资源 | NF4 查表、LoRA 增量、冻结底座和训练状态归属 | 真实 4-bit 参数路径；不同序列长度下的峰值显存、单步耗时和独立评测损失 |
 
@@ -925,7 +926,7 @@ else:
 
 `default1` 的 0.5B 矩阵只确认了真实 4-bit 路径与 adapter 交付：NF4 虽降低常驻底座显存，但总峰值、单步耗时和测试损失均未通过准入。`default2` 保持训练协议不变并改用 1.5B 模型后，三档序列长度的总峰值显存下降 14.8%–26.7%，测试损失增加 3.8%–4.2%，六个 adapter 均完整，因此接受 QLoRA 作为容量受限场景的候选。
 
-这不是无代价加速：QLoRA 的单步训练时间增加 18.1%–41.4%，增量训练工作区达到 BF16 LoRA 的 1.74–2.92 倍。模型放大后，NF4 的常驻底座节省才覆盖额外工作区；通过本节只能接受 QLoRA 作为低资源适配训练候选，长周期收敛、adapter 合并和部署加载仍属于后续项目验收。
+这不是无代价加速：QLoRA 的单步训练时间增加 18.1%–41.4%，增量训练工作区达到 BF16 LoRA 的 1.74–2.92 倍。模型放大后，NF4 的常驻底座节省才覆盖额外工作区。当前结果支持将 QLoRA 用作容量受限的适配训练候选；长周期收敛、适配器合并和部署加载需要在完整训练与目标推理后端中验证。
 
 | 观察项 | 读取字段 | 本地应形成的结论 | 不能外推到 |
 |---|---|---|---|
