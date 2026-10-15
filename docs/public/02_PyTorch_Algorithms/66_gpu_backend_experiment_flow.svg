@@ -1,74 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="470" viewBox="0 0 1480 470" role="img" aria-labelledby="title desc">
-  <title id="title">GPU backend 实验执行流程</title>
-  <desc id="desc">从读取实验配置、解析模型和启动 backend，到运行 benchmark、保存 JSON 和清理服务的执行流程。</desc>
-  <defs>
-    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L9,4 L0,8 Z" fill="#52606d"/>
-    </marker>
-    <style>
-      .title { font: 700 28px sans-serif; fill: #172b4d; }
-      .subtitle { font: 16px sans-serif; fill: #486581; }
-      .label { font: 700 17px sans-serif; fill: #172b4d; }
-      .body { font: 15px sans-serif; fill: #334e68; }
-      .small { font: 14px sans-serif; fill: #486581; }
-      .box { stroke-width: 2; rx: 14; }
-      .arrow { stroke: #52606d; stroke-width: 3; fill: none; marker-end: url(#arrow); }
-    </style>
-  </defs>
-
-  <rect width="1480" height="470" fill="#f8fafc"/>
-  <text x="740" y="48" text-anchor="middle" class="title">从实验配置到可复核 JSON</text>
-  <text x="740" y="78" text-anchor="middle" class="subtitle">每组实验沿同一条执行链运行；差异写入元数据，结果独立保存</text>
-
-  <rect x="40" y="145" width="170" height="170" class="box" fill="#e8f1fb" stroke="#4c86c6"/>
-  <text x="125" y="185" text-anchor="middle" class="label">读取配置</text>
-  <text x="125" y="222" text-anchor="middle" class="body">模型 · dtype</text>
-  <text x="125" y="250" text-anchor="middle" class="body">workload · 分组</text>
-  <text x="125" y="285" text-anchor="middle" class="small">固定实验契约</text>
-
-  <rect x="245" y="145" width="170" height="170" class="box" fill="#e8f1fb" stroke="#4c86c6"/>
-  <text x="330" y="185" text-anchor="middle" class="label">解析模型</text>
-  <text x="330" y="222" text-anchor="middle" class="body">定位本地缓存</text>
-  <text x="330" y="250" text-anchor="middle" class="body">确认模型路径</text>
-  <text x="330" y="285" text-anchor="middle" class="small">避免重复下载</text>
-
-  <rect x="450" y="145" width="170" height="170" class="box" fill="#fff4db" stroke="#d99a2b"/>
-  <text x="535" y="185" text-anchor="middle" class="label">启动 backend</text>
-  <text x="535" y="222" text-anchor="middle" class="body">选择端口</text>
-  <text x="535" y="250" text-anchor="middle" class="body">启动服务进程</text>
-  <text x="535" y="285" text-anchor="middle" class="small">保留启动日志</text>
-
-  <rect x="655" y="145" width="170" height="170" class="box" fill="#fff4db" stroke="#d99a2b"/>
-  <text x="740" y="185" text-anchor="middle" class="label">服务就绪</text>
-  <text x="740" y="222" text-anchor="middle" class="body">等待 API 可访问</text>
-  <text x="740" y="250" text-anchor="middle" class="body">确认模型已加载</text>
-  <text x="740" y="285" text-anchor="middle" class="small">失败时停止流程</text>
-
-  <rect x="860" y="145" width="170" height="170" class="box" fill="#e8f5ee" stroke="#4f9d69"/>
-  <text x="945" y="185" text-anchor="middle" class="label">运行 benchmark</text>
-  <text x="945" y="222" text-anchor="middle" class="body">warmup</text>
-  <text x="945" y="250" text-anchor="middle" class="body">正式请求与计时</text>
-  <text x="945" y="285" text-anchor="middle" class="small">采集统一指标</text>
-
-  <rect x="1065" y="145" width="170" height="170" class="box" fill="#e8f5ee" stroke="#4f9d69"/>
-  <text x="1150" y="185" text-anchor="middle" class="label">补充记录</text>
-  <text x="1150" y="222" text-anchor="middle" class="body">backend · dtype</text>
-  <text x="1150" y="250" text-anchor="middle" class="body">分组 · 证据等级</text>
-  <text x="1150" y="285" text-anchor="middle" class="small">保留可追溯条件</text>
-
-  <rect x="1270" y="145" width="170" height="170" class="box" fill="#f0eafa" stroke="#8561a8"/>
-  <text x="1355" y="185" text-anchor="middle" class="label">保存与清理</text>
-  <text x="1355" y="222" text-anchor="middle" class="body">写入独立 JSON</text>
-  <text x="1355" y="250" text-anchor="middle" class="body">检查字段与异常</text>
-  <text x="1355" y="285" text-anchor="middle" class="small">停止服务并释放资源</text>
-
-  <path d="M210 230 H245" class="arrow"/>
-  <path d="M415 230 H450" class="arrow"/>
-  <path d="M620 230 H655" class="arrow"/>
-  <path d="M825 230 H860" class="arrow"/>
-  <path d="M1030 230 H1065" class="arrow"/>
-  <path d="M1235 230 H1270" class="arrow"/>
-
-  <text x="740" y="385" text-anchor="middle" class="subtitle">输入条件在前置小节固定；本流程只负责执行、记录和释放资源</text>
-  <text x="740" y="418" text-anchor="middle" class="small">单组结果完整保存后，才能进入后续指标解释与 backend 比较</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="svg-title svg-desc">
+<title id="svg-title">真实后端执行状态与失败落盘</title><desc id="svg-desc">模型解析、服务启动、就绪检查、固定请求测量和进程清理依次执行，任一失败都进入同一证据文件。</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52657a"/></marker><style>.t{font-weight:700;font-size:26px;font-family:sans-serif;fill:#18324b}.h{font-weight:600;font-size:18px;font-family:sans-serif;fill:#18324b}.b{font-size:15px;font-family:sans-serif;fill:#334e68}.l{fill:none;stroke:#52657a;stroke-width:3;marker-end:url(#arrow)}.d{fill:none;stroke:#9a6250;stroke-width:2.5;stroke-dasharray:8 6;marker-end:url(#arrow)}.a{fill:#e8f1fb;stroke:#3f78a8;stroke-width:2}.g{fill:#e8f6f1;stroke:#3f8b72;stroke-width:2}.o{fill:#fff3df;stroke:#b7791f;stroke-width:2}.p{fill:#f1edfb;stroke:#7657a5;stroke-width:2}.r{fill:#fbeceb;stroke:#b85c57;stroke-width:2}</style></defs>
+<rect width="1500" height="470" fill="#f8fafc"/><text x="750" y="42" text-anchor="middle" class="t">真实服务执行必须同时保存成功路径与失败路径</text>
+<rect x="45" y="120" width="205" height="100" rx="14" class="a"/><text x="148" y="157" text-anchor="middle" class="h">解析固定资产</text><text x="148" y="187" text-anchor="middle" class="b">revision 与本地快照</text>
+<rect x="295" y="120" width="205" height="100" rx="14" class="g"/><text x="398" y="157" text-anchor="middle" class="h">启动 vLLM</text><text x="398" y="187" text-anchor="middle" class="b">独立端口与日志</text>
+<rect x="545" y="120" width="205" height="100" rx="14" class="g"/><text x="648" y="157" text-anchor="middle" class="h">等待服务就绪</text><text x="648" y="187" text-anchor="middle" class="b">模型接口可响应</text>
+<rect x="795" y="120" width="205" height="100" rx="14" class="o"/><text x="898" y="157" text-anchor="middle" class="h">发送固定请求</text><text x="898" y="187" text-anchor="middle" class="b">预热后重复测量</text>
+<rect x="1045" y="120" width="205" height="100" rx="14" class="p"/><text x="1148" y="157" text-anchor="middle" class="h">保存原始证据</text><text x="1148" y="187" text-anchor="middle" class="b">请求、指标与环境</text>
+<rect x="1295" y="120" width="160" height="100" rx="14" class="a"/><text x="1375" y="157" text-anchor="middle" class="h">清理进程</text><text x="1375" y="187" text-anchor="middle" class="b">释放 GPU</text>
+<path d="M250 170H295M500 170H545M750 170H795M1000 170H1045M1250 170H1295" class="l"/>
+<rect x="545" y="320" width="455" height="90" rx="14" class="r"/><text x="773" y="354" text-anchor="middle" class="h">启动、就绪或请求失败</text><text x="773" y="383" text-anchor="middle" class="b">写入失败阶段、错误类型、日志位置和复测动作</text>
+<path d="M398 220V270H650V320M648 220V320M898 220V270H895V320" class="d"/><path d="M1000 365H1148V220" class="d"/>
 </svg>

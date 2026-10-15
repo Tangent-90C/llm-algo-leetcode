@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="svg-title svg-desc">
+<title id="svg-title">单卡部署候选形成与失败分流</title><desc id="svg-desc">固定模型资产通过容量准入后进入真实服务执行，再汇总专项证据并生成部署交接；容量失败、执行失败和证据缺失分别处理。</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52657a"/></marker><style>.t{font-weight:700;font-size:26px;font-family:sans-serif;fill:#18324b}.h{font-weight:600;font-size:18px;font-family:sans-serif;fill:#18324b}.b{font-size:15px;font-family:sans-serif;fill:#334e68}.l{fill:none;stroke:#52657a;stroke-width:3;marker-end:url(#arrow)}.a{fill:#e8f1fb;stroke:#3f78a8;stroke-width:2}.g{fill:#e8f6f1;stroke:#3f8b72;stroke-width:2}.o{fill:#fff3df;stroke:#b7791f;stroke-width:2}.p{fill:#f1edfb;stroke:#7657a5;stroke-width:2}.r{fill:#fbeceb;stroke:#b85c57;stroke-width:2}</style></defs>
+<rect width="1500" height="470" fill="#f8fafc"/><text x="750" y="42" text-anchor="middle" class="t">从固定资产形成可执行、可回滚的单卡部署候选</text>
+<rect x="45" y="105" width="230" height="105" rx="14" class="a"/><text x="160" y="142" text-anchor="middle" class="h">固定模型资产</text><text x="160" y="172" text-anchor="middle" class="b">版本、分词器与产物摘要</text>
+<rect x="325" y="105" width="230" height="105" rx="14" class="g"/><text x="440" y="142" text-anchor="middle" class="h">单卡容量准入</text><text x="440" y="172" text-anchor="middle" class="b">权重、KV Cache 与余量</text>
+<rect x="605" y="105" width="230" height="105" rx="14" class="o"/><text x="720" y="142" text-anchor="middle" class="h">真实服务执行</text><text x="720" y="172" text-anchor="middle" class="b">固定负载与请求证据</text>
+<rect x="885" y="105" width="230" height="105" rx="14" class="p"/><text x="1000" y="142" text-anchor="middle" class="h">专项证据汇总</text><text x="1000" y="172" text-anchor="middle" class="b">低精度、投机、缓存与调度</text>
+<rect x="1165" y="105" width="290" height="105" rx="14" class="a"/><text x="1310" y="142" text-anchor="middle" class="h">部署交接清单</text><text x="1310" y="172" text-anchor="middle" class="b">采用配置、风险与回滚入口</text>
+<path d="M275 158H325M555 158H605M835 158H885M1115 158H1165" class="l"/>
+<rect x="325" y="315" width="230" height="85" rx="14" class="r"/><text x="440" y="348" text-anchor="middle" class="h">拒绝执行</text><text x="440" y="376" text-anchor="middle" class="b">身份或容量不满足</text><path d="M440 210V315" class="l"/>
+<rect x="605" y="315" width="230" height="85" rx="14" class="r"/><text x="720" y="348" text-anchor="middle" class="h">修复后复测</text><text x="720" y="376" text-anchor="middle" class="b">启动、请求或输出失败</text><path d="M720 210V315" class="l"/>
+<rect x="885" y="315" width="230" height="85" rx="14" class="o"/><text x="1000" y="348" text-anchor="middle" class="h">补齐证据</text><text x="1000" y="376" text-anchor="middle" class="b">质量、服务目标或资源缺失</text><path d="M1000 210V315" class="l"/>
+</svg>

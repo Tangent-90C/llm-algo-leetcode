@@ -65,6 +65,24 @@ def ensure_output_path(root: str | Path, relative_path: str | Path) -> Path:
     return output
 
 
+def save_json_record_once(
+    path: str | Path, payload: Mapping[str, Any]
+) -> Path:
+    """Save one JSON object without silently replacing an existing run."""
+
+    output = Path(path)
+    serialized = json.dumps(dict(payload), ensure_ascii=False, indent=2) + "\n"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with output.open("x", encoding="utf-8") as handle:
+            handle.write(serialized)
+    except FileExistsError as error:
+        raise FileExistsError(
+            f"结果已存在，请更换 RUN_LABEL：{output}"
+        ) from error
+    return output
+
+
 def validate_training_config(config: Mapping[str, Any]) -> None:
     """Fail early on invalid shared training benchmark parameters."""
 
