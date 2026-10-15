@@ -1,0 +1,37 @@
+{
+  "schema_version": "performance-evidence-manifest/v1",
+  "semantic_id": "PERF-PROFILING-CLOSURE",
+  "manifest_label": "rtx5070ti_profiling_closure_v5",
+  "hardware_profile": "H0_12GB_5070Ti_Laptop",
+  "source_artifacts": {
+    "baseline": {
+      "path": "benchmarks/results/73_real_gpu_training_rtx5070ti_training_baseline_v1.json",
+      "sha256": "e43020e6daf3e4fe242184728a624cfecbe2ddb55b1dfdbc552eee2c0831ec70"
+    },
+    "strategy": {
+      "path": "benchmarks/results/76_real_gpu_memory_rtx5070ti_activation_memory_v1.json",
+      "sha256": "2df4eb5375e1ad31b9bfa7c2d0194ace555b590b18cec7b90504212db8bb3832"
+    },
+    "activation_memory_scope": {
+      "path": "benchmarks/results/76_real_gpu_memory_boundary_rtx5070ti_activation_memory_v1.json",
+      "sha256": "69faf3c885c76c13d7ee5dc7e9e40a6e700e79cf0e8f987beccc972eeb21f204"
+    },
+    "budget": {
+      "path": "benchmarks/results/75_memory_budget_decision_rtx5070ti_memory_budget_v1.json",
+      "sha256": "edb3c2e70635df6bfff3bca5d231f3ad031219a98b823669e96053bc3d5bc574"
+    }
+  },
+  "profile": {
+    "report": {
+      "path": "benchmarks/results/74_real_gpu_profile_rtx5070ti_profiling_closure_v4.json",
+      "sha256": "896777105ac553cd03468315a664027e0482f014330bd2228225862dd604305f"
+    },
+    "trace_dir": "benchmarks/results/74_profile/trace_rtx5070ti_profiling_closure_v4",
+    "phase_memory": {
+      "report": {
+        "path": "benchmarks/results/74_phase_memory_rtx5070ti_profiling_closure_v5.json",
+        "sha256": "bd186fbfbb16bbe46e319e290155a7209519d74aef3f513f0027ddd5d890d956"
+      }
+    }
+  }
+}
