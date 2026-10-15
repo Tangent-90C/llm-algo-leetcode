@@ -1,0 +1,4 @@
+# Fixed backend identity for project 68's speculative-selection benchmark.
+# Local version labels prevent resolution to the default CUDA 13 wheel.
+vllm==0.25.1+cu129
+torch==2.11.0+cu129

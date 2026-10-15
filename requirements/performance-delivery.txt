@@ -1,0 +1,8 @@
+# Part 05 performance delivery controller.
+# Candidate workloads continue to run in their validated source environments.
+--index-url https://pypi.org/simple
+
+jupyterlab
+ipykernel
+PyYAML
+psutil
