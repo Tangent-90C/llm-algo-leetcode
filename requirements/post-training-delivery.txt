@@ -1,0 +1,3 @@
+# Part 05 post-training delivery evaluation.
+# Project thresholds and asset paths belong in the Part 05 project config.
+-r fine-tuning.txt

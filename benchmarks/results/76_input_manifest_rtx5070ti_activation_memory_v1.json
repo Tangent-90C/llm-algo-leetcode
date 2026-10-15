@@ -1,0 +1,11 @@
+{
+  "schema_version": "memory-strategy-input-manifest/v1",
+  "semantic_id": "PERF-MEMORY-STRATEGY",
+  "manifest_label": "rtx5070ti_activation_memory_v1",
+  "source_artifacts": {
+    "training_baseline": {
+      "path": "benchmarks/results/73_real_gpu_training_rtx5070ti_training_baseline_v1.json",
+      "sha256": "e43020e6daf3e4fe242184728a624cfecbe2ddb55b1dfdbc552eee2c0831ec70"
+    }
+  }
+}

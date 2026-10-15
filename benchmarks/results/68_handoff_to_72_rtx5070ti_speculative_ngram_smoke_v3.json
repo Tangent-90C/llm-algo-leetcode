@@ -1,0 +1,106 @@
+{
+  "schema_version": "speculative-selection-handoff/v1",
+  "project": "68",
+  "run_label": "rtx5070ti_speculative_ngram_smoke_v3",
+  "target_model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "decisions": {
+    "g1_ngram": {
+      "general-c1": {
+        "evidence": {
+          "evidence_status": "comparable",
+          "mismatches": [],
+          "missing_evidence": [],
+          "throughput_speedup": 1.0599974593995016,
+          "ttft_ratio": 0.828692247741562,
+          "e2e_p95_ratio": 0.9591376757104771,
+          "candidate_peak_memory_mb": 10318.0,
+          "quality_ok": false,
+          "mechanism_active": true
+        },
+        "decision": {
+          "decision": "reject",
+          "reason": "quality_gate_failed"
+        }
+      },
+      "repetition-c1": {
+        "evidence": {
+          "evidence_status": "comparable",
+          "mismatches": [],
+          "missing_evidence": [],
+          "throughput_speedup": 1.3160169818602854,
+          "ttft_ratio": 0.7297382629454562,
+          "e2e_p95_ratio": 0.8818914162770837,
+          "candidate_peak_memory_mb": 10320.0,
+          "quality_ok": false,
+          "mechanism_active": true
+        },
+        "decision": {
+          "decision": "reject",
+          "reason": "quality_gate_failed"
+        }
+      }
+    },
+    "g2_mtp": {
+      "not_run": {
+        "evidence": {
+          "evidence_status": "not_evaluated",
+          "missing_evidence": [
+            "completed_pair"
+          ],
+          "candidate_run_status": "asset_missing"
+        },
+        "decision": {
+          "decision": "not_evaluated",
+          "reason": "evidence_not_evaluated"
+        }
+      }
+    },
+    "g3_eagle": {
+      "not_run": {
+        "evidence": {
+          "evidence_status": "not_evaluated",
+          "missing_evidence": [
+            "completed_pair"
+          ],
+          "candidate_run_status": "asset_missing"
+        },
+        "decision": {
+          "decision": "not_evaluated",
+          "reason": "evidence_not_evaluated"
+        }
+      }
+    },
+    "g4_dflash": {
+      "not_run": {
+        "evidence": {
+          "evidence_status": "not_evaluated",
+          "missing_evidence": [
+            "completed_pair"
+          ],
+          "candidate_run_status": "unsupported"
+        },
+        "decision": {
+          "decision": "not_evaluated",
+          "reason": "evidence_not_evaluated"
+        }
+      }
+    },
+    "g5_dspark": {
+      "not_run": {
+        "evidence": {
+          "evidence_status": "not_evaluated",
+          "missing_evidence": [
+            "completed_pair"
+          ],
+          "candidate_run_status": "unsupported"
+        },
+        "decision": {
+          "decision": "not_evaluated",
+          "reason": "evidence_not_evaluated"
+        }
+      }
+    }
+  },
+  "next_project": "72",
+  "rule": "只交接 completed + comparable 的 candidate；跨 target 只能比较组内 speedup。"
+}

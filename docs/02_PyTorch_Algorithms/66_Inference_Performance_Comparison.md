@@ -30,33 +30,33 @@
 - [P1: 11. KV Cache and Memory Growth | KV Cache 与显存增长](../01_Hardware_Math_and_Systems/11_KV_Cache_and_Memory_Growth.md)
 
 ---
-### Step 1: 把问题转成可测量的实验
-先把“哪种方案更适合当前目标”转成一组可观察、可复核的实验：明确模型、请求集、运行环境和对照分组，再确定要记录的延迟、吞吐、显存与失败状态。下表和流程图把请求输入、CPU 预判、真实基线、候选对照与项目结论串起来，帮助你理解每组实验为什么存在、会留下什么证据。整个过程先固定 workload，再做单变量对照，最后根据指标形成选型结论。
+### Step 1：把问题转成可测量的实验
 
+先把“哪种方案更适合当前服务”拆成一条实验路径：在 CPU 上理解请求与瓶颈，再在 GPU/backend 上比较真实基线和一个候选变量。这样，延迟、吞吐、显存和失败状态都能落在同一份结论中。
 
 | 实验阶段 | 你要做什么 | 阶段产出 |
 |:---|:---|:---|
-| C0 请求模拟 | 在 CPU 上模拟请求、并发和 prefill / decode | 请求轨迹与阶段耗时 |
-| C1 瓶颈分类 | 在 CPU 上读取模拟指标 | prefill-bound、decode-bound 或 memory-bound |
-| G0 真实基线 | 在 GPU/backend 上运行 baseline | 真实性能共同参照 |
-| G1 单变量对照 | 在 GPU/backend 上运行 candidate | 单变量收益与代价 |
-| G2 扩展或组合对照 | 在 G0/G1 之后比较多个候选或组合已验证策略 | 当前 workload 下的项目结论 |
+| CPU 请求模拟（C0） | 模拟请求、并发和 prefill / decode | 请求轨迹与阶段耗时 |
+| CPU 瓶颈判断（C1） | 读取模拟指标，判断主要压力 | prefill、decode 或 memory 提示 |
+| GPU 基线（G0） | 在固定条件下运行真实服务 | 可复用的性能参照 |
+| 单变量对照（G1） | 只改变一个候选条件 | 收益与代价 |
+| 扩展对照（G2） | 在已有结果上比较额外策略或组合 | 当前 workload 下的选择 |
 
 ![66 推理 benchmark 实验流程](../public/02_PyTorch_Algorithms/66_inference_benchmark_flow.svg)
 
-### Step 2: 控制实验条件，选择对照变量
+### Step 2：控制实验条件，选择对照变量
 
-先把两次实验放在同一条起跑线上：模型、请求和测量方法保持一致，只选择一个主要条件进行变化。这样，后面的性能差异才有明确的解释依据。按下表准备实验。
+先把两次实验放在同一条起跑线上：模型、请求和测量方法保持一致，只选择一个主要条件进行变化。这样，后面的性能差异才有明确的解释依据。
 
 | 实验部分 | 具体怎么做 | 目的 |
 |:---|:---|:---|
 | 固定条件 | 模型及权重版本、请求集、输入长度、输出长度、dtype、Cache 配置、预热次数和重复次数保持一致 | 保证两次实验可以比较 |
-| 唯一变化 | 从并发数、batch、dtype、Cache 配置或 backend 中选择一个作为变量；选中的条件不再作为固定条件 | 让性能变化能够归因 |
-| 记录口径 | 预先约定 TTFT、TPOT、端到端延迟、吞吐、峰值显存、成功率和 OOM 字段 | 保证不同结果可以整理到同一张表 |
+| 唯一变化 | 从并发数、batch、dtype、Cache 配置或 backend 中选择一个作为变量 | 让性能变化能够归因 |
+| 记录口径 | 预先约定 TTFT、TPOT、端到端延迟、吞吐、峰值显存、成功率和 OOM 字段 | 让结果可以汇总到同一张表 |
 
-### Step 3: 读懂指标，整理可比结果
+### Step 3：读懂指标，整理可比结果
 
-把 baseline 和 candidate 的原始结果整理成同一组指标，并结合请求生命周期理解它们分别反映什么。先看首 token 等待、逐 token 生成和整次请求的差异，再观察吞吐、显存与失败状态是否出现新的代价。
+将 baseline 和 candidate 的原始结果整理为同一组指标，再结合请求生命周期解释它们的变化：首 token 等待对应交互体验，逐 token 时间对应 decode，吞吐和显存反映服务容量。
 
 | 指标 | 单位 | 主要回答的问题 |
 |:---|:---|:---|
@@ -67,16 +67,15 @@
 | peak memory | MB / MiB | 当前 workload 的显存峰值是否接近预算？ |
 | success / OOM | 次数 / 状态 | 请求是否完成，是否发生显存不足？ |
 
-### Step 4: 从指标定位瓶颈，形成验证计划
+### Step 4：实现 CPU baseline 的三项机制
 
-把测得的指标当作诊断线索：先判断时间主要消耗在输入处理、逐 token 生成，还是显存容量，再为每种判断安排针对性的复测。下表给出从现象到验证动作的映射；不要根据单个指标直接下结论，还要同时检查相关代价和失败状态。
+题目区将 CPU 预判拆成三个可独立验证的动作：请求如何组成并发波次、测量结果如何归为瓶颈、候选方案如何进入项目决策。workload、指标账本和报告字段由骨架提供。
 
-| 你观察到的现象 | 瓶颈判断 | 优先检查方向 | 下一步验证什么 |
+| 函数 | 学习者完成的机制 | 必须满足的约束 | 测试证据 |
 |:---|:---|:---|:---|
-| 长输入导致首 token 等待时间明显增加 | Prefill 瓶颈（输入处理） | FlashAttention、chunked prefill | 用 G0/G1 复测 TTFT，并检查显存与启动成本 |
-| 每个输出 token 生成较慢 | Decode 瓶颈（逐 token 生成） | KV Cache、投机解码、解码调度 | 用 TPOT、吞吐和质量结果验证 |
-| 显存接近上限或无法提高 batch | 显存瓶颈 | PagedAttention、KV Cache 量化、GQA/MQA | 复测峰值显存、速度和 OOM 状态 |
-| 各项指标没有明显短板 | 暂不明确 | 保持 baseline 或继续 Profiling | 先补充 profiler 证据，再决定是否切换 |
+| `build_execution_waves` | TODO 1：请求波次机制 | `[start, end)` 连续覆盖；保留尾部波次；非法并发报错 | 波次边界、空请求与非法并发 |
+| `classify_inference_bottleneck` | TODO 2：瓶颈分类机制 | 显存压力优先；再区分 prefill/decode；否则 balanced | memory / prefill / decode 三种路径 |
+| `choose_inference_action` | TODO 3：策略决策机制 | 结合吞吐收益、TTFT 退化与剩余瓶颈 | `accept / tune / reject` 三种结论 |
 
 ```python
 import time
@@ -85,331 +84,222 @@ import time
 
 
 ```python
-# 补全请求模拟和推理性能对比的七个关键函数
-# 目标：完成 request -> workload -> metrics -> bottleneck -> comparison -> decision 链路。
-# CPU 题目区只验证离散事件和指标口径；真实 kernel、KV Cache 和 backend 行为由 GPU 扩展验证。
-def simulate_inference_requests(requests, concurrency=1, prefill_ms_per_token=0.5, decode_ms_per_token=1.0, peak_mem_per_request_mb=512.0, kv_cache_mb_per_token=0.0):
-    """在 CPU 上模拟请求排队和 prefill/decode 阶段，不测真实 kernel 性能。
+# 题目区只挖空三项推理 benchmark 机制：请求波次、瓶颈分类和策略决策。
+# workload、指标账本、baseline/candidate 差值及报告字段均由骨架提供。
 
-    requests 至少包含 prompt_tokens 和 generated_tokens；返回每个请求的时间轨迹及汇总指标。
+def build_execution_waves(request_count, concurrency):
+    """Build contiguous request waves for the CPU scheduling model.
+
+    Args:
+        request_count: Total requests indexed in ``[0, request_count)``.
+        concurrency: Maximum requests admitted to one wave; it must be positive.
+
+    Returns:
+        Consecutive ``(start, end)`` intervals. A final incomplete wave is kept.
     """
-    if concurrency <= 0 or prefill_ms_per_token < 0 or decode_ms_per_token < 0 or peak_mem_per_request_mb < 0 or kv_cache_mb_per_token < 0:
-        raise ValueError('concurrency 和成本参数必须合法')
-    # ==========================================
-    # TODO 1：按 concurrency 分批，计算每个请求的 queue / prefill / decode / e2e。
-    # 提示：每一批同时执行，批次耗时取该批请求 prefill+decode 的最大值；
-    #       queue_ms 是等待时间，peak_mem_mb 取同时执行请求数 * 单请求预算，
-    #       kv_cache_mb_per_token 只作为教学估算项，不是实际 KV Cache 分配。
-    # request_results = ???  # 保留每个请求的阶段轨迹。
-    # duration_ms = ???  # 汇总所有批次完成时间。
-    # peak_mem_mb 和 kv_cache_tokens_peak 由同一批次轨迹派生，不单独增加 TODO。
-    # ==========================================
-    raise NotImplementedError("请先完成 TODO 代码！")
+    if request_count < 0 or concurrency <= 0:
+        raise ValueError('request_count 必须非负，concurrency 必须为正')
+    # TODO 1（请求波次机制）：返回覆盖 [0, request_count) 的连续执行区间；每段最多容纳 concurrency 个请求。
+    # 变量提示：start、end；尾部不足 concurrency 的请求仍应作为一个波次保留。
+    raise NotImplementedError('TODO 1：请规划请求执行波次')
+
+
+def simulate_inference_requests(requests, concurrency=1, prefill_ms_per_token=0.5, decode_ms_per_token=1.0, peak_mem_per_request_mb=512.0, kv_cache_mb_per_token=0.0):
+    """Simulate queueing, prefill/decode cost and KV growth on CPU.
+
+    ``prefill_ms_per_token`` and ``decode_ms_per_token`` are teaching cost
+    coefficients in milliseconds per token. ``peak_mem_per_request_mb`` is the
+    fixed per-request memory, while ``kv_cache_mb_per_token`` adds memory for
+    every prompt/output token. The result is a mechanism trace, not a backend
+    measurement.
+    """
+    if prefill_ms_per_token < 0 or decode_ms_per_token < 0 or peak_mem_per_request_mb < 0 or kv_cache_mb_per_token < 0:
+        raise ValueError('成本参数不能为负数')
+    if not requests:
+        return {'request_count': 0, 'total_prompt_tokens': 0, 'total_output_tokens': 0, 'duration_ms': 0.0, 'peak_mem_mb': 0.0, 'kv_cache_tokens_peak': 0, 'request_results': []}
+    results, clock_ms, wave_memories, wave_tokens = [], 0.0, [], []
+    for start, end in build_execution_waves(len(requests), concurrency):
+        wave = []
+        for request in requests[start:end]:
+            prompt_tokens = int(request['prompt_tokens'])
+            generated_tokens = int(request['generated_tokens'])
+            if prompt_tokens <= 0 or generated_tokens <= 0:
+                raise ValueError('每个请求的 token 数必须为正数')
+            prefill_ms = prompt_tokens * prefill_ms_per_token
+            decode_ms = generated_tokens * decode_ms_per_token
+            kv_tokens = prompt_tokens + generated_tokens
+            wave.append({'prompt_tokens': prompt_tokens, 'generated_tokens': generated_tokens, 'queue_ms': clock_ms, 'prefill_ms': prefill_ms, 'decode_ms': decode_ms, 'ttft_ms': clock_ms + prefill_ms, 'tpot_ms': decode_ms / generated_tokens, 'e2e_ms': clock_ms + prefill_ms + decode_ms, 'kv_cache_tokens': kv_tokens, 'kv_cache_mem_mb': peak_mem_per_request_mb + kv_tokens * kv_cache_mb_per_token})
+        results.extend(wave)
+        clock_ms += max(item['prefill_ms'] + item['decode_ms'] for item in wave)
+        wave_memories.append(sum(item['kv_cache_mem_mb'] for item in wave))
+        wave_tokens.append(sum(item['kv_cache_tokens'] for item in wave))
+    return {'request_count': len(results), 'total_prompt_tokens': sum(item['prompt_tokens'] for item in results), 'total_output_tokens': sum(item['generated_tokens'] for item in results), 'duration_ms': round(clock_ms, 4), 'peak_mem_mb': round(max(wave_memories), 2), 'kv_cache_tokens_peak': max(wave_tokens), 'request_results': results}
+
 
 def build_inference_config(model_name, backend, batch_size, prompt_tokens, generated_tokens, dtype, cache_policy):
-    """汇总推理 workload 配置，形成统一比较口径。
+    """Create the workload contract shared by baseline and candidate.
 
-    prompt_tokens 和 generated_tokens 必须是非负整数；total_tokens 是两者之和。
+    ``batch_size`` is the request batch used by this CPU model; ``prompt_tokens``
+    and ``generated_tokens`` define the prefill/decode workload. ``dtype`` and
+    ``cache_policy`` are recorded so a later GPU result can be compared under
+    the same stated conditions.
     """
-    # ==========================================
-    # TODO 2：检查输入契约并汇总推理 workload 配置。
-    # 提示：batch_size 必须为正，token 数必须非负；total_tokens = prompt_tokens + generated_tokens，不能把 batch 重复加进 token 数。
-    # ==========================================
-    # 先完成参数合法性检查，再填写 total_tokens = ???
-    return {
-        'model_name': model_name,
-        'backend': backend,
-        'batch_size': batch_size,
-        'prompt_tokens': prompt_tokens,
-        'generated_tokens': generated_tokens,
-        'total_tokens': total_tokens,
-        'dtype': dtype,
-        'cache_policy': cache_policy,
-    }
+    if not model_name or not backend or batch_size <= 0 or prompt_tokens < 0 or generated_tokens < 0:
+        raise ValueError('模型、backend 和 token 配置必须合法')
+    return {'model_name': model_name, 'backend': backend, 'batch_size': batch_size, 'prompt_tokens': prompt_tokens, 'generated_tokens': generated_tokens, 'total_tokens': prompt_tokens + generated_tokens, 'dtype': dtype, 'cache_policy': cache_policy}
+
 
 def summarize_prefill_decode(prefill_ms, decode_ms, generated_tokens):
-    """汇总 prefill / decode 延迟，形成最小延迟摘要。
+    """将 prefill/decode 成本转为 TTFT、TPOT 和阶段占比。"""
+    if prefill_ms < 0 or decode_ms < 0 or generated_tokens < 0:
+        raise ValueError('延迟和 token 数不能为负数')
+    total_ms = prefill_ms + decode_ms
+    return {'prefill_ms': round(prefill_ms, 2), 'decode_ms': round(decode_ms, 2), 'total_ms': round(total_ms, 2), 'ttft_ms': round(prefill_ms, 2), 'tpot_ms': round(decode_ms / generated_tokens if generated_tokens else 0.0, 4), 'prefill_share': round(prefill_ms / total_ms if total_ms else 0.0, 3), 'decode_share': round(decode_ms / total_ms if total_ms else 0.0, 3)}
 
-    TTFT 近似为 prefill_ms，TPOT 只在 generated_tokens > 0 时计算；
-    prefill_share 与 decode_share 应在 total_ms 上归一化。
-    """
-    # ==========================================
-    # TODO 3: 汇总 prefill / decode 延迟
-    # 提示：TTFT 近似等于 prefill_ms；TPOT = decode_ms / generated_tokens。
-    #       generated_tokens 为 0 时应明确处理，而不是产生除零错误。
-    # ==========================================
-    # total_ms = ???
-    # ttft_ms = ???
-    # tpot_ms = ???
-    # prefill_share = ???
-    # decode_share = ???
-    return {
-        'prefill_ms': round(prefill_ms, 2),
-        'decode_ms': round(decode_ms, 2),
-        'total_ms': round(total_ms, 2),
-        'ttft_ms': round(ttft_ms, 2),
-        'tpot_ms': round(tpot_ms, 4),
-        'prefill_share': round(prefill_share, 3),
-        'decode_share': round(decode_share, 3),
-    }
 
 def compute_inference_metrics(config, latency_summary, peak_mem_mb):
-    """把 workload 和延迟摘要收束成统一推理指标。
+    """把统一 workload 与阶段延迟收束为可比较的推理指标。"""
+    if peak_mem_mb < 0:
+        raise ValueError('peak_mem_mb 不能为负数')
+    total_seconds = latency_summary['total_ms'] / 1000.0
+    throughput_tok_s = config['batch_size'] * config['generated_tokens'] / total_seconds if total_seconds else 0.0
+    return {'backend': config['backend'], 'batch_size': config['batch_size'], 'prompt_tokens': config['prompt_tokens'], 'generated_tokens': config['generated_tokens'], 'ttft_ms': latency_summary['ttft_ms'], 'tpot_ms': latency_summary['tpot_ms'], 'throughput_tok_s': round(throughput_tok_s, 2), 'total_ms': latency_summary['total_ms'], 'prefill_share': latency_summary['prefill_share'], 'decode_share': latency_summary['decode_share'], 'peak_mem_mb': round(peak_mem_mb, 2)}
 
-    throughput_tok_s 表示该 workload 的输出 token 吞吐；peak_mem_mb 是输入的估算或实测值，
-    必须沿用其证据等级，不能在函数内改写来源。
+
+def classify_inference_bottleneck(metrics, memory_budget_mb=None):
+    """Classify the dominant pressure from memory and stage shares.
+
+    ``memory_budget_mb`` is an optional capacity budget. This lesson treats
+    90% of that budget as memory pressure and 60% stage share as prefill/decode
+    dominance; both are teaching defaults rather than universal production SLOs.
+    Memory pressure takes priority because an OOM-risk workload cannot be fixed
+    merely by improving compute time.
     """
-    # ==========================================
-    # TODO 4: 计算推理项目核心指标
-    # 提示：throughput 表示整个 batch 每秒生成 token 数，即 batch * generated_tokens / total_ms。
-    # ==========================================
-    # output_tokens = ???
-    # throughput_tok_s = ???
-    return {
-        'backend': config['backend'],
-        'batch_size': config['batch_size'],
-        'prompt_tokens': config['prompt_tokens'],
-        'generated_tokens': config['generated_tokens'],
-        'ttft_ms': latency_summary['ttft_ms'],
-        'tpot_ms': latency_summary['tpot_ms'],
-        'throughput_tok_s': round(throughput_tok_s, 2),
-        'total_ms': latency_summary['total_ms'],
-        'prefill_share': latency_summary['prefill_share'],
-        'decode_share': latency_summary['decode_share'],
-        'peak_mem_mb': round(peak_mem_mb, 2),
-    }
+    if memory_budget_mb is not None and memory_budget_mb <= 0:
+        raise ValueError('memory_budget_mb 必须为正数')
+    memory_pressure = memory_budget_mb is not None and metrics['peak_mem_mb'] >= 0.9 * memory_budget_mb
+    prefill_heavy = metrics['prefill_share'] >= 0.6
+    decode_heavy = metrics['decode_share'] >= 0.6
+    # TODO 2（瓶颈分类机制）：先处理容量风险，再按 prefill/decode 占比分类；均不满足时返回 balanced。
+    # 变量提示：memory_pressure、prefill_heavy、decode_heavy。
+    raise NotImplementedError('TODO 2：请完成推理瓶颈分类')
+
 
 def diagnose_inference_bottleneck(metrics, memory_budget_mb=None):
-    """根据显存预算与 prefill/decode 占比诊断推理瓶颈。
+    """将瓶颈类型映射为下一步验证方向；报告文案不作为题目挖空。"""
+    bottleneck = classify_inference_bottleneck(metrics, memory_budget_mb)
+    reasons = {'memory-bound': 'peak memory 接近预算，优先检查 KV cache、batch size、量化和分页策略。', 'prefill-bound': 'prefill 占比高，优先检查 prompt length、FlashAttention、chunked prefill 和 batching。', 'decode-bound': 'decode 占比高，优先检查 KV cache 读写、decode scheduling、speculative decoding 或 multi-token decoding。', 'balanced': 'prefill、decode 和显存压力都不突出，先保持 baseline 或继续做细粒度 profiling。'}
+    return {'bottleneck': bottleneck, 'reason': reasons[bottleneck]}
 
-    返回 bottleneck 和 reason；这是规则化诊断，不是 profiler 的最终归因。
-    """
-    # ==========================================
-    # TODO 5: 诊断推理瓶颈
-    # 规则：显存接近预算优先判为 memory-bound；否则按 prefill/decode 占比判断。
-    # 提示：memory_budget_mb 为空时，memory_pressure 应为 False；占比达到 0.6 才算对应阶段偏重。
-    # 只需要补全三个判断变量，下面的分支和报告文案已经给出。
-    # ==========================================
-    # memory_pressure = ???
-    # prefill_heavy = ???
-    # decode_heavy = ???
-    if memory_pressure:
-        bottleneck = 'memory-bound'
-        reason = 'peak memory 接近预算，优先检查 KV cache、batch size、量化和分页策略。'
-    elif prefill_heavy:
-        bottleneck = 'prefill-bound'
-        reason = 'prefill 占比高，优先检查 prompt length、FlashAttention、chunked prefill 和 batching。'
-    elif decode_heavy:
-        bottleneck = 'decode-bound'
-        reason = 'decode 占比高，优先检查 KV cache 读写、decode scheduling、speculative decoding 或 multi-token decoding。'
-    else:
-        bottleneck = 'balanced'
-        reason = 'prefill、decode 和显存压力都不突出，先保持 baseline 或继续做细粒度 profiling。'
-    return {'bottleneck': bottleneck, 'reason': reason}
 
 def compare_inference_candidates(baseline_metrics, candidate_metrics):
-    """统一比较 baseline 与 candidate 的推理收益和代价。
+    """统一计算 candidate 相对 baseline 的延迟、显存和吞吐变化。"""
+    if baseline_metrics['throughput_tok_s'] <= 0:
+        raise ValueError('baseline throughput 必须大于 0')
+    return {'total_latency_delta_ms': round(baseline_metrics['total_ms'] - candidate_metrics['total_ms'], 2), 'ttft_delta_ms': round(baseline_metrics['ttft_ms'] - candidate_metrics['ttft_ms'], 2), 'tpot_delta_ms': round(baseline_metrics['tpot_ms'] - candidate_metrics['tpot_ms'], 4), 'peak_mem_delta_mb': round(baseline_metrics['peak_mem_mb'] - candidate_metrics['peak_mem_mb'], 2), 'throughput_gain': round(candidate_metrics['throughput_tok_s'] / baseline_metrics['throughput_tok_s'] - 1.0, 4)}
 
-    两者必须使用同一 workload；延迟和显存差值采用 baseline - candidate，
-    throughput_gain 采用 (candidate - baseline) / baseline。
+
+def choose_inference_action(comparison, candidate_bottleneck, min_throughput_gain=0.1, max_ttft_regression_ms=20.0):
+    """Choose an action from throughput gain, TTFT regression and diagnosis.
+
+    ``min_throughput_gain`` is the minimum relative gain required for a useful
+    candidate. ``max_ttft_regression_ms`` is the allowed increase in TTFT.
+    ``ttft_delta_ms`` uses ``baseline - candidate``: a negative value therefore
+    means the candidate waits longer for its first token. Thresholds must be
+    replaced with the target service's SLO during a real benchmark.
     """
-    # ==========================================
-    # TODO 6: 比较 baseline 和 candidate
-    # 提示：latency / TTFT / TPOT / memory 的 delta 用 baseline - candidate；throughput gain 用比例增益。
-    #       baseline throughput 为 0 时应显式处理，不能静默返回无穷大。
-    # ==========================================
-    # total_latency_delta_ms = ???  # 核心延迟差值。
-    # throughput_gain = ???  # 核心吞吐比例增益。
-    # ttft/tpot/peak_mem 的 delta 沿用同一 baseline - candidate 规则派生。
-    return {
-        'total_latency_delta_ms': round(total_latency_delta_ms, 2),
-        'ttft_delta_ms': round(ttft_delta_ms, 2),
-        'tpot_delta_ms': round(tpot_delta_ms, 4),
-        'peak_mem_delta_mb': round(peak_mem_delta_mb, 2),
-        'throughput_gain': round(throughput_gain, 4),
-    }
+    throughput_good = comparison['throughput_gain'] >= min_throughput_gain
+    ttft_ok = -comparison['ttft_delta_ms'] <= max_ttft_regression_ms
+    still_tunable = candidate_bottleneck['bottleneck'] != 'balanced'
+    # TODO 3（策略决策机制）：吞吐收益与 TTFT 共同决定 accept；有收益且仍有瓶颈则 tune；其余 reject。
+    # 变量提示：throughput_good、ttft_ok、still_tunable。
+    raise NotImplementedError('TODO 3：请完成推理策略决策')
+
 
 def recommend_inference_decision(comparison, candidate_bottleneck, min_throughput_gain=0.1, max_ttft_regression_ms=20.0):
-    """根据吞吐、TTFT 和瓶颈类型输出推理选型建议。
-
-    返回 decision 和 reason；阈值属于当前教学 workload，不是通用 SLA。
-    """
-    # ==========================================
-    # TODO 7: 输出推理选型建议
-    # 规则：吞吐明显提升且 TTFT 没明显退化则 accept；有收益但仍有瓶颈则 tune；否则 reject。
-    # 提示：throughput_good、ttft_ok、still_tunable 分别对应三个判断条件。
-    # 下面的决策分支已经给出，只需要补全三个布尔变量。
-    # ==========================================
-    # throughput_good = ???
-    # ttft_ok = ???
-    # still_tunable = ???
-    return {'decision': decision, 'reason': reason}
+    """将策略机制转换为项目报告；报告字段由骨架提供。"""
+    decision = choose_inference_action(comparison, candidate_bottleneck, min_throughput_gain, max_ttft_regression_ms)
+    details = {'accept': ('candidate 吞吐提升明显，TTFT 退化在可接受范围内，值得进入正式推理方案。'), 'tune': ('candidate 已有收益，但瓶颈仍然存在，继续围绕诊断结果调参或换策略。'), 'reject': ('candidate 收益不足或交互延迟退化明显，当前不值得切换。')}
+    return {'decision': decision, 'reason': details[decision]}
 
 ```
 
 
 ```python
-# 测试目标按机制拆分：请求模拟、阶段指标、瓶颈诊断、对照差值和决策边界。
-# 最后的 integration test 再检查这些结果能否串成完整的 baseline -> candidate 链路。
-def test_request_simulation_contract():
-    requests = [{'prompt_tokens': 100, 'generated_tokens': 20}, {'prompt_tokens': 200, 'generated_tokens': 10}]
-    result = simulate_inference_requests(requests, concurrency=1, peak_mem_per_request_mb=256.0)
-    assert result['request_count'] == 2
-    assert result['request_results'][1]['queue_ms'] == 70.0
-    assert result['peak_mem_mb'] == 256.0
-    print('✅ request simulation contract')
+# 测试目标：分别验证请求波次、瓶颈分类、策略决策，再验证完整 baseline/candidate 链路。
+# 所有输入均为 CPU 教学成本模型；GPU/backend 证据由 Step 5 单独采集。
 
-def test_latency_and_metric_contract():
+def _baseline_metrics():
+    """Return a fixed CPU baseline: static KV cache and higher decode cost."""
     config = build_inference_config('tiny-llama', 'pytorch-eager', 2, 128, 32, 'fp16', 'static-kv-cache')
-    latency = summarize_prefill_decode(80.0, 160.0, 32)
-    metrics = compute_inference_metrics(config, latency, peak_mem_mb=4096.0)
-    assert config['total_tokens'] == 160
-    assert latency['ttft_ms'] == 80.0 and latency['tpot_ms'] == 5.0
-    assert metrics['throughput_tok_s'] == 266.67
-    print('✅ latency and metric contract')
+    return compute_inference_metrics(config, summarize_prefill_decode(80.0, 160.0, 32), 4096.0)
 
-def test_bottleneck_contract():
-    metrics = {'peak_mem_mb': 4096.0, 'prefill_share': 0.333, 'decode_share': 0.667}
-    assert diagnose_inference_bottleneck(metrics, 4400.0)['bottleneck'] == 'memory-bound'
-    assert diagnose_inference_bottleneck(metrics, 8192.0)['bottleneck'] == 'decode-bound'
-    print('✅ bottleneck contract')
 
-def test_comparison_contract():
-    baseline = {'total_ms': 240.0, 'ttft_ms': 80.0, 'tpot_ms': 5.0, 'peak_mem_mb': 4096.0, 'throughput_tok_s': 266.67}
-    candidate = {'total_ms': 205.0, 'ttft_ms': 85.0, 'tpot_ms': 3.75, 'peak_mem_mb': 3584.0, 'throughput_tok_s': 312.2}
-    result = compare_inference_candidates(baseline, candidate)
-    assert result['total_latency_delta_ms'] == 35.0 and result['peak_mem_delta_mb'] == 512.0
-    assert result['throughput_gain'] > 0.15
-    print('✅ comparison contract')
+def _candidate_metrics():
+    """Return a comparable candidate: only cache/backend and decode cost differ."""
+    config = build_inference_config('tiny-llama', 'paged-attention', 2, 128, 32, 'fp16', 'paged-kv-cache')
+    return compute_inference_metrics(config, summarize_prefill_decode(80.0, 120.0, 32), 3584.0)
 
-def test_decision_contract():
+
+def test_execution_wave_mechanism():
+    """Verify contiguous wave coverage, the tail wave and invalid concurrency."""
+    assert build_execution_waves(5, 2) == [(0, 2), (2, 4), (4, 5)]
+    assert build_execution_waves(0, 2) == []
+    try:
+        build_execution_waves(2, 0)
+    except ValueError:
+        return
+    raise AssertionError('非法 concurrency 应被拒绝')
+
+
+def test_request_simulation_contract():
+    """Verify queue time and peak-memory aggregation for overlapping requests."""
+    result = simulate_inference_requests([{'prompt_tokens': 100, 'generated_tokens': 20}, {'prompt_tokens': 200, 'generated_tokens': 10}, {'prompt_tokens': 100, 'generated_tokens': 20}], concurrency=2, peak_mem_per_request_mb=256.0)
+    assert result['duration_ms'] == 180.0
+    assert result['request_results'][2]['queue_ms'] == 110.0
+    assert result['peak_mem_mb'] == 512.0
+
+
+def test_bottleneck_classification_mechanism():
+    """Verify memory-first, prefill and decode classification branches."""
+    assert classify_inference_bottleneck({'peak_mem_mb': 4096.0, 'prefill_share': 0.7, 'decode_share': 0.3}, 4400.0) == 'memory-bound'
+    assert classify_inference_bottleneck({'peak_mem_mb': 4096.0, 'prefill_share': 0.7, 'decode_share': 0.3}, 8192.0) == 'prefill-bound'
+    assert classify_inference_bottleneck({'peak_mem_mb': 4096.0, 'prefill_share': 0.2, 'decode_share': 0.8}, 8192.0) == 'decode-bound'
+
+
+def test_candidate_comparison_contract():
+    """Verify comparison directions: lower latency/memory and higher throughput are gains."""
+    comparison = compare_inference_candidates(_baseline_metrics(), _candidate_metrics())
+    assert comparison['total_latency_delta_ms'] == 40.0
+    assert comparison['peak_mem_delta_mb'] == 512.0
+    assert comparison['throughput_gain'] > 0.15
+
+
+def test_strategy_decision_mechanism():
+    """Verify accept, tune and reject use both benefit and remaining diagnosis."""
     comparison = {'throughput_gain': 0.2, 'ttft_delta_ms': -5.0}
-    assert recommend_inference_decision(comparison, {'bottleneck': 'decode-bound'})['decision'] == 'accept'
-    weak = {'throughput_gain': 0.02, 'ttft_delta_ms': 1.0}
-    assert recommend_inference_decision(weak, {'bottleneck': 'decode-bound'})['decision'] == 'tune'
-    print('✅ decision contract')
+    assert choose_inference_action(comparison, {'bottleneck': 'decode-bound'}) == 'accept'
+    assert choose_inference_action({'throughput_gain': 0.02, 'ttft_delta_ms': 1.0}, {'bottleneck': 'decode-bound'}) == 'tune'
+    assert choose_inference_action({'throughput_gain': -0.05, 'ttft_delta_ms': -30.0}, {'bottleneck': 'balanced'}) == 'reject'
+
 
 def test_inference_project_integration():
-    try:
-        requests = [
-            {'prompt_tokens': 100, 'generated_tokens': 20},
-            {'prompt_tokens': 200, 'generated_tokens': 10},
-            {'prompt_tokens': 100, 'generated_tokens': 20},
-        ]
-        simulation = simulate_inference_requests(
-            requests, concurrency=2, prefill_ms_per_token=0.5,
-            decode_ms_per_token=1.0, peak_mem_per_request_mb=256.0,
-        )
-        assert simulation['request_count'] == 3, "请求数量统计不正确！"
-        assert simulation['duration_ms'] == 180.0, "批次执行时长计算不正确！"
-        assert simulation['request_results'][2]['queue_ms'] == 110.0, "排队时间计算不正确！"
-        assert simulation['peak_mem_mb'] == 512.0, "并发显存预算计算不正确！"
-        scaled = simulate_inference_requests(
-            [{'prompt_tokens': 100, 'generated_tokens': 20}],
-            peak_mem_per_request_mb=256.0, kv_cache_mb_per_token=1.0,
-        )
-        assert scaled['kv_cache_tokens_peak'] == 120, "KV Cache token 数计算不正确！"
-        assert scaled['peak_mem_mb'] == 376.0, "KV Cache 显存随 token 增长的计算不正确！"
-        empty = simulate_inference_requests([])
-        assert empty['request_count'] == 0 and empty['duration_ms'] == 0.0, "空请求列表应返回空结果！"
-        zero_decode = summarize_prefill_decode(prefill_ms=20.0, decode_ms=0.0, generated_tokens=0)
-        assert zero_decode['tpot_ms'] == 0.0, "没有输出 token 时 TPOT 应为 0！"
-        for invalid in ({'concurrency': 0}, {'prefill_ms_per_token': -1.0}, {'kv_cache_mb_per_token': -1.0}):
-            try:
-                simulate_inference_requests(requests, **invalid)
-            except ValueError:
-                pass
-            else:
-                raise AssertionError('非法请求模拟参数应明确拒绝！')
-
-        config = build_inference_config(
-            model_name='tiny-llama',
-            backend='pytorch-eager',
-            batch_size=2,
-            prompt_tokens=128,
-            generated_tokens=32,
-            dtype='fp16',
-            cache_policy='static-kv-cache',
-        )
-        assert config['total_tokens'] == 160, "total_tokens 计算不正确！"
-        assert config['batch_size'] == 2, "batch_size 应保留原始配置！"
-
-        latency = summarize_prefill_decode(prefill_ms=80.0, decode_ms=160.0, generated_tokens=32)
-        assert latency['total_ms'] == 240.0, "total_ms 计算不正确！"
-        assert latency['ttft_ms'] == 80.0, "ttft_ms 计算不正确！"
-        assert latency['tpot_ms'] == 5.0, "tpot_ms 计算不正确！"
-        assert latency['prefill_share'] == 0.333, "prefill_share 计算不正确！"
-        assert latency['decode_share'] == 0.667, "decode_share 计算不正确！"
-
-        metrics = compute_inference_metrics(config, latency, peak_mem_mb=4096.0)
-        assert metrics['throughput_tok_s'] == 266.67, "throughput_tok_s 计算不正确！"
-        assert metrics['peak_mem_mb'] == 4096.0, "peak_mem_mb 记录不正确！"
-
-        memory_bound = diagnose_inference_bottleneck(metrics, memory_budget_mb=4400.0)
-        assert memory_bound['bottleneck'] == 'memory-bound', "显存接近预算时应优先判为 memory-bound！"
-
-        decode_bound = diagnose_inference_bottleneck(metrics, memory_budget_mb=8192.0)
-        assert decode_bound['bottleneck'] == 'decode-bound', "decode 占比高时应判为 decode-bound！"
-
-        candidate_config = build_inference_config(
-            model_name='tiny-llama',
-            backend='paged-attention',
-            batch_size=2,
-            prompt_tokens=128,
-            generated_tokens=32,
-            dtype='fp16',
-            cache_policy='paged-kv-cache',
-        )
-        candidate_latency = summarize_prefill_decode(prefill_ms=85.0, decode_ms=120.0, generated_tokens=32)
-        candidate_metrics = compute_inference_metrics(candidate_config, candidate_latency, peak_mem_mb=3584.0)
-        comparison = compare_inference_candidates(metrics, candidate_metrics)
-
-        assert comparison['total_latency_delta_ms'] == 35.0, "total latency delta 计算不正确！"
-        assert comparison['ttft_delta_ms'] == -5.0, "TTFT delta 计算不正确！"
-        assert comparison['tpot_delta_ms'] == 1.25, "TPOT delta 计算不正确！"
-        assert comparison['peak_mem_delta_mb'] == 512.0, "peak memory delta 计算不正确！"
-        assert comparison['throughput_gain'] > 0.15, "throughput gain 应体现候选方案收益！"
-        zero_throughput = dict(metrics, throughput_tok_s=0.0)
-        try:
-            compare_inference_candidates(zero_throughput, candidate_metrics)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError("baseline throughput 为 0 时应明确拒绝相对增益计算！")
-
-        decision = recommend_inference_decision(comparison, decode_bound)
-        assert decision['decision'] == 'accept', "吞吐提升且 TTFT 未明显退化时应建议 accept！"
-
-        weak_comparison = dict(comparison)
-        weak_comparison['throughput_gain'] = 0.02
-        weak_comparison['ttft_delta_ms'] = 1.0
-        assert recommend_inference_decision(weak_comparison, decode_bound)['decision'] == 'tune', "小幅收益但仍有瓶颈时应建议 tune！"
-
-        bad_comparison = dict(comparison)
-        bad_comparison['throughput_gain'] = -0.05
-        bad_comparison['ttft_delta_ms'] = -30.0
-        assert recommend_inference_decision(bad_comparison, {'bottleneck': 'balanced'})['decision'] == 'reject', "没有收益且 TTFT 退化时应建议 reject！"
-
-        print("✅ 推理性能对比项目模板代码通过基础校验。")
-
-    except NotImplementedError:
-        print("请先完成 TODO 代码！")
-        raise
-    except (AttributeError, NameError, TypeError, ValueError, RuntimeError) as e:
-        print(f"代码执行失败，请根据原始错误检查 TODO、输入契约或变量类型：{e}")
-        raise
-    except AssertionError as e:
-        print(f"❌ 测试失败: {e}")
-        raise
-    except Exception as e:
-        print(f"❌ 发生未知异常: {e}")
-        raise
+    """Verify the CPU workload, diagnosis and recommendation form one contract."""
+    baseline = _baseline_metrics()
+    candidate = _candidate_metrics()
+    diagnosis = diagnose_inference_bottleneck(candidate, 8192.0)
+    result = recommend_inference_decision(compare_inference_candidates(baseline, candidate), diagnosis)
+    assert diagnosis['bottleneck'] == 'decode-bound'
+    assert result['decision'] == 'accept'
+    assert result['reason']
 
 
 def run_inference_tests():
-    for test in (test_request_simulation_contract, test_latency_and_metric_contract, test_bottleneck_contract, test_comparison_contract, test_decision_contract, test_inference_project_integration):
+    """Run every mechanism test in a fixed order for notebook execution."""
+    for test in (test_execution_wave_mechanism, test_request_simulation_contract, test_bottleneck_classification_mechanism, test_candidate_comparison_contract, test_strategy_decision_mechanism, test_inference_project_integration):
         test()
-    print('✅ 推理性能项目：机制测试与集成测试全部通过。')
+    print('✅ 推理性能项目：波次、瓶颈、策略决策与对照链路均已验证。')
+
 
 run_inference_tests()
 
@@ -429,251 +319,189 @@ run_inference_tests()
 ### 代码
 
 ```python
-# TODO 1: 模拟请求执行
+# 题目区只挖空三项推理 benchmark 机制：请求波次、瓶颈分类和策略决策。
+# workload、指标账本、baseline/candidate 差值及报告字段均由骨架提供。
+
+def build_execution_waves(request_count, concurrency):
+    """Build contiguous request waves for the CPU scheduling model.
+
+    Args:
+        request_count: Total requests indexed in ``[0, request_count)``.
+        concurrency: Maximum requests admitted to one wave; it must be positive.
+
+    Returns:
+        Consecutive ``(start, end)`` intervals. A final incomplete wave is kept.
+    """
+    if request_count < 0 or concurrency <= 0:
+        raise ValueError('request_count 必须非负，concurrency 必须为正')
+    # TODO 1：步长为 concurrency，end 用 min 保留最后不足一整波的请求。
+    return [(start, min(start + concurrency, request_count)) for start in range(0, request_count, concurrency)]
+
+
 def simulate_inference_requests(requests, concurrency=1, prefill_ms_per_token=0.5, decode_ms_per_token=1.0, peak_mem_per_request_mb=512.0, kv_cache_mb_per_token=0.0):
-    """模拟并发请求的排队、prefill、decode 和显存占用。"""
-    if concurrency <= 0 or prefill_ms_per_token < 0 or decode_ms_per_token < 0 or peak_mem_per_request_mb < 0 or kv_cache_mb_per_token < 0:
-        raise ValueError('concurrency 和成本参数必须合法')
+    """Simulate queueing, prefill/decode cost and KV growth on CPU.
+
+    ``prefill_ms_per_token`` and ``decode_ms_per_token`` are teaching cost
+    coefficients in milliseconds per token. ``peak_mem_per_request_mb`` is the
+    fixed per-request memory, while ``kv_cache_mb_per_token`` adds memory for
+    every prompt/output token. The result is a mechanism trace, not a backend
+    measurement.
+    """
+    if prefill_ms_per_token < 0 or decode_ms_per_token < 0 or peak_mem_per_request_mb < 0 or kv_cache_mb_per_token < 0:
+        raise ValueError('成本参数不能为负数')
     if not requests:
-        return {'request_count': 0, 'duration_ms': 0.0, 'request_results': [], 'peak_mem_mb': 0.0}
-    # TODO 1 对应变量 request_results：收集每个请求的 queue/prefill/decode/e2e 轨迹。
-    results = []
-    # TODO 1 对应变量 duration_ms：用 clock_ms 推进批次完成时间。
-    clock_ms = 0.0
-    for start in range(0, len(requests), concurrency):
-        wave = requests[start:start + concurrency]
-        wave_results = []
-        for request in wave:
+        return {'request_count': 0, 'total_prompt_tokens': 0, 'total_output_tokens': 0, 'duration_ms': 0.0, 'peak_mem_mb': 0.0, 'kv_cache_tokens_peak': 0, 'request_results': []}
+    results, clock_ms, wave_memories, wave_tokens = [], 0.0, [], []
+    for start, end in build_execution_waves(len(requests), concurrency):
+        wave = []
+        for request in requests[start:end]:
             prompt_tokens = int(request['prompt_tokens'])
             generated_tokens = int(request['generated_tokens'])
             if prompt_tokens <= 0 or generated_tokens <= 0:
                 raise ValueError('每个请求的 token 数必须为正数')
             prefill_ms = prompt_tokens * prefill_ms_per_token
             decode_ms = generated_tokens * decode_ms_per_token
-            wave_results.append({
-                'prompt_tokens': prompt_tokens,
-                'generated_tokens': generated_tokens,
-                'queue_ms': clock_ms,
-                'prefill_ms': prefill_ms,
-                'decode_ms': decode_ms,
-                'ttft_ms': clock_ms + prefill_ms,
-                'tpot_ms': decode_ms / generated_tokens,
-                'e2e_ms': clock_ms + prefill_ms + decode_ms,
-                'kv_cache_tokens': prompt_tokens + generated_tokens,
-                'kv_cache_mem_mb': peak_mem_per_request_mb + (prompt_tokens + generated_tokens) * kv_cache_mb_per_token,
-            })
-        results.extend(wave_results)
-        clock_ms += max(item['prefill_ms'] + item['decode_ms'] for item in wave_results)
-    # TODO 1 的核心结果是 request_results 和 duration_ms；peak_mem_mb、kv_cache_tokens_peak 由批次轨迹派生。
-    total_output_tokens = sum(item['generated_tokens'] for item in results)
-    total_prompt_tokens = sum(item['prompt_tokens'] for item in results)
-    return {
-        'request_count': len(results),
-        'total_prompt_tokens': total_prompt_tokens,
-        'total_output_tokens': total_output_tokens,
-        'duration_ms': round(clock_ms, 4),
-        'peak_mem_mb': round(max(sum(item['kv_cache_mem_mb'] for item in results[start:start + concurrency]) for start in range(0, len(results), concurrency)), 2),
-        'kv_cache_tokens_peak': max((sum(item['kv_cache_tokens'] for item in results[start:start + concurrency]) for start in range(0, len(results), concurrency)), default=0),
-        'request_results': results,
-    }
+            kv_tokens = prompt_tokens + generated_tokens
+            wave.append({'prompt_tokens': prompt_tokens, 'generated_tokens': generated_tokens, 'queue_ms': clock_ms, 'prefill_ms': prefill_ms, 'decode_ms': decode_ms, 'ttft_ms': clock_ms + prefill_ms, 'tpot_ms': decode_ms / generated_tokens, 'e2e_ms': clock_ms + prefill_ms + decode_ms, 'kv_cache_tokens': kv_tokens, 'kv_cache_mem_mb': peak_mem_per_request_mb + kv_tokens * kv_cache_mb_per_token})
+        results.extend(wave)
+        clock_ms += max(item['prefill_ms'] + item['decode_ms'] for item in wave)
+        wave_memories.append(sum(item['kv_cache_mem_mb'] for item in wave))
+        wave_tokens.append(sum(item['kv_cache_tokens'] for item in wave))
+    return {'request_count': len(results), 'total_prompt_tokens': sum(item['prompt_tokens'] for item in results), 'total_output_tokens': sum(item['generated_tokens'] for item in results), 'duration_ms': round(clock_ms, 4), 'peak_mem_mb': round(max(wave_memories), 2), 'kv_cache_tokens_peak': max(wave_tokens), 'request_results': results}
 
-# TODO 2: 汇总推理 workload 配置
+
 def build_inference_config(model_name, backend, batch_size, prompt_tokens, generated_tokens, dtype, cache_policy):
-    """汇总 workload 配置，并保留后续对照所需的全部元数据。"""
+    """Create the workload contract shared by baseline and candidate.
+
+    ``batch_size`` is the request batch used by this CPU model; ``prompt_tokens``
+    and ``generated_tokens`` define the prefill/decode workload. ``dtype`` and
+    ``cache_policy`` are recorded so a later GPU result can be compared under
+    the same stated conditions.
+    """
     if not model_name or not backend or batch_size <= 0 or prompt_tokens < 0 or generated_tokens < 0:
         raise ValueError('模型、backend 和 token 配置必须合法')
-    # TODO 2 先检查 batch_size 和 token 字段，再计算 total_tokens；只累加 prompt 和 generated token，不重复计算 batch。
-    total_tokens = prompt_tokens + generated_tokens
-    return {
-        'model_name': model_name,
-        'backend': backend,
-        'batch_size': batch_size,
-        'prompt_tokens': prompt_tokens,
-        'generated_tokens': generated_tokens,
-        'total_tokens': total_tokens,
-        'dtype': dtype,
-        'cache_policy': cache_policy,
-    }
+    return {'model_name': model_name, 'backend': backend, 'batch_size': batch_size, 'prompt_tokens': prompt_tokens, 'generated_tokens': generated_tokens, 'total_tokens': prompt_tokens + generated_tokens, 'dtype': dtype, 'cache_policy': cache_policy}
 
-# TODO 3: 汇总 prefill / decode 延迟
+
 def summarize_prefill_decode(prefill_ms, decode_ms, generated_tokens):
-    """把 prefill/decode 成本整理为 TTFT、TPOT 和阶段占比。"""
+    """将 prefill/decode 成本转为 TTFT、TPOT 和阶段占比。"""
     if prefill_ms < 0 or decode_ms < 0 or generated_tokens < 0:
         raise ValueError('延迟和 token 数不能为负数')
-    # TODO 3 对应变量 total_ms：连接 prefill 与 decode 的总时延。
     total_ms = prefill_ms + decode_ms
-    # TODO 3 对应变量 ttft_ms / tpot_ms：分别表达首 token 和输出 token 延迟。
-    ttft_ms = prefill_ms
-    tpot_ms = decode_ms / generated_tokens if generated_tokens else 0.0
-    # TODO 3 对应变量 prefill_share / decode_share：在 total_ms 上归一化。
-    prefill_share = prefill_ms / total_ms if total_ms else 0.0
-    decode_share = decode_ms / total_ms if total_ms else 0.0
-    return {
-        'prefill_ms': round(prefill_ms, 2),
-        'decode_ms': round(decode_ms, 2),
-        'total_ms': round(total_ms, 2),
-        'ttft_ms': round(ttft_ms, 2),
-        'tpot_ms': round(tpot_ms, 4),
-        'prefill_share': round(prefill_share, 3),
-        'decode_share': round(decode_share, 3),
-    }
+    return {'prefill_ms': round(prefill_ms, 2), 'decode_ms': round(decode_ms, 2), 'total_ms': round(total_ms, 2), 'ttft_ms': round(prefill_ms, 2), 'tpot_ms': round(decode_ms / generated_tokens if generated_tokens else 0.0, 4), 'prefill_share': round(prefill_ms / total_ms if total_ms else 0.0, 3), 'decode_share': round(decode_ms / total_ms if total_ms else 0.0, 3)}
 
-# TODO 4: 计算推理项目核心指标
+
 def compute_inference_metrics(config, latency_summary, peak_mem_mb):
-    """将阶段延迟、吞吐和显存整理为统一项目指标。"""
-    if config['batch_size'] <= 0 or peak_mem_mb < 0:
-        raise ValueError('batch_size 和 peak_mem_mb 必须合法')
-    # TODO 4 对应变量 output_tokens：按 batch_size 计算整个 workload 的输出 token 数。
-    output_tokens = config['batch_size'] * config['generated_tokens']
+    """把统一 workload 与阶段延迟收束为可比较的推理指标。"""
+    if peak_mem_mb < 0:
+        raise ValueError('peak_mem_mb 不能为负数')
     total_seconds = latency_summary['total_ms'] / 1000.0
-    # TODO 4 对应变量 throughput_tok_s：用总时延换算整个 batch 的 token/s。
-    throughput_tok_s = output_tokens / total_seconds if total_seconds else 0.0
-    return {
-        'backend': config['backend'],
-        'batch_size': config['batch_size'],
-        'prompt_tokens': config['prompt_tokens'],
-        'generated_tokens': config['generated_tokens'],
-        'ttft_ms': latency_summary['ttft_ms'],
-        'tpot_ms': latency_summary['tpot_ms'],
-        'throughput_tok_s': round(throughput_tok_s, 2),
-        'total_ms': latency_summary['total_ms'],
-        'prefill_share': latency_summary['prefill_share'],
-        'decode_share': latency_summary['decode_share'],
-        'peak_mem_mb': round(peak_mem_mb, 2),
-    }
+    throughput_tok_s = config['batch_size'] * config['generated_tokens'] / total_seconds if total_seconds else 0.0
+    return {'backend': config['backend'], 'batch_size': config['batch_size'], 'prompt_tokens': config['prompt_tokens'], 'generated_tokens': config['generated_tokens'], 'ttft_ms': latency_summary['ttft_ms'], 'tpot_ms': latency_summary['tpot_ms'], 'throughput_tok_s': round(throughput_tok_s, 2), 'total_ms': latency_summary['total_ms'], 'prefill_share': latency_summary['prefill_share'], 'decode_share': latency_summary['decode_share'], 'peak_mem_mb': round(peak_mem_mb, 2)}
 
-# TODO 5: 诊断推理瓶颈
-def diagnose_inference_bottleneck(metrics, memory_budget_mb=None):
-    """依据显存压力和阶段占比给出规则化瓶颈分类。"""
+
+def classify_inference_bottleneck(metrics, memory_budget_mb=None):
+    """Classify the dominant pressure from memory and stage shares.
+
+    ``memory_budget_mb`` is an optional capacity budget. This lesson treats
+    90% of that budget as memory pressure and 60% stage share as prefill/decode
+    dominance; both are teaching defaults rather than universal production SLOs.
+    Memory pressure takes priority because an OOM-risk workload cannot be fixed
+    merely by improving compute time.
+    """
     if memory_budget_mb is not None and memory_budget_mb <= 0:
         raise ValueError('memory_budget_mb 必须为正数')
-    # TODO 5 对应变量 memory_pressure：显存接近预算时优先判定资源瓶颈。
-    if memory_budget_mb is not None and metrics['peak_mem_mb'] >= 0.9 * memory_budget_mb:
-        bottleneck = 'memory-bound'
-        reason = 'peak memory 接近预算，优先检查 KV cache、batch size、量化和分页策略。'
-    # TODO 5 对应变量 prefill_heavy / decode_heavy：仅在没有显存压力时判断阶段占比。
-    elif metrics['prefill_share'] >= 0.6:
-        bottleneck = 'prefill-bound'
-        reason = 'prefill 占比高，优先检查 prompt length、FlashAttention、chunked prefill 和 batching。'
-    elif metrics['decode_share'] >= 0.6:
-        bottleneck = 'decode-bound'
-        reason = 'decode 占比高，优先检查 KV cache 读写、decode scheduling、speculative decoding 或 multi-token decoding。'
-    else:
-        bottleneck = 'balanced'
-        reason = 'prefill、decode 和显存压力都不突出，先保持 baseline 或继续做细粒度 profiling。'
-    return {'bottleneck': bottleneck, 'reason': reason}
+    memory_pressure = memory_budget_mb is not None and metrics['peak_mem_mb'] >= 0.9 * memory_budget_mb
+    prefill_heavy = metrics['prefill_share'] >= 0.6
+    decode_heavy = metrics['decode_share'] >= 0.6
+    # TODO 2：容量风险优先；否则才比较两个阶段占比，避免把 OOM 风险误判成计算瓶颈。
+    if memory_pressure:
+        return 'memory-bound'
+    if prefill_heavy:
+        return 'prefill-bound'
+    if decode_heavy:
+        return 'decode-bound'
+    return 'balanced'
 
-# TODO 6: 比较 baseline 和 candidate
+
+def diagnose_inference_bottleneck(metrics, memory_budget_mb=None):
+    """将瓶颈类型映射为下一步验证方向；报告文案不作为题目挖空。"""
+    bottleneck = classify_inference_bottleneck(metrics, memory_budget_mb)
+    reasons = {'memory-bound': 'peak memory 接近预算，优先检查 KV cache、batch size、量化和分页策略。', 'prefill-bound': 'prefill 占比高，优先检查 prompt length、FlashAttention、chunked prefill 和 batching。', 'decode-bound': 'decode 占比高，优先检查 KV cache 读写、decode scheduling、speculative decoding 或 multi-token decoding。', 'balanced': 'prefill、decode 和显存压力都不突出，先保持 baseline 或继续做细粒度 profiling。'}
+    return {'bottleneck': bottleneck, 'reason': reasons[bottleneck]}
+
+
 def compare_inference_candidates(baseline_metrics, candidate_metrics):
-    """计算 candidate 相对 baseline 的延迟、显存和吞吐变化。"""
+    """统一计算 candidate 相对 baseline 的延迟、显存和吞吐变化。"""
     if baseline_metrics['throughput_tok_s'] <= 0:
-        raise ValueError('baseline throughput 必须大于 0，才能计算相对增益')
-    # TODO 6 的核心结果是 total_latency_delta_ms 和 throughput_gain；TTFT、TPOT、显存差值沿用同一规则派生。
-    total_latency_delta_ms = baseline_metrics['total_ms'] - candidate_metrics['total_ms']
-    ttft_delta_ms = baseline_metrics['ttft_ms'] - candidate_metrics['ttft_ms']
-    tpot_delta_ms = baseline_metrics['tpot_ms'] - candidate_metrics['tpot_ms']
-    # 显存差值同样使用 baseline - candidate，保持指标方向一致。
-    peak_mem_delta_mb = baseline_metrics['peak_mem_mb'] - candidate_metrics['peak_mem_mb']
-    # TODO 6 对应变量 throughput_gain：使用 candidate / baseline - 1 的比例增益。
-    throughput_gain = candidate_metrics['throughput_tok_s'] / baseline_metrics['throughput_tok_s'] - 1.0
-    return {
-        'total_latency_delta_ms': round(total_latency_delta_ms, 2),
-        'ttft_delta_ms': round(ttft_delta_ms, 2),
-        'tpot_delta_ms': round(tpot_delta_ms, 4),
-        'peak_mem_delta_mb': round(peak_mem_delta_mb, 2),
-        'throughput_gain': round(throughput_gain, 4),
-    }
+        raise ValueError('baseline throughput 必须大于 0')
+    return {'total_latency_delta_ms': round(baseline_metrics['total_ms'] - candidate_metrics['total_ms'], 2), 'ttft_delta_ms': round(baseline_metrics['ttft_ms'] - candidate_metrics['ttft_ms'], 2), 'tpot_delta_ms': round(baseline_metrics['tpot_ms'] - candidate_metrics['tpot_ms'], 4), 'peak_mem_delta_mb': round(baseline_metrics['peak_mem_mb'] - candidate_metrics['peak_mem_mb'], 2), 'throughput_gain': round(candidate_metrics['throughput_tok_s'] / baseline_metrics['throughput_tok_s'] - 1.0, 4)}
 
-# TODO 7: 输出推理选型建议
-def recommend_inference_decision(comparison, candidate_bottleneck, min_throughput_gain=0.1, max_ttft_regression_ms=20.0):
-    """根据吞吐收益、TTFT 退化和剩余瓶颈输出选型建议。"""
-    # TODO 7 对应变量 throughput_good：检查吞吐增益门槛。
+
+def choose_inference_action(comparison, candidate_bottleneck, min_throughput_gain=0.1, max_ttft_regression_ms=20.0):
+    """Choose an action from throughput gain, TTFT regression and diagnosis.
+
+    ``min_throughput_gain`` is the minimum relative gain required for a useful
+    candidate. ``max_ttft_regression_ms`` is the allowed increase in TTFT.
+    ``ttft_delta_ms`` uses ``baseline - candidate``: a negative value therefore
+    means the candidate waits longer for its first token. Thresholds must be
+    replaced with the target service's SLO during a real benchmark.
+    """
     throughput_good = comparison['throughput_gain'] >= min_throughput_gain
-    # TODO 7 对应变量 ttft_ok：把正向 delta 转成回退量后检查上限。
-    ttft_regression_ms = -comparison['ttft_delta_ms']
-    ttft_ok = ttft_regression_ms <= max_ttft_regression_ms
-    # TODO 7 对应变量 still_tunable：根据候选瓶颈判断是否还有调优方向。
+    ttft_ok = -comparison['ttft_delta_ms'] <= max_ttft_regression_ms
     still_tunable = candidate_bottleneck['bottleneck'] != 'balanced'
+    # TODO 3：ttft_delta_ms 为 baseline - candidate，ttft_ok 为真表示候选没有超过允许的交互退化。
     if throughput_good and ttft_ok:
-        decision = 'accept'
-        reason = 'candidate 吞吐提升明显，TTFT 退化在可接受范围内，值得进入正式推理方案。'
-    elif comparison['throughput_gain'] > 0.0 and still_tunable:
-        decision = 'tune'
-        reason = 'candidate 已有收益，但瓶颈仍然存在，继续围绕诊断结果调参或换策略。'
-    else:
-        decision = 'reject'
-        reason = 'candidate 收益不足或交互延迟退化明显，当前不值得切换。'
-    return {'decision': decision, 'reason': reason}
+        return 'accept'
+    if comparison['throughput_gain'] > 0.0 and still_tunable:
+        return 'tune'
+    return 'reject'
 
-baseline_config = build_inference_config('tiny-llama', 'pytorch-eager', 2, 128, 32, 'fp16', 'static-kv-cache')
-baseline_latency = summarize_prefill_decode(prefill_ms=80.0, decode_ms=160.0, generated_tokens=32)
-baseline_metrics = compute_inference_metrics(baseline_config, baseline_latency, peak_mem_mb=4096.0)
-print(baseline_config)
-print(baseline_metrics)
-print(diagnose_inference_bottleneck(baseline_metrics, memory_budget_mb=8192.0))
 
-candidate_config = build_inference_config('tiny-llama', 'paged-attention', 2, 128, 32, 'fp16', 'paged-kv-cache')
-candidate_latency = summarize_prefill_decode(prefill_ms=85.0, decode_ms=120.0, generated_tokens=32)
-candidate_metrics = compute_inference_metrics(candidate_config, candidate_latency, peak_mem_mb=3584.0)
-comparison = compare_inference_candidates(baseline_metrics, candidate_metrics)
-print(candidate_metrics)
-print(comparison)
-print(recommend_inference_decision(comparison, diagnose_inference_bottleneck(candidate_metrics, memory_budget_mb=8192.0)))
+def recommend_inference_decision(comparison, candidate_bottleneck, min_throughput_gain=0.1, max_ttft_regression_ms=20.0):
+    """将策略机制转换为项目报告；报告字段由骨架提供。"""
+    decision = choose_inference_action(comparison, candidate_bottleneck, min_throughput_gain, max_ttft_regression_ms)
+    details = {'accept': ('candidate 吞吐提升明显，TTFT 退化在可接受范围内，值得进入正式推理方案。'), 'tune': ('candidate 已有收益，但瓶颈仍然存在，继续围绕诊断结果调参或换策略。'), 'reject': ('candidate 收益不足或交互延迟退化明显，当前不值得切换。')}
+    return {'decision': decision, 'reason': details[decision]}
 
 ```
 
 ### 解析
 
-**1. TODO 1: 模拟请求执行**
-- **实现方式**：按 `concurrency` 将请求分成多个执行批次；同一批并行完成，批次耗时取其中最长请求的 prefill + decode 时间。
-- **关键点**：后续批次会产生 queue time；`TTFT` 包含排队和 prefill，`TPOT` 只表示 decode 阶段的平均每 token 时间。
-- **项目意义**：CPU 可以解释并发、排队和阶段指标的关系，但这些是教学成本模型，不是 vLLM / SGLang 的真实调度或 CUDA 测量。
-- **显存扩展**：当 `kv_cache_mb_per_token > 0` 时，模拟器按 `prompt_tokens + generated_tokens` 估算每个请求的 KV Cache 增量，并按同一执行波次累加；这只能说明 token 数、并发与容量之间的关系，不能替代 backend 的 allocated/reserved 显存或 OOM 测量。
+66 是后续推理项目共享的 baseline 页，因此题目区不要求手写每一个指标字段，而是要求完成三个会改变项目结论的机制动作。
 
-**2. TODO 2: 汇总推理 workload 配置**
-- **实现方式**：把模型、backend、batch size、prompt tokens、generated tokens、dtype 和 cache policy 放进同一个配置对象。
-- **关键点**：推理 benchmark 的第一原则是固定 workload。没有 workload，TTFT、TPOT、吞吐和显存都没有可比性。
-- **项目意义**：后续 baseline 和 candidate 只能改一个变量，否则很难判断收益来自哪里。
+**TODO 1（请求波次机制）**
 
-**3. TODO 3: 汇总 prefill / decode 延迟**
-- **实现方式**：`total_ms = prefill_ms + decode_ms`，TTFT 近似取 `prefill_ms`，TPOT 取 `decode_ms / generated_tokens`。
-- **关键点**：prefill 和 decode 的瓶颈不同。总耗时下降不代表交互体验一定变好，TTFT 和 TPOT 必须拆开看。
-- **项目意义**：这一步把推理性能从一个笼统 latency 拆成可诊断的两段。
+- 将请求切成连续的 `[start, end)` 波次；同一波次可并发，下一波次从前一波次完成后开始。
+- 尾部不足 `concurrency` 的请求仍然必须保留，否则会漏掉排队时间与容量成本。
 
-**4. TODO 4: 计算推理项目核心指标**
-- **实现方式**：用 `batch_size * generated_tokens / total_seconds` 计算 generated tokens/s，并和 TTFT、TPOT、total latency、peak memory 放在同一张账本里。
-- **关键点**：throughput 统计的是整个 batch 的输出 token 产出，不是单条请求的 token 数。
-- **项目意义**：同一个 candidate 可能吞吐更高但 TTFT 更差，指标必须一起看。
+**TODO 2（瓶颈分类机制）**
 
-**5. TODO 5: 诊断推理瓶颈**
-- **实现方式**：显存接近预算时优先判为 `memory-bound`；否则用 prefill/decode 占比判断主要瓶颈。
-- **关键点**：显存预算是硬约束。如果显存已经接近上限，即使 decode 占比高，也要先处理 KV cache、batch size 或量化。
-- **项目意义**：诊断结果决定下一步选 FlashAttention、chunked prefill、PagedAttention、KV cache 量化还是 decode scheduling。
+- 显存接近预算时优先判为 `memory-bound`；否则通过 prefill 和 decode 占比判断主要阶段。
+- 分类结果决定后续候选策略：长输入优先看 prefill，逐 token 慢优先看 decode，容量不足先处理 cache 与 batch。
 
-**6. TODO 6: 比较 baseline 和 candidate**
-- **实现方式**：latency、TTFT、TPOT 和 peak memory 使用 `baseline - candidate`，正数表示 candidate 更好；throughput 使用比例增益。
-- **关键点**：delta 的方向要固定，否则报告容易把退化误写成收益；baseline throughput 为 0 时无法计算相对增益，应明确抛出输入错误。
-- **项目意义**：项目报告不只写绝对值，更要说明 candidate 相比 baseline 改善或退化了多少。
+**TODO 3（策略决策机制）**
 
-**7. TODO 7: 输出推理选型建议**
-- **accept**：吞吐提升达标，TTFT 退化在可接受范围内，说明候选方案值得采用。
-- **tune**：candidate 有收益，但瓶颈仍然存在，需要继续沿诊断方向调参。
-- **reject**：candidate 收益不足，或交互延迟退化明显，当前不值得切换。
-- **项目意义**：推理选型不能只看一个指标。最终结论要同时考虑 workload、吞吐、TTFT、TPOT、显存和瓶颈类型。
+- 吞吐收益达标且 TTFT 没有明显退化时 `accept`。
+- 有收益但还存在明确瓶颈时 `tune`；收益不足或交互代价过高时 `reject`。
+- 这只是 CPU 规则决策，最终采用与否仍需要 Step 5 的 backend 实测证据。
 
-**推理性能对比的实验原则**
-- **变量控制**：同一轮对比中只改一个变量，例如 batch size、precision、推理后端或 cache 策略。
-- **指标闭环**：每次实验至少记录 TTFT、TPOT、throughput 和 peak memory。
-- **阶段拆分**：把 prefill 和 decode 分开看，避免把长 prompt 问题误判成 decode 问题。
-- **结果复盘**：最终输出要回扣 Step 1 的问题：在给定约束下，哪种推理策略最划算，理由是什么。
+### Step 5：GPU 与 backend 主实验（可选）——真实基线与候选对照
 
-### Step 5：GPU/backend 主实验（可选）——真实基线与候选对照
+按 5.1–5.6 固定 workload、完成预检并运行对照。结果 JSON 保留两组的模型、workload、指标和失败状态，供后续比较使用。
+
+| 层级 | 目标 | 主要产出 |
+|:---|:---|:---|
+| 5.1 | 环境、模型与固定 workload | 可复用的真实 benchmark 口径 |
+| 5.2 | 环境启动检查 | GPU / CUDA / backend 可用性 |
+| 5.3 | 配置实验条件 | G0/G1/G2 与结果 JSON 契约 |
+| 5.4 | 执行并保存 JSON | backend 测量或失败记录 |
+| 5.5 | 读取结果与记录证据 | 环境、历史结果和学习者复测表 |
+| 5.6 | 解释结果与形成决策 | `accept / tune / reject` |
 
 #### 5.1 环境、输入与固定条件
 
-GPU/backend 的环境安装和平台差异见[使用指南：Part 02 环境分层与决策树](../guide.md#part-02-环境分层与决策树)。本小节先确定实验对象、输入和固定条件，不执行服务启动或 benchmark。
-
-本节只比较端到端服务表现；量化、Prefix Cache、Speculative Decoding、Scheduler 和 MLA / KV Cache 的机制与专项实验分别在后续专题中展开。固定条件的目的，是让后续差异能够归因于明确的 backend 或 workload 变量。
+先登记模型、输入和固定条件，再选择本轮唯一改变的变量。
 
 | 实验要素 | 本节固定内容 | 允许改变的内容 | 输出 |
 |:---|:---|:---|:---|
@@ -684,23 +512,11 @@ GPU/backend 的环境安装和平台差异见[使用指南：Part 02 环境分�
 
 ![66 机制、backend 与指标关系](../public/02_PyTorch_Algorithms/66_mechanism_backend_mapping.svg)
 
-#### 公共基线输出契约
-
-G0 的 JSON 是 68–72 项目共用的推理基线输入，不是某个专项策略的最终结论。后续项目可以在同一 workload 上读取它，再提交 candidate 结果；因此每次实测都要保留身份、环境、指标和失败状态。
-
-| 契约块 | 至少记录 | 用途 |
-|:---|:---|:---|
-| 身份 | `project`、`role`、`model_revision`、`backend`、`result_json` | 判断 baseline / candidate 是否可比较 |
-| workload | `workload_path`、`num_prompts`、`batch`、`concurrency`、`warmup`、`repeats` | 复现实验输入与请求压力 |
-| 环境 | `dtype`、`backend_version`、`hardware`、`runtime_version`、`cache_policy` | 解释结果适用范围 |
-| 证据与决策 | `evidence_level`、`quality`、`failure`、`decision` | 区分模拟、smoke、实测及 accept / tune / reject |
-
-68–70 重点读取 TTFT、TPOT、throughput、P95/P99、queue wait、peak memory 和各自的 acceptance / hit rate；71–72 还应补充模型或部署 artifact。未采集的字段写明 `not_collected`，失败记录保留原因和复测路径。
 #### 5.2 确认运行环境可启动
 
-在开始真实 benchmark 前，先确认 Notebook client、独立 backend、GPU、驱动和 CUDA 能够协同工作。下表记录当前已验证组合；更换 vLLM、CUDA、驱动或 GPU 后，应重新完成预检和 smoke test。
+在开始真实 benchmark 前，确认 Notebook client、backend、GPU、驱动和 CUDA 能够协同工作；更换运行环境后重新完成预检和 smoke test。
 
-表格中的最后一列说明每项检查对启动和结果解释的影响。若 backend 暂时无法启动，可以先运行 CPU-first 模拟 benchmark，但模拟结果只能用于理解指标和逻辑，不能替代真实 GPU 性能。
+表格最后一列说明每项检查对启动和结果解释的影响。
 
 | 类别 | 检查项 | 当前已验证配置 | 如何解读 |
 |:---|:---|:---|:---|
@@ -734,7 +550,15 @@ print({'vllm_on_current_kernel': importlib.util.find_spec('vllm') is not None, '
 
 #### 5.3 配置实验条件
 
-根据 5.1 的固定条件选择模型、workload、dtype、G0/G1/G2 和结果路径；本单元只填写配置，不启动服务。
+根据 5.1 的固定条件填写模型、workload、dtype、G0/G1/G2 和结果路径。G0 JSON 提供浮点基线，后续项目在自己的对照实验中记录 candidate 结果。
+
+| 契约块 | 至少记录 | 用途 |
+|:---|:---|:---|
+| 身份 | `project`、`role`、`model_revision`、`backend`、`result_json` | 判断 baseline / candidate 是否可比较 |
+| workload | `workload_path`、`num_prompts`、`batch`、`concurrency`、`warmup`、`repeats` | 复现实验输入与请求压力 |
+| 环境 | `dtype`、`backend_version`、`hardware`、`runtime_version`、`cache_policy` | 解释结果适用范围 |
+| 证据与决策 | `evidence_level`、`quality`、`failure`、`decision` | 区分模拟、smoke、实测及 accept / tune / reject |
+
 
 ```python
 # 实验配置：先运行本单元，再运行下面的环境预检和 benchmark。
@@ -830,7 +654,7 @@ print('实验配置：', EXPERIMENT_METADATA)
 
 完成环境预检和配置后，依次启动 backend、运行 workload、补充实验元数据，并将每组结果独立保存为 JSON。Notebook 内核负责发起请求和保存报告；vLLM backend 可以运行在当前环境，也可以运行在单独环境中。
 
-模型下载和服务启动会消耗显存、磁盘与时间；实验完成后需要确认结果文件已经保存，并释放 backend 子进程。自动启动失败时，再使用代码块后的手动启动与排障说明。
+模型下载和服务启动会消耗显存、磁盘与时间；实验结束后确认结果文件已保存，并释放 backend 子进程。
 
 | 执行阶段 | 主要动作 | 阶段产出 |
 |:---|:---|:---|
@@ -932,7 +756,18 @@ if RUN_REAL_BACKEND:
         serialized = json.dumps(saved, ensure_ascii=False, indent=2)
         output_path.write_text(serialized, encoding='utf-8')
         if EXPERIMENT_GROUP == 'G0' and BACKEND == 'vllm':
-            Path(BASELINE_POINTER_PATH).write_text(serialized, encoding='utf-8')
+            # 67 只读取成功写出的 G0 指针；失败记录不会覆盖上一次可复用基线。
+            pointer_payload = dict(saved)
+            pointer_payload['baseline_pointer'] = {
+                'schema_version': 'inference-baseline-pointer/v1',
+                'source_result': str(output_path),
+                'status': 'ready',
+                'role': 'latest_successful_g0',
+            }
+            Path(BASELINE_POINTER_PATH).write_text(
+                json.dumps(pointer_payload, ensure_ascii=False, indent=2), encoding='utf-8'
+            )
+            print(f'已更新 67 可复用的 G0 指针：{BASELINE_POINTER_PATH}')
         print(saved['metrics'])
         print('统一结果：', json.dumps(saved['normalized_result'], ensure_ascii=False, indent=2))
     except Exception as exc:
@@ -954,58 +789,116 @@ else:
 vllm serve <model-id> --dtype bfloat16 --port 8000
 python tools/benchmark_inference_backend.py
 ```
-#### 5.5 实测记录与结果表
+#### 5.5 读取结果与记录证据
 
-读取 5.4 保存的 JSON，先检查配置一致性、baseline 与单变量对照的完整性和 evidence level，再整理 TTFT、TPOT、吞吐、峰值显存、OOM 与质量。跨 backend 比较放到 Step 7。
+读取 5.4 保存的 JSON 后，先核对实际环境和 workload，再把历史样例与本机复测填入同一张结果表。TTFT、TPOT、端到端延迟、吞吐、峰值显存与失败状态共同决定本轮结论。
 
-当前本机历史记录只用于展示报告填写方式；正式结论应以学习者在自己的 GPU、模型和 workload 上重新采集的结果为准。
+**历史实测环境与统一口径**
+
+| 项目 | 历史配置 |
+|:---|:---|
+| GPU / 显存 | RTX 5070 Ti Laptop / 12 GB |
+| 模型 | `Qwen/Qwen2.5-0.5B-Instruct` |
+| backend / runtime | vLLM 0.11.0 / PyTorch 2.11.0+cu128 |
+| dtype / workload | `bfloat16` / `fixed.jsonl`，生成长度 64 tokens |
+| 启动参数 | `max_model_len=2048`、`gpu_memory_utilization=0.8`、`--enforce-eager` |
+| 对照变量 | concurrency：1（baseline）→ 4（candidate） |
+| evidence level | real backend smoke；peak memory 未采集 |
+
+**结果与复测记录**
+
+| 指标 | 历史 baseline | 历史 candidate（concurrency=4） | 本机 baseline | 本机 candidate | 如何解读 |
+|:---|---:|---:|---:|---:|:---|
+| 成功 / 失败 | 5 / 0 | 5 / 0 | 待填写 | 待填写 | 保留异常状态 |
+| 请求吞吐 | 3.1189 req/s | 4.2972 req/s | 待填写 | 待填写 | 越高越好 |
+| 输出吞吐 | 182.1461 token/s | 250.9544 token/s | 待填写 | 待填写 | 越高越好 |
+| TTFT P50 | 33.776 ms | 234.566 ms | 待填写 | 待填写 | 越低越好 |
+| TPOT P50 | 4.859 ms/token | 11.528 ms/token | 待填写 | 待填写 | 越低越好 |
+| E2E P50 | 337.176 ms | 956.383 ms | 待填写 | 待填写 | 越低越好 |
+| peak memory | 未采集 | 未采集 | 待填写 | 待填写 | 未采集时不能下显存结论 |
+| JSON / failure | `66_vllm_real.json` / none | `66_vllm_concurrency4.json` / none | 待填写 | 待填写 | 每组独立保存 |
+| evidence level / decision | real backend smoke / 待定 | real backend smoke / 待定 | 待填写 | 待填写 | 由 5.6 形成结论 |
 
 
-| 类别 | 项目 | baseline | 单变量对照 | artifact / JSON | failure | decision | 说明 |
-|:---|:---|:---:|:---:|:---|:---|:---|:---|
-| 环境 | GPU / 显存 | RTX 5070 Ti Laptop / 12 GB | 同左 | none / `66_vllm_real.json` | none | pending | 记录硬件差异 |
-| 环境 | 模型 | `Qwen/Qwen2.5-0.5B-Instruct` | 同左 | none / 独立 JSON | none | pending | 同一对照保持一致 |
-| 环境 | backend / runtime | vLLM 0.11.0 / PyTorch 2.11.0+cu128 | 同左 | none / 独立 JSON | none | pending | 记录 backend 与 client 版本 |
-| 条件 | dtype / workload | `bfloat16` / `fixed.jsonl` | 同左 | none / 独立 JSON | none | pending | 生成长度 64 tokens |
-| 条件 | 启动参数 | `max_model_len=2048`、`gpu_memory_utilization=0.8`、`--enforce-eager` | 同左 | none / 独立 JSON | none | pending | 改变时必须注明 |
-| 变量 | concurrency | 1 | 4 | none / 独立 JSON | none | pending | 单变量对照 |
-| 结果 | 成功 / 失败 | 5 / 0 | 5 / 0 | none / 独立 JSON | none | pending | 必须保留异常状态 |
-| 结果 | 请求吞吐 | 3.1189 req/s | 4.2972 req/s | none / 独立 JSON | none | pending | 越高越好 |
-| 结果 | 输出吞吐 | 182.1461 token/s | 250.9544 token/s | none / 独立 JSON | none | pending | 越高越好 |
-| 结果 | TTFT P50 | 33.776 ms | 234.566 ms | none / 独立 JSON | none | pending | 越低越好 |
-| 结果 | TPOT P50 | 4.859 ms/token | 11.528 ms/token | none / 独立 JSON | none | pending | 越低越好 |
-| 结果 | E2E P50 | 337.176 ms | 956.383 ms | none / 独立 JSON | none | pending | 越低越好 |
-| 结果 | peak memory | 未采集 | 未采集 | none / 独立 JSON | not_collected | tune | 不能据此下显存结论 |
-| 结果 | evidence level | real backend smoke | real backend smoke | none / 独立 JSON | none | pending | 仅支持当前 workload 对照 |
-| 文件 | 结果路径 | `66_vllm_real.json` | `66_vllm_concurrency4.json` | JSON 自身路径 | none | pending | 每组独立保存 |
+```python
+# 5.5 读取 5.4 保存的 JSON，不启动 backend；缺少结果时保留复测位置。
+from pathlib import Path
+import json
+
+result_path = Path(RESULT_PATH)
+if result_path.exists():
+    saved_result = json.loads(result_path.read_text(encoding='utf-8'))
+    contract = saved_result.get('experiment_contract', saved_result.get('baseline_contract', {}))
+    print({'result_json': str(result_path), 'evidence_level': saved_result.get('evidence_level', contract.get('evidence_level')), 'decision': saved_result.get('decision', contract.get('decision')), 'failure': saved_result.get('failure', contract.get('failure'))})
+    print('metrics:', json.dumps(saved_result.get('metrics', {}), ensure_ascii=False, indent=2))
+else:
+    print(f'等待 Step 5.4 的实验结果：{result_path}')
+
+```
+
 #### 5.6 解释结果与形成决策
 
-如何解读这组历史结果：并发提高后，输出吞吐由 182.15 提升到 250.95 token/s，但 TTFT P50 由 33.78 ms 增至 234.57 ms，E2E P50 由 337.18 ms 增至 956.38 ms。说明批处理提高吞吐的同时增加了交互延迟；当前只有少量 smoke test 请求，P99 只能作为记录，不能形成稳定线上结论。
+历史记录展示了一个常见取舍：并发提高后，输出吞吐从 182.15 提升到 250.95 token/s，同时 TTFT P50 从 33.78 ms 增至 234.57 ms、E2E P50 从 337.18 ms 增至 956.38 ms。它适合作为“批量吞吐更高、交互等待更长”的示例。
 
-当前结论仅支持固定 workload 下的延迟和吞吐对照；历史 JSON 没有 `peak_memory` 字段，因此不能反推出 KV Cache 或并发显存结论。若目标是交互式单请求，应优先关注 TTFT/E2E；若目标是批量吞吐，再扩大 workload 和并发 sweep，并补采 GPU 显存。
+复测时先按服务目标选指标：交互请求优先看 TTFT 与 E2E，批处理优先看吞吐，再同时检查成功率、峰值显存和失败记录。把这些字段填入 5.5 的复测表后即可给出 `accept / tune / reject`。
 
-复测时至少补齐 GPU、模型、backend 版本、workload、并发、TTFT、TPOT、E2E、吞吐、峰值显存、成功率、OOM 和 evidence level；只有证据完整且目标指标达到要求，才输出 `accept`，否则进入 `tune` 或 `reject`。
+```python
+# 5.6：从 5.5 读取的真实结果生成决策；不会启动 backend。
+from pathlib import Path
+import json
+
+
+def decide_backend_result(report, *, service_goal="interactive"):
+    """Use failure, latency and throughput together to classify one backend result.
+
+    ``interactive`` prefers TTFT/E2E; ``batch`` accepts higher waiting time only
+    when output throughput is available. Thresholds are teaching defaults, so the
+    returned ``tune`` result also records which metric should be revisited.
+    """
+    contract = report.get("experiment_contract", report.get("baseline_contract", {}))
+    failure = report.get("failure", contract.get("failure", {})) or {}
+    if failure.get("status") not in {None, "not_observed", "none"}:
+        return {"decision": "reject", "reason": "实验未成功完成", "next_action": "先处理 failure 后复测"}
+
+    metrics = report.get("metrics", {})
+    throughput = metrics.get("output_token_throughput_per_s")
+    ttft_p50 = (metrics.get("ttft_ms") or {}).get("p50")
+    e2e_p50 = (metrics.get("e2e_ms") or {}).get("p50")
+    if throughput is None or ttft_p50 is None or e2e_p50 is None:
+        return {"decision": "tune", "reason": "关键指标尚未完整采集", "next_action": "补齐 TTFT、E2E 与输出吞吐后复测"}
+    if service_goal == "interactive" and (ttft_p50 > 500 or e2e_p50 > 3000):
+        return {"decision": "tune", "reason": "交互延迟偏高", "next_action": "降低并发或检查 prefill 与队列等待"}
+    if service_goal == "batch" and throughput <= 0:
+        return {"decision": "tune", "reason": "批处理吞吐未达可用状态", "next_action": "检查并发、batch 与 backend 配置"}
+    return {"decision": "accept", "reason": "结果完整且当前服务目标未触发阈值", "next_action": "与候选 backend 使用同一 workload 对照"}
+
+
+result_path = Path(RESULT_PATH)
+if result_path.exists():
+    decision_report = json.loads(result_path.read_text(encoding="utf-8"))
+    decision = decide_backend_result(decision_report, service_goal="interactive")
+    decision_report["decision"] = decision["decision"]
+    decision_report["decision_detail"] = decision
+    result_path.write_text(json.dumps(decision_report, ensure_ascii=False, indent=2), encoding="utf-8")
+    print({"result_json": str(result_path), **decision})
+else:
+    print(f"等待 Step 5.4 的实验结果，暂不写决策：{result_path}")
+
+```
+
 ### Step 6：SGLang backend 对照
 
-#### 6.1 环境、输入与固定条件
-
-本步要回答：在相同模型、请求集、生成长度、并发和 dtype 下，SGLang 与 vLLM 的端到端表现是否不同？相对于 vLLM G0，SGLang 是只改变 backend 的 G1 candidate。SGLang 的 RadixAttention / Radix Cache 由 backend 自己实现，本节不重新实现其内部算法，只验证服务链路并读取统一指标。
+这一组实验只替换服务 backend：复用 vLLM G0 的模型、请求集、生成长度、并发和 dtype，记录 SGLang 的同一组指标。
 
 ![推理引擎与统一实验关系](../public/02_PyTorch_Algorithms/66_inference_engines_comparison.svg)
 
 #### 6.2 环境启动检查
 
-先确认当前环境已安装并验证 SGLang，再填写启动命令模板。命令不会由 Notebook 猜测，避免把不同版本的启动参数混在一起。
+确认 SGLang、GPU 和启动命令可用，并记录实际版本和运行环境。
 
 #### 6.3 配置实验条件
 
-沿用 Step 5 的模型、workload、生成长度、并发和 dtype；只替换 backend，并为 SGLang 结果使用独立 JSON 路径。
-
-执行配置完成后，进入 6.4 启动服务并运行同一 benchmark。
-
-输入是已验证的 `SGLANG_COMMAND_TEMPLATE`、模型、workload 和并发配置；输出是 backend 名称、dtype、请求成功率、TTFT、TPOT、E2E、吞吐和结果文件。只有 vLLM 与 SGLang 的硬件、模型、输入、输出长度和并发完全一致时，Step 7 才能进行跨 backend 对比。
-
-<div align="center"><strong>不同引擎可以共用 benchmark 口径，但必须先确认服务接口、硬件和实验条件一致。</strong></div>
+为 SGLang 结果设置独立 JSON 路径。
 
 ```python
 # Step 6 专属配置：不影响 Step 5 的 vLLM 主实验。
@@ -1063,7 +956,7 @@ else:
 
 #### 6.5 实测记录与结果表
 
-读取 SGLang JSON 后，先核对模型、GPU、dtype、workload、并发和生成长度，再整理与 vLLM 对照所需的统一字段。该表只记录同一实验口径下的 backend 结果；没有完成条件对齐时，只记录 unsupported 或待复测。
+读取 SGLang JSON 后，填写模型、GPU、dtype、workload、并发、生成长度和指标；与 vLLM 的差异将由 Step 7 汇总。
 
 | 记录项 | vLLM | SGLang | 说明 |
 |:---|:---:|:---:|:---|
@@ -1077,12 +970,10 @@ else:
 | decision | 待判断 | 待判断 | 等 6.6 统一解释 |
 #### 6.6 解释结果与形成决策
 
-先确认两种 backend 的环境、模型、workload、并发和 dtype 完全一致，再比较 TTFT、TPOT、E2E、吞吐、成功率和 OOM。只有条件一致且证据充分时，才输出 `accept / tune / reject`；否则保留 unsupported 或待复测状态。
+根据 TTFT、TPOT、E2E、吞吐、成功率和 OOM 填写本轮结果：服务可运行且目标指标达标时 `accept`，仍有可调空间时 `tune`，不支持或不满足目标时 `reject`。
 ### Step 7：跨 backend 结果对比
 
-只有 vLLM 和 SGLang 使用相同模型、输入分布、生成长度、并发、dtype 和硬件时，才可以进行跨 backend 比较。报告要保留 backend 名称和版本；vLLM 的 PagedAttention 与 SGLang 的 RadixAttention 不视为同一种策略，端到端差异不能直接归因给某个单一机制。
-
-当前学习顺序：先完成 vLLM G0/G1，再完成可选的 SGLang 对照，最后比较两份统一 JSON。没有可运行的 SGLang 环境时，保留 Step 6 关闭状态即可。
+将 Step 5 和 Step 6 的 JSON 放到同一张对照表中，比较 TTFT、TPOT、E2E、吞吐、成功率、峰值显存和失败状态。报告同时保留 backend 名称与版本，帮助你把端到端差异解释为服务栈的整体结果，而不是归因给单一算法。
 ## 相关阅读
 
 完成本节后，可以沿着“机制 → 引擎 → 评测规范”继续阅读：先看推理引擎如何实现请求服务，再回到论文和官方文档核对 benchmark 中的指标含义。

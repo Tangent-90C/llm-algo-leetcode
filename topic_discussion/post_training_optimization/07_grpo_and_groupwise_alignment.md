@@ -36,4 +36,4 @@ GRPO 让同一提示生成多个候选，再用组内相对奖励构造更新信
 | 高奖励集中于异常短或固定模式 | 存在长度或模板投机 | 加入失败切片并修正规则 |
 | 独立成功率与奖励背离 | 奖励排序不足以支持采用 | 停止扩大训练并回查评分协议 |
 
-候选组、奖励来源和无法判定状态固定后，可进入[GRPO 机制练习](../../02_PyTorch_Algorithms/18_GRPO_Loss_Tutorial.ipynb)，验证组内归一化、零方差保护和受约束更新。重复在线采样时进入[轨迹生命周期](./08_trajectory_lifecycle_and_environment_interaction.md)；候选训练完成后进入[独立评测与采用决策](./10_evaluation_and_adoption_decision.md)。进一步阅读：[TRL GRPOTrainer](https://huggingface.co/docs/trl/grpo_trainer)。
+候选组、奖励来源和无法判定状态固定后，可进入[GRPO 机制练习](../../02_PyTorch_Algorithms/18_GRPO_Loss_Tutorial.ipynb)，验证组内归一化、零方差保护和受约束更新。重复在线采样时进入[轨迹生命周期](./08_trajectory_lifecycle_and_environment_interaction.md)；候选训练完成后进入[独立评测、能力回归与采用决策](./10_evaluation_and_adoption_decision.md)。进一步阅读：[TRL GRPOTrainer](https://huggingface.co/docs/trl/grpo_trainer)。

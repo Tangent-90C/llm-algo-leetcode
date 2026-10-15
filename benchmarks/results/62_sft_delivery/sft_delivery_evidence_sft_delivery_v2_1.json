@@ -1,0 +1,65 @@
+{
+  "schema_version": "fine-tuning-project/v1",
+  "semantic_id": "PT-SFT-DELIVERY",
+  "environment_profile": "PT-SFT-CUDA",
+  "run_mode": "real_gpu",
+  "run_label": "sft_delivery_v2_1",
+  "selection_manifest": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/63_lora_variants/lora_variant_delivery_lora_variant_selection_v2.json",
+  "model": {
+    "id": "Qwen/Qwen2.5-0.5B",
+    "resolved_commit": "060db6499f32faf8b98477b0a26969ef7d8b9987"
+  },
+  "data": {
+    "manifest": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/64_sft_data_quality/sft_data_manifest_alpaca_qwen25_v2.json",
+    "sample_ids_hash": "903063adbef140239984151fb069e4b54ea24f638d4aa5c4f52ff0d16ea4face"
+  },
+  "selected_config": {
+    "name": "rank4",
+    "rank": 4,
+    "alpha": 16,
+    "dropout": 0.0,
+    "target_modules": [
+      "q_proj",
+      "v_proj"
+    ]
+  },
+  "workload": {
+    "max_length": 256,
+    "train_examples": 48,
+    "evaluation_examples": 16,
+    "total_steps": 24,
+    "checkpoint_step": 12,
+    "learning_rate": 0.0002,
+    "seed": 42
+  },
+  "gates": {
+    "maximum_eval_loss": 2.0,
+    "maximum_eval_loss_regression": 0.0,
+    "maximum_reload_loss_abs_diff": 0.0001
+  },
+  "evidence": {
+    "initial_eval_loss": 1.772523831576109,
+    "final_eval_loss": 1.7079639425501227,
+    "reloaded_eval_loss": 1.7079639425501227,
+    "reload_loss_abs_diff": 0.0,
+    "initial_train_loss": 1.670035481452942,
+    "final_train_loss": 1.5270088911056519,
+    "median_step_time_ms": 39.36732899455819,
+    "peak_allocated_bytes": 1893894144,
+    "peak_reserved_bytes": 2090860544,
+    "checkpoint": {
+      "path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/62_sft_delivery/checkpoint_sft_delivery_v2_1",
+      "sha256": "629455a0572499fc484e429eaef38b0df2acaee8e7b5228516bcbf39053729e1",
+      "saved_step": 12,
+      "resumed_from_step": 12,
+      "completed_step": 24,
+      "training_update_count": 24,
+      "optimizer_state_present": true
+    },
+    "artifact": {
+      "path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/62_sft_delivery/adapter_sft_delivery_v2_1",
+      "sha256": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021"
+    },
+    "status": "ok"
+  }
+}

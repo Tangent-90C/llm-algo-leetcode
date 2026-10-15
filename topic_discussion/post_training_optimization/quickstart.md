@@ -6,6 +6,7 @@
 |:---|:---|:---|:---|
 | `PT-SFT-CUDA` | `llm_pt_sft_cu128` | SFT、LoRA、长上下文和参数适配实验 | 不混装量化 Serving、vLLM 或分布式训练依赖 |
 | `PT-RL-CUDA` | `llm_pt_rl_cu128` | 奖励模型、DPO、GRPO 和奖励信号实验 | 只提供单卡机制与有限更新环境，不替代多工作进程 RL 系统 |
+| `PT-DELIVERY-CUDA` | `llm_pt_delivery_cu128` | Part 05 冻结评测、候选复测与交付决策 | 只消费已交接候选，不重新承担 SFT、DPO 或 GRPO 训练 |
 | `Q-QLORA` | 由量化专题维护 | QLoRA 与低比特训练分支 | 不向 `PT-SFT-CUDA` 追加 bitsandbytes |
 
 安装器会按 Profile 安装依赖、注册仓库运行时、执行依赖检查与环境预检，并注册同名 Jupyter Kernel。已有环境默认不会被覆盖；查看安装计划使用 `--dry-run`，只有确认旧环境属于同一 Profile 后才使用 `--reuse`。
@@ -36,6 +37,24 @@ python -m jupyter lab
 
 该 Profile 的默认矩阵按 12 GiB 级单卡准备，环境预检使用 8 GiB 最低准入线。预检通过只表示软件和基础容量满足要求，不保证任意模型、长度或候选数都能运行；每页的实测峰值和结论仍以结果 JSON 与实验资产表为准。
 
+<a id="pt-delivery-cuda-quickstart"></a>
+
+## PT-DELIVERY-CUDA：综合交付评测
+
+该环境属于 Part 05 后训练交付项目。它复用后训练模型加载栈，但使用独立环境身份，避免把机制实验的依赖状态和综合评测结果混为一谈。
+
+```bash
+PIP_INDEX_URL=https://pypi.org/simple \
+PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu128 \
+python tools/install_environment_profile.py \
+  --profile PT-DELIVERY-CUDA \
+  --env-name llm_pt_delivery_cu128
+conda activate llm_pt_delivery_cu128
+python -m jupyter lab
+```
+
+项目的候选清单、冻结评测集、门槛和结果标签写入 Part 05 项目配置，不写入 requirements 或环境 Profile。
+
 ## 手动创建
 
 安装器不可用时，按相同顺序手动创建。下表给出命令模板中的三个替换项，无需打开 Profile 注册表查找依赖：
@@ -44,6 +63,7 @@ python -m jupyter lab
 |:---|:---|:---|
 | `PT-SFT-CUDA` | `llm_pt_sft_cu128` | `-r requirements/torch-cu128.txt -r requirements/fine-tuning.txt` |
 | `PT-RL-CUDA` | `llm_pt_rl_cu128` | `-r requirements/torch-cu128.txt -r requirements/fine-tuning.txt -c requirements/post-training-cu128-constraints.txt` |
+| `PT-DELIVERY-CUDA` | `llm_pt_delivery_cu128` | `-r requirements/torch-cu128.txt -r requirements/post-training-delivery.txt -c requirements/post-training-cu128-constraints.txt` |
 
 依次替换环境名、依赖参数和 Profile ID：
 
@@ -97,6 +117,16 @@ conda activate llm_pt_rl_cu128
 python tools/register_notebook_runtime.py --check
 python -m pip check
 python tools/environment_preflight.py --profile PT-RL-CUDA
+python -m jupyter lab
+```
+
+综合交付评测环境：
+
+```bash
+conda activate llm_pt_delivery_cu128
+python tools/register_notebook_runtime.py --check
+python -m pip check
+python tools/environment_preflight.py --profile PT-DELIVERY-CUDA
 python -m jupyter lab
 ```
 

@@ -1,0 +1,159 @@
+{
+  "schema_version": "inference-benchmark/v1",
+  "project": "68",
+  "semantic_id": "INF-SPECULATIVE-BENCH",
+  "asset_id": "inference.speculative_evidence",
+  "run_label": "rtx5070ti_speculative_ngram_smoke_v3",
+  "recorded_on": "2026-10-14",
+  "status": "registered",
+  "evidence_level": "gpu_smoke",
+  "config": {
+    "target_model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "resolved_target_snapshot": "989aa7980e4cf806f80c7fef2b1adb7bc71aa306",
+    "backend": "vllm",
+    "vllm_version": "0.11.0",
+    "backend_profile": "INF-VLLM-011-CU128",
+    "dtype": "bfloat16",
+    "generation_config": "vllm",
+    "gpu": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+    "gpu_total_gb": 11.48,
+    "driver": "570.211.01",
+    "torch": "2.8.0+cu128",
+    "torch_cuda": "12.8",
+    "kernel": "6.8.0-138-generic"
+  },
+  "workload": {
+    "scenarios": {
+      "general-c1": "benchmarks/workloads/speculative_general.jsonl",
+      "repetition-c1": "benchmarks/workloads/speculative_repetition.jsonl"
+    },
+    "requests_per_scenario": 8,
+    "max_tokens": 64,
+    "concurrency": 1,
+    "warmup": 2,
+    "repeats": 1,
+    "temperature": 0.0
+  },
+  "metrics": {
+    "general-c1": {
+      "baseline": {
+        "throughput_tokens_per_s": 76.3599,
+        "ttft_p95_ms": 60.11345,
+        "tpot_p95_ms": 14.9615,
+        "e2e_p95_ms": 861.95415,
+        "peak_memory_mb": 10372
+      },
+      "ngram": {
+        "throughput_tokens_per_s": 80.9413,
+        "ttft_p95_ms": 49.81555,
+        "tpot_p95_ms": 14.5799,
+        "e2e_p95_ms": 826.7327,
+        "peak_memory_mb": 10318,
+        "draft_rounds": 10,
+        "proposed_tokens": 50,
+        "accepted_tokens": 10,
+        "acceptance_rate": 0.2,
+        "mechanism_active": true
+      },
+      "comparison": {
+        "throughput_speedup": 1.0599974593995016,
+        "ttft_ratio": 0.828692247741562,
+        "e2e_p95_ratio": 0.9591376757104771
+      }
+    },
+    "repetition-c1": {
+      "baseline": {
+        "throughput_tokens_per_s": 73.8435,
+        "ttft_p95_ms": 66.03765,
+        "tpot_p95_ms": 14.9288,
+        "e2e_p95_ms": 807.17715,
+        "peak_memory_mb": 10372
+      },
+      "ngram": {
+        "throughput_tokens_per_s": 97.1793,
+        "ttft_p95_ms": 48.1902,
+        "tpot_p95_ms": 10.7901,
+        "e2e_p95_ms": 711.8426,
+        "peak_memory_mb": 10320,
+        "draft_rounds": 26,
+        "proposed_tokens": 127,
+        "accepted_tokens": 51,
+        "acceptance_rate": 0.4015748031496063,
+        "mechanism_active": true
+      },
+      "comparison": {
+        "throughput_speedup": 1.3160169818602854,
+        "ttft_ratio": 0.7297382629454562,
+        "e2e_p95_ratio": 0.8818914162770837
+      }
+    },
+    "aggregate_mechanism": {
+      "draft_rounds": 36,
+      "proposed_tokens": 177,
+      "accepted_tokens": 61,
+      "weighted_acceptance_rate": 0.3446327683615819
+    }
+  },
+  "quality": {
+    "gate": "exact_output_match_at_temperature_0",
+    "status": "failed",
+    "general-c1": {
+      "exact_matches": 4,
+      "total": 8
+    },
+    "repetition-c1": {
+      "exact_matches": 7,
+      "total": 8
+    },
+    "note": "严格字符串一致性是保守门槛；差异输出尚未通过任务级正确性评测。"
+  },
+  "coverage": {
+    "g0_target_only": "completed",
+    "g1_ngram": "completed",
+    "g2_mtp": "asset_missing",
+    "g3_eagle": "asset_missing",
+    "g4_dflash": "unsupported",
+    "g5_dspark": "unsupported"
+  },
+  "decision": {
+    "decision": "reject",
+    "reason": "quality_gate_failed",
+    "handoff_to_project_72": false,
+    "performance_signal": "promising_on_repetition",
+    "next_action": "保留 v3 为当前 vLLM 0.11 N-gram 有效实测证据；补充任务级质量评测后再决定是否进入扩展复测。"
+  },
+  "limitations": [
+    "每个场景仅 8 个请求、单并发、单次重复，属于 smoke 而非稳定性基准。",
+    "峰值显存为可见 GPU 总占用，包含非服务进程。",
+    "结果仅适用于已记录的软件、驱动、模型 snapshot 与 generation config。",
+    "MTP、EAGLE、DFlash 与 DSpark 尚未形成可比较实测对。"
+  ],
+  "diagnostic_history": {
+    "rtx5070ti_speculative_ngram_smoke_v1": {
+      "status": "invalid_for_decision",
+      "reason": "统计刷新周期长于短基准窗口，投机计数不可观测。"
+    },
+    "rtx5070ti_speculative_ngram_smoke_v2": {
+      "status": "invalid_for_decision",
+      "reason": "模型 generation config 的 repetition_penalty 禁用了请求级投机路径。"
+    }
+  },
+  "sources": {
+    "manifest": {
+      "path": "benchmarks/results/68_manifest_rtx5070ti_speculative_ngram_smoke_v3.json",
+      "sha256": "6c98067d4965a5f4010cacac077577c6d788468cb9f49d24967472498f98ae5c"
+    },
+    "handoff": {
+      "path": "benchmarks/results/68_handoff_to_72_rtx5070ti_speculative_ngram_smoke_v3.json",
+      "sha256": "250538f06fbeb5e43004739222f92787db16b872ff5f1d309a6f631fc1890952"
+    },
+    "baseline_summary": {
+      "path": "benchmarks/results/68_g0_target_only_summary_rtx5070ti_speculative_ngram_smoke_v3.json",
+      "sha256": "fcc5c2868269bc3afd87766e1fa6a5e95e2bf9d3300bc3efa5b2cff64d4164b9"
+    },
+    "candidate_summary": {
+      "path": "benchmarks/results/68_g1_ngram_summary_rtx5070ti_speculative_ngram_smoke_v3.json",
+      "sha256": "2e708b2afff324c7b24451335172815e6dd8d3305d5cbd1821f35c020aa872f5"
+    }
+  }
+}

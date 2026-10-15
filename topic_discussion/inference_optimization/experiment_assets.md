@@ -9,6 +9,7 @@
 | `INF-CPU` | 请求、预算、缓存、调度与投机解码的 Step1–4 | 状态、公式、策略与决策逻辑 |
 | `INF-CUDA-MECHANISM` | 20、迭代预算、执行分派、动态候选预算与状态重叠 | 真实模型或真实 CUDA 路径的正确性、延迟、显存、能力门槛与回退证据 |
 | `INF-VLLM-011-CU128` | 连续批处理、分块预填充、KV 生命周期与 66–72 的主服务路径 | 固定请求清单下的 TTFT、TPOT、吞吐、P95/P99 与后端配置证据 |
+| `INF-SERVICE-DELIVERY` | Part 05 · 推理服务交付综合项目 | 读取 72 交接清单，在冻结负载下比较候选并形成 SLO、质量、容量与回滚决策 |
 | SGLang 独立环境 | 69、70、72 的可选同口径对照 | Prefix/Radix Cache、调度和模型兼容性证据 |
 | 通信与并行 Profile | 81 与模型内部并行路径 | 多卡通信、扩展效率和分布式失败证据 |
 
@@ -97,8 +98,9 @@ Task6 的 CPU 页面可以验证切分、路由和恢复决策，但扩展效率
 | `INF-SPECULATIVE-BENCH` | 68 | 比较草稿拓扑、验证语义、接受率与净收益 |
 | `INF-PREFIX-CACHE` | 69 | 验证前缀复用、缓存命中和 TTFT 收益 |
 | `INF-SERVING-SCHEDULER` | 70 | 比较请求选择、连续批处理、阶段调度与 overlap |
-| `INF-SINGLE-GPU-DEPLOY` | 72 | 单卡模型、后端、容量和部署决策 |
+| `INF-SINGLE-GPU-DEPLOY` | 72 | 汇总通用基线、专项策略和量化服务证据，生成单卡部署交接清单 |
 | `DIST-INFERENCE` | 81 | 单实例不足后的多卡执行与扩展效率 |
+| `INF-INTEGRATED-DELIVERY` | Part 05 · 01 | 在冻结请求负载下复测候选，形成 SLO、质量、容量与回滚决策 |
 
 项目只消费机制页定义的状态和指标，不重新定义机制。跨专题只交换版本化 JSON 或产物清单，不依赖另一 Notebook 的内存变量。
 

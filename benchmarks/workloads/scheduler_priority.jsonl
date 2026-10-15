@@ -1,0 +1,8 @@
+{"request_id":"interactive-01","priority":0,"prompt":"In one sentence, explain why queue wait affects time to first token."}
+{"request_id":"batch-01","priority":5,"prompt":"Write a detailed checklist for benchmarking an online inference service, including workload identity, warmup, latency percentiles, throughput, failures, quality checks, memory headroom, and rollback conditions."}
+{"request_id":"interactive-02","priority":0,"prompt":"Name two user-facing latency metrics for language-model serving."}
+{"request_id":"batch-02","priority":5,"prompt":"Compare FCFS and priority scheduling in a structured explanation covering request admission, starvation risk, fairness, capacity, observability, and suitable workloads."}
+{"request_id":"interactive-03","priority":0,"prompt":"What does a failed request do to completion rate?"}
+{"request_id":"batch-03","priority":5,"prompt":"Explain how continuous batching, KV cache capacity, prefill cost, decode cost, and request length interact in a production scheduler."}
+{"request_id":"interactive-04","priority":0,"prompt":"Why must scheduler candidates use the same request stream?"}
+{"request_id":"batch-04","priority":5,"prompt":"Propose a complete experiment for detecting whether a scheduling policy improves interactive requests without hiding regressions in batch requests."}

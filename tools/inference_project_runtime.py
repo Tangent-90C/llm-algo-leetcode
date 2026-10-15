@@ -12,8 +12,100 @@ import platform
 import shlex
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any, Mapping
+
+
+def admit_speculative_candidate(candidate: Mapping[str, Any]) -> dict[str, str]:
+    """Return the first failing speculative-decoding admission gate."""
+
+    if not candidate.get("enabled", False):
+        return {"run_status": "skipped", "reason": "candidate_disabled"}
+    if not candidate.get("backend_supported", False):
+        return {"run_status": "unsupported", "reason": "backend_method_unavailable"}
+    if not candidate.get("asset_ready", False):
+        return {"run_status": "asset_missing", "reason": "required_model_asset_unavailable"}
+    if not candidate.get("compatible", False):
+        return {"run_status": "incompatible", "reason": "target_proposer_contract_failed"}
+    estimated = candidate.get("estimated_memory_gb")
+    limit = candidate.get("memory_limit_gb")
+    if estimated is not None and limit is not None and estimated > limit:
+        return {"run_status": "capacity_blocked", "reason": "estimated_memory_exceeds_limit"}
+    return {"run_status": "runnable", "reason": "static_admission_passed"}
+
+
+def build_speculative_pair_evidence(
+    baseline: Mapping[str, Any], candidate: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Validate a completed baseline/candidate pair and derive ratios."""
+
+    completed = baseline.get("run_status") == candidate.get("run_status") == "completed"
+    if not completed:
+        return {
+            "evidence_status": "not_evaluated",
+            "missing_evidence": ["completed_pair"],
+            "candidate_run_status": str(candidate.get("run_status", "unknown")),
+        }
+    fixed_fields = ("target_snapshot", "workload_key", "sampling_key")
+    mismatches = [name for name in fixed_fields if baseline.get(name) != candidate.get(name)]
+    required = (
+        "throughput_tokens_per_s",
+        "ttft_p95_ms",
+        "e2e_p95_ms",
+        "peak_memory_mb",
+        "quality_ok",
+    )
+    missing = [
+        name for name in required
+        if candidate.get(name) is None or baseline.get(name) is None
+    ]
+    path_ok = (
+        baseline.get("execution_path") == "target_only"
+        and candidate.get("execution_path") == "speculative"
+    )
+    if not path_ok:
+        missing.append("speculative_execution_path")
+    if candidate.get("mechanism_active") is not True:
+        missing.append("observed_speculative_proposals")
+    if mismatches:
+        return {"evidence_status": "incomparable", "mismatches": mismatches, "missing_evidence": missing}
+    if missing:
+        return {"evidence_status": "incomplete", "mismatches": [], "missing_evidence": missing}
+    return {
+        "evidence_status": "comparable",
+        "mismatches": [],
+        "missing_evidence": [],
+        "throughput_speedup": candidate["throughput_tokens_per_s"] / baseline["throughput_tokens_per_s"],
+        "ttft_ratio": candidate["ttft_p95_ms"] / baseline["ttft_p95_ms"],
+        "e2e_p95_ratio": candidate["e2e_p95_ms"] / baseline["e2e_p95_ms"],
+        "candidate_peak_memory_mb": candidate["peak_memory_mb"],
+        "quality_ok": bool(candidate["quality_ok"]),
+        "mechanism_active": True,
+    }
+
+
+def decide_speculative_candidate(
+    evidence: Mapping[str, Any], thresholds: Mapping[str, float]
+) -> dict[str, str]:
+    """Apply quality, performance, latency, and memory adoption gates."""
+
+    status = evidence.get("evidence_status")
+    if status not in ("comparable", "incomplete"):
+        return {"decision": "not_evaluated", "reason": f"evidence_{status}"}
+    if status == "incomplete":
+        return {"decision": "tune", "reason": "collect_missing_evidence"}
+    if not evidence.get("quality_ok", False):
+        return {"decision": "reject", "reason": "quality_gate_failed"}
+    gates = (
+        evidence["throughput_speedup"] >= thresholds["min_throughput_speedup"],
+        evidence["ttft_ratio"] <= thresholds["max_ttft_regression_ratio"],
+        evidence["e2e_p95_ratio"] <= thresholds["max_e2e_p95_regression_ratio"],
+        evidence["candidate_peak_memory_mb"] <= thresholds["max_peak_memory_mb"],
+    )
+    if all(gates):
+        return {"decision": "accept", "reason": "quality_and_net_benefit_passed"}
+    return {"decision": "tune", "reason": "one_or_more_performance_gates_failed"}
 
 
 def inspect_quantization_upstream_contract(
@@ -198,7 +290,7 @@ def save_project_result(
 ) -> Path:
     """Save one project result using the shared schema."""
 
-    from inference_result_schema import make_result, save_result
+    from tools.inference_result_schema import make_result, save_result
 
     result = make_result(
         project=project,
@@ -225,13 +317,17 @@ def start_optional_vllm(
     max_model_len: int = 2048,
     gpu_memory_utilization: float = 0.8,
                enforce_eager: bool = True,
-               served_model_name: str | None = None,
-               enable_prefix_caching: bool = False,
-               quantization_args: list[str] | None = None,
-) -> tuple[Any, Path, int, str, str]:
+    served_model_name: str | None = None,
+    enable_prefix_caching: bool = False,
+    scheduling_policy: str = "fcfs",
+    max_num_seqs: int | None = None,
+    quantization_args: list[str] | None = None,
+    generation_config: str | None = None,
+    log_path: str | Path | None = None,
+) -> tuple[Any, Any, int, str, str]:
     """Resolve a model and launch vLLM for an optional Practice-P2 run.
 
-    Returns ``(server, log_path, port, selected_dtype, model_path)``. The
+    Returns ``(server, log_handle, port, selected_dtype, model_path)``. The
     caller owns the server and must call ``stop_optional_vllm`` in ``finally``.
     """
 
@@ -239,7 +335,7 @@ def start_optional_vllm(
     from tools.backend_runtime import resolve_model, start_vllm
 
     model_path = resolve_model(model_id, model_source, cache_dir=cache_dir)
-    server, log_path, port, selected_dtype = start_vllm(
+    server, log_handle, port, selected_dtype = start_vllm(
         model_path,
         dtype,
         vllm_command=vllm_command,
@@ -249,9 +345,13 @@ def start_optional_vllm(
         enforce_eager=enforce_eager,
         served_model_name=served_model_name or model_id,
         enable_prefix_caching=enable_prefix_caching,
+        scheduling_policy=scheduling_policy,
+        max_num_seqs=max_num_seqs,
         quantization_args=quantization_args,
+        generation_config=generation_config,
+        **({"log_path": str(log_path)} if log_path is not None else {}),
     )
-    return server, log_path, port, selected_dtype, str(model_path)
+    return server, log_handle, port, selected_dtype, str(model_path)
 
 
 def start_speculative_vllm(
@@ -268,6 +368,8 @@ def start_speculative_vllm(
     gpu_memory_utilization: float = 0.8,
     enforce_eager: bool = True,
     served_model_name: str | None = None,
+    generation_config: str | None = None,
+    log_path: str | Path | None = None,
 ):
     """Launch vLLM speculative decoding using detected CLI syntax.
 
@@ -292,10 +394,16 @@ def start_speculative_vllm(
             + json.dumps(capability, ensure_ascii=False)
         )
     target_path = resolve_model(target_model_id, model_source, cache_dir=cache_dir)
+    draft_path = resolve_model(draft_model_id, model_source, cache_dir=cache_dir)
+    capability = {
+        **capability,
+        "resolved_target_snapshot": Path(target_path).name,
+        "resolved_draft_snapshot": Path(draft_path).name,
+    }
     speculative_args = build_vllm_speculative_args(
-        capability, draft_model=draft_model_id, proposal_length=proposal_length
+        capability, draft_model=str(draft_path), proposal_length=proposal_length
     )
-    server, log_path, port, selected_dtype = start_vllm(
+    server, log_handle, port, selected_dtype = start_vllm(
         target_path,
         dtype,
         vllm_command=vllm_command,
@@ -305,16 +413,93 @@ def start_speculative_vllm(
         enforce_eager=enforce_eager,
         served_model_name=served_model_name or target_model_id,
         speculative_args=speculative_args,
+        generation_config=generation_config,
+        **({"log_path": str(log_path)} if log_path is not None else {}),
     )
-    return server, log_path, port, selected_dtype, str(target_path), capability
+    return server, log_handle, port, selected_dtype, str(target_path), capability
 
 
-def stop_optional_vllm(server: Any, log_path: str | Path) -> None:
-    """Stop a server started by :func:`start_optional_vllm`."""
+def start_speculative_strategy_vllm(
+    *,
+    target_model_id: str,
+    method: str | None,
+    proposal_length: int,
+    proposer_model_id: str | None = None,
+    method_options: Mapping[str, Any] | None = None,
+    model_source: str = "auto",
+    cache_dir: str | Path = "model_cache",
+    dtype: str = "auto",
+    vllm_command: str | None = None,
+    vllm_environment: str | None = None,
+    max_model_len: int = 2048,
+    gpu_memory_utilization: float = 0.8,
+    enforce_eager: bool = True,
+    served_model_name: str | None = None,
+    generation_config: str | None = None,
+    log_path: str | Path | None = None,
+):
+    """Launch one admitted speculative family through vLLM's generic config.
+
+    This adapter supports asset-free proposers such as n-gram, target-native
+    MTP, and proposer checkpoints such as EAGLE.  Project 68 performs the
+    capability and asset gates before calling it.
+    """
+
+    from tools.backend_runtime import (
+        build_vllm_speculative_strategy_args,
+        probe_vllm_speculative_support,
+        resolve_model,
+        start_vllm,
+    )
+
+    capability = probe_vllm_speculative_support(vllm_command, vllm_environment)
+    if capability["status"] != "supported":
+        raise RuntimeError(
+            "当前 vLLM CLI 不支持可识别的 speculative 接口："
+            + json.dumps(capability, ensure_ascii=False)
+        )
+    target_path = resolve_model(target_model_id, model_source, cache_dir=cache_dir)
+    proposer_path = None
+    if proposer_model_id:
+        proposer_path = resolve_model(proposer_model_id, model_source, cache_dir=cache_dir)
+    capability = {
+        **capability,
+        "resolved_target_snapshot": Path(target_path).name,
+        "resolved_proposer_snapshot": Path(proposer_path).name if proposer_path else None,
+    }
+    speculative_args = build_vllm_speculative_strategy_args(
+        capability,
+        method=method,
+        proposal_length=proposal_length,
+        model=str(proposer_path) if proposer_path else None,
+        method_options=method_options,
+    )
+    server, log_handle, port, selected_dtype = start_vllm(
+        target_path,
+        dtype,
+        vllm_command=vllm_command,
+        vllm_environment=vllm_environment,
+        max_model_len=max_model_len,
+        gpu_memory_utilization=gpu_memory_utilization,
+        enforce_eager=enforce_eager,
+        served_model_name=served_model_name or target_model_id,
+        speculative_args=speculative_args,
+        generation_config=generation_config,
+        **({"log_path": str(log_path)} if log_path is not None else {}),
+    )
+    return server, log_handle, port, selected_dtype, str(target_path), capability
+
+
+def stop_optional_vllm(server: Any, log_handle: Any) -> None:
+    """Stop a server started by :func:`start_optional_vllm` and close its log."""
 
     from tools.backend_runtime import stop_backend
 
-    stop_backend(server, Path(log_path))
+    # ``start_vllm`` returns the already-open TextIOWrapper used as the
+    # subprocess stdout target.  ``stop_backend`` owns closing that handle;
+    # turning it into ``Path(...)`` raises TypeError and can hide completed
+    # benchmark evidence during cleanup.
+    stop_backend(server, log_handle)
 
 
 def start_external_openai_backend(
@@ -367,11 +552,19 @@ def run_backend_benchmark(
     concurrency: int = 1,
     warmup: int = 1,
     repeats: int = 1,
+    temperature: float = 0.0,
+    timeout_s: float = 180.0,
     backend: str = "vllm",
     dtype: str = "unknown",
     batch: int = 1,
     cache_policy: str = "default",
     role: str | None = None,
+    peak_memory_mb: float | None = None,
+    measure_device_peak_memory: bool = False,
+    include_requests: bool = False,
+    send_workload_priority: bool = False,
+    synchronize_start: bool = False,
+    quiet: bool = False,
 ) -> dict[str, Any]:
     """Run the common OpenAI-compatible benchmark and load its JSON output."""
 
@@ -397,7 +590,69 @@ def run_backend_benchmark(
         "--concurrency", str(concurrency),
         "--warmup", str(warmup),
         "--repeats", str(repeats),
+        "--temperature", str(temperature),
+        "--timeout", str(timeout_s),
         "--output", str(output_path),
     ]
-    subprocess.run(command, cwd=root, check=True)
-    return json.loads(output_path.read_text(encoding="utf-8"))
+    if peak_memory_mb is not None:
+        command.extend(["--peak-memory-mb", str(peak_memory_mb)])
+    if include_requests:
+        command.append("--include-requests")
+    if send_workload_priority:
+        command.append("--send-workload-priority")
+    if synchronize_start:
+        command.append("--synchronize-start")
+    if not measure_device_peak_memory or peak_memory_mb is not None:
+        subprocess.run(
+            command,
+            cwd=root,
+            check=True,
+            **({"stdout": subprocess.DEVNULL} if quiet else {}),
+        )
+        return json.loads(output_path.read_text(encoding="utf-8"))
+
+    def read_device_memory_mb() -> float | None:
+        """Read total used memory on visible GPU 0; return None when unavailable."""
+        try:
+            completed = subprocess.run(
+                [
+                    "nvidia-smi", "--query-gpu=memory.used",
+                    "--format=csv,noheader,nounits", "--id=0",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            return float(completed.stdout.strip().splitlines()[0])
+        except (OSError, ValueError, IndexError, subprocess.SubprocessError):
+            return None
+
+    process = subprocess.Popen(
+        command,
+        cwd=root,
+        **({"stdout": subprocess.DEVNULL} if quiet else {}),
+    )
+    samples: list[float] = []
+    while process.poll() is None:
+        sample = read_device_memory_mb()
+        if sample is not None:
+            samples.append(sample)
+        time.sleep(0.2)
+    if process.returncode:
+        raise subprocess.CalledProcessError(process.returncode, command)
+
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    measured_peak = max(samples) if samples else None
+    report.setdefault("metrics", {})["peak_memory_mb"] = measured_peak
+    normalized = report.get("normalized_result") or {}
+    normalized.setdefault("metrics", {})["peak_memory_mb"] = measured_peak
+    report["normalized_result"] = normalized
+    report["resource_measurement"] = {
+        "metric": "device_memory_used_peak_mb",
+        "scope": "visible_gpu_0_total_device_usage",
+        "sample_count": len(samples),
+        "includes_non_service_processes": True,
+    }
+    output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return report

@@ -28,117 +28,100 @@
 - [76. Activation Checkpoint Offload Benchmark | Activation / Checkpoint / Offload 对比项目](./76_Activation_Checkpoint_Offload_Benchmark.md)
 ---
 
-### Step 1：定义预算问题与比较输入
-在有限显存下，哪些策略仍能满足吞吐和质量要求？先明确要比较哪些候选、什么条件算可行，以及报告中必须有哪些字段。
+### Step 1：把策略证据放入统一预算约束
+本项目接收已经完成真实测量的训练策略报告，在同一训练任务下施加显存、吞吐和质量约束。它不重新运行候选，也不默认叠加所有节省手段；输出是可行候选集合、淘汰原因和优先进入回归验收的方案。
 
-| 先固定什么 | 具体填写 | 用来回答什么 |
+| 输入资产 | 决策操作 | 证据与交付物 |
 |:---|:---|:---|
-| 输入证据 | GPU 项目报告 JSON 以及对应的模型、数据、dtype、batch、seq_len、硬件 | 候选是否来自同一 workload |
-| 预算门槛 | `memory_cap_mb`、`min_samples_per_s`、`min_memory_saving_mb`、`min_throughput_ratio`、`max_val_loss` | 什么条件下方案才算可行 |
-| 候选集合 | `baseline`、`checkpoint`、`offload`、`hybrid` | 这次准备比较哪些方案 |
-| 输出字段 | `feasible_names`、`best_candidate`、`memory_saving_mb`、`throughput_ratio` | 为后续比较准备统一字段 |
-
-
-预算不足时，不应直接把所有策略叠加，而要按峰值来源和代价安排裁剪顺序：先处理可解释、可回退的 activation 策略，再评估搬运、batch / sequence length 或模型规模变化。
-
-| 候选动作 | 优先观察 | 主要代价 |
-|:---|:---|:---|
-| checkpoint | activation 峰值与额外重算时间 | 计算时间增加 |
-| offload | 可迁移状态与传输路径 | 搬运、同步和调度开销 |
-| batch / sequence length | workload 是否允许缩小 | 吞吐、质量或服务能力变化 |
-| 模型规模 / dtype | 是否仍满足任务质量门槛 | 能力、精度或部署兼容性变化 |
+| 配对策略报告 | 核对模型、数据、精度、负载和硬件身份 | 可比较的候选集合 |
+| 资源与质量约束 | 依次检查峰值显存、吞吐保留率和质量上限 | 每个候选的通过项与淘汰原因 |
+| 候选代价 | 对照重算、搬运、容量节省和失败记录 | 不同资源之间的代价转移 |
+| 预算决策 | 在可行集合中选择满足目标且代价最低的候选 | 最佳候选与回归验收入口 |
 
 ![75 显存预算决策流程](../public/02_PyTorch_Algorithms/75_budget_decision_flow.svg)
 
 ### Step 2：判断证据是否适用
-先把手里的证据按用途整理，判断它能否用于当前比较：`measured` 支持报告对应硬件和 workload 下的判断，`projected` 用来规划 batch、seq_len 和候选策略的下一次实验。遇到配置变化时，先标记证据适用范围，再决定是否补测。
+先判断证据能否用于当前预算。实测证据只支持报告对应的硬件与训练负载；账本投影可以帮助规划下一轮批次、序列长度或候选策略，但不能证明真实吞吐、执行路径或 OOM 边界。配置发生变化时，旧报告只能作为规划参考。
 
-下表把“当前能回答什么”和“还要补什么”放在一起。
-
-| 证据模式 | 现在能回答什么 | 还需要补什么 |
-|:---|:---|:---|
-| `measured` | 支持报告对应硬件和 workload 下的预算比较 | 记录报告中的模型、dtype、batch、seq_len 和硬件，避免误用 |
-| `projected` | 根据显存账本规划 batch、seq_len 或候选策略 | 不能证明吞吐、kernel 或 OOM 边界；需要补 GPU 实测 |
-| 跨硬件或跨 workload | 只能把旧报告当作规划参考 | GPU、模型、dtype、数据或 seq_len 改变时，重新建立同口径比较 |
+| 证据类型 | 现在能回答什么 | 不能支持的结论 | 下一动作 |
+|:---|:---|:---|:---|
+| 同硬件同负载实测 | 当前条件下的预算可行性和候选排序 | 其他硬件或负载下的收益 | 进入阈值敏感性检查 |
+| 对象账本投影 | 容量方向和下一轮实验规模 | 实际吞吐、执行路径和 OOM 边界 | 返回候选实验补测 |
+| 跨硬件或跨负载记录 | 可能的策略方向 | 当前预算下的采用结论 | 重新建立同口径基线与候选 |
 
 
 
 ### Step 3：用阈值敏感性检查预算结论
-固定一份有效报告，只改变预算阈值，观察可行候选集合、最佳候选和项目结论是否变化。这样可以判断结论是稳定收益，还是只在某个阈值下成立。
+固定同一份有效候选报告，只改变一项预算阈值，观察可行集合、最佳候选和淘汰原因是否变化。若轻微调整阈值就改变最佳候选，结论应标为敏感并进入补测；若候选在一段合理阈值范围内保持可行，才适合进入回归验收。
 
 
 
 | 检查项 | 调整方式 | 观察结果 |
 |:---|:---|:---|
-| 显存上限 | 逐步收紧 `memory_cap_mb` | 可行候选和最佳候选是否改变 |
-| 吞吐下限 | 逐步提高 `min_throughput_ratio` | 哪些策略因速度门槛被淘汰 |
-| 质量上限 | 调整 `max_val_loss` | 质量约束是否改变候选排序 |
+| 显存上限 | 逐步收紧可用容量 | 可行候选和最佳候选是否改变 |
+| 吞吐下限 | 逐步提高吞吐保留率 | 哪些策略因速度门槛被淘汰 |
+| 质量上限 | 逐步收紧验证损失上限 | 质量约束是否改变候选排序 |
 | 结论稳定性 | 综合比较不同阈值下的结果 | 判断预算结论是否稳定 |
 
 ![75 预算敏感性流程](../public/02_PyTorch_Algorithms/75_sensitivity_flow.svg)
 
-### Step 4：实现预算筛选与项目决策
-现在进入代码实现。请补全 3 个函数：先校验预算字段，再筛选候选并计算收益，最后根据摘要输出项目决策。代码围绕已有报告字段完成预算判断，把实验结果转换成可复查的项目结论。
+### Step 4：实现预算筛选与敏感性决策
+请补全 3 个函数：先确认 76 移交的证据适用于当前任务，再把候选放入统一预算，最后检查更严格阈值下的选择是否稳定。字段读取和预算数值检查已提供，题目聚焦证据适用性与决策。
 
-| 类型 | 函数 | 需要补全的逻辑 | 运行后检查 |
+| 任务与目的 | 已知条件 | 完成标准 | 测试验证 |
 |:---|:---|:---|:---|
-| TODO 1 | `validate_memory_budget` | 检查字段是否缺失、数值是否合法 | `is_valid`、`missing_keys`、`invalid_keys` |
-| TODO 2 | `summarize_memory_strategies` | 处理 OOM、重复和无效指标，筛选可行候选并计算相对 baseline 的收益 | `evaluations`、淘汰计数、`feasible_names`、`best_candidate`、显存节省和吞吐保留率 |
-| TODO 3 | `decide_memory_budget_project` | 依次检查 baseline、可行候选和显存/吞吐阈值 | `decision`、`reason`、`next_action` |
+| TODO 1：核验证据适用性 | 76 的移交记录与当前任务身份 | 仅接收工作负载、硬件和状态一致的配对证据 | 错误工作负载与未就绪状态被拒绝 |
+| TODO 2：执行预算筛选 | 可比较候选与显存、吞吐、质量门槛 | 每个候选保留通过状态或明确淘汰原因 | 显存、吞吐和质量门槛分别被覆盖 |
+| TODO 3：检查选择稳定性 | 基准预算与更严格预算下的筛选结果 | 区分稳定采用、阈值敏感和无可行候选 | 候选变化时不能直接采用 |
 
 
 
 ```python
+import math
 from typing import Dict, List
 
 ```
 
 
 ```python
-# 3 个核心 TODO：预算检查、候选汇总、项目结论
-# 目标：把 baseline 与压缩策略的显存预算比较收束成一份项目报告
+# 3 个核心 TODO：证据适用性、预算筛选、敏感性决策。
+# 预算数值检查由辅助函数完成；学习者负责判断证据能否用于当前决策。
 
-import math
-from typing import Dict, List
+def _budget_is_valid(budget: Dict[str, float]) -> bool:
+    required = ('memory_cap_mb', 'min_memory_saving_mb', 'min_throughput_ratio', 'max_quality_delta')
+    return all(
+        isinstance(budget.get(key), (int, float)) and math.isfinite(budget[key])
+        for key in required
+    ) and budget['memory_cap_mb'] > 0 and budget['min_memory_saving_mb'] >= 0 and 0 <= budget['min_throughput_ratio'] <= 1 and budget['max_quality_delta'] >= 0
 
-def validate_memory_budget(budget: Dict[str, float], quality_floor: Dict[str, float]) -> Dict[str, object]:
-    """检查预算字段和值，返回校验状态、缺失字段和非法字段。"""
+def validate_budget_evidence(handoff: Dict[str, object], workload_id: str, hardware_id: str) -> Dict[str, object]:
+    """确认上游证据可以用于当前预算决策。"""
     # ==========================================
-    # TODO 1：完成字段完整性、数值有限性和取值范围校验。
-    # 提示：先列出两组必需字段，再分别记录缺失字段和非法字段；不要为缺失字段补默认值。
-    # 显存上限、最低收益必须非负，吞吐保留率必须位于 0～1。
-     # 缺失字段不能补默认值；显存上限、最低收益必须非负，吞吐保留率必须位于 0～1。
+    # TODO 1：核验证据适用性。
+    # 检查移交状态、工作负载、硬件和候选集合；返回 is_applicable 与 issues。
+    # issues = ???
     # ==========================================
-    # required_budget_keys = ???
-    # missing_keys = ???
-    # invalid_keys = ???
     raise NotImplementedError("请先完成 TODO 代码！")
 
-def summarize_memory_strategies(candidates: List[Dict[str, object]], budget: Dict[str, float], quality_floor: Dict[str, float]) -> Dict[str, object]:
-    """按显存、吞吐和质量门槛汇总候选策略，并保留淘汰原因。"""
+def evaluate_budget_candidates(candidates: List[Dict[str, object]], budget: Dict[str, float]) -> Dict[str, object]:
+    """在统一预算下筛选候选，并保留每个淘汰原因。"""
     # ==========================================
-    # TODO 2：完成候选筛选、可行候选排序和相对 baseline 的收益计算。
-    # 提示：先处理 OOM、重复名称和无效指标，再用三个布尔门槛筛选；最后按显存、吞吐和质量排序。
-    # 先区分 OOM、重复名称和无效指标，再检查显存、吞吐、质量三个门槛。
-    # 候选字段：name、status、peak_memory_mb、samples_per_s、eval_loss / val_loss。
-    # baseline 只作为收益参照，不要把它当成排序键。
-    # ==========================================
-
+    # TODO 2：执行预算筛选。
+    # 对 comparable 候选检查绝对显存、最低节省、吞吐保留率和质量变化。
     # evaluations = ???
     # feasible = ???
-    # memory_ok / speed_ok / quality_ok = ???
+    # 返回 best_candidate、feasible_names 与 evaluations。
+    # ==========================================
     raise NotImplementedError("请先完成 TODO 代码！")
 
-def decide_memory_budget_project(summary: Dict[str, object]) -> Dict[str, object]:
-    """根据可行候选、最低显存收益和吞吐保留率输出项目决策。"""
+def decide_budget_sensitivity(base_result: Dict[str, object], stricter_results: List[Dict[str, object]]) -> Dict[str, object]:
+    """根据基准预算和更严格预算下的候选变化形成项目决策。"""
     # ==========================================
-    # TODO 3：按 baseline、可行候选和收益阈值的顺序输出决策。
-    # 提示：先检查 baseline 和可行候选，再比较显存收益与吞吐保留率；返回三个项目结论字段。
-    # 不要硬编码具体策略名称。
+    # TODO 3：检查选择稳定性。
+    # 基准预算无候选时 reject；更严格预算改变赢家或淘汰赢家时 tune；赢家稳定时 accept。
+    # selected_candidates = ???
+    # 返回 decision、reason、selected_candidate 与 next_action。
     # ==========================================
-    # feasible_count = ???
-    # meaningful_memory_gain / acceptable_throughput = ???
-    # decision / reason / next_action = ???
     raise NotImplementedError("请先完成 TODO 代码！")
 
 ```
@@ -148,104 +131,34 @@ def decide_memory_budget_project(summary: Dict[str, object]) -> Dict[str, object
 # 测试你的实现
 def test_memory_budget_project():
     try:
-        budget = {'memory_cap_mb': 12000.0, 'min_samples_per_s': 6.0, 'min_memory_saving_mb': 512.0, 'min_throughput_ratio': 0.70}
-        quality_floor = {'max_val_loss': 1.15}
-        check = validate_memory_budget(budget, quality_floor)
-        assert check['is_valid'] is True, '预算检查应通过'
-        assert check['missing_keys'] == [], '完整预算不应缺字段'
-        missing = validate_memory_budget({'memory_cap_mb': 12000.0}, quality_floor)
-        assert missing['is_valid'] is False, '缺少吞吐门槛时应拒绝预算配置'
-        assert 'min_samples_per_s' in missing['missing_keys'], '应指出缺少的预算字段'
-        invalid = validate_memory_budget(
-            {'memory_cap_mb': -1.0, 'min_samples_per_s': 6.0, 'min_memory_saving_mb': 512.0, 'min_throughput_ratio': 1.2},
-            {'max_val_loss': 1.15},
-        )
-        assert invalid['is_valid'] is False, '非法预算值应被拒绝'
-        assert {'memory_cap_mb', 'min_throughput_ratio'} <= set(invalid['invalid_keys'])
-
         candidates = [
-            {'name': 'baseline', 'peak_memory_mb': 18000.0, 'samples_per_s': 8.0, 'val_loss': 1.06},
-            {'name': 'checkpoint', 'peak_memory_mb': 11800.0, 'samples_per_s': 6.5, 'val_loss': 1.09},
-            {'name': 'offload', 'peak_memory_mb': 9800.0, 'samples_per_s': 4.5, 'val_loss': 1.08},
+            {'name': 'checkpoint', 'status': 'comparable', 'candidate_peak_memory_mb': 8200.0, 'memory_saving_mb': 2800.0, 'throughput_ratio': 0.85, 'quality_delta': 0.02},
+            {'name': 'offload', 'status': 'comparable', 'candidate_peak_memory_mb': 7600.0, 'memory_saving_mb': 3400.0, 'throughput_ratio': 0.62, 'quality_delta': 0.01},
         ]
-        summary = summarize_memory_strategies(candidates, budget, quality_floor)
-        assert summary['feasible_count'] == 1, '只应有一个方案满足预算与质量'
-        assert summary['best_candidate'] == 'checkpoint', 'checkpoint 应成为最优可行方案'
-        evaluations = {item['name']: item for item in summary['evaluations']}
-        assert evaluations['baseline']['reasons'] == ['memory_over_budget'], '应记录 baseline 的显存淘汰原因'
-        assert evaluations['offload']['reasons'] == ['throughput_below_floor'], '应记录 offload 的吞吐淘汰原因'
+        handoff = {
+            'status': 'ready_for_budget_review', 'workload_id': 'train-b2-s1024',
+            'hardware_id': 'gpu-a', 'eligible_candidates': ['checkpoint', 'offload'],
+            'candidates': candidates,
+        }
+        check = validate_budget_evidence(handoff, 'train-b2-s1024', 'gpu-a')
+        assert check['is_applicable'] is True
+        mismatch = validate_budget_evidence(handoff, 'train-b4-s1024', 'gpu-a')
+        assert mismatch['is_applicable'] is False and 'workload_mismatch' in mismatch['issues']
 
-        decision = decide_memory_budget_project(summary)
-        assert decision['decision'] == 'accept', '可行且最优的方案应被接受'
-        custom_summary = summarize_memory_strategies(
-            [
-                {'name': 'baseline', 'peak_memory_mb': 18000.0, 'samples_per_s': 8.0, 'val_loss': 1.06},
-                {'name': 'activation_checkpoint', 'peak_memory_mb': 11800.0, 'samples_per_s': 6.5, 'val_loss': 1.09},
-            ],
-            budget,
-            quality_floor,
-        )
-        assert decide_memory_budget_project(custom_summary)['decision'] == 'accept', '自定义压缩策略也应可被接受'
+        budget = {'memory_cap_mb': 9000.0, 'min_memory_saving_mb': 2000.0, 'min_throughput_ratio': 0.75, 'max_quality_delta': 0.03}
+        base_result = evaluate_budget_candidates(candidates, budget)
+        assert base_result['best_candidate'] == 'checkpoint'
+        evaluations = {item['name']: item for item in base_result['evaluations']}
+        assert evaluations['offload']['reasons'] == ['throughput_below_floor']
+        stricter_same = evaluate_budget_candidates(candidates, {**budget, 'memory_cap_mb': 8500.0})
+        stable = decide_budget_sensitivity(base_result, [stricter_same])
+        assert stable['decision'] == 'accept' and stable['selected_candidate'] == 'checkpoint'
 
-        hard_summary = summarize_memory_strategies(
-            [
-                {'name': 'checkpoint', 'peak_memory_mb': 13000.0, 'samples_per_s': 6.2, 'val_loss': 1.10},
-                {'name': 'offload', 'peak_memory_mb': 11000.0, 'samples_per_s': 5.0, 'val_loss': 1.20},
-            ],
-            budget,
-            quality_floor,
-        )
-        hard_decision = decide_memory_budget_project(hard_summary)
-        assert hard_decision['decision'] == 'reject', '没有满足预算与质量时应 reject'
-
-        edge_summary = summarize_memory_strategies(
-            [
-                {'name': 'oom_candidate', 'status': 'oom'},
-                {'name': 'incomplete', 'peak_memory_mb': 10000.0},
-            ],
-            budget,
-            quality_floor,
-        )
-        assert edge_summary['oom_count'] == 1, 'OOM 候选应单独计数'
-        assert edge_summary['invalid_count'] == 1, '缺少指标的候选应标记为 invalid'
-        assert decide_memory_budget_project(edge_summary)['decision'] == 'reject', '没有可行策略时应 reject'
-
-        no_baseline = summarize_memory_strategies(
-            [{'name': 'checkpoint', 'peak_memory_mb': 10000.0, 'samples_per_s': 7.0, 'eval_loss': 1.05}],
-            budget,
-            quality_floor,
-        )
-        assert decide_memory_budget_project(no_baseline)['reason'] == 'baseline_missing_or_invalid'
-
-        invalid_baseline = summarize_memory_strategies(
-            [
-                {'name': 'baseline', 'peak_memory_mb': float('nan'), 'samples_per_s': 8.0, 'eval_loss': 1.06},
-                {'name': 'activation_checkpoint', 'peak_memory_mb': 11800.0, 'samples_per_s': 6.5, 'eval_loss': 1.09},
-            ],
-            budget,
-            quality_floor,
-        )
-        assert invalid_baseline['baseline_available'] is False, 'NaN baseline 不应进入收益计算'
-
-        malformed = summarize_memory_strategies(
-            [
-                {'name': 'checkpoint', 'peak_memory_mb': float('nan'), 'samples_per_s': 7.0, 'eval_loss': 1.05},
-                {'name': 'checkpoint', 'peak_memory_mb': 10000.0, 'samples_per_s': 7.0, 'eval_loss': 1.05},
-            ],
-            budget,
-            quality_floor,
-        )
-        assert malformed['invalid_count'] == 2, 'NaN 和重复候选都应被标记为 invalid'
-
-        small_gain = summarize_memory_strategies(
-            [
-                {'name': 'baseline', 'peak_memory_mb': 12000.0, 'samples_per_s': 8.0, 'eval_loss': 1.06},
-                {'name': 'checkpoint', 'peak_memory_mb': 11700.0, 'samples_per_s': 7.0, 'eval_loss': 1.07},
-            ],
-            budget,
-            quality_floor,
-        )
-        assert decide_memory_budget_project(small_gain)['decision'] == 'tune', '显存收益不足时应 tune'
+        stricter_changed = evaluate_budget_candidates(candidates, {**budget, 'min_throughput_ratio': 0.90})
+        sensitive = decide_budget_sensitivity(base_result, [stricter_changed])
+        assert sensitive['decision'] == 'tune' and sensitive['reason'] == 'selection_is_threshold_sensitive'
+        empty = evaluate_budget_candidates(candidates, {**budget, 'memory_cap_mb': 7000.0})
+        assert decide_budget_sensitivity(empty, [])['decision'] == 'reject'
         print('所有测试通过！')
     except NotImplementedError:
         print('请先完成 TODO 代码！')
@@ -459,177 +372,246 @@ def decide_memory_budget_project(summary: Dict[str, object]) -> Dict[str, object
         'next_action': 'revisit_memory_strategy_mix',
     }
 
+
+def _budget_is_valid(budget: Dict[str, float]) -> bool:
+    required = ('memory_cap_mb', 'min_memory_saving_mb', 'min_throughput_ratio', 'max_quality_delta')
+    return all(isinstance(budget.get(key), (int, float)) and math.isfinite(budget[key]) for key in required) and budget['memory_cap_mb'] > 0 and budget['min_memory_saving_mb'] >= 0 and 0 <= budget['min_throughput_ratio'] <= 1 and budget['max_quality_delta'] >= 0
+
+def validate_budget_evidence(handoff: Dict[str, object], workload_id: str, hardware_id: str) -> Dict[str, object]:
+    issues = []
+    if handoff.get('status') != 'ready_for_budget_review':
+        issues.append('handoff_not_ready')
+    if handoff.get('workload_id') != workload_id:
+        issues.append('workload_mismatch')
+    if handoff.get('hardware_id') != hardware_id:
+        issues.append('hardware_mismatch')
+    eligible = handoff.get('eligible_candidates')
+    if not isinstance(eligible, list) or not eligible:
+        issues.append('eligible_candidates_missing')
+    return {'is_applicable': not issues, 'issues': issues}
+
+def evaluate_budget_candidates(candidates: List[Dict[str, object]], budget: Dict[str, float]) -> Dict[str, object]:
+    if not _budget_is_valid(budget):
+        raise ValueError('预算字段缺失或取值非法')
+    evaluations = []
+    feasible = []
+    for candidate in candidates:
+        name = candidate.get('name')
+        if candidate.get('status') != 'comparable':
+            evaluations.append({'name': name, 'status': 'excluded', 'reasons': ['evidence_not_comparable']})
+            continue
+        reasons = []
+        if candidate.get('candidate_peak_memory_mb', math.inf) > budget['memory_cap_mb']:
+            reasons.append('memory_over_budget')
+        if candidate.get('memory_saving_mb', -math.inf) < budget['min_memory_saving_mb']:
+            reasons.append('memory_saving_below_floor')
+        if candidate.get('throughput_ratio', -math.inf) < budget['min_throughput_ratio']:
+            reasons.append('throughput_below_floor')
+        if candidate.get('quality_delta', math.inf) > budget['max_quality_delta']:
+            reasons.append('quality_delta_over_limit')
+        evaluations.append({'name': name, 'status': 'feasible' if not reasons else 'rejected', 'reasons': reasons})
+        if not reasons:
+            feasible.append(candidate)
+    feasible.sort(key=lambda item: (item['candidate_peak_memory_mb'], -item['throughput_ratio'], item['quality_delta']))
+    return {
+        'best_candidate': feasible[0]['name'] if feasible else None,
+        'feasible_names': [item['name'] for item in feasible],
+        'evaluations': evaluations,
+    }
+
+def decide_budget_sensitivity(base_result: Dict[str, object], stricter_results: List[Dict[str, object]]) -> Dict[str, object]:
+    selected = base_result.get('best_candidate')
+    if selected is None:
+        return {'decision': 'reject', 'reason': 'no_candidate_meets_base_budget', 'selected_candidate': None, 'next_action': 'rework_strategy_or_budget'}
+    selected_candidates = [result.get('best_candidate') for result in stricter_results]
+    if any(candidate != selected for candidate in selected_candidates):
+        return {'decision': 'tune', 'reason': 'selection_is_threshold_sensitive', 'selected_candidate': selected, 'next_action': 'collect_boundary_evidence'}
+    return {'decision': 'accept', 'reason': 'selection_stable_across_thresholds', 'selected_candidate': selected, 'next_action': 'send_to_regression_acceptance'}
+
 ```
 
 ### 解析
 
-**1. TODO 1: 检查预算与质量阈值**
-- **实现方式**：先把显存上限、吞吐下限、最低显存收益、最低吞吐保留率和验证损失上限检查齐，再进入方案比较。
-- **关键点**：没有统一预算口径时，显存压缩方案之间的比较都没有解释力。
-- **项目意义**：这一步把 `75` 固定成预算约束下的显存决策页，而不是泛显存技巧页。
+**1. 机制：核验证据适用性**
+- 预算判断只能消费已经完成配对测量、且与当前工作负载和硬件一致的候选证据。
+- 不变量：未就绪或跨工作负载的移交记录不得进入预算筛选。
+- 测试证据：测试覆盖正确移交和工作负载不一致两种情况。
 
-**2. TODO 2: 汇总显存压缩策略**
-- **实现方式**：按 peak memory、samples/s 和 eval loss 统一过滤候选，记录每个候选的淘汰原因，再选出最省显存的可行方案。
-- **关键点**：显存收益只有在质量和吞吐都没有跌出边界时，才值得被保留。
-- **项目意义**：这一步把 `19 / 42 / 73 / 76` 的机制与 benchmark 证据收成真正可比较的工程候选。
+**2. 机制：执行统一预算筛选**
+- 每个候选同时接受绝对显存、最低节省、吞吐保留率和质量变化检查，淘汰原因保留在证据中。
+- 不变量：显存更低不能抵消吞吐或质量越界。
+- 测试证据：测试确认 offload 因吞吐不足被淘汰，而 checkpoint 保持可行。
 
-**3. TODO 3: 输出项目结论**
-- **实现方式**：把候选可行性、最低显存收益、吞吐保留率和最优方案统一收成 `accept / tune / reject`。
-- **关键点**：项目结论必须回答“当前预算下哪种显存压缩方案值得继续采用”，而不是只输出一个峰值显存最小值。
-- **项目意义**：这一步把 `75` 收成显存优化路线中的正式预算项目。
+**3. 机制：检查阈值敏感性**
+- 基准预算下没有候选时拒绝；更严格阈值改变赢家时继续调优；赢家保持一致时才移交给 74 做回归验收。
+- 不变量：只在单一阈值组合下胜出的候选不能直接采用。
+- 测试证据：测试覆盖稳定采用、阈值敏感和无候选三种结果。
 
-### Step 5（可选）：读取 GPU 报告并生成预算决策
+### Step 5（项目实验）：生成显存预算决策
 
-**5.1 报告来源与预算条件**
+本实验读取 76 保存的重复测量结果，在不重新训练的情况下检查显存、吞吐、质量和显存收益门槛。运行顺序是 `prepare → analyze → close`：先核对输入，再生成预算证据，最后写入供 74 使用的决策结果。
 
-本节读取 76 节的 GPU 报告，并在固定报告口径下生成预算决策 JSON。先核对报告来源、实验条件和预算字段；具体策略结果与敏感性分析统一放在 5.5。
+| 阶段 | 操作 | 结果 |
+| --- | --- | --- |
+| `prepare` | 核对固定输入和已登记结果 | 输入摘要 |
+| `analyze` | 执行预算网格和敏感性分析 | 原始预算证据 |
+| `close` | 核对原始证据并形成结论 | 决策 JSON |
 
-| 报告来源与预算条件 | 配置 |
-|:---|:---|
-| 来源报告 | `benchmarks/results/76_real_gpu_memory.json` |
-| GPU / 显存 | RTX 5070 Ti Laptop GPU / 待填写 |
-| 模型与 workload | `Qwen/Qwen2.5-0.5B-Instruct`、FP32、batch=1、seq_len=768 |
-| 预算条件 | 显存上限、吞吐下限、最低显存收益、质量阈值：待填写 |
-| evidence level | `fixed_workload_strategy_benchmark` / 待复核 |
+#### 5.1 本次运行配置
 
-
-5.1 的产物是可核对的输入口径，不在这里预先下结论。
-
-**5.2 输入核验与执行流程**
-
-Step 5 读取 76 已完成的 GPU 报告，把实测证据转换为 CPU 预算决策；不下载模型、不重新训练，也不采集 GPU。按下表运行配置和结果代码。
-
-| 实验阶段 | 学习者操作 | 固定 / 修改内容 | 输出证据 |
-|:---|:---|:---|:---|
-| 输入核验 | 确认 73 baseline 和 76 策略报告存在且字段完整 | 模型、workload、dtype、optimizer、重复运行 | 可进入决策的 measured 证据 |
-| 配置预算 | 只修改配置 cell | `measured / projected`、硬件 profile、显存上限、吞吐下限、质量阈值 | 当前预算条件 |
-| 运行决策 | 执行结果代码，不启动模型 | measured 读取报告；projected 只做容量规划 | 候选集合与 `accept / tune / reject` |
-| 敏感性分析 | 改变预算阈值，不重新训练 | 显存、吞吐和质量门槛组合 | 可行集合与最佳候选是否稳定 |
-| 记录结果 | 读取 JSON 并填写结论 | 输入报告路径、预算、证据模式和复核入口 | `75_memory_budget_decision.json` |
-
-![75 GPU 报告到预算决策的收口流程](../public/02_PyTorch_Algorithms/75_report_decision_flow.svg)
-<div align="center"><strong>75 读取已有 GPU 证据，负责预算判断，不重新测量性能。</strong></div>
+只需填写本次标签和运行阶段。模型、上游结果、预算和敏感性网格在 5.2 固定。
 
 
 ```python
-"""预算决策的输入预检：确认项目路径和上游 GPU 报告，不启动 GPU、不加载模型。"""
+# 只修改本单元。新实验使用唯一标签，并按 prepare → analyze → close 依次运行。
+RUN_LABEL = 'replace_with_unique_label'
+RUN_STAGE = 'prepare'  # prepare / analyze / close
+
+```
+
+#### 5.2 固定实验配置与输入预检
+
+本单元定位项目根目录，读取固定证据清单，并核对 76 的结果文件。它不启动模型，也不写结果。
+
+
+```python
 from pathlib import Path
+import hashlib
+import json
 import os
-import subprocess
 import sys
 
 PROJECT_ROOT = Path(os.environ.get('LLM_ALGO_PROJECT_ROOT', Path.cwd())).expanduser().resolve()
+PROJECT_ROOT = next(
+    (candidate for candidate in (PROJECT_ROOT, *PROJECT_ROOT.parents) if (candidate / 'tools/project_runtime.py').is_file()),
+    PROJECT_ROOT,
+)
 if not (PROJECT_ROOT / 'tools/project_runtime.py').is_file():
     colab_root = Path('/content/llm-algo-leetcode')
     if (colab_root / 'tools/project_runtime.py').is_file():
-        PROJECT_ROOT = colab_root
-    elif Path('/content').is_dir() and not colab_root.exists():
-        subprocess.run(['git', 'clone', 'https://github.com/datawhalechina/llm-algo-leetcode.git', str(colab_root)], check=True)
         PROJECT_ROOT = colab_root
 if not (PROJECT_ROOT / 'tools/project_runtime.py').is_file():
     raise RuntimeError('找不到项目根目录：请设置 LLM_ALGO_PROJECT_ROOT，或先把仓库放到 /content/llm-algo-leetcode。')
 os.chdir(PROJECT_ROOT)
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-REPORT_PATH = PROJECT_ROOT / 'benchmarks/results/76_real_gpu_memory.json'
-print(f'project_root: {PROJECT_ROOT}')
-print(f'report_path: {REPORT_PATH}')
-if not REPORT_PATH.is_file():
-    print('尚未找到 76 的 GPU 报告；请先完成 76 的实验，或把报告路径改为已有 JSON。')
-else:
-    print(f'report_size_bytes: {REPORT_PATH.stat().st_size}')
 
-```
+if RUN_STAGE not in {'prepare', 'analyze', 'close'}:
+    raise ValueError(f'未知 RUN_STAGE: {RUN_STAGE}')
+if RUN_STAGE != 'prepare' and RUN_LABEL == 'replace_with_unique_label':
+    raise ValueError('analyze / close 需要唯一 RUN_LABEL。')
 
-**5.3 配置预算与阈值**
+SEMANTIC_ID = 'PERF-MEMORY-BUDGET'
+SCHEMA_VERSION = 'training-performance-project/v1'
+INPUT_MANIFEST_RELATIVE_PATH = Path('benchmarks/results/75_input_manifest_rtx5070ti_memory_budget_v1.json')
+INPUT_MANIFEST_PATH = PROJECT_ROOT / INPUT_MANIFEST_RELATIVE_PATH
+input_manifest = json.loads(INPUT_MANIFEST_PATH.read_text(encoding='utf-8'))
+source_spec = input_manifest['source']
+approved_spec = input_manifest['approved_result']
+RESULT_76_RELATIVE_PATH = Path(source_spec['path'])
+REPORT_PATH = PROJECT_ROOT / RESULT_76_RELATIVE_PATH
 
-配置 cell 只选择证据模式、硬件预算和阈值；`measured` 才能生成基于已有报告的决策，`projected` 只保留规划标签，不能生成未经验证的性能预测。
-
-```python
-from pathlib import Path
-
-# 75 只读取 76 的 JSON，不重新训练模型，也不需要 GPU。
-RUN_REAL_PROJECT = True  # 设为 True 后运行预算决策。
-EVIDENCE_MODE = 'measured'  # 当前可执行模式；projected 仅用于规划标记，不产生性能预测。
+HARDWARE_PROFILE = {
+    'name': '12GB Laptop GPU',
+    'total_memory_mb': 12227,
+    'usable_memory_mb': 11200,
+}
+BUDGET = {
+    'memory_cap_mb': float(HARDWARE_PROFILE['usable_memory_mb']),
+    'min_samples_per_s': 1.0,
+    'min_memory_saving_mb': 512.0,
+    'min_throughput_ratio': 0.70,
+}
+MAX_VAL_LOSS = None
+SENSITIVITY_MEMORY_CAPS = [9600.0, 11200.0]
+SENSITIVITY_THROUGHPUT_FLOORS = [1.0, 1.5, 2.0]
+SENSITIVITY_QUALITY_FLOORS = [12.20, 12.45, 12.80]
 MODEL_PROFILE = {
     'model_id': 'Qwen/Qwen2.5-0.5B-Instruct',
     'task': 'causal_lm_training',
     'dataset_name': '固定小型教学数据集',
     'dataset_samples': 4,
 }
-HARDWARE_PROFILES = {
-    'laptop_12gb': {'name': '12GB Laptop GPU', 'total_memory_mb': 12227, 'usable_memory_mb': 11200},
-    'rtx4090_24gb': {'name': 'RTX 4090 24GB', 'total_memory_mb': 24576, 'usable_memory_mb': 22500},
-    'datacenter_40gb': {'name': '40GB Data-center GPU', 'total_memory_mb': 40960, 'usable_memory_mb': 38000},
+EVIDENCE_OUTPUT_RELATIVE_PATH = Path(f'benchmarks/results/75_memory_budget_evidence_{RUN_LABEL}.json')
+OUTPUT_RELATIVE_PATH = Path(f'benchmarks/results/75_memory_budget_decision_{RUN_LABEL}.json')
+
+source_sha256 = hashlib.sha256(REPORT_PATH.read_bytes()).hexdigest() if REPORT_PATH.is_file() else None
+source_payload = json.loads(REPORT_PATH.read_text(encoding='utf-8')) if REPORT_PATH.is_file() else {}
+output_parent = PROJECT_ROOT / OUTPUT_RELATIVE_PATH.parent
+preflight_report = {
+    'project_root': str(PROJECT_ROOT),
+    'run_stage': RUN_STAGE,
+    'source_path': str(RESULT_76_RELATIVE_PATH),
+    'source_exists': REPORT_PATH.is_file(),
+    'source_sha256': source_sha256,
+    'source_hash_matches': source_sha256 == source_spec['sha256'],
+    'source_schema': source_payload.get('schema_version'),
+    'source_semantic_id': source_payload.get('semantic_id'),
+    'output_parent_exists': output_parent.is_dir(),
+    'output_parent_writable': output_parent.is_dir() and os.access(output_parent, os.W_OK),
 }
-HARDWARE_PROFILE = 'laptop_12gb'  # 规划目标；measured 模式仍以 76 报告中的 GPU 为证据。
-USE_PROFILE_MEMORY_CAP = True  # True：自动使用硬件档案的 usable_memory_mb；False：使用下面手动填写的预算。
-BUDGET = {
-    'memory_cap_mb': 11200.0,  # 当前实验允许的 GPU 显存上限。
-    'min_samples_per_s': 1.0,  # 可接受的最低训练吞吐。
-    'min_memory_saving_mb': 512.0,  # 相对 baseline 的最低显存收益；教学阈值，可调整。
-    'min_throughput_ratio': 0.70,  # 相对 baseline 的最低吞吐保留率。
-}
-if USE_PROFILE_MEMORY_CAP:
-    BUDGET['memory_cap_mb'] = float(HARDWARE_PROFILES[HARDWARE_PROFILE]['usable_memory_mb'])
-# 这里的 cap 是决策预算，不是整张卡可分配的理论总显存。
-MAX_VAL_LOSS = None  # None：使用 76 baseline eval_loss 的 1.02 倍作为教学代理门槛，不等于真实任务质量。
-SENSITIVITY_MEMORY_CAPS = [9600.0, 11200.0]  # 只改变预算约束，不重新训练；可按设备显存调整。
-SENSITIVITY_THROUGHPUT_FLOORS = [1.0, 1.5, 2.0]  # 观察 accept / tune / reject 是否依赖吞吐门槛。
-SENSITIVITY_QUALITY_FLOORS = [12.20, 12.45, 12.80]  # 质量代理阈值；不是完整任务评测。
-# 主线读取 76 的 FP32 / pressure 报告；BF16 或其他 workload 必须改成对应的独立文件。
-RESULT_76_RELATIVE_PATH = Path('benchmarks/results/76_real_gpu_memory.json')
-OUTPUT_RELATIVE_PATH = Path('benchmarks/results/75_memory_budget_decision.json')
+preflight_report['ready'] = (
+    preflight_report['source_hash_matches']
+    and preflight_report['source_schema'] == source_spec['schema_version']
+    and preflight_report['source_semantic_id'] == source_spec['semantic_id']
+    and preflight_report['output_parent_writable']
+)
+print(preflight_report)
+if not preflight_report['ready']:
+    raise RuntimeError('输入预检未通过，未执行预算分析。')
 
 ```
+
+#### 5.3 输入合同与输出路径
+
+核对 76 的模型、工作负载、候选和重复次数，并派生本次结果路径。
+
+
+```python
+source_config = source_payload.get('config', {})
+required_source_fields = ('model_id', 'workload', 'batch_size', 'seq_len', 'dtype', 'optimizer')
+missing_source_fields = [key for key in required_source_fields if source_config.get(key) in (None, '')]
+candidate_names = [item.get('name') for item in source_payload.get('candidates', [])]
+missing_repeats = [
+    item.get('name', '<unknown>')
+    for item in source_payload.get('candidates', [])
+    if len(item.get('runs', [])) < 3
+]
+if missing_source_fields or not candidate_names or 'baseline' not in candidate_names or missing_repeats:
+    raise ValueError({
+        'missing_source_fields': missing_source_fields,
+        'candidate_names': candidate_names,
+        'missing_three_repeats': missing_repeats,
+    })
+
+DECISION_IDENTITY = {
+    'run_label': RUN_LABEL,
+    'run_stage': RUN_STAGE,
+    'budget': BUDGET,
+    'source': str(RESULT_76_RELATIVE_PATH),
+    'sensitivity_scenarios': len(SENSITIVITY_MEMORY_CAPS) * len(SENSITIVITY_THROUGHPUT_FLOORS) * len(SENSITIVITY_QUALITY_FLOORS),
+    'evidence_path': str(EVIDENCE_OUTPUT_RELATIVE_PATH),
+    'decision_path': str(OUTPUT_RELATIVE_PATH),
+}
+print(DECISION_IDENTITY)
+
+```
+
+#### 5.4 生成预算证据
+
+`analyze` 读取 76 的配对结果，执行预算筛选和敏感性分析。`prepare` 与 `close` 不在本单元写文件。
 
 
 ```python
 import json
-import os
-import sys
-from pathlib import Path
+from tools.project_runtime import ensure_output_path, require_input_file, save_json_record_once, standard_experiment_config, standard_training_metrics
+from tools.memory_budget_runtime import summarize_memory_strategies, decide_memory_budget_project
 
-# 5.4 读取报告并生成预算决策：75 不需要 GPU，只读取 76 报告。
-PROJECT_ROOT = Path(os.environ.get('LLM_ALGO_PROJECT_ROOT', Path.cwd())).expanduser().resolve()
-if not (PROJECT_ROOT / 'tools/project_runtime.py').is_file():
-    colab_root = Path('/content/llm-algo-leetcode')
-    if (colab_root / 'tools/project_runtime.py').is_file():
-        PROJECT_ROOT = colab_root
-    else:
-        for candidate in (PROJECT_ROOT, *PROJECT_ROOT.parents):
-            if (candidate / 'tools/project_runtime.py').is_file():
-                PROJECT_ROOT = candidate
-                break
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-from tools.project_runtime import ensure_output_path, require_input_file, resolve_project_root, standard_experiment_config, standard_training_metrics
-from tools.memory_budget_runtime import (
-    summarize_memory_strategies,
-    decide_memory_budget_project,
-)
-
-PROJECT_ROOT = resolve_project_root(PROJECT_ROOT)
-if str(PROJECT_ROOT) not in os.sys.path:
-    os.sys.path.insert(0, str(PROJECT_ROOT))
 RESULT_76_PATH = PROJECT_ROOT / RESULT_76_RELATIVE_PATH
-
-if RUN_REAL_PROJECT:
-    if EVIDENCE_MODE != 'measured':
-        raise ValueError('当前 75 代码只执行 measured 决策；projected 仅记录规划标签，不能生成性能预测。')
+if RUN_STAGE == 'analyze':
     require_input_file(RESULT_76_PATH, '76 结果')
     raw = json.loads(RESULT_76_PATH.read_text(encoding='utf-8'))
-    source_config = raw.get('config', {})
-    required_source_fields = ('model_id', 'workload', 'batch_size', 'seq_len', 'dtype', 'optimizer')
-    missing_source_fields = [key for key in required_source_fields if source_config.get(key) in (None, '')]
-    if missing_source_fields:
-        raise ValueError(f'76 结果缺少统一实验字段：{missing_source_fields}；不能进入预算决策。')
-    if raw.get('candidates') is None or not raw['candidates']:
-        raise ValueError('76 没有候选策略结果；不能把空报告当作预算证据。')
-    if EVIDENCE_MODE == 'measured':
-        missing_repeats = [item.get('name', '<unknown>') for item in raw['candidates'] if len(item.get('runs', [])) < 3]
-        if missing_repeats:
-            raise ValueError(f'76 仍缺少每个候选的 3 次重复运行：{missing_repeats}；请先重跑 pressure workload。')
+    source_config = raw['config']
     candidates = []
     for item in raw['candidates']:
         candidates.append({
@@ -650,7 +632,6 @@ if RUN_REAL_PROJECT:
     max_val_loss = baseline['eval_loss'] * 1.02 if MAX_VAL_LOSS is None else MAX_VAL_LOSS
     quality_floor = {'max_val_loss': round(max_val_loss, 6)}
     summary = summarize_memory_strategies(candidates, BUDGET, quality_floor)
-    decision = decide_memory_budget_project(summary)
     sensitivity = []
     for memory_cap_mb in SENSITIVITY_MEMORY_CAPS:
         for throughput_floor in SENSITIVITY_THROUGHPUT_FLOORS:
@@ -676,8 +657,8 @@ if RUN_REAL_PROJECT:
     best_candidate_counts = {}
     feasible_sets = {}
     for row in sensitivity:
-        decision = row['decision']
-        decision_counts[decision] = decision_counts.get(decision, 0) + 1
+        scenario_decision = row['decision']
+        decision_counts[scenario_decision] = decision_counts.get(scenario_decision, 0) + 1
         best_name = row['best_candidate'] or '<none>'
         best_candidate_counts[best_name] = best_candidate_counts.get(best_name, 0) + 1
         feasible_key = ','.join(row['feasible_names']) or '<none>'
@@ -692,76 +673,111 @@ if RUN_REAL_PROJECT:
         'decision_stable': len(decision_counts) == 1,
         'interpretation': 'stable' if len(best_candidate_counts) == 1 and len(feasible_sets) == 1 else 'sensitive_to_thresholds',
     }
-    project_result = {
+    budget_evidence = {
+        'schema_version': 'memory-budget-evidence/v1', 'semantic_id': SEMANTIC_ID,
+        'run_mode': 'measured_read_only', 'run_label': RUN_LABEL,
         'task': 'task3_training_memory_optimization',
-        'stage': 'memory_budget_decision',
+        'stage': 'memory_budget_evidence',
         'source': str(RESULT_76_PATH.relative_to(PROJECT_ROOT)),
         'budget': BUDGET,
         'quality_floor': quality_floor,
-        'evidence_mode': EVIDENCE_MODE,
+        'evidence_mode': 'measured',
         'planning_context': {
             'model': MODEL_PROFILE,
-            'hardware_target': HARDWARE_PROFILES[HARDWARE_PROFILE],
+            'hardware_target': HARDWARE_PROFILE,
             'note': '硬件目标用于预算规划；只有 76 报告中的硬件和 workload 属于 measured evidence。',
         },
         'candidates': candidates,
         'summary': summary,
-        'decision': decision,
         'sensitivity': sensitivity,
         'sensitivity_summary': sensitivity_summary,
     }
-    project_result['planning_context']['measured_hardware'] = source_config.get('device')
-    project_result['planning_context']['hardware_comparison'] = 'same_hardware_required_for_performance_claim'
-    project_result['experiment'] = standard_experiment_config({**source_config, 'dtype': source_config.get('dtype', source_config.get('amp_dtype'))})
-    project_result['standard_metrics'] = {item['name']: standard_training_metrics(item) for item in candidates}
-    output_path = ensure_output_path(PROJECT_ROOT, OUTPUT_RELATIVE_PATH)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(project_result, ensure_ascii=False, indent=2), encoding='utf-8')
-    print(json.dumps(project_result, ensure_ascii=False, indent=2))
-    print('\n预算敏感性：')
-    for row in sensitivity:
-        print(f"memory_cap={row['memory_cap_mb']:.0f} MB, throughput_floor={row['min_samples_per_s']:.1f}, feasible={row['feasible_names']}, decision={row['decision']}")
-    print('预算敏感性汇总：', sensitivity_summary)
+    budget_evidence['planning_context']['measured_hardware'] = source_config.get('device')
+    budget_evidence['planning_context']['hardware_comparison'] = 'same_hardware_required_for_performance_claim'
+    budget_evidence['experiment'] = standard_experiment_config({**source_config, 'dtype': source_config.get('dtype', source_config.get('amp_dtype'))})
+    budget_evidence['standard_metrics'] = {item['name']: standard_training_metrics(item) for item in candidates}
+    evidence_output_path = ensure_output_path(PROJECT_ROOT, EVIDENCE_OUTPUT_RELATIVE_PATH)
+    save_json_record_once(evidence_output_path, budget_evidence)
+    print({'saved': str(evidence_output_path), 'candidate_count': len(candidates), 'summary': summary, 'sensitivity_summary': sensitivity_summary})
 else:
-    print('跳过真实项目决策：保持 CPU-first 模式。')
+    print(f'跳过 5.4：RUN_STAGE={RUN_STAGE}')
 
 ```
 
-**5.5 结果记录与敏感性分析**
+#### 5.5 核对预算证据
 
-运行 5.4 的预算决策代码后，先保留完整的策略指标，再填写汇总结果。历史结果只用于示范记录格式；学习者应把自己的 GPU、模型、workload 和阈值写入复测行，不能直接把历史数值迁移到其他硬件。
+`prepare` 读取已登记决策；`analyze` 和 `close` 读取当前标签的原始证据。本单元只读文件。
 
-**本地历史结果**
 
-| 策略 | step time（ms） | 吞吐（samples/s） | peak allocated（MB） | peak reserved（MB） | eval loss | 状态 |
-|:---|---:|---:|---:|---:|---:|:---|
-| baseline | 497.839 | 2.009 | 9782.74 | 10750.00 | 12.356503 | ok |
-| checkpoint | 567.740 | 1.761 | 9450.76 | 10896.00 | 12.356503 | ok |
-| offload | 1877.559 | 0.533 | 9448.33 | 10404.00 | 12.356503 | ok |
-| hybrid | 783.478 | 1.276 | 9454.64 | 10444.00 | 12.356503 | ok |
+```python
+if RUN_STAGE == 'prepare':
+    review_path = PROJECT_ROOT / approved_spec['path']
+    expected_review_sha256 = approved_spec['sha256']
+else:
+    review_path = PROJECT_ROOT / EVIDENCE_OUTPUT_RELATIVE_PATH
+    expected_review_sha256 = None
+if not review_path.is_file():
+    raise FileNotFoundError(f'找不到预算证据：{review_path}')
 
-`checkpoint` 是当前显存与吞吐门槛下的候选方案：显存节省约 332 MB、吞吐保留约 87.7%，但低于 512 MB 的最低显存收益阈值，因此结论是 `tune`。这表示当前收益不足以定版，不表示实验失败。
+budget_evidence_read = json.loads(review_path.read_text(encoding='utf-8'))
+review_sha256 = hashlib.sha256(review_path.read_bytes()).hexdigest()
+review_schema = budget_evidence_read.get('schema_version')
+evidence_review = {
+    'path': str(review_path.relative_to(PROJECT_ROOT)),
+    'sha256': review_sha256,
+    'hash_matches': expected_review_sha256 is None or review_sha256 == expected_review_sha256,
+    'schema_version': review_schema,
+    'semantic_id': budget_evidence_read.get('semantic_id'),
+    'run_label': budget_evidence_read.get('run_label'),
+    'candidate_names': [item.get('name') for item in budget_evidence_read.get('candidates', [])],
+    'summary': budget_evidence_read.get('summary'),
+    'sensitivity_summary': budget_evidence_read.get('sensitivity_summary'),
+    'final_asset': review_schema == SCHEMA_VERSION,
+}
+evidence_review['ready_for_decision'] = (
+    evidence_review['hash_matches']
+    and review_schema in {'memory-budget-evidence/v1', SCHEMA_VERSION}
+    and evidence_review['semantic_id'] == SEMANTIC_ID
+    and bool(evidence_review['candidate_names'])
+    and isinstance(evidence_review['summary'], dict)
+)
+print(evidence_review)
+if not evidence_review['ready_for_decision']:
+    raise RuntimeError('预算证据核对未通过。')
 
-**学习者复测记录**
+```
 
-| 硬件 / 显存 | 模型与 workload | 预算条件 | 可行策略 | 最佳策略 | 显存节省 | 吞吐保留率 | 决策 | 下一步动作 |
-|:---|:---|:---|:---|:---|---:|---:|:---|:---|
-| 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
-| 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
-| 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 | 待填写 |
+#### 5.6 形成决策结果
 
-**示例敏感性分析**
+`close` 根据 5.5 已核对的原始证据写入最终结果。相同内容可重复运行；同一路径出现不同内容时停止并要求更换标签。
 
-敏感性分析只改变预算阈值，不重新测量；如果最佳策略或可行集合随阈值变化，应记录为“对预算条件敏感”，并写明下一次复验动作。
 
-| 实验 | 预算 | 可行策略 | 最佳策略 | 显存节省 | 决策 |
-|:---|:---|:---|:---|---:|:---|
-| FP32 / seq768 | 11200 MiB | baseline / checkpoint / hybrid | checkpoint | 331.98 MiB | tune |
-| FP32 / seq768 | 9600 MiB | checkpoint / hybrid | checkpoint | 331.98 MiB | tune |
-| BF16 / seq1024 | 9600 MiB | 无 | — | — | reject |
-| BF16 / seq1024 | 11200 MiB | baseline / checkpoint | checkpoint | 27.16 MiB | tune |
+```python
+if RUN_STAGE == 'close':
+    decision = decide_memory_budget_project(budget_evidence_read['summary'])
+    project_result = {
+        **budget_evidence_read,
+        'schema_version': SCHEMA_VERSION,
+        'stage': 'memory_budget_decision',
+        'decision': decision,
+        'source_evidence': {'path': evidence_review['path'], 'sha256': evidence_review['sha256']},
+    }
+    output_path = PROJECT_ROOT / OUTPUT_RELATIVE_PATH
+    if output_path.is_file():
+        existing = json.loads(output_path.read_text(encoding='utf-8'))
+        if existing != project_result:
+            raise FileExistsError(f'结果已存在且内容不同，请更换 RUN_LABEL：{output_path}')
+        print({'status': 'already_complete', 'path': str(output_path), 'decision': existing.get('decision')})
+    else:
+        save_json_record_once(ensure_output_path(PROJECT_ROOT, OUTPUT_RELATIVE_PATH), project_result)
+        print({'status': 'saved', 'path': str(output_path), 'decision': decision})
+elif RUN_STAGE == 'prepare':
+    print({'status': 'prepared', 'approved_result': evidence_review['path'], 'decision': budget_evidence_read.get('decision')})
+else:
+    print({'status': 'analyzed', 'evidence': evidence_review['path'], 'next_stage': 'close'})
 
-这些示例用于展示记录方法，不替代目标硬件上的实测。BF16 在该 workload 下比 checkpoint 更直接地缓解容量问题；checkpoint 是否值得保留，仍需结合更高 activation 压力或 profiling 证据判断。
+```
+
 ---
 ## 相关阅读
 

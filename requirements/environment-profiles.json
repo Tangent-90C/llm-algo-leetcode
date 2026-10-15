@@ -211,6 +211,24 @@
         "topic": "topic_discussion/performance_analysis/quickstart.md#perf-cuda-mechanism-quickstart"
       }
     },
+    "PERF-DELIVERY": {
+      "title": "性能优化交付控制环境",
+      "purpose": "读取 Part 02 性能交接包，检查候选组合、回归门槛与瓶颈转移并形成交付决策",
+      "python": {"minimum": "3.11", "maximum_exclusive": "3.13"},
+      "requirements": ["requirements/performance-delivery.txt"],
+      "constraint_files": [],
+      "required_modules": {
+        "jupyterlab": "jupyterlab", "ipykernel": "ipykernel", "yaml": "PyYAML", "psutil": "psutil"
+      },
+      "forbidden_distributions": ["vllm", "sglang", "llmcompressor", "deepspeed", "torchao"],
+      "isolation": {"require_clean_sys_path": true, "require_user_site_disabled": true, "require_project_runtime": true},
+      "gpu": {"required": false},
+      "evidence_scope": "integrated_system_evidence",
+      "documentation": {
+        "global": "topic_discussion/performance_optimization/experiment_assets.md",
+        "topic": "topic_discussion/performance_optimization/quickstart.md#perf-delivery-quickstart"
+      }
+    },
     "INF-CUDA-MECHANISM": {
       "title": "推理机制单卡 GPU 环境",
       "purpose": "运行真实模型的迭代成本、执行分派、显存和局部延迟对照",
@@ -228,6 +246,24 @@
       "documentation": {
         "global": "docs/gpu_environment_assets.md#inf-cuda-mechanism",
         "topic": "topic_discussion/inference_optimization/quickstart.md#inf-cuda-mechanism-quickstart"
+      }
+    },
+    "INF-SERVICE-DELIVERY": {
+      "title": "推理服务交付控制环境",
+      "purpose": "读取 Part 02 单卡部署交接清单，向隔离后端发送冻结请求并形成服务交付决策",
+      "python": {"minimum": "3.11", "maximum_exclusive": "3.13"},
+      "requirements": ["requirements/inference-service-delivery.txt"],
+      "constraint_files": [],
+      "required_modules": {
+        "jupyterlab": "jupyterlab", "ipykernel": "ipykernel", "yaml": "PyYAML", "psutil": "psutil"
+      },
+      "forbidden_distributions": ["vllm", "sglang", "llmcompressor", "deepspeed", "torchao"],
+      "isolation": {"require_clean_sys_path": true, "require_user_site_disabled": true, "require_project_runtime": true},
+      "gpu": {"required": false},
+      "evidence_scope": "integrated_system_evidence",
+      "documentation": {
+        "global": "topic_discussion/inference_optimization/quickstart.md#inf-service-delivery",
+        "topic": "topic_discussion/inference_optimization/quickstart.md#inf-service-delivery"
       }
     },
     "PT-SFT-CUDA": {
@@ -251,7 +287,7 @@
     },
     "PT-RL-CUDA": {
       "title": "后训练偏好与策略信号单卡机制环境",
-      "purpose": "运行 DPO、GRPO 与奖励信号的真实模型配对机制实验",
+      "purpose": "运行奖励模型、DPO、GRPO 与奖励信号的真实模型配对机制实验",
       "python": {"minimum": "3.11", "maximum_exclusive": "3.13"},
       "requirements": ["requirements/torch-cu128.txt", "requirements/fine-tuning.txt"],
       "constraint_files": ["requirements/post-training-cu128-constraints.txt"],
@@ -266,6 +302,25 @@
       "documentation": {
         "global": "docs/gpu_environment_assets.md#pt-rl-cuda",
         "topic": "topic_discussion/post_training_optimization/quickstart.md#pt-rl-cuda-quickstart"
+      }
+    },
+    "PT-DELIVERY-CUDA": {
+      "title": "后训练综合交付单卡环境",
+      "purpose": "读取 Part 02 生命周期交接清单，在冻结评测协议下复测 SFT、DPO 与 GRPO/RLVR 候选并形成交付决策",
+      "python": {"minimum": "3.11", "maximum_exclusive": "3.13"},
+      "requirements": ["requirements/torch-cu128.txt", "requirements/post-training-delivery.txt"],
+      "constraint_files": ["requirements/post-training-cu128-constraints.txt"],
+      "required_modules": {
+        "torch": "torch", "jupyterlab": "jupyterlab", "ipykernel": "ipykernel",
+        "transformers": "transformers", "datasets": "datasets", "accelerate": "accelerate", "peft": "peft"
+      },
+      "forbidden_distributions": ["vllm", "sglang", "llmcompressor", "deepspeed"],
+      "isolation": {"require_clean_sys_path": true, "require_user_site_disabled": true, "require_project_runtime": true},
+      "gpu": {"required": true, "minimum_memory_gb": 8, "torch_cuda": "12.8", "minimum_devices": 1},
+      "evidence_scope": "integrated_system_evidence",
+      "documentation": {
+        "global": "topic_discussion/post_training_optimization/quickstart.md#pt-delivery-cuda-quickstart",
+        "topic": "topic_discussion/post_training_optimization/quickstart.md#pt-delivery-cuda-quickstart"
       }
     },
     "Q-QLORA": {
@@ -312,6 +367,54 @@
       "documentation": {
         "global": "docs/gpu_environment_assets.md#q-qlora",
         "topic": "topic_discussion/quantization_compression/quickstart.md#q-qlora-quickstart"
+      }
+    },
+    "INF-VLLM-SPEC025": {
+      "title": "vLLM 0.25.1 CUDA 12.9 投机解码选型环境",
+      "purpose": "运行 N-gram、MTP、EAGLE、DFlash 与 DSpark 的同目标配对选型实验",
+      "python": {
+        "minimum": "3.11",
+        "maximum_exclusive": "3.13"
+      },
+      "requirements": [
+        "requirements/inference-vllm-spec025.txt"
+      ],
+      "constraint_files": [
+        "requirements/inference-vllm-spec025-constraints.txt"
+      ],
+      "exact_distribution_versions": {
+        "vllm": "0.25.1+cu129"
+      },
+      "required_modules": {
+        "torch": "torch",
+        "jupyterlab": "jupyterlab",
+        "ipykernel": "ipykernel",
+        "transformers": "transformers",
+        "vllm": "vllm",
+        "httpx": "httpx"
+      },
+      "forbidden_distributions": [
+        "sglang",
+        "llmcompressor",
+        "torchao",
+        "deepspeed"
+      ],
+      "isolation": {
+        "require_clean_sys_path": true,
+        "require_user_site_disabled": true,
+        "require_project_runtime": true
+      },
+      "gpu": {
+        "required": true,
+        "minimum_memory_gb": 8,
+        "minimum_devices": 1,
+        "torch_cuda": "12.9",
+        "torch_version": "2.11.0+cu129"
+      },
+      "evidence_scope": "local_backend_mechanism_selection",
+      "documentation": {
+        "global": "docs/gpu_environment_assets.md#inf-vllm-spec025",
+        "topic": "topic_discussion/inference_optimization/quickstart.md#inf-vllm-spec025-quickstart"
       }
     },
     "INF-VLLM-MTP": {

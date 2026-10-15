@@ -24,9 +24,9 @@ CPU 部分先筛选候选方案；可选 GPU 实验再记录真实训练代价�
 ## 前置阅读
 
 **导语：** 进入本项目前，先能说明 LoRA、有效 batch 和低比特权重如何组合，再在预算约束下判断是否采用 QLoRA。
-- [10. LoRA Tutorial | LoRA 教程](./10_LoRA_Tutorial.md)
-- [12. Gradient Accumulation | 梯度累积](./12_Gradient_Accumulation.md)
-- [13. End-to-End Fine-Tuning Experiment | 端到端微调实验](./13_End_to_End_Fine_Tuning_Experiment.md)
+- [14. LoRA Tutorial | LoRA 教程](./14_LoRA_Tutorial.md)
+- [11. Gradient Accumulation | 梯度累积](./11_Gradient_Accumulation.md)
+- [15. End-to-End Fine-Tuning Experiment | 端到端微调实验](./15_End_to_End_Fine_Tuning_Experiment.md)
 - [26. QLoRA and 4bit Quantization | QLoRA 与 4-bit 量化](./26_QLoRA_and_4bit_Quantization.md)
 ---
 

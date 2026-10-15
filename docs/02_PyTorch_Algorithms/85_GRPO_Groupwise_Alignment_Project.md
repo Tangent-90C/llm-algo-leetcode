@@ -16,18 +16,18 @@
 ## 前置阅读
 
 **导语：** 先把 GRPO 损失、偏好优化主线、偏好数据评测和离线 DPO 项目理顺，再进入这个项目；本节默认你已经知道 group-wise 优化的基本对象，重点转向 GRPO 方案是否值得继续训练。
-- [16. GRPO Loss Tutorial | GRPO 损失教程](./16_GRPO_Loss_Tutorial.md)
+- [18. GRPO Loss Tutorial | GRPO 损失教程](./18_GRPO_Loss_Tutorial.md)
 - [2.4](./2_4.md)
 - [50. Preference Data and Evaluation | 偏好数据与评测](./50_Preference_Data_and_Evaluation.md)
 - [84. DPO Preference Project | DPO 偏好优化项目](./84_DPO_Preference_Project.md)
-- [后训练与对齐专题入口](../topic_discussion/post_training_optimization/intro.md)
-- [06 Project Decision and Delivery | 项目决策与交付](../topic_discussion/post_training_optimization/06_project_decision_and_delivery.md)
+- [后训练优化专题入口](../topic_discussion/post_training_optimization/intro.md)
+- [09 Preference Data and Project Decision | 偏好数据与项目决策](../topic_discussion/post_training_optimization/09_preference_data_and_project_decision.md)
 
 ## 相关阅读
 
 **导语：** 做完 group-wise 对齐项目后，最自然的下一步是把离线结论推进到在线基准，或回到专题收口页统一看 adopt / tune / reject 的交付口径。
 - [86. DPO Online Benchmark | DPO 在线基准](./86_DPO_Online_Benchmark.md)
-- [06 Project Decision and Delivery | 项目决策与交付](../topic_discussion/post_training_optimization/06_project_decision_and_delivery.md)
+- [09 Preference Data and Project Decision | 偏好数据与项目决策](../topic_discussion/post_training_optimization/09_preference_data_and_project_decision.md)
 ### Step 1: 定义组内对齐项目目标
 
 - 固定 baseline、group 组织方式、奖励口径和评测窗口。
@@ -44,11 +44,13 @@
 - `reward_mean` 回答整体奖励是否变好。
 - `avg_std` 回答组内波动是否压住。
 - `worst_group_mean` 回答最差组有没有明显拖后腿，避免只看平均数。
+- 进入真实 rollout 后，还要记录 responses/prompt、rollout throughput、verifier time、update time、peak memory 和有效样本率；原始生成速度不能代替有效更新吞吐。
 ### Step 4: 输出项目结论
 
 - GRPO 项目最终不是输出“平均奖励有没有涨”，而是输出这套 group-wise 对齐方案在当前分组口径下是否值得继续保留、微调或放弃。
 - 最终建议统一为 `accept / tune / reject`。
 - 若进入 `tune`，下一轮优先回奖励设计、候选生成和分组策略，而不是直接扩大裁剪范围。
+- `accept` 需要奖励、覆盖、资源和失败证据同时成立；CPU 结果只能验证组内统计与决策逻辑，不能宣称真实 rollout/backend 收益。
 #### 图解：16-50-84 如何收束到 85 GRPO 项目
 
 ```text
@@ -61,6 +63,7 @@
 | baseline | reward_mean、avg_std、worst_group_mean、avg_group_size | 保证比较口径合法 |
 | candidate | group 统计、优势稳定性、最差组表现 | 解释组内收益来源 |
 | 对比 | 均值增益、波动变化、覆盖风险 | 判断是否值得继续训练 |
+| 性能证据（真实 rollout） | responses/prompt、rollout/verifier/update 时间、有效样本率、peak memory、失败重试 | 判断奖励收益对应的系统代价；CPU 路径留空并标记未测 |
 | 决策 | accept / tune / reject | 输出项目结论 |
 
 ```python

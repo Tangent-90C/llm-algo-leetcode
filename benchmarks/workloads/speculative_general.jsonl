@@ -1,0 +1,8 @@
+{"request_id":"general-0","prompt":"Explain the difference between prefill and decode in two concise sentences."}
+{"request_id":"general-1","prompt":"Give three practical metrics for evaluating an online LLM inference service."}
+{"request_id":"general-2","prompt":"Why can a high speculative-token acceptance rate still fail to improve throughput?"}
+{"request_id":"general-3","prompt":"Describe one quality risk and one capacity risk when changing an inference backend."}
+{"request_id":"general-4","prompt":"Write a short comparison of latency optimization and throughput optimization."}
+{"request_id":"general-5","prompt":"Explain why a target-only baseline must use the same workload as its candidate."}
+{"request_id":"general-6","prompt":"What evidence proves that a speculative decoding path actually executed?"}
+{"request_id":"general-7","prompt":"Summarize the role of warmup runs in a GPU benchmark."}

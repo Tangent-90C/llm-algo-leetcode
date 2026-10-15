@@ -35,4 +35,4 @@ DPO 的损失下降可能只是模型更会区分当前偏好对；它不自动�
 | 输出明显偏离原有可用行为 | 参考策略版本、`beta`、优选回答定义 | 降低偏离强度并复测行为回归 |
 | 需要新轨迹才能判断好坏 | 轨迹采样与验证器 | 转入 PPO、GRPO 或 RLVR 路径 |
 
-偏好对通过同提示、标签一致性和评测隔离检查后，可进入[DPO 机制练习](../../02_PyTorch_Algorithms/17_DPO_Loss_Tutorial.ipynb)，验证策略—参考对数概率差如何形成偏好边际。候选训练完成后直接进入[独立评测与采用决策](./10_evaluation_and_adoption_decision.md)；只有持续使用当前策略生成新反馈时，才进入[轨迹生命周期](./08_trajectory_lifecycle_and_environment_interaction.md)。进一步阅读：[DPO 论文](https://arxiv.org/abs/2305.18290)、[TRL DPOTrainer](https://huggingface.co/docs/trl/dpo_trainer)。
+偏好对通过同提示、标签一致性和评测隔离检查后，可进入[DPO 机制练习](../../02_PyTorch_Algorithms/17_DPO_Loss_Tutorial.ipynb)，验证策略—参考对数概率差如何形成偏好边际。候选训练完成后直接进入[独立评测、能力回归与采用决策](./10_evaluation_and_adoption_decision.md)；只有持续使用当前策略生成新反馈时，才进入[轨迹生命周期](./08_trajectory_lifecycle_and_environment_interaction.md)。进一步阅读：[DPO 论文](https://arxiv.org/abs/2305.18290)、[TRL DPOTrainer](https://huggingface.co/docs/trl/dpo_trainer)。

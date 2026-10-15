@@ -1,0 +1,368 @@
+{
+  "schema_version": "training-phase-memory/v1",
+  "semantic_id": "PERF-PROFILING-CLOSURE",
+  "run_mode": "real_gpu",
+  "run_label": "rtx5070ti_profiling_closure_v5",
+  "task": "profiling_driven_optimization",
+  "stage": "phase_memory_attribution",
+  "evidence_level": "repeated_phase_memory_measurement",
+  "config": {
+    "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "batch_size": 1,
+    "seq_len": 768,
+    "dtype": "float32",
+    "optimizer": "AdamW",
+    "strategies": [
+      "baseline",
+      "checkpoint"
+    ],
+    "warmup": 2,
+    "iters": 5,
+    "repeats": 3,
+    "seed": 42,
+    "process_memory_fraction": 0.92,
+    "minimum_free_margin_mb": 512.0,
+    "torch": "2.8.0+cu128",
+    "torch_cuda": "12.8",
+    "device": "NVIDIA GeForce RTX 5070 Ti Laptop GPU"
+  },
+  "sources": {
+    "baseline": "benchmarks/results/73_real_gpu_training_rtx5070ti_training_baseline_v1.json",
+    "strategy": "benchmarks/results/76_real_gpu_memory_rtx5070ti_activation_memory_v1.json",
+    "profile_trace": "benchmarks/results/74_real_gpu_profile_rtx5070ti_profiling_closure_v4.json"
+  },
+  "measurement": {
+    "role": "phase_memory_attribution_only",
+    "timing_for_adoption": false,
+    "synchronize_at_phase_boundaries": true
+  },
+  "safety": {
+    "free_memory_mb_before_load": 10425.56,
+    "total_memory_mb": 11757.81,
+    "projected_peak_reserved_mb": 9856.0,
+    "minimum_free_margin_mb": 512.0,
+    "required_free_memory_mb": 10368.0,
+    "admitted": true
+  },
+  "candidates": [
+    {
+      "name": "baseline",
+      "status": "ok",
+      "step_time_ms": 487.412,
+      "samples_per_s": 2.053,
+      "loss": 11.477464,
+      "peak_memory_mb": 9472.44,
+      "peak_reserved_mb": 10338.0,
+      "phase_metrics": {
+        "forward": {
+          "time_ms_mean": 138.059,
+          "peak_allocated_mb": 8654.15,
+          "peak_reserved_mb": 10338.0,
+          "allocated_growth_mb": 2970.82
+        },
+        "backward": {
+          "time_ms_mean": 236.263,
+          "peak_allocated_mb": 9099.27,
+          "peak_reserved_mb": 10338.0,
+          "allocated_growth_mb": 891.12
+        },
+        "optimizer": {
+          "time_ms_mean": 108.282,
+          "peak_allocated_mb": 9472.44,
+          "peak_reserved_mb": 10338.0,
+          "allocated_growth_mb": 1891.21
+        }
+      },
+      "global_peak_phase": "optimizer",
+      "global_peak_phase_counts": {
+        "optimizer": 3
+      },
+      "runs": [
+        {
+          "repeat": 1,
+          "status": "ok",
+          "step_time_ms": 476.847,
+          "samples_per_s": 2.097,
+          "loss": 11.477464,
+          "phase_metrics": {
+            "forward": {
+              "time_ms_mean": 133.311,
+              "peak_allocated_mb": 8654.15,
+              "peak_reserved_mb": 10338.0,
+              "allocated_growth_mb": 2970.82
+            },
+            "backward": {
+              "time_ms_mean": 231.379,
+              "peak_allocated_mb": 9099.27,
+              "peak_reserved_mb": 10338.0,
+              "allocated_growth_mb": 891.12
+            },
+            "optimizer": {
+              "time_ms_mean": 108.217,
+              "peak_allocated_mb": 9472.44,
+              "peak_reserved_mb": 10338.0,
+              "allocated_growth_mb": 1891.21
+            }
+          },
+          "global_peak_phase": "optimizer",
+          "peak_memory_mb": 9472.44,
+          "peak_reserved_mb": 10338.0,
+          "measurement_role": "phase_memory_attribution_only",
+          "timing_for_adoption": false
+        },
+        {
+          "repeat": 2,
+          "status": "ok",
+          "step_time_ms": 479.604,
+          "samples_per_s": 2.085,
+          "loss": 11.477463,
+          "phase_metrics": {
+            "forward": {
+              "time_ms_mean": 140.165,
+              "peak_allocated_mb": 8654.15,
+              "peak_reserved_mb": 10338.0,
+              "allocated_growth_mb": 2970.82
+            },
+            "backward": {
+              "time_ms_mean": 233.722,
+              "peak_allocated_mb": 9099.27,
+              "peak_reserved_mb": 10338.0,
+              "allocated_growth_mb": 891.12
+            },
+            "optimizer": {
+              "time_ms_mean": 101.944,
+              "peak_allocated_mb": 9472.44,
+              "peak_reserved_mb": 10338.0,
+              "allocated_growth_mb": 1891.21
+            }
+          },
+          "global_peak_phase": "optimizer",
+          "peak_memory_mb": 9472.44,
+          "peak_reserved_mb": 10338.0,
+          "measurement_role": "phase_memory_attribution_only",
+          "timing_for_adoption": false
+        },
+        {
+          "repeat": 3,
+          "status": "ok",
+          "step_time_ms": 505.786,
+          "samples_per_s": 1.977,
+          "loss": 11.477464,
+          "phase_metrics": {
+            "forward": {
+              "time_ms_mean": 140.7,
+              "peak_allocated_mb": 8654.15,
+              "peak_reserved_mb": 10338.0,
+              "allocated_growth_mb": 2970.82
+            },
+            "backward": {
+              "time_ms_mean": 243.688,
+              "peak_allocated_mb": 9099.27,
+              "peak_reserved_mb": 10338.0,
+              "allocated_growth_mb": 891.12
+            },
+            "optimizer": {
+              "time_ms_mean": 114.684,
+              "peak_allocated_mb": 9472.44,
+              "peak_reserved_mb": 10338.0,
+              "allocated_growth_mb": 1891.21
+            }
+          },
+          "global_peak_phase": "optimizer",
+          "peak_memory_mb": 9472.44,
+          "peak_reserved_mb": 10338.0,
+          "measurement_role": "phase_memory_attribution_only",
+          "timing_for_adoption": false
+        }
+      ],
+      "successful_runs": 3,
+      "measurement_role": "phase_memory_attribution_only",
+      "timing_for_adoption": false
+    },
+    {
+      "name": "checkpoint",
+      "status": "ok",
+      "step_time_ms": 573.887,
+      "samples_per_s": 1.743,
+      "loss": 11.477463,
+      "peak_memory_mb": 9458.01,
+      "peak_reserved_mb": 10486.0,
+      "phase_metrics": {
+        "forward": {
+          "time_ms_mean": 126.104,
+          "peak_allocated_mb": 6642.35,
+          "peak_reserved_mb": 10486.0,
+          "allocated_growth_mb": 964.14
+        },
+        "backward": {
+          "time_ms_mean": 336.778,
+          "peak_allocated_mb": 8607.43,
+          "peak_reserved_mb": 10486.0,
+          "allocated_growth_mb": 2411.08
+        },
+        "optimizer": {
+          "time_ms_mean": 107.742,
+          "peak_allocated_mb": 9458.01,
+          "peak_reserved_mb": 10486.0,
+          "allocated_growth_mb": 1890.59
+        }
+      },
+      "global_peak_phase": "optimizer",
+      "global_peak_phase_counts": {
+        "optimizer": 3
+      },
+      "runs": [
+        {
+          "repeat": 1,
+          "status": "ok",
+          "step_time_ms": 573.846,
+          "samples_per_s": 1.743,
+          "loss": 11.477463,
+          "phase_metrics": {
+            "forward": {
+              "time_ms_mean": 128.763,
+              "peak_allocated_mb": 6642.35,
+              "peak_reserved_mb": 10486.0,
+              "allocated_growth_mb": 964.14
+            },
+            "backward": {
+              "time_ms_mean": 339.735,
+              "peak_allocated_mb": 8607.43,
+              "peak_reserved_mb": 10486.0,
+              "allocated_growth_mb": 2411.08
+            },
+            "optimizer": {
+              "time_ms_mean": 101.92,
+              "peak_allocated_mb": 9458.01,
+              "peak_reserved_mb": 10486.0,
+              "allocated_growth_mb": 1890.59
+            }
+          },
+          "global_peak_phase": "optimizer",
+          "peak_memory_mb": 9458.01,
+          "peak_reserved_mb": 10486.0,
+          "measurement_role": "phase_memory_attribution_only",
+          "timing_for_adoption": false
+        },
+        {
+          "repeat": 2,
+          "status": "ok",
+          "step_time_ms": 580.326,
+          "samples_per_s": 1.723,
+          "loss": 11.477463,
+          "phase_metrics": {
+            "forward": {
+              "time_ms_mean": 129.563,
+              "peak_allocated_mb": 6642.35,
+              "peak_reserved_mb": 10486.0,
+              "allocated_growth_mb": 964.14
+            },
+            "backward": {
+              "time_ms_mean": 338.606,
+              "peak_allocated_mb": 8607.43,
+              "peak_reserved_mb": 10486.0,
+              "allocated_growth_mb": 2411.08
+            },
+            "optimizer": {
+              "time_ms_mean": 108.362,
+              "peak_allocated_mb": 9458.01,
+              "peak_reserved_mb": 10486.0,
+              "allocated_growth_mb": 1890.59
+            }
+          },
+          "global_peak_phase": "optimizer",
+          "peak_memory_mb": 9458.01,
+          "peak_reserved_mb": 10486.0,
+          "measurement_role": "phase_memory_attribution_only",
+          "timing_for_adoption": false
+        },
+        {
+          "repeat": 3,
+          "status": "ok",
+          "step_time_ms": 567.49,
+          "samples_per_s": 1.762,
+          "loss": 11.477462,
+          "phase_metrics": {
+            "forward": {
+              "time_ms_mean": 119.985,
+              "peak_allocated_mb": 6642.35,
+              "peak_reserved_mb": 10486.0,
+              "allocated_growth_mb": 964.14
+            },
+            "backward": {
+              "time_ms_mean": 331.992,
+              "peak_allocated_mb": 8607.43,
+              "peak_reserved_mb": 10486.0,
+              "allocated_growth_mb": 2411.08
+            },
+            "optimizer": {
+              "time_ms_mean": 112.943,
+              "peak_allocated_mb": 9458.01,
+              "peak_reserved_mb": 10486.0,
+              "allocated_growth_mb": 1890.59
+            }
+          },
+          "global_peak_phase": "optimizer",
+          "peak_memory_mb": 9458.01,
+          "peak_reserved_mb": 10486.0,
+          "measurement_role": "phase_memory_attribution_only",
+          "timing_for_adoption": false
+        }
+      ],
+      "successful_runs": 3,
+      "measurement_role": "phase_memory_attribution_only",
+      "timing_for_adoption": false
+    }
+  ],
+  "summary": {
+    "candidate_count": 2,
+    "successful_candidates": [
+      "baseline",
+      "checkpoint"
+    ],
+    "allocated_memory_saving_mb": {
+      "forward": 2011.8,
+      "backward": 491.84,
+      "optimizer": 14.43
+    },
+    "global_peak_phase": {
+      "baseline": "optimizer",
+      "checkpoint": "optimizer"
+    }
+  },
+  "experiment": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "backend": "torch",
+    "dtype": "float32",
+    "optimizer": "AdamW",
+    "batch_size": 1,
+    "seq_len": 768,
+    "warmup": 2,
+    "iters": 5,
+    "seed": 42,
+    "device": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+    "torch": "2.8.0+cu128",
+    "cuda": "12.8",
+    "workload": "pressure"
+  },
+  "standard_metrics": {
+    "baseline": {
+      "step_time_ms": 487.412,
+      "throughput_samples_per_s": 2.053,
+      "peak_memory_mb": 9472.44,
+      "peak_reserved_mb": 10338.0,
+      "loss": 11.477464,
+      "eval_loss": null,
+      "status": "ok"
+    },
+    "checkpoint": {
+      "step_time_ms": 573.887,
+      "throughput_samples_per_s": 1.743,
+      "peak_memory_mb": 9458.01,
+      "peak_reserved_mb": 10486.0,
+      "loss": 11.477463,
+      "eval_loss": null,
+      "status": "ok"
+    }
+  }
+}

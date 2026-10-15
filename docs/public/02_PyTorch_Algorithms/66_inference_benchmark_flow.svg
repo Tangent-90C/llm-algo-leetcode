@@ -1,74 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="600" viewBox="0 0 1400 600" role="img" aria-labelledby="title desc">
-  <title id="title">66 推理 benchmark 实验分组与流程</title>
-  <desc id="desc">共同 workload 分成 CPU 逻辑验证和 GPU backend 性能验证，最后汇总指标并输出决策。</desc>
-  <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#52606d"/></marker>
-    <style>
-      .title { font: 700 25px sans-serif; fill: #172b4d; }
-      .lane { font: 700 18px sans-serif; fill: #243b53; }
-      .label { font: 700 17px sans-serif; fill: #172b4d; }
-      .body { font: 15px sans-serif; fill: #334e68; }
-      .small { font: 14px sans-serif; fill: #486581; }
-      .box { stroke-width: 2; rx: 14; }
-      .arrow { stroke: #52606d; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
-      .dash { stroke: #829ab1; stroke-width: 2; stroke-dasharray: 7 6; fill: none; marker-end: url(#arrow); }
-    </style>
-  </defs>
-  <rect width="1400" height="600" fill="#f8fafc"/>
-  <text x="700" y="42" text-anchor="middle" class="title">66 推理性能对比：实验分组与证据链</text>
-
-  <rect x="35" y="225" width="205" height="130" class="box" fill="#e8f1fb" stroke="#4c86c6"/>
-  <text x="137" y="260" text-anchor="middle" class="label">共同 workload</text>
-  <text x="137" y="290" text-anchor="middle" class="body">模型 · 请求集 · 长度</text>
-  <text x="137" y="318" text-anchor="middle" class="small">固定输入条件</text>
-  <text x="137" y="340" text-anchor="middle" class="small">同一口径开始比较</text>
-
-  <text x="285" y="112" class="lane">CPU 逻辑验证</text>
-  <rect x="275" y="135" width="220" height="145" class="box" fill="#e8f5ee" stroke="#4f9d69"/>
-  <text x="385" y="170" text-anchor="middle" class="label">C0 请求模拟</text>
-  <text x="385" y="200" text-anchor="middle" class="body">并发 · prefill · decode</text>
-  <text x="385" y="228" text-anchor="middle" class="small">生成请求轨迹</text>
-  <text x="385" y="252" text-anchor="middle" class="small">阶段耗时和容量估算</text>
-  <rect x="535" y="135" width="220" height="145" class="box" fill="#e8f5ee" stroke="#4f9d69"/>
-  <text x="645" y="170" text-anchor="middle" class="label">C1 瓶颈分类</text>
-  <text x="645" y="200" text-anchor="middle" class="body">读取阶段指标</text>
-  <text x="645" y="228" text-anchor="middle" class="small">prefill / decode / memory</text>
-  <text x="645" y="252" text-anchor="middle" class="small">形成候选优化方向</text>
-
-  <text x="285" y="382" class="lane">GPU / backend 真实性能验证</text>
-  <rect x="275" y="405" width="185" height="145" class="box" fill="#fff4db" stroke="#d99a2b"/>
-  <text x="367" y="440" text-anchor="middle" class="label">G0 baseline</text>
-  <text x="367" y="470" text-anchor="middle" class="body">固定模型和 workload</text>
-  <text x="367" y="498" text-anchor="middle" class="small">真实性能共同参照</text>
-  <rect x="500" y="405" width="185" height="145" class="box" fill="#fff4db" stroke="#d99a2b"/>
-  <text x="592" y="440" text-anchor="middle" class="label">G1 单变量对照</text>
-  <text x="592" y="470" text-anchor="middle" class="body">只改变一个条件</text>
-  <text x="592" y="498" text-anchor="middle" class="small">收益与代价</text>
-  <rect x="725" y="405" width="185" height="145" class="box" fill="#fff4db" stroke="#d99a2b"/>
-  <text x="817" y="440" text-anchor="middle" class="label">G2 策略融合</text>
-  <text x="817" y="470" text-anchor="middle" class="body">组合已验证策略</text>
-  <text x="817" y="498" text-anchor="middle" class="small">可选扩展实验</text>
-
-  <path d="M240 275 C255 275 255 208 275 208" class="arrow"/>
-  <path d="M240 305 C255 305 255 478 275 478" class="arrow"/>
-  <path d="M495 208 H535" class="arrow"/>
-  <path d="M460 478 H500" class="arrow"/>
-  <path d="M685 478 H725" class="arrow"/>
-
-  <rect x="950" y="225" width="205" height="130" class="box" fill="#f0eafa" stroke="#8561a8"/>
-  <text x="1052" y="260" text-anchor="middle" class="label">统一指标记录</text>
-  <text x="1052" y="290" text-anchor="middle" class="body">TTFT · TPOT · 吞吐</text>
-  <text x="1052" y="318" text-anchor="middle" class="small">E2E · 显存 · 成功率 / OOM</text>
-  <text x="1052" y="340" text-anchor="middle" class="small">CPU 估算或 GPU 实测</text>
-  <path d="M755 208 C850 208 850 275 950 275" class="dash"/>
-  <path d="M910 478 C930 478 930 325 950 325" class="dash"/>
-
-  <rect x="1200" y="225" width="165" height="130" class="box" fill="#fdecec" stroke="#c05656"/>
-  <text x="1282" y="260" text-anchor="middle" class="label">项目决策</text>
-  <text x="1282" y="290" text-anchor="middle" class="body">瓶颈与约束</text>
-  <text x="1282" y="318" text-anchor="middle" class="small">accept / tune / reject</text>
-  <text x="1282" y="340" text-anchor="middle" class="small">回扣当前 workload</text>
-  <path d="M1155 290 H1200" class="arrow"/>
-
-  <text x="700" y="585" text-anchor="middle" class="small">先用 C0/C1 检查逻辑，再用 G0/G1 获取证据；只有单项策略已有结果，才进入 G2。</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="470" viewBox="0 0 1500 470" role="img" aria-labelledby="svg-title svg-desc">
+<title id="svg-title">共享单卡推理基线的形成过程</title><desc id="svg-desc">固定模型资产和请求负载，经真实后端执行得到请求级证据，形成可供后续专项项目复用的基线。</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52657a"/></marker><style>.t{font-weight:700;font-size:26px;font-family:sans-serif;fill:#18324b}.h{font-weight:600;font-size:18px;font-family:sans-serif;fill:#18324b}.b{font-size:15px;font-family:sans-serif;fill:#334e68}.l{fill:none;stroke:#52657a;stroke-width:3;marker-end:url(#arrow)}.a{fill:#e8f1fb;stroke:#3f78a8;stroke-width:2}.g{fill:#e8f6f1;stroke:#3f8b72;stroke-width:2}.o{fill:#fff3df;stroke:#b7791f;stroke-width:2}.p{fill:#f1edfb;stroke:#7657a5;stroke-width:2}.r{fill:#fbeceb;stroke:#b85c57;stroke-width:2}</style></defs>
+<rect width="1500" height="470" fill="#f8fafc"/><text x="750" y="42" text-anchor="middle" class="t">共享单卡推理基线：固定条件、真实执行与可复用证据</text>
+<rect x="45" y="120" width="230" height="115" rx="14" class="a"/><text x="160" y="157" text-anchor="middle" class="h">固定模型资产</text><text x="160" y="187" text-anchor="middle" class="b">模型与分词器版本</text><text x="160" y="213" text-anchor="middle" class="b">数据类型与后端版本</text>
+<rect x="325" y="120" width="230" height="115" rx="14" class="a"/><text x="440" y="157" text-anchor="middle" class="h">冻结请求负载</text><text x="440" y="187" text-anchor="middle" class="b">请求顺序与生成长度</text><text x="440" y="213" text-anchor="middle" class="b">预热、重复与并发</text>
+<rect x="605" y="120" width="230" height="115" rx="14" class="g"/><text x="720" y="157" text-anchor="middle" class="h">vLLM G0 执行</text><text x="720" y="187" text-anchor="middle" class="b">不启用专项策略</text><text x="720" y="213" text-anchor="middle" class="b">保存成功与失败</text>
+<rect x="885" y="120" width="230" height="115" rx="14" class="o"/><text x="1000" y="157" text-anchor="middle" class="h">请求级证据</text><text x="1000" y="187" text-anchor="middle" class="b">TTFT、TPOT、E2E</text><text x="1000" y="213" text-anchor="middle" class="b">吞吐、成功率与显存</text>
+<rect x="1165" y="120" width="290" height="115" rx="14" class="p"/><text x="1310" y="157" text-anchor="middle" class="h">共享基线资产</text><text x="1310" y="187" text-anchor="middle" class="b">原始样本、汇总与环境</text><text x="1310" y="213" text-anchor="middle" class="b">供专项项目配对复用</text>
+<path d="M275 178H325M555 178H605M835 178H885M1115 178H1165" class="l"/>
+<rect x="605" y="315" width="230" height="90" rx="14" class="r"/><text x="720" y="350" text-anchor="middle" class="h">执行失败</text><text x="720" y="378" text-anchor="middle" class="b">保留日志和复测入口</text><path d="M720 235V315" class="l"/>
+<rect x="885" y="315" width="230" height="90" rx="14" class="o"/><text x="1000" y="350" text-anchor="middle" class="h">证据缺失</text><text x="1000" y="378" text-anchor="middle" class="b">补齐质量或资源记录</text><path d="M1000 235V315" class="l"/>
 </svg>

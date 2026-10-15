@@ -1,0 +1,1467 @@
+{
+  "label": "g0_fcfs",
+  "base_url": "http://127.0.0.1:51477",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "workload": {
+    "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/scheduler_priority.jsonl",
+    "requests": 8,
+    "max_tokens": 96,
+    "concurrency": 8,
+    "warmup": 2,
+    "repeats": 5,
+    "workload_priority_sent": false,
+    "synchronized_start": true
+  },
+  "metrics": {
+    "successful_requests": 8,
+    "failed_requests": 0,
+    "request_throughput_per_s": 4.137,
+    "output_token_throughput_per_s": 365.1957,
+    "ttft_ms": {
+      "mean": 682.1132,
+      "p50": 647.2388,
+      "p95": 1361.5369,
+      "p99": 1410.1685
+    },
+    "tpot_ms": {
+      "mean": 4.775,
+      "p50": 4.7457,
+      "p95": 5.2632,
+      "p99": 5.3701
+    },
+    "e2e_ms": {
+      "mean": 1100.3836,
+      "p50": 1106.0641,
+      "p95": 1809.6869,
+      "p99": 1906.3606
+    },
+    "output_tokens": 706.2,
+    "prompt_tokens_mean": 49,
+    "duration_s": 1.9341,
+    "priority_order_score": 0.5,
+    "priority_first_token_order_score": 0.4625
+  },
+  "results": [
+    {
+      "ok": true,
+      "prompt": "Explain how continuous batching, KV cache capacity, prefill cost, decode cost, and request length interact in a production scheduler.",
+      "request_id": "batch-03",
+      "priority": 5,
+      "output_text": "In the context of a production scheduler, continuous batching, KV cache capacity, prefill cost, decode cost, and request length all play crucial roles in optimizing performance and resource utilization. Let's break down each of these factors:\n\n1. **Continuous Batching**: Continuous batching refers to the process where data is batched together rather than being processed sequentially. This can be beneficial for several reasons:\n   - **Reducing Latency**: By processing batches of data at once, you reduce",
+      "ttft_ms": 66.932,
+      "tpot_ms": 4.41,
+      "e2e_ms": 485.911,
+      "submit_offset_ms": 3.32,
+      "first_token_offset_ms": 70.252,
+      "completion_offset_ms": 489.231,
+      "output_tokens": 96,
+      "estimated_output_tokens": false,
+      "stream_chunks": 94,
+      "usage": {
+        "prompt_tokens": 55,
+        "total_tokens": 151,
+        "completion_tokens": 96
+      },
+      "completion_rank": 1,
+      "first_token_rank": 1
+    },
+    {
+      "ok": true,
+      "prompt": "Write a detailed checklist for benchmarking an online inference service, including workload identity, warmup, latency percentiles, throughput, failures, quality checks, memory headroom, and rollback conditions.",
+      "request_id": "batch-01",
+      "priority": 5,
+      "output_text": "Creating a comprehensive benchmarking checklist for an online inference service involves several key elements to ensure that the service meets performance expectations across various scenarios. Below is a detailed list of tasks and considerations for each aspect:\n\n### 1. **Workload Identity**\n   - **Identify the Type of Workloads:** Determine whether the workload includes CPU-bound, GPU-bound, or mixed workloads.\n   - **Load Balancing:** Ensure that the workload is evenly distributed across multiple instances to avoid bott",
+      "ttft_ms": 82.302,
+      "tpot_ms": 4.322,
+      "e2e_ms": 492.879,
+      "submit_offset_ms": 2.703,
+      "first_token_offset_ms": 85.005,
+      "completion_offset_ms": 495.582,
+      "output_tokens": 96,
+      "estimated_output_tokens": false,
+      "stream_chunks": 94,
+      "usage": {
+        "prompt_tokens": 67,
+        "total_tokens": 163,
+        "completion_tokens": 96
+      },
+      "completion_rank": 2,
+      "first_token_rank": 2
+    },
+    {
+      "ok": true,
+      "prompt": "Compare FCFS and priority scheduling in a structured explanation covering request admission, starvation risk, fairness, capacity, observability, and suitable workloads.",
+      "request_id": "batch-02",
+      "priority": 5,
+      "output_text": "FCFS (First-Come, First-Served) and Priority Scheduling are two fundamental approaches to managing the execution of tasks in a computer system. Each has its own set of characteristics that can be analyzed to understand their suitability for different types of workload.\n\n### 1. **FCFS**\n- **Request Admission**: In FCFS, all tasks are served simultaneously without any consideration for their relative priorities or deadlines.\n- **Starvation Risk**: This approach inherently leads to starvation if",
+      "ttft_ms": 492.906,
+      "tpot_ms": 5.078,
+      "e2e_ms": 975.276,
+      "submit_offset_ms": 2.795,
+      "first_token_offset_ms": 495.701,
+      "completion_offset_ms": 978.072,
+      "output_tokens": 96,
+      "estimated_output_tokens": false,
+      "stream_chunks": 96,
+      "usage": {
+        "prompt_tokens": 58,
+        "total_tokens": 154,
+        "completion_tokens": 96
+      },
+      "completion_rank": 3,
+      "first_token_rank": 3
+    },
+    {
+      "ok": true,
+      "prompt": "Why must scheduler candidates use the same request stream?",
+      "request_id": "interactive-04",
+      "priority": 0,
+      "output_text": "Scheduler candidates typically use the same request stream because they need to coordinate and manage their requests efficiently across multiple nodes in a distributed system. Here are some key reasons why this is important:\n\n1. **Resource Sharing**: Each node in a distributed system needs to share resources such as CPU, memory, disk space, and network bandwidth. By using the same request stream, all nodes can access these resources simultaneously without contention.\n\n2. **Request Processing**: The scheduling algorithm for each node should be",
+      "ttft_ms": 498.583,
+      "tpot_ms": 5.074,
+      "e2e_ms": 980.576,
+      "submit_offset_ms": 3.189,
+      "first_token_offset_ms": 501.772,
+      "completion_offset_ms": 983.764,
+      "output_tokens": 96,
+      "estimated_output_tokens": false,
+      "stream_chunks": 96,
+      "usage": {
+        "prompt_tokens": 39,
+        "total_tokens": 135,
+        "completion_tokens": 96
+      },
+      "completion_rank": 4,
+      "first_token_rank": 4
+    },
+    {
+      "ok": true,
+      "prompt": "Propose a complete experiment for detecting whether a scheduling policy improves interactive requests without hiding regressions in batch requests.",
+      "request_id": "batch-04",
+      "priority": 5,
+      "output_text": "To detect whether a scheduling policy improves interactive requests while avoiding the hidden regression of batch requests, we can design an experiment that involves both batch and interactive requests. Here's a comprehensive plan:\n\n### 1. **Define the Experiment**\n   - **Batch Requests:** Simulate multiple batches of requests with varying levels of complexity.\n   - **Interactive Requests:** Simulate real-time interactions with users or applications.\n\n### 2. **Data Collection**\n   - **Batch Data:** Collect data",
+      "ttft_ms": 981.534,
+      "tpot_ms": 4.415,
+      "e2e_ms": 1401.002,
+      "submit_offset_ms": 2.448,
+      "first_token_offset_ms": 983.982,
+      "completion_offset_ms": 1403.45,
+      "output_tokens": 96,
+      "estimated_output_tokens": false,
+      "stream_chunks": 96,
+      "usage": {
+        "prompt_tokens": 51,
+        "total_tokens": 147,
+        "completion_tokens": 96
+      },
+      "completion_rank": 5,
+      "first_token_rank": 5
+    },
+    {
+      "ok": true,
+      "prompt": "What does a failed request do to completion rate?",
+      "request_id": "interactive-03",
+      "priority": 0,
+      "output_text": "A failed request can significantly impact the completion rate of an application or system. Here's why:\n\n1. **Resource Consumption**: When a request fails, it consumes more resources from the server. This includes CPU time, memory usage, and disk I/O operations.\n\n2. **Latency**: The failure of a request can cause delays in processing other requests. If the server is busy handling multiple failed requests, it may slow down overall system performance.\n\n3. **Error Handling**: Applications",
+      "ttft_ms": 985.5,
+      "tpot_ms": 4.424,
+      "e2e_ms": 1405.792,
+      "submit_offset_ms": 3.019,
+      "first_token_offset_ms": 988.52,
+      "completion_offset_ms": 1408.812,
+      "output_tokens": 96,
+      "estimated_output_tokens": false,
+      "stream_chunks": 96,
+      "usage": {
+        "prompt_tokens": 39,
+        "total_tokens": 135,
+        "completion_tokens": 96
+      },
+      "completion_rank": 6,
+      "first_token_rank": 6
+    },
+    {
+      "ok": true,
+      "prompt": "In one sentence, explain why queue wait affects time to first token.",
+      "request_id": "interactive-01",
+      "priority": 0,
+      "output_text": "Queue wait can significantly increase the time it takes for tasks to be executed in a system, as waiting in a queue adds delays and reduces processing speed.",
+      "ttft_ms": 1406.044,
+      "tpot_ms": 5.106,
+      "e2e_ms": 1559.227,
+      "submit_offset_ms": 2.911,
+      "first_token_offset_ms": 1408.955,
+      "completion_offset_ms": 1562.138,
+      "output_tokens": 31,
+      "estimated_output_tokens": false,
+      "stream_chunks": 30,
+      "usage": {
+        "prompt_tokens": 43,
+        "total_tokens": 74,
+        "completion_tokens": 31
+      },
+      "completion_rank": 7,
+      "first_token_rank": 7
+    },
+    {
+      "ok": true,
+      "prompt": "Name two user-facing latency metrics for language-model serving.",
+      "request_id": "interactive-02",
+      "priority": 0,
+      "output_text": "Two common user-facing latency metrics for language-model serving are:\n\n1. **Response Time (RTT)**: This metric measures the time it takes for a request to be processed and returned by the server. It is often used in web applications where users interact with servers through HTTP requests.\n\n2. **Latency**: This refers to the delay or lag between when a request reaches the server and when the response is received. In the context of language-model serving, this could refer to",
+      "ttft_ms": 1411.295,
+      "tpot_ms": 5.562,
+      "e2e_ms": 1939.73,
+      "submit_offset_ms": 2.616,
+      "first_token_offset_ms": 1413.91,
+      "completion_offset_ms": 1942.346,
+      "output_tokens": 96,
+      "estimated_output_tokens": false,
+      "stream_chunks": 96,
+      "usage": {
+        "prompt_tokens": 40,
+        "total_tokens": 136,
+        "completion_tokens": 96
+      },
+      "completion_rank": 8,
+      "first_token_rank": 8
+    }
+  ],
+  "runs": [
+    {
+      "label": "g0_fcfs",
+      "base_url": "http://127.0.0.1:51477",
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "workload": {
+        "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/scheduler_priority.jsonl",
+        "requests": 8,
+        "max_tokens": 96,
+        "concurrency": 8,
+        "warmup": 2,
+        "repeats": 1,
+        "workload_priority_sent": false,
+        "synchronized_start": true
+      },
+      "metrics": {
+        "successful_requests": 8,
+        "failed_requests": 0,
+        "request_throughput_per_s": 4.1177,
+        "output_token_throughput_per_s": 361.847,
+        "ttft_ms": {
+          "mean": 740.637,
+          "p50": 740.0585,
+          "p95": 1409.45715,
+          "p99": 1410.9274300000002
+        },
+        "tpot_ms": {
+          "mean": 4.799,
+          "p50": 4.7490000000000006,
+          "p95": 5.4024,
+          "p99": 5.53008
+        },
+        "e2e_ms": {
+          "mean": 1155.049,
+          "p50": 1190.789,
+          "p95": 1806.55395,
+          "p99": 1913.0947899999999
+        },
+        "output_tokens": 703,
+        "prompt_tokens_mean": 49,
+        "duration_s": 1.9428,
+        "priority_order_score": 0.0625,
+        "priority_first_token_order_score": 0.0625
+      },
+      "results": [
+        {
+          "ok": true,
+          "prompt": "Explain how continuous batching, KV cache capacity, prefill cost, decode cost, and request length interact in a production scheduler.",
+          "request_id": "batch-03",
+          "priority": 5,
+          "output_text": "In the context of a production scheduler, continuous batching, KV cache capacity, prefill cost, decode cost, and request length all play crucial roles in optimizing performance and resource utilization. Let's break down each of these factors:\n\n1. **Continuous Batching**: Continuous batching refers to the process where data is batched together rather than being processed sequentially. This can be beneficial for several reasons:\n   - **Reducing Latency**: By processing batches of data at once, you reduce",
+          "ttft_ms": 66.932,
+          "tpot_ms": 4.41,
+          "e2e_ms": 485.911,
+          "submit_offset_ms": 3.32,
+          "first_token_offset_ms": 70.252,
+          "completion_offset_ms": 489.231,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 94,
+          "usage": {
+            "prompt_tokens": 55,
+            "total_tokens": 151,
+            "completion_tokens": 96
+          },
+          "completion_rank": 1,
+          "first_token_rank": 1
+        },
+        {
+          "ok": true,
+          "prompt": "Write a detailed checklist for benchmarking an online inference service, including workload identity, warmup, latency percentiles, throughput, failures, quality checks, memory headroom, and rollback conditions.",
+          "request_id": "batch-01",
+          "priority": 5,
+          "output_text": "Creating a comprehensive benchmarking checklist for an online inference service involves several key elements to ensure that the service meets performance expectations across various scenarios. Below is a detailed list of tasks and considerations for each aspect:\n\n### 1. **Workload Identity**\n   - **Identify the Type of Workloads:** Determine whether the workload includes CPU-bound, GPU-bound, or mixed workloads.\n   - **Load Balancing:** Ensure that the workload is evenly distributed across multiple instances to avoid bott",
+          "ttft_ms": 82.302,
+          "tpot_ms": 4.322,
+          "e2e_ms": 492.879,
+          "submit_offset_ms": 2.703,
+          "first_token_offset_ms": 85.005,
+          "completion_offset_ms": 495.582,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 94,
+          "usage": {
+            "prompt_tokens": 67,
+            "total_tokens": 163,
+            "completion_tokens": 96
+          },
+          "completion_rank": 2,
+          "first_token_rank": 2
+        },
+        {
+          "ok": true,
+          "prompt": "Compare FCFS and priority scheduling in a structured explanation covering request admission, starvation risk, fairness, capacity, observability, and suitable workloads.",
+          "request_id": "batch-02",
+          "priority": 5,
+          "output_text": "FCFS (First-Come, First-Served) and Priority Scheduling are two fundamental approaches to managing the execution of tasks in a computer system. Each has its own set of characteristics that can be analyzed to understand their suitability for different types of workload.\n\n### 1. **FCFS**\n- **Request Admission**: In FCFS, all tasks are served simultaneously without any consideration for their relative priorities or deadlines.\n- **Starvation Risk**: This approach inherently leads to starvation if",
+          "ttft_ms": 492.906,
+          "tpot_ms": 5.078,
+          "e2e_ms": 975.276,
+          "submit_offset_ms": 2.795,
+          "first_token_offset_ms": 495.701,
+          "completion_offset_ms": 978.072,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 58,
+            "total_tokens": 154,
+            "completion_tokens": 96
+          },
+          "completion_rank": 3,
+          "first_token_rank": 3
+        },
+        {
+          "ok": true,
+          "prompt": "Why must scheduler candidates use the same request stream?",
+          "request_id": "interactive-04",
+          "priority": 0,
+          "output_text": "Scheduler candidates typically use the same request stream because they need to coordinate and manage their requests efficiently across multiple nodes in a distributed system. Here are some key reasons why this is important:\n\n1. **Resource Sharing**: Each node in a distributed system needs to share resources such as CPU, memory, disk space, and network bandwidth. By using the same request stream, all nodes can access these resources simultaneously without contention.\n\n2. **Request Processing**: The scheduling algorithm for each node should be",
+          "ttft_ms": 498.583,
+          "tpot_ms": 5.074,
+          "e2e_ms": 980.576,
+          "submit_offset_ms": 3.189,
+          "first_token_offset_ms": 501.772,
+          "completion_offset_ms": 983.764,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 135,
+            "completion_tokens": 96
+          },
+          "completion_rank": 4,
+          "first_token_rank": 4
+        },
+        {
+          "ok": true,
+          "prompt": "Propose a complete experiment for detecting whether a scheduling policy improves interactive requests without hiding regressions in batch requests.",
+          "request_id": "batch-04",
+          "priority": 5,
+          "output_text": "To detect whether a scheduling policy improves interactive requests while avoiding the hidden regression of batch requests, we can design an experiment that involves both batch and interactive requests. Here's a comprehensive plan:\n\n### 1. **Define the Experiment**\n   - **Batch Requests:** Simulate multiple batches of requests with varying levels of complexity.\n   - **Interactive Requests:** Simulate real-time interactions with users or applications.\n\n### 2. **Data Collection**\n   - **Batch Data:** Collect data",
+          "ttft_ms": 981.534,
+          "tpot_ms": 4.415,
+          "e2e_ms": 1401.002,
+          "submit_offset_ms": 2.448,
+          "first_token_offset_ms": 983.982,
+          "completion_offset_ms": 1403.45,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 51,
+            "total_tokens": 147,
+            "completion_tokens": 96
+          },
+          "completion_rank": 5,
+          "first_token_rank": 5
+        },
+        {
+          "ok": true,
+          "prompt": "What does a failed request do to completion rate?",
+          "request_id": "interactive-03",
+          "priority": 0,
+          "output_text": "A failed request can significantly impact the completion rate of an application or system. Here's why:\n\n1. **Resource Consumption**: When a request fails, it consumes more resources from the server. This includes CPU time, memory usage, and disk I/O operations.\n\n2. **Latency**: The failure of a request can cause delays in processing other requests. If the server is busy handling multiple failed requests, it may slow down overall system performance.\n\n3. **Error Handling**: Applications",
+          "ttft_ms": 985.5,
+          "tpot_ms": 4.424,
+          "e2e_ms": 1405.792,
+          "submit_offset_ms": 3.019,
+          "first_token_offset_ms": 988.52,
+          "completion_offset_ms": 1408.812,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 135,
+            "completion_tokens": 96
+          },
+          "completion_rank": 6,
+          "first_token_rank": 6
+        },
+        {
+          "ok": true,
+          "prompt": "In one sentence, explain why queue wait affects time to first token.",
+          "request_id": "interactive-01",
+          "priority": 0,
+          "output_text": "Queue wait can significantly increase the time it takes for tasks to be executed in a system, as waiting in a queue adds delays and reduces processing speed.",
+          "ttft_ms": 1406.044,
+          "tpot_ms": 5.106,
+          "e2e_ms": 1559.227,
+          "submit_offset_ms": 2.911,
+          "first_token_offset_ms": 1408.955,
+          "completion_offset_ms": 1562.138,
+          "output_tokens": 31,
+          "estimated_output_tokens": false,
+          "stream_chunks": 30,
+          "usage": {
+            "prompt_tokens": 43,
+            "total_tokens": 74,
+            "completion_tokens": 31
+          },
+          "completion_rank": 7,
+          "first_token_rank": 7
+        },
+        {
+          "ok": true,
+          "prompt": "Name two user-facing latency metrics for language-model serving.",
+          "request_id": "interactive-02",
+          "priority": 0,
+          "output_text": "Two common user-facing latency metrics for language-model serving are:\n\n1. **Response Time (RTT)**: This metric measures the time it takes for a request to be processed and returned by the server. It is often used in web applications where users interact with servers through HTTP requests.\n\n2. **Latency**: This refers to the delay or lag between when a request reaches the server and when the response is received. In the context of language-model serving, this could refer to",
+          "ttft_ms": 1411.295,
+          "tpot_ms": 5.562,
+          "e2e_ms": 1939.73,
+          "submit_offset_ms": 2.616,
+          "first_token_offset_ms": 1413.91,
+          "completion_offset_ms": 1942.346,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 40,
+            "total_tokens": 136,
+            "completion_tokens": 96
+          },
+          "completion_rank": 8,
+          "first_token_rank": 8
+        }
+      ]
+    },
+    {
+      "label": "g0_fcfs",
+      "base_url": "http://127.0.0.1:51477",
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "workload": {
+        "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/scheduler_priority.jsonl",
+        "requests": 8,
+        "max_tokens": 96,
+        "concurrency": 8,
+        "warmup": 2,
+        "repeats": 1,
+        "workload_priority_sent": false,
+        "synchronized_start": true
+      },
+      "metrics": {
+        "successful_requests": 8,
+        "failed_requests": 0,
+        "request_throughput_per_s": 4.1508,
+        "output_token_throughput_per_s": 366.8278,
+        "ttft_ms": {
+          "mean": 638.778,
+          "p50": 595.288,
+          "p95": 1321.4702000000002,
+          "p99": 1397.93484
+        },
+        "tpot_ms": {
+          "mean": 4.699,
+          "p50": 4.6915,
+          "p95": 5.202500000000001,
+          "p99": 5.3117
+        },
+        "e2e_ms": {
+          "mean": 1053.984,
+          "p50": 1054.5035,
+          "p95": 1806.2325,
+          "p99": 1900.6513
+        },
+        "output_tokens": 707,
+        "prompt_tokens_mean": 49,
+        "duration_s": 1.9273,
+        "priority_order_score": 0.6875,
+        "priority_first_token_order_score": 0.625
+      },
+      "results": [
+        {
+          "ok": true,
+          "prompt": "In one sentence, explain why queue wait affects time to first token.",
+          "request_id": "interactive-01",
+          "priority": 0,
+          "output_text": "Queue wait adds latency and processing time between the request and the execution of the corresponding function or operation, thereby increasing the overall time to first token for tasks in a system.",
+          "ttft_ms": 79.856,
+          "tpot_ms": 4.097,
+          "e2e_ms": 219.143,
+          "submit_offset_ms": 1.797,
+          "first_token_offset_ms": 81.653,
+          "completion_offset_ms": 220.94,
+          "output_tokens": 35,
+          "estimated_output_tokens": false,
+          "stream_chunks": 34,
+          "usage": {
+            "prompt_tokens": 43,
+            "total_tokens": 78,
+            "completion_tokens": 35
+          },
+          "completion_rank": 1,
+          "first_token_rank": 2
+        },
+        {
+          "ok": true,
+          "prompt": "Propose a complete experiment for detecting whether a scheduling policy improves interactive requests without hiding regressions in batch requests.",
+          "request_id": "batch-04",
+          "priority": 5,
+          "output_text": "To detect whether a scheduling policy improves interactive requests while avoiding the hidden regression of batch requests, we can design an experiment that involves both batch and interactive requests. Here's a comprehensive plan to achieve this:\n\n### 1. **Define the Experiment**\n   - **Batch Requests:** Simulate multiple batches of requests with varying levels of complexity.\n   - **Interactive Requests:** Simulate real-time interactions with the system.\n\n### 2. **Data Collection**\n   - **Batch Data:**",
+          "ttft_ms": 79.928,
+          "tpot_ms": 4.377,
+          "e2e_ms": 495.753,
+          "submit_offset_ms": 1.658,
+          "first_token_offset_ms": 81.586,
+          "completion_offset_ms": 497.412,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 95,
+          "usage": {
+            "prompt_tokens": 51,
+            "total_tokens": 147,
+            "completion_tokens": 96
+          },
+          "completion_rank": 2,
+          "first_token_rank": 1
+        },
+        {
+          "ok": true,
+          "prompt": "What does a failed request do to completion rate?",
+          "request_id": "interactive-03",
+          "priority": 0,
+          "output_text": "A failed request can significantly impact the completion rate of an application or system. Here's why:\n\n1. **Resource Consumption**: When a request fails, it consumes more resources from the server. This includes CPU time, memory usage, and disk I/O operations.\n\n2. **Latency**: The failure of a request can cause delays in processing other requests that depend on the response from this failed request. This delay can lead to a decrease in overall system performance.\n\n3. **Error",
+          "ttft_ms": 223.134,
+          "tpot_ms": 4.862,
+          "e2e_ms": 685.061,
+          "submit_offset_ms": 2.136,
+          "first_token_offset_ms": 225.271,
+          "completion_offset_ms": 687.198,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 135,
+            "completion_tokens": 96
+          },
+          "completion_rank": 3,
+          "first_token_rank": 3
+        },
+        {
+          "ok": true,
+          "prompt": "Compare FCFS and priority scheduling in a structured explanation covering request admission, starvation risk, fairness, capacity, observability, and suitable workloads.",
+          "request_id": "batch-02",
+          "priority": 5,
+          "output_text": "FCFS (First-Come, First-Served) and Priority Scheduling are two fundamental approaches to managing the execution of tasks in a computer system. Each has its own set of characteristics that can be analyzed to understand their strengths and weaknesses.\n\n### 1. **FCFS**\n- **Request Admission**: In FCFS, each task is served one at a time without any consideration for the order or availability of other tasks.\n- **Starvation Risk**: This approach inherently leads to",
+          "ttft_ms": 500.923,
+          "tpot_ms": 4.949,
+          "e2e_ms": 971.067,
+          "submit_offset_ms": 2.03,
+          "first_token_offset_ms": 502.953,
+          "completion_offset_ms": 973.097,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 58,
+            "total_tokens": 154,
+            "completion_tokens": 96
+          },
+          "completion_rank": 4,
+          "first_token_rank": 4
+        },
+        {
+          "ok": true,
+          "prompt": "Name two user-facing latency metrics for language-model serving.",
+          "request_id": "interactive-02",
+          "priority": 0,
+          "output_text": "Two common user-facing latency metrics for language-model serving are:\n\n1. **Response Time (RTT)**: This metric measures the time it takes for a request to be processed and returned by the server. It is often used in web applications where users interact with servers through HTTP requests.\n\n2. **Latency**: This refers to the delay or lag between when a request reaches the server and when the response is received. In the context of language-model serving, this could refer to",
+          "ttft_ms": 689.653,
+          "tpot_ms": 4.719,
+          "e2e_ms": 1137.94,
+          "submit_offset_ms": 2.332,
+          "first_token_offset_ms": 691.986,
+          "completion_offset_ms": 1140.272,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 40,
+            "total_tokens": 136,
+            "completion_tokens": 96
+          },
+          "completion_rank": 5,
+          "first_token_rank": 5
+        },
+        {
+          "ok": true,
+          "prompt": "Why must scheduler candidates use the same request stream?",
+          "request_id": "interactive-04",
+          "priority": 0,
+          "output_text": "Scheduler candidates typically use the same request stream because they need to coordinate and manage their requests efficiently across multiple nodes in a distributed system. Here are some key reasons why this is important:\n\n1. **Resource Sharing**: Each node in a distributed system needs to share resources such as CPU, memory, disk space, and network bandwidth. By using the same request stream, all nodes can access these shared resources simultaneously.\n\n2. **Request Processing**: The scheduler manages the processing of incoming requests.",
+          "ttft_ms": 975.718,
+          "tpot_ms": 4.588,
+          "e2e_ms": 1411.604,
+          "submit_offset_ms": 2.218,
+          "first_token_offset_ms": 977.936,
+          "completion_offset_ms": 1413.823,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 135,
+            "completion_tokens": 96
+          },
+          "completion_rank": 6,
+          "first_token_rank": 6
+        },
+        {
+          "ok": true,
+          "prompt": "Write a detailed checklist for benchmarking an online inference service, including workload identity, warmup, latency percentiles, throughput, failures, quality checks, memory headroom, and rollback conditions.",
+          "request_id": "batch-01",
+          "priority": 5,
+          "output_text": "Creating a comprehensive benchmarking checklist for an online inference service involves several key elements to ensure that the service meets performance expectations across various scenarios. Below is a detailed list of tasks and considerations for each aspect:\n\n### 1. **Workload Identity**\n   - **Identify the Type of Workloads:** Determine whether the workload includes CPU-bound, GPU-bound, or mixed workloads.\n   - **Load Balancing:** Ensure that the workload is evenly distributed among different instances to avoid bott",
+          "ttft_ms": 1143.963,
+          "tpot_ms": 4.664,
+          "e2e_ms": 1587.046,
+          "submit_offset_ms": 1.921,
+          "first_token_offset_ms": 1145.884,
+          "completion_offset_ms": 1588.968,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 67,
+            "total_tokens": 163,
+            "completion_tokens": 96
+          },
+          "completion_rank": 7,
+          "first_token_rank": 7
+        },
+        {
+          "ok": true,
+          "prompt": "Explain how continuous batching, KV cache capacity, prefill cost, decode cost, and request length interact in a production scheduler.",
+          "request_id": "batch-03",
+          "priority": 5,
+          "output_text": "In the context of a production scheduler, continuous batching, KV cache capacity, prefill cost, decode cost, and request length all play crucial roles in optimizing performance and resource utilization. Let's break down each of these factors:\n\n1. **Continuous Batching**: Continuous batching refers to the process of batching multiple requests together into a single batch before sending them to the server. This can significantly reduce the time it takes for a job to be processed because fewer requests need to be sent to",
+          "ttft_ms": 1417.051,
+          "tpot_ms": 5.339,
+          "e2e_ms": 1924.256,
+          "submit_offset_ms": 2.429,
+          "first_token_offset_ms": 1419.48,
+          "completion_offset_ms": 1926.684,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 55,
+            "total_tokens": 151,
+            "completion_tokens": 96
+          },
+          "completion_rank": 8,
+          "first_token_rank": 8
+        }
+      ]
+    },
+    {
+      "label": "g0_fcfs",
+      "base_url": "http://127.0.0.1:51477",
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "workload": {
+        "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/scheduler_priority.jsonl",
+        "requests": 8,
+        "max_tokens": 96,
+        "concurrency": 8,
+        "warmup": 2,
+        "repeats": 1,
+        "workload_priority_sent": false,
+        "synchronized_start": true
+      },
+      "metrics": {
+        "successful_requests": 8,
+        "failed_requests": 0,
+        "request_throughput_per_s": 4.1927,
+        "output_token_throughput_per_s": 370.5321,
+        "ttft_ms": {
+          "mean": 662.128,
+          "p50": 585.376,
+          "p95": 1304.5635500000003,
+          "p99": 1380.61911
+        },
+        "tpot_ms": {
+          "mean": 4.732,
+          "p50": 4.6845,
+          "p95": 5.17665,
+          "p99": 5.28893
+        },
+        "e2e_ms": {
+          "mean": 1074.146,
+          "p50": 1038.546,
+          "p95": 1786.0174000000002,
+          "p99": 1880.9810799999998
+        },
+        "output_tokens": 707,
+        "prompt_tokens_mean": 49,
+        "duration_s": 1.9081,
+        "priority_order_score": 0.375,
+        "priority_first_token_order_score": 0.375
+      },
+      "results": [
+        {
+          "ok": true,
+          "prompt": "Propose a complete experiment for detecting whether a scheduling policy improves interactive requests without hiding regressions in batch requests.",
+          "request_id": "batch-04",
+          "priority": 5,
+          "output_text": "To detect whether a scheduling policy improves interactive requests while avoiding the hidden regression of batch requests, we can design an experiment that involves both batch and interactive requests. Here's a comprehensive plan:\n\n### 1. **Define the Experiment**\n   - **Batch Requests:** Simulate multiple batches of requests with varying levels of complexity.\n   - **Interactive Requests:** Simulate real-time interactions with users or applications.\n\n### 2. **Data Collection**\n   - **Batch Data:** Collect data",
+          "ttft_ms": 73.328,
+          "tpot_ms": 4.382,
+          "e2e_ms": 489.577,
+          "submit_offset_ms": 2.048,
+          "first_token_offset_ms": 75.376,
+          "completion_offset_ms": 491.625,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 95,
+          "usage": {
+            "prompt_tokens": 51,
+            "total_tokens": 147,
+            "completion_tokens": 96
+          },
+          "completion_rank": 1,
+          "first_token_rank": 1
+        },
+        {
+          "ok": true,
+          "prompt": "Explain how continuous batching, KV cache capacity, prefill cost, decode cost, and request length interact in a production scheduler.",
+          "request_id": "batch-03",
+          "priority": 5,
+          "output_text": "In the context of a production scheduler, continuous batching, KV cache capacity, prefill cost, decode cost, and request length all play crucial roles in optimizing performance and resource utilization. Let's break down each of these factors:\n\n1. **Continuous Batching**: Continuous batching refers to the process where data is batched together rather than being processed sequentially. This can be beneficial for several reasons:\n   - **Reducing Latency**: By processing batches of data at once, you can",
+          "ttft_ms": 72.736,
+          "tpot_ms": 4.438,
+          "e2e_ms": 494.348,
+          "submit_offset_ms": 2.696,
+          "first_token_offset_ms": 75.432,
+          "completion_offset_ms": 497.044,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 55,
+            "total_tokens": 151,
+            "completion_tokens": 96
+          },
+          "completion_rank": 2,
+          "first_token_rank": 2
+        },
+        {
+          "ok": true,
+          "prompt": "In one sentence, explain why queue wait affects time to first token.",
+          "request_id": "interactive-01",
+          "priority": 0,
+          "output_text": "Queue wait adds latency and processing time between the request and the execution of the corresponding function or operation, thereby increasing the overall time to first token for tasks in a system.",
+          "ttft_ms": 499.35,
+          "tpot_ms": 4.916,
+          "e2e_ms": 666.508,
+          "submit_offset_ms": 2.229,
+          "first_token_offset_ms": 501.579,
+          "completion_offset_ms": 668.737,
+          "output_tokens": 35,
+          "estimated_output_tokens": false,
+          "stream_chunks": 34,
+          "usage": {
+            "prompt_tokens": 43,
+            "total_tokens": 78,
+            "completion_tokens": 35
+          },
+          "completion_rank": 3,
+          "first_token_rank": 4
+        },
+        {
+          "ok": true,
+          "prompt": "Why must scheduler candidates use the same request stream?",
+          "request_id": "interactive-04",
+          "priority": 0,
+          "output_text": "Scheduler candidates typically use the same request stream to ensure that all requests are processed in parallel and efficiently. Here's why this approach is important:\n\n1. **Resource Utilization**: By using the same request stream, each candidate can process its own set of requests simultaneously. This allows for better utilization of system resources such as CPU, memory, and disk space.\n\n2. **Efficiency**: Using the same request stream ensures that no one request takes longer than necessary to complete. This helps",
+          "ttft_ms": 494.441,
+          "tpot_ms": 4.829,
+          "e2e_ms": 953.215,
+          "submit_offset_ms": 2.576,
+          "first_token_offset_ms": 497.018,
+          "completion_offset_ms": 955.791,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 135,
+            "completion_tokens": 96
+          },
+          "completion_rank": 4,
+          "first_token_rank": 3
+        },
+        {
+          "ok": true,
+          "prompt": "Write a detailed checklist for benchmarking an online inference service, including workload identity, warmup, latency percentiles, throughput, failures, quality checks, memory headroom, and rollback conditions.",
+          "request_id": "batch-01",
+          "priority": 5,
+          "output_text": "Creating a comprehensive benchmarking checklist for an online inference service involves several key elements to ensure that the service meets performance expectations across various scenarios. Below is a detailed list of tasks and considerations for each aspect:\n\n### 1. **Workload Identity**\n   - **Identify the Type of Workloads:** Determine whether the workload includes CPU-bound, GPU-bound, or mixed workloads.\n   - **Load Balancing:** Ensure that the workload is evenly distributed among different instances to avoid bott",
+          "ttft_ms": 671.402,
+          "tpot_ms": 4.763,
+          "e2e_ms": 1123.877,
+          "submit_offset_ms": 2.447,
+          "first_token_offset_ms": 673.849,
+          "completion_offset_ms": 1126.324,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 67,
+            "total_tokens": 163,
+            "completion_tokens": 96
+          },
+          "completion_rank": 5,
+          "first_token_rank": 5
+        },
+        {
+          "ok": true,
+          "prompt": "Name two user-facing latency metrics for language-model serving.",
+          "request_id": "interactive-02",
+          "priority": 0,
+          "output_text": "Two common user-facing latency metrics for language-model serving are:\n\n1. **Response Time (RTT)**: This metric measures the time it takes for a request to be processed and returned by the server. It is often used in web applications where users interact with servers through HTTP requests.\n\n2. **Latency**: This refers to the delay or lag between when a request reaches the server and when the response is received. In the context of language-model serving, this could refer to",
+          "ttft_ms": 958.127,
+          "tpot_ms": 4.602,
+          "e2e_ms": 1395.355,
+          "submit_offset_ms": 2.355,
+          "first_token_offset_ms": 960.482,
+          "completion_offset_ms": 1397.71,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 40,
+            "total_tokens": 136,
+            "completion_tokens": 96
+          },
+          "completion_rank": 6,
+          "first_token_rank": 6
+        },
+        {
+          "ok": true,
+          "prompt": "What does a failed request do to completion rate?",
+          "request_id": "interactive-03",
+          "priority": 0,
+          "output_text": "A failed request can significantly impact the completion rate of an application or system. Here's why:\n\n1. **Resource Consumption**: When a request fails, it consumes more resources from the server. This includes CPU time, memory usage, and disk I/O operations.\n\n2. **Latency**: The failure of a request can cause delays in processing other requests that depend on the response from this failed request. This delay can lead to a decrease in overall system performance.\n\n3. **Error",
+          "ttft_ms": 1128.006,
+          "tpot_ms": 4.606,
+          "e2e_ms": 1565.566,
+          "submit_offset_ms": 2.916,
+          "first_token_offset_ms": 1130.922,
+          "completion_offset_ms": 1568.482,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 135,
+            "completion_tokens": 96
+          },
+          "completion_rank": 7,
+          "first_token_rank": 7
+        },
+        {
+          "ok": true,
+          "prompt": "Compare FCFS and priority scheduling in a structured explanation covering request admission, starvation risk, fairness, capacity, observability, and suitable workloads.",
+          "request_id": "batch-02",
+          "priority": 5,
+          "output_text": "FCFS (First-Come, First-Served) and Priority Scheduling are two fundamental approaches to managing the execution of tasks in a computer system. Each has its own set of characteristics that can be analyzed to understand their suitability for different types of workload.\n\n### 1. **FCFS**\n- **Request Admission**: In FCFS, all tasks are served simultaneously without any consideration for their relative importance or deadlines.\n- **Starvation Risk**: This approach inherently leads to starvation if",
+          "ttft_ms": 1399.633,
+          "tpot_ms": 5.317,
+          "e2e_ms": 1904.722,
+          "submit_offset_ms": 2.788,
+          "first_token_offset_ms": 1402.422,
+          "completion_offset_ms": 1907.511,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 58,
+            "total_tokens": 154,
+            "completion_tokens": 96
+          },
+          "completion_rank": 8,
+          "first_token_rank": 8
+        }
+      ]
+    },
+    {
+      "label": "g0_fcfs",
+      "base_url": "http://127.0.0.1:51477",
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "workload": {
+        "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/scheduler_priority.jsonl",
+        "requests": 8,
+        "max_tokens": 96,
+        "concurrency": 8,
+        "warmup": 2,
+        "repeats": 1,
+        "workload_priority_sent": false,
+        "synchronized_start": true
+      },
+      "metrics": {
+        "successful_requests": 8,
+        "failed_requests": 0,
+        "request_throughput_per_s": 4.1732,
+        "output_token_throughput_per_s": 368.8069,
+        "ttft_ms": {
+          "mean": 736.253,
+          "p50": 722.4645,
+          "p95": 1441.5484000000001,
+          "p99": 1447.8528800000001
+        },
+        "tpot_ms": {
+          "mean": 4.804,
+          "p50": 4.776,
+          "p95": 5.09745,
+          "p99": 5.11789
+        },
+        "e2e_ms": {
+          "mean": 1156.863,
+          "p50": 1188.732,
+          "p95": 1806.9661500000002,
+          "p99": 1892.30203
+        },
+        "output_tokens": 707,
+        "prompt_tokens_mean": 49,
+        "duration_s": 1.917,
+        "priority_order_score": 0.8125,
+        "priority_first_token_order_score": 0.75
+      },
+      "results": [
+        {
+          "ok": true,
+          "prompt": "Why must scheduler candidates use the same request stream?",
+          "request_id": "interactive-04",
+          "priority": 0,
+          "output_text": "Scheduler candidates typically use the same request stream because they need to coordinate and manage their requests efficiently across multiple nodes in a distributed system. Here are some key reasons why this is important:\n\n1. **Resource Sharing**: Each node in a distributed system needs to share resources such as CPU, memory, disk space, and network bandwidth. By using the same request stream, all nodes can access these resources simultaneously without contention.\n\n2. **Request Processing**: The scheduling algorithm for each node should be",
+          "ttft_ms": 53.97,
+          "tpot_ms": 4.463,
+          "e2e_ms": 478.002,
+          "submit_offset_ms": 2.393,
+          "first_token_offset_ms": 56.363,
+          "completion_offset_ms": 480.395,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 95,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 135,
+            "completion_tokens": 96
+          },
+          "completion_rank": 1,
+          "first_token_rank": 1
+        },
+        {
+          "ok": true,
+          "prompt": "What does a failed request do to completion rate?",
+          "request_id": "interactive-03",
+          "priority": 0,
+          "output_text": "A failed request can significantly impact the completion rate of an application or system. Here's why:\n\n1. **Resource Consumption**: When a request fails, it consumes more resources from the server. This includes CPU time, memory usage, and disk I/O operations.\n\n2. **Latency**: The failure of a request can cause delays in processing other requests. If the server is busy handling multiple failed requests, it may slow down overall system performance.\n\n3. **Error Handling**: Applications",
+          "ttft_ms": 68.563,
+          "tpot_ms": 4.517,
+          "e2e_ms": 497.718,
+          "submit_offset_ms": 2.52,
+          "first_token_offset_ms": 71.082,
+          "completion_offset_ms": 500.237,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 135,
+            "completion_tokens": 96
+          },
+          "completion_rank": 2,
+          "first_token_rank": 2
+        },
+        {
+          "ok": true,
+          "prompt": "Name two user-facing latency metrics for language-model serving.",
+          "request_id": "interactive-02",
+          "priority": 0,
+          "output_text": "Two common user-facing latency metrics for language-model serving are:\n\n1. **Response Time (RTT)**: This metric measures the time it takes for a request to be processed and returned by the server. It is often used in web applications where users interact with servers through HTTP requests.\n\n2. **Latency**: This refers to the delay or lag between when a request reaches the server and when the response is received. In the context of language-model serving, this could refer to",
+          "ttft_ms": 482.455,
+          "tpot_ms": 4.771,
+          "e2e_ms": 935.717,
+          "submit_offset_ms": 2.301,
+          "first_token_offset_ms": 484.757,
+          "completion_offset_ms": 938.018,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 40,
+            "total_tokens": 136,
+            "completion_tokens": 96
+          },
+          "completion_rank": 3,
+          "first_token_rank": 3
+        },
+        {
+          "ok": true,
+          "prompt": "Propose a complete experiment for detecting whether a scheduling policy improves interactive requests without hiding regressions in batch requests.",
+          "request_id": "batch-04",
+          "priority": 5,
+          "output_text": "To detect whether a scheduling policy improves interactive requests while avoiding the hidden regression of batch requests, we can design an experiment that involves both batch and interactive requests. Here's a comprehensive plan:\n\n### 1. **Define the Experiment**\n   - **Batch Requests:** Simulate a large number of batch requests to be scheduled using the scheduling policy.\n   - **Interactive Requests:** Simulate a small number of interactive requests to be scheduled using the same scheduling policy.\n\n### 2. **",
+          "ttft_ms": 503.179,
+          "tpot_ms": 4.781,
+          "e2e_ms": 957.389,
+          "submit_offset_ms": 2.045,
+          "first_token_offset_ms": 505.224,
+          "completion_offset_ms": 959.434,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 51,
+            "total_tokens": 147,
+            "completion_tokens": 96
+          },
+          "completion_rank": 4,
+          "first_token_rank": 4
+        },
+        {
+          "ok": true,
+          "prompt": "Write a detailed checklist for benchmarking an online inference service, including workload identity, warmup, latency percentiles, throughput, failures, quality checks, memory headroom, and rollback conditions.",
+          "request_id": "batch-01",
+          "priority": 5,
+          "output_text": "Creating a comprehensive benchmarking checklist for an online inference service involves several key elements to ensure that the service meets performance expectations across various scenarios. Below is a detailed list of tasks and considerations for each aspect:\n\n### 1. **Workload Identity**\n   - **Identify the Workloads:** Determine which types of workloads (e.g., batch processing, real-time streaming) will be used.\n   - **Load Balancing:** Ensure that the workload is evenly distributed among different instances",
+          "ttft_ms": 941.75,
+          "tpot_ms": 5.035,
+          "e2e_ms": 1420.075,
+          "submit_offset_ms": 2.645,
+          "first_token_offset_ms": 944.396,
+          "completion_offset_ms": 1422.721,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 67,
+            "total_tokens": 163,
+            "completion_tokens": 96
+          },
+          "completion_rank": 5,
+          "first_token_rank": 5
+        },
+        {
+          "ok": true,
+          "prompt": "Compare FCFS and priority scheduling in a structured explanation covering request admission, starvation risk, fairness, capacity, observability, and suitable workloads.",
+          "request_id": "batch-02",
+          "priority": 5,
+          "output_text": "FCFS (First-Come, First-Served) and Priority Scheduling are two fundamental approaches to managing the execution of tasks in a computer system. Each has its own set of characteristics that can be analyzed to understand their strengths and weaknesses.\n\n### 1. **FCFS**\n- **Request Admission**: In FCFS, all tasks are served simultaneously without any consideration for their relative priorities or deadlines.\n- **Starvation Risk**: If there is no fair allocation of resources among competing",
+          "ttft_ms": 963.766,
+          "tpot_ms": 5.05,
+          "e2e_ms": 1443.505,
+          "submit_offset_ms": 2.746,
+          "first_token_offset_ms": 966.513,
+          "completion_offset_ms": 1446.251,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 58,
+            "total_tokens": 154,
+            "completion_tokens": 96
+          },
+          "completion_rank": 6,
+          "first_token_rank": 6
+        },
+        {
+          "ok": true,
+          "prompt": "In one sentence, explain why queue wait affects time to first token.",
+          "request_id": "interactive-01",
+          "priority": 0,
+          "output_text": "Queue wait adds latency and processing time between the request and the execution of the corresponding function or operation, thereby increasing the overall time to first token for tasks in a system.",
+          "ttft_ms": 1449.429,
+          "tpot_ms": 4.689,
+          "e2e_ms": 1608.865,
+          "submit_offset_ms": 2.201,
+          "first_token_offset_ms": 1451.629,
+          "completion_offset_ms": 1611.066,
+          "output_tokens": 35,
+          "estimated_output_tokens": false,
+          "stream_chunks": 34,
+          "usage": {
+            "prompt_tokens": 43,
+            "total_tokens": 78,
+            "completion_tokens": 35
+          },
+          "completion_rank": 7,
+          "first_token_rank": 8
+        },
+        {
+          "ok": true,
+          "prompt": "Explain how continuous batching, KV cache capacity, prefill cost, decode cost, and request length interact in a production scheduler.",
+          "request_id": "batch-03",
+          "priority": 5,
+          "output_text": "In the context of a production scheduler, continuous batching, KV cache capacity, prefill cost, decode cost, and request length all play crucial roles in managing the workload efficiently. Let's break down each of these factors:\n\n1. **Continuous Batching**: Continuous batching is about processing data in batches rather than sequentially. This can be beneficial for several reasons:\n   - **Resource Utilization**: By breaking up large tasks into smaller chunks, you can use more resources (CPU, memory",
+          "ttft_ms": 1426.913,
+          "tpot_ms": 5.123,
+          "e2e_ms": 1913.636,
+          "submit_offset_ms": 2.87,
+          "first_token_offset_ms": 1429.783,
+          "completion_offset_ms": 1916.506,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 55,
+            "total_tokens": 151,
+            "completion_tokens": 96
+          },
+          "completion_rank": 8,
+          "first_token_rank": 7
+        }
+      ]
+    },
+    {
+      "label": "g0_fcfs",
+      "base_url": "http://127.0.0.1:51477",
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "workload": {
+        "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/scheduler_priority.jsonl",
+        "requests": 8,
+        "max_tokens": 96,
+        "concurrency": 8,
+        "warmup": 2,
+        "repeats": 1,
+        "workload_priority_sent": false,
+        "synchronized_start": true
+      },
+      "metrics": {
+        "successful_requests": 8,
+        "failed_requests": 0,
+        "request_throughput_per_s": 4.0505,
+        "output_token_throughput_per_s": 357.9645,
+        "ttft_ms": {
+          "mean": 632.77,
+          "p50": 593.0070000000001,
+          "p95": 1330.645,
+          "p99": 1413.5082
+        },
+        "tpot_ms": {
+          "mean": 4.841,
+          "p50": 4.8275,
+          "p95": 5.436850000000001,
+          "p99": 5.601769999999999
+        },
+        "e2e_ms": {
+          "mean": 1061.876,
+          "p50": 1057.75,
+          "p95": 1842.6644000000001,
+          "p99": 1944.7736799999998
+        },
+        "output_tokens": 707,
+        "prompt_tokens_mean": 49,
+        "duration_s": 1.9751,
+        "priority_order_score": 0.5625,
+        "priority_first_token_order_score": 0.5
+      },
+      "results": [
+        {
+          "ok": true,
+          "prompt": "In one sentence, explain why queue wait affects time to first token.",
+          "request_id": "interactive-01",
+          "priority": 0,
+          "output_text": "Queue wait adds latency and processing time between the request and the execution of the corresponding function or operation, thereby increasing the overall time to first token for tasks in a system.",
+          "ttft_ms": 59.203,
+          "tpot_ms": 4.038,
+          "e2e_ms": 196.492,
+          "submit_offset_ms": 2.701,
+          "first_token_offset_ms": 61.905,
+          "completion_offset_ms": 199.193,
+          "output_tokens": 35,
+          "estimated_output_tokens": false,
+          "stream_chunks": 34,
+          "usage": {
+            "prompt_tokens": 43,
+            "total_tokens": 78,
+            "completion_tokens": 35
+          },
+          "completion_rank": 1,
+          "first_token_rank": 2
+        },
+        {
+          "ok": true,
+          "prompt": "Write a detailed checklist for benchmarking an online inference service, including workload identity, warmup, latency percentiles, throughput, failures, quality checks, memory headroom, and rollback conditions.",
+          "request_id": "batch-01",
+          "priority": 5,
+          "output_text": "Creating a comprehensive benchmarking checklist for an online inference service involves several key elements to ensure that the service meets performance expectations across various scenarios. Below is a detailed list of tasks you should consider during the benchmarking process:\n\n### 1. **Workload Identity**\n   - **Load Testing**: Perform load testing on your service with different types of traffic (e.g., high loads, low loads, bursts). This will help identify bottlenecks in your service.\n   - **Traffic",
+          "ttft_ms": 59.549,
+          "tpot_ms": 4.584,
+          "e2e_ms": 495.062,
+          "submit_offset_ms": 2.295,
+          "first_token_offset_ms": 61.844,
+          "completion_offset_ms": 497.357,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 95,
+          "usage": {
+            "prompt_tokens": 67,
+            "total_tokens": 163,
+            "completion_tokens": 96
+          },
+          "completion_rank": 2,
+          "first_token_rank": 1
+        },
+        {
+          "ok": true,
+          "prompt": "Propose a complete experiment for detecting whether a scheduling policy improves interactive requests without hiding regressions in batch requests.",
+          "request_id": "batch-04",
+          "priority": 5,
+          "output_text": "To detect whether a scheduling policy improves interactive requests while avoiding the hidden regression of batch requests, we can design an experiment that involves both batch and interactive requests. Here's a comprehensive plan:\n\n### 1. **Define the Experiment**\n   - **Batch Requests:** Simulate a large number of batch requests to be processed concurrently.\n   - **Interactive Requests:** Simulate a small number of interactive requests that need to be handled sequentially.\n\n### 2. **Data Collection**\n   -",
+          "ttft_ms": 202.013,
+          "tpot_ms": 5.054,
+          "e2e_ms": 682.181,
+          "submit_offset_ms": 1.284,
+          "first_token_offset_ms": 203.297,
+          "completion_offset_ms": 683.465,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 51,
+            "total_tokens": 147,
+            "completion_tokens": 96
+          },
+          "completion_rank": 3,
+          "first_token_rank": 3
+        },
+        {
+          "ok": true,
+          "prompt": "What does a failed request do to completion rate?",
+          "request_id": "interactive-03",
+          "priority": 0,
+          "output_text": "A failed request can significantly impact the completion rate of an application or system. Here's why:\n\n1. **Resource Consumption**: When a request fails, it consumes more resources from the server. This includes CPU time, memory usage, and disk I/O operations.\n\n2. **Latency**: The failure of a request can cause delays in processing other requests that depend on the response from this failed request. This delay can lead to a decrease in overall system performance.\n\n3. **Error",
+          "ttft_ms": 499.699,
+          "tpot_ms": 5.048,
+          "e2e_ms": 979.305,
+          "submit_offset_ms": 1.921,
+          "first_token_offset_ms": 501.62,
+          "completion_offset_ms": 981.226,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 135,
+            "completion_tokens": 96
+          },
+          "completion_rank": 4,
+          "first_token_rank": 4
+        },
+        {
+          "ok": true,
+          "prompt": "Why must scheduler candidates use the same request stream?",
+          "request_id": "interactive-04",
+          "priority": 0,
+          "output_text": "Scheduler candidates typically use the same request stream because they need to coordinate and manage their requests efficiently across multiple nodes in a distributed system. Here are some key reasons why this is important:\n\n1. **Resource Sharing**: Each node in a distributed system needs to share resources such as CPU, memory, disk space, and network bandwidth. By using the same request stream, all nodes can access these shared resources simultaneously.\n\n2. **Request Processing**: The scheduling algorithm for each node should be designed",
+          "ttft_ms": 686.315,
+          "tpot_ms": 4.736,
+          "e2e_ms": 1136.195,
+          "submit_offset_ms": 1.51,
+          "first_token_offset_ms": 687.825,
+          "completion_offset_ms": 1137.705,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 135,
+            "completion_tokens": 96
+          },
+          "completion_rank": 5,
+          "first_token_rank": 5
+        },
+        {
+          "ok": true,
+          "prompt": "Explain how continuous batching, KV cache capacity, prefill cost, decode cost, and request length interact in a production scheduler.",
+          "request_id": "batch-03",
+          "priority": 5,
+          "output_text": "In the context of a production scheduler, continuous batching, KV cache capacity, prefill cost, decode cost, and request length all play crucial roles in optimizing performance and resource utilization. Let's break down each of these factors:\n\n1. **Continuous Batching**: Continuous batching refers to the process of batching multiple requests together into a single batch before sending them to the server. This can significantly reduce the time it takes for a job to be processed because fewer requests need to be sent to",
+          "ttft_ms": 982.87,
+          "tpot_ms": 4.705,
+          "e2e_ms": 1429.844,
+          "submit_offset_ms": 3.086,
+          "first_token_offset_ms": 985.956,
+          "completion_offset_ms": 1432.93,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 55,
+            "total_tokens": 151,
+            "completion_tokens": 96
+          },
+          "completion_rank": 6,
+          "first_token_rank": 6
+        },
+        {
+          "ok": true,
+          "prompt": "Name two user-facing latency metrics for language-model serving.",
+          "request_id": "interactive-02",
+          "priority": 0,
+          "output_text": "Two common user-facing latency metrics for language-model serving are:\n\n1. **Response Time (RTT)**: This metric measures the time it takes for a request to be processed and returned by the server. It is often used in web applications where users interact with servers through HTTP requests.\n\n2. **Latency**: This refers to the delay or lag between when a request reaches the server and when the response is received. In the context of language-model serving, this could refer to",
+          "ttft_ms": 1138.284,
+          "tpot_ms": 4.919,
+          "e2e_ms": 1605.625,
+          "submit_offset_ms": 3.552,
+          "first_token_offset_ms": 1141.836,
+          "completion_offset_ms": 1609.177,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 40,
+            "total_tokens": 136,
+            "completion_tokens": 96
+          },
+          "completion_rank": 7,
+          "first_token_rank": 7
+        },
+        {
+          "ok": true,
+          "prompt": "Compare FCFS and priority scheduling in a structured explanation covering request admission, starvation risk, fairness, capacity, observability, and suitable workloads.",
+          "request_id": "batch-02",
+          "priority": 5,
+          "output_text": "FCFS (First-Come, First-Served) and Priority Scheduling are two fundamental approaches to managing the execution of tasks in a computer system. Each has its own set of characteristics that can be analyzed to understand their suitability for different types of workload.\n\n### 1. **FCFS**\n- **Request Admission**: In FCFS, all tasks are served simultaneously without any consideration for their relative importance or deadlines.\n- **Starvation Risk**: This approach inherently leads to starvation if",
+          "ttft_ms": 1434.224,
+          "tpot_ms": 5.643,
+          "e2e_ms": 1970.301,
+          "submit_offset_ms": 3.964,
+          "first_token_offset_ms": 1438.187,
+          "completion_offset_ms": 1974.264,
+          "output_tokens": 96,
+          "estimated_output_tokens": false,
+          "stream_chunks": 96,
+          "usage": {
+            "prompt_tokens": 58,
+            "total_tokens": 154,
+            "completion_tokens": 96
+          },
+          "completion_rank": 8,
+          "first_token_rank": 8
+        }
+      ]
+    }
+  ],
+  "metrics_aggregation": "mean_of_run_metrics",
+  "results_scope": "first_run; use runs[*].results for repeated request-level metrics",
+  "schema_version": "inference-benchmark/v1",
+  "normalized_result": {
+    "schema_version": "inference-benchmark/v1",
+    "project": "70",
+    "strategy": "g0_fcfs",
+    "role": "baseline",
+    "config": {
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "backend": "vllm",
+      "dtype": "bfloat16",
+      "prompt_tokens": 49,
+      "generated_tokens": 96,
+      "batch": 1,
+      "concurrency": 8,
+      "cache_policy": "default",
+      "role": "baseline",
+      "workload": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/scheduler_priority.jsonl"
+    },
+    "metrics": {
+      "ttft_ms": {
+        "mean": 682.1132,
+        "p50": 647.2388,
+        "p95": 1361.5369,
+        "p99": 1410.1685
+      },
+      "tpot_ms": {
+        "mean": 4.775,
+        "p50": 4.7457,
+        "p95": 5.2632,
+        "p99": 5.3701
+      },
+      "throughput_tokens_per_s": 365.1957,
+      "throughput_requests_per_s": 4.137,
+      "p95_ms": null,
+      "p99_ms": 1906.3606,
+      "peak_memory_mb": null,
+      "queue_wait_ms": null,
+      "input_transfer_bytes": null,
+      "input_transfer_ms": null,
+      "transfer_bytes": null,
+      "handoff_ms": null,
+      "recompute_ms": null,
+      "network_wait_ms": null,
+      "communication_ms": null,
+      "exposed_comm_ms": null,
+      "overlap_ratio": null,
+      "idle_gap_ms": null,
+      "model_load_ms": null,
+      "stream_output_ms": null,
+      "e2e_latency_ms": {
+        "mean": 1100.3836,
+        "p50": 1106.0641,
+        "p95": 1809.6869,
+        "p99": 1906.3606
+      },
+      "successful_requests": 8,
+      "failed_requests": 0,
+      "duration_s": 1.9341
+    },
+    "quality": {},
+    "status": "not_recorded",
+    "evidence_level": "not_recorded",
+    "failure": {
+      "failure_reason": null,
+      "retest_path": null
+    },
+    "decision": {
+      "decision": "not_evaluated"
+    },
+    "source": "http://127.0.0.1:51477"
+  },
+  "scheduler_identity": {
+    "name": "g0_fcfs",
+    "role": "baseline",
+    "scheduler_policy": "fcfs",
+    "send_priority": false,
+    "model_path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/02_PyTorch_Algorithms/model_cache/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775",
+    "profile_id": "INF-VLLM-011-CU128",
+    "workload": "benchmarks/workloads/scheduler_priority.jsonl",
+    "concurrency": 8,
+    "max_num_seqs": 2,
+    "synchronized_start": true
+  }
+}

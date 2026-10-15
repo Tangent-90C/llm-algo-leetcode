@@ -21,8 +21,8 @@
 ## 前置阅读
 
 **导语：** 先把 DPO / GRPO 损失、偏好数据评测、在线 DPO 背景和离线对齐项目理顺，再进入这个 benchmark；本节默认你已经知道后训练对齐的基本对象，重点转向在线方案是否值得上线。
-- [15. DPO Loss Tutorial | DPO 损失教程](./15_DPO_Loss_Tutorial.md)
-- [16. GRPO Loss Tutorial | GRPO 损失教程](./16_GRPO_Loss_Tutorial.md)
+- [17. DPO Loss Tutorial | DPO 损失教程](./17_DPO_Loss_Tutorial.md)
+- [18. GRPO Loss Tutorial | GRPO 损失教程](./18_GRPO_Loss_Tutorial.md)
 - [50. Preference Data and Evaluation | 偏好数据与评测](./50_Preference_Data_and_Evaluation.md)
 - [51. Online DPO | 在线 DPO](./51_Online_DPO.md)
 - [84. DPO Preference Project | DPO 偏好优化项目](./84_DPO_Preference_Project.md)
@@ -31,8 +31,8 @@
 ## 相关阅读
 
 **导语：** 做完在线 DPO benchmark 后，回到对齐专题和项目决策页，把离线和在线项目统一放进交付决策闭环。
-- [后训练与对齐专题入口](../topic_discussion/post_training_optimization/intro.md)
-- [06 Project Decision and Delivery | 项目决策与交付](../topic_discussion/post_training_optimization/06_project_decision_and_delivery.md)
+- [后训练优化专题入口](../topic_discussion/post_training_optimization/intro.md)
+- [09 Preference Data and Project Decision | 偏好数据与项目决策](../topic_discussion/post_training_optimization/09_preference_data_and_project_decision.md)
 ### Step 1: 定义在线 benchmark 目标
 
 - 固定初始模型、偏好流、更新频率、batch size 和评估窗口。

@@ -1,0 +1,290 @@
+{
+  "label": "g1_ngram",
+  "base_url": "http://127.0.0.1:44489",
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "workload": {
+    "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/speculative_repetition.jsonl",
+    "requests": 8,
+    "max_tokens": 64,
+    "concurrency": 1,
+    "warmup": 2,
+    "repeats": 1,
+    "workload_priority_sent": false
+  },
+  "metrics": {
+    "successful_requests": 8,
+    "failed_requests": 0,
+    "request_throughput_per_s": 3.1993,
+    "output_token_throughput_per_s": 97.1793,
+    "ttft_ms": {
+      "mean": 44.892,
+      "p50": 45.0405,
+      "p95": 48.190200000000004,
+      "p99": 49.19484
+    },
+    "tpot_ms": {
+      "mean": 8.499,
+      "p50": 9.874500000000001,
+      "p95": 10.7901,
+      "p99": 10.90042
+    },
+    "e2e_ms": {
+      "mean": 312.28,
+      "p50": 193.9085,
+      "p95": 711.8426000000001,
+      "p99": 727.7981199999999
+    },
+    "output_tokens": 243,
+    "prompt_tokens_mean": 59.125,
+    "duration_s": 2.5005,
+    "priority_order_score": null,
+    "peak_memory_mb": 10320.0,
+    "draft_rounds": 26.0,
+    "proposed_tokens": 127.0,
+    "accepted_tokens": 51.0,
+    "acceptance_rate": 0.4015748031496063,
+    "mean_accepted_length": 2.9615384615384617,
+    "mechanism_active": true,
+    "source": "vllm_prometheus_counter_delta"
+  },
+  "results": [
+    {
+      "ok": true,
+      "prompt": "Continue the exact comma-separated pattern for four more items: red, blue, green, red, blue, green, red, blue,",
+      "request_id": "repeat-0",
+      "priority": 0,
+      "output_text": "yellow, purple, orange, pink",
+      "ttft_ms": 43.124,
+      "tpot_ms": 9.755,
+      "e2e_ms": 111.405,
+      "output_tokens": 8,
+      "estimated_output_tokens": false,
+      "stream_chunks": 7,
+      "usage": {
+        "prompt_tokens": 56,
+        "total_tokens": 64,
+        "completion_tokens": 8
+      },
+      "completion_rank": 1
+    },
+    {
+      "ok": true,
+      "prompt": "Complete the next four JSON objects using the same format: {\"id\":1,\"ok\":true},{\"id\":2,\"ok\":true},{\"id\":3,\"ok\":true},",
+      "request_id": "repeat-1",
+      "priority": 0,
+      "output_text": "I'm sorry, but you haven't provided any context or information about what you would like me to complete. Could you please provide more details or a specific question?",
+      "ttft_ms": 42.182,
+      "tpot_ms": 10.458,
+      "e2e_ms": 387.284,
+      "output_tokens": 34,
+      "estimated_output_tokens": false,
+      "stream_chunks": 33,
+      "usage": {
+        "prompt_tokens": 65,
+        "total_tokens": 99,
+        "completion_tokens": 34
+      },
+      "completion_rank": 2
+    },
+    {
+      "ok": true,
+      "prompt": "Continue this Python list with the same repeating cycle for twelve values: values = [1, 2, 3, 1, 2, 3, 1, 2, 3,",
+      "request_id": "repeat-2",
+      "priority": 0,
+      "output_text": "To continue the list with the same repeating cycle for twelve values, you can use the following Python code:\n\n```python\nvalues = [1, 2, 3]\nfor i in range(12):\n    values.append(values[i % 3])\nprint(values)\n```\n\nThis code will append the values in",
+      "ttft_ms": 43.293,
+      "tpot_ms": 10.928,
+      "e2e_ms": 731.787,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 54,
+      "usage": {
+        "prompt_tokens": 71,
+        "total_tokens": 135,
+        "completion_tokens": 64
+      },
+      "completion_rank": 3
+    },
+    {
+      "ok": true,
+      "prompt": "Continue the log sequence for four lines: INFO request accepted\nINFO request verified\nINFO request accepted\nINFO request verified\n",
+      "request_id": "repeat-3",
+      "priority": 0,
+      "output_text": "INFO request accepted\nINFO request verified\nINFO request accepted\nINFO request verified",
+      "ttft_ms": 49.446,
+      "tpot_ms": 3.17,
+      "e2e_ms": 96.998,
+      "output_tokens": 16,
+      "estimated_output_tokens": false,
+      "stream_chunks": 5,
+      "usage": {
+        "prompt_tokens": 53,
+        "total_tokens": 69,
+        "completion_tokens": 16
+      },
+      "completion_rank": 4
+    },
+    {
+      "ok": true,
+      "prompt": "Repeat the established table-row pattern for rows D through F: A | ready | 1\nB | ready | 2\nC | ready | 3\n",
+      "request_id": "repeat-4",
+      "priority": 0,
+      "output_text": "D | ready | 4\nE | ready | 5\nF | ready | 6",
+      "ttft_ms": 45.139,
+      "tpot_ms": 8.94,
+      "e2e_ms": 223.931,
+      "output_tokens": 21,
+      "estimated_output_tokens": false,
+      "stream_chunks": 17,
+      "usage": {
+        "prompt_tokens": 62,
+        "total_tokens": 83,
+        "completion_tokens": 21
+      },
+      "completion_rank": 5
+    },
+    {
+      "ok": true,
+      "prompt": "Continue the alternating tokens for ten tokens: cache hit cache miss cache hit cache miss cache hit",
+      "request_id": "repeat-5",
+      "priority": 0,
+      "output_text": "cache hit cache miss cache hit cache miss cache hit cache hit cache miss cache hit cache hit cache miss cache hit cache hit cache miss cache hit",
+      "ttft_ms": 45.858,
+      "tpot_ms": 4.215,
+      "e2e_ms": 163.886,
+      "output_tokens": 29,
+      "estimated_output_tokens": false,
+      "stream_chunks": 10,
+      "usage": {
+        "prompt_tokens": 47,
+        "total_tokens": 76,
+        "completion_tokens": 29
+      },
+      "completion_rank": 6
+    },
+    {
+      "ok": true,
+      "prompt": "Complete the next three assignments following the pattern: shard_0 = gpu_0\nshard_1 = gpu_1\nshard_2 = gpu_0\nshard_3 = gpu_1\n",
+      "request_id": "repeat-6",
+      "priority": 0,
+      "output_text": "Based on the pattern provided, it appears that the assignments are alternating between `shard_0` and `shard_1` with `gpu_0` and `gpu_1` respectively. Given this pattern, the next three assignments would be:\n\nshard_4 = gpu_0\nshard_",
+      "ttft_ms": 45.152,
+      "tpot_ms": 9.994,
+      "e2e_ms": 674.803,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 56,
+      "usage": {
+        "prompt_tokens": 73,
+        "total_tokens": 137,
+        "completion_tokens": 64
+      },
+      "completion_rank": 7
+    },
+    {
+      "ok": true,
+      "prompt": "Continue the sequence with eight more terms and no explanation: alpha beta alpha beta alpha beta",
+      "request_id": "repeat-7",
+      "priority": 0,
+      "output_text": "gamma delta gamma delta gamma delta",
+      "ttft_ms": 44.942,
+      "tpot_ms": 10.534,
+      "e2e_ms": 108.144,
+      "output_tokens": 7,
+      "estimated_output_tokens": false,
+      "stream_chunks": 6,
+      "usage": {
+        "prompt_tokens": 46,
+        "total_tokens": 53,
+        "completion_tokens": 7
+      },
+      "completion_rank": 8
+    }
+  ],
+  "schema_version": "inference-benchmark/v1",
+  "normalized_result": {
+    "schema_version": "inference-benchmark/v1",
+    "project": "68",
+    "strategy": "g1_ngram",
+    "role": "candidate",
+    "config": {
+      "model": "Qwen/Qwen2.5-1.5B-Instruct",
+      "backend": "vllm",
+      "dtype": "bfloat16",
+      "prompt_tokens": 59.125,
+      "generated_tokens": 64,
+      "batch": 1,
+      "concurrency": 1,
+      "cache_policy": "default",
+      "role": "candidate",
+      "workload": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/speculative_repetition.jsonl"
+    },
+    "metrics": {
+      "ttft_ms": {
+        "mean": 44.892,
+        "p50": 45.0405,
+        "p95": 48.190200000000004,
+        "p99": 49.19484
+      },
+      "tpot_ms": {
+        "mean": 8.499,
+        "p50": 9.874500000000001,
+        "p95": 10.7901,
+        "p99": 10.90042
+      },
+      "throughput_tokens_per_s": 97.1793,
+      "throughput_requests_per_s": 3.1993,
+      "p95_ms": null,
+      "p99_ms": 727.7981199999999,
+      "peak_memory_mb": 10320.0,
+      "queue_wait_ms": null,
+      "input_transfer_bytes": null,
+      "input_transfer_ms": null,
+      "transfer_bytes": null,
+      "handoff_ms": null,
+      "recompute_ms": null,
+      "network_wait_ms": null,
+      "communication_ms": null,
+      "exposed_comm_ms": null,
+      "overlap_ratio": null,
+      "idle_gap_ms": null,
+      "model_load_ms": null,
+      "stream_output_ms": null,
+      "e2e_latency_ms": {
+        "mean": 312.28,
+        "p50": 193.9085,
+        "p95": 711.8426000000001,
+        "p99": 727.7981199999999
+      },
+      "successful_requests": 8,
+      "failed_requests": 0,
+      "duration_s": 2.5005
+    },
+    "quality": {},
+    "status": "not_recorded",
+    "evidence_level": "not_recorded",
+    "failure": {
+      "failure_reason": null,
+      "retest_path": null
+    },
+    "decision": {
+      "decision": "not_evaluated"
+    },
+    "source": "http://127.0.0.1:44489"
+  },
+  "resource_measurement": {
+    "metric": "device_memory_used_peak_mb",
+    "scope": "visible_gpu_0_total_device_usage",
+    "sample_count": 13,
+    "includes_non_service_processes": true
+  },
+  "mechanism_metrics": {
+    "draft_rounds": 26.0,
+    "proposed_tokens": 127.0,
+    "accepted_tokens": 51.0,
+    "acceptance_rate": 0.4015748031496063,
+    "mean_accepted_length": 2.9615384615384617,
+    "mechanism_active": true,
+    "source": "vllm_prometheus_counter_delta"
+  }
+}

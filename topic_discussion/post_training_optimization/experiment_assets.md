@@ -41,18 +41,18 @@
 |:---|:---|:---|:---|:---|:---|
 | 1 | Part 02 · 64 SFT 数据准入 | blocker 合取门禁、切分泄漏门禁、`accept / tune / reject` 状态转换 | `alpaca_qwen25_v2` 已完成：511 条有效记录、截断率 1.17%、跨切分重合为 0，结论 `accept`；不要求 GPU | 原始数据版本与评测切分 | 数据准入 manifest、样本 ID 与切分哈希 |
 | 2 | Part 02 · 63 LoRA 变体选型 | 单变量可比性、质量/显存硬门槛、可行候选选择 | `lora_variant_selection_v2` 已完成 3 个秩 × 3 个共享种子的配对矩阵；rank 4 在质量等价带内资源最低，结论 `accept` | 64 的准入 manifest | LoRA 选型 manifest、完整候选矩阵与 rank 4 适配器 |
-| 2B | Part 02 · 65 QLoRA 低资源分支 | 量化产物准入、质量与容量约束 | 复用 `Q-QLORA`，与 63 并列，不作为 63 的后续阶段 | 64 的准入 manifest | `qlora-selection/v1` manifest |
-| 3 | Part 02 · 62 SFT 训练交付 | 上游身份匹配、产物完整性、恢复/加载门禁与交付状态 | `sft_delivery_v2_1` 已从第 12 步恢复到第 24 步，评测损失 1.7725 → 1.7080，重载差值为 0，结论 `accept` | 63 或 65 的一个选型 manifest | checkpoint、SFT adapter、评测报告与交付 manifest |
+| 2B | Part 02 · 65 QLoRA 低资源分支 | NF4 低比特底座下的质量、显存与容量约束 | 0.5B `rtx5070ti_qlora_selection_v3`：省 6.1% 峰值显存但无容量收益且步时回退 42.8%，结论 `tune`；1.5B `rtx5070ti_qlora_15b_capacity_v1`：3 个共享 seed 下峰值低 23.4%，最大 batch `4 → 8`，质量通过，结论 `accept`，适用范围为容量受限训练 | 64 的准入 manifest | QLoRA adapter 哈希、配对 JSON 与低资源分支 manifest |
+| 3 | Part 02 · 62 SFT 训练交付 | 上游身份匹配、产物完整性、恢复/加载门禁与交付状态 | `sft_delivery_v2_1` 是旧契约证据；新交付契约待以 `rtx5070ti_sft_delivery_v3` 复测 | 63 的 LoRA 选型 manifest | checkpoint、SFT adapter、评测报告与交付 manifest |
 | 4A | Part 02 · 84 离线 DPO | 偏好数据准入、独立评测门禁、质量—资源采用判断 | `dpo_offline_len768_v4` 已完成；任务输入截断率 27.5% 超过 25% 门槛，结论 `reject`，失败项为 `prompt_coverage` | 62 的交付 manifest | DPO adapter、评测报告与候选 manifest |
 | 4B | Part 02 · 85 在线奖励优化 | rollout/验证器覆盖门禁、有效更新吞吐、质量—资源采用判断 | `grpo_rlvr_len256_v6` 已完成；平均奖励 +0.0104、`pass@group` 持平，长度预算未通过，结论 `tune` | 62 的交付 manifest | GRPO adapter、轨迹摘要、配对评测报告与候选 manifest |
-| 5 | Part 02 · 86 生命周期与采用决策 | 策略新鲜度、artifact/回滚哈希、证据缺口、失败恢复与采用状态转换 | `post_training_lifecycle_v3` 已复验 DPO/GRPO 产物与四类恢复路径；DPO 为 `reject`、GRPO 为 `tune`，缺少独立安全证据，最终结论 `tune` | 84、85 候选 manifest 与 62 回滚 manifest | 生命周期证据与采用决策 JSON；不冒充分布式在线系统证据 |
+| 5 | Part 02 · 86 生命周期与恢复 | 策略新鲜度、artifact/回滚哈希、失败恢复与交接状态 | `post_training_lifecycle_v3` 是重构前采用记录；重构后需用新标签生成 `lifecycle_handoff`，当前 DPO 为 `reject`、GRPO 为 `tune`，没有可交接候选 | 84、85 候选 manifest 与 62 回滚 manifest | 生命周期证据与 Part 05 交接清单；不承担最终采用决策 |
 
 ### 单卡 12 GB 默认工作负载
 
 | 项目 | 默认模型与候选 | 初次验证规模 | 必须保留的项目证据 |
 |:---|:---|:---|:---|
-| 63 | `Qwen/Qwen2.5-0.5B-Instruct`；LoRA rank `4 / 8 / 16`，固定 target modules、alpha 规则与 dropout | 固定训练/验证切分，短训练筛选；候选确定后再用 3 个 seed 复测，不在首次运行同时扩大长度和样本数 | 每候选 val loss、任务指标、峰值显存、step time、吞吐、失败与固定条件 |
-| 62 | 63 或 65 选出的唯一配置 | 一次正式短程训练，加一次保存—恢复—继续更新和重新加载评测 | 模型与数据 revision、上游 manifest ID、checkpoint/adapter 哈希、恢复位置、固定评测与失败记录 |
+| 63 | `Qwen/Qwen2.5-0.5B`；LoRA rank `4 / 8 / 16`，固定 target modules、alpha 规则与 dropout | 固定训练/验证切分，短训练筛选；候选确定后再用 3 个 seed 复测，不在首次运行同时扩大长度和样本数 | 每候选 val loss、任务指标、峰值显存、step time、吞吐、失败与固定条件 |
+| 62 | 63 选出的唯一 LoRA 配置 | 一次正式短程训练，加一次保存—恢复—继续更新和重新加载评测 | 模型与数据 revision、上游 manifest ID、checkpoint/adapter 哈希、恢复位置、固定评测与失败记录 |
 | 84 | 62 的 SFT adapter；固定 `beta=0.1` | 24 组训练偏好对、16 组独立评测偏好对、最大长度 768、12 次更新 | v4 峰值分配约 5.48 GiB；质量门槛通过，但任务输入截断率 27.5%，结论 `reject` |
 | 85 | 62 的 SFT adapter；每个问题生成 8 条轨迹 | GSM8K 训练题 24 道、独立评测题 12 道、最多生成 256 词元；更新前策略/候选使用相同评测种子 | v6 有效组 16/24，峰值分配约 6.49 GiB、保留约 10.10 GiB；长度预算未通过，结论 `tune` |
 

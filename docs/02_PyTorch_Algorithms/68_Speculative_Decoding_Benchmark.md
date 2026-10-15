@@ -1,5 +1,5 @@
-# 68. Speculative Decoding Benchmark | 投机解码基准
-**难度：** Hard | **环境：** CPU-first | **标签：** `推理优化`, `Speculative Decoding`, `基准对比` | **目标人群：** 项目决策练习者
+# 68. Speculative Decoding Benchmark | 投机解码机制选型基准
+**难度：** Hard | **环境：** CPU-first + optional GPU | **标签：** `推理优化`, `Speculative Decoding`, `机制选型` | **目标人群：** 推理部署与性能工程学习者
 
 > 🚀 **云端运行环境**
 >
@@ -13,616 +13,940 @@
 
 ## 本节导读
 
-投机解码把一次生成拆成两个协作环节：草稿模型先提出一段候选，目标模型再验证这些候选。学习时要关注两个问题：候选能连续通过多少 token，以及减少的解码轮次能否抵消额外的 draft 与 verify 成本。本节沿着 baseline、接受与回退、端到端收益逐步完成判断。
+本节不重新推导投机采样，也不训练推测器，而是在固定 target、工作负载、硬件和测量协议下完成部署侧机制选型：先判断 N-gram、原生 MTP、EAGLE、DFlash、DSpark 是否具备后端能力和匹配资产，再对可运行候选建立 target-only 配对证据。输出交给 72 节参与最终部署组合，不替代服务 SLO 决策。
 
-**关键词：** `acceptance rate`, `draft cost`, `verify cost`, `benchmark`
+**职责边界：** 23 节负责接受/拒绝机制，35 节负责原生 MTP，61 节负责模型结构审计，66 节提供共享基准口径，68 节负责候选准入与专项对照，72 节负责最终部署决策。
+
+**关键词：** `proposer family`, `capability gate`, `paired benchmark`, `acceptance telemetry`, `handoff`
 
 ---
+
 ## 前置阅读
 
-**导语：** 进入本节前，先理解单 token 解码如何推进，以及 draft / target 如何协作。阅读时重点观察候选提出后哪些 token 被连续接受，以及一次验证是否真的减少了目标模型的重复解码工作。
-- [21. Decoding Strategies | 解码策略](./21_Decoding_Strategies.md)
-- [23. Speculative Decoding | 投机解码](./23_Speculative_Decoding.md)
-- [66. Inference Performance Comparison | 推理性能对比实验](./66_Inference_Performance_Comparison.md)
-### Step 1：实验问题与比较口径
+- [23. Speculative Decoding | 投机解码](./23_Speculative_Decoding.md)：接受概率、拒绝修正和连续接受前缀。
+- [35. Native Multi-Token Prediction | 原生多 Token 预测](./35_Multi_Token_Decoding.md)：模型内生的多步候选。
+- [61. Model Architecture Exploration | 模型架构审计](./61_Model_Architecture_Exploration.md)：识别 checkpoint 的原生结构与附加资产。
+- [66. Inference Performance Comparison | 推理性能对比](./66_Inference_Performance_Comparison.md)：统一 workload、延迟和吞吐口径。
+- [72. Single-GPU Deployment and Backend Comparison | 单卡部署与 Backend 对比](./72_Multi_Model_Deployment_Comparison.md)：接收本节通过门禁的候选。
 
-先固定模型、请求集、speculative 配置和质量门槛，明确要比较的是单轮推进效率，还是端到端生成收益。后续对照都必须沿用这组输入，才能把变化归因到 speculative 机制。
+### Step 1：把 proposer 家族变成可审计候选
 
-| 固定项 | 记录内容 |
-|:---|:---|
-| 模型 | target、draft、版本和 dtype |
-| workload | prompt 分布、batch、max new tokens、temperature |
-| speculative 配置 | proposal length、verify policy、acceptance 定义 |
-| 质量门槛 | 输出一致性或任务指标、允许的误差 |
+所有策略都遵循“候选生成 → target 验证 → 接受连续前缀”的外层协议，但候选来源、资产形态和块内依赖不同。MTP 既是模型训练/架构能力，也可在部署时充当 proposer；其余四项更直接描述候选生成路径。
 
-![投机解码 benchmark：从固定口径到项目决策](../public/02_PyTorch_Algorithms/68_speculative_benchmark_flow.svg)
-### Step 2：建立 G0 baseline 与测量口径
+| 家族 | 候选来源 | 额外资产 | 生成结构 | 本节主要检查 |
+|:---|:---|:---|:---|:---|
+| N-gram | prompt 或历史输出中的重复片段 | 无 | 检索式块候选 | 重复型 workload 是否形成净收益 |
+| Native MTP | target 内部 MTP 模块 | 原生 checkpoint | 模型内多步预测 | target 是否真的带 MTP 结构 |
+| EAGLE | target 隐藏特征 | 与 target 匹配的 EAGLE/EAGLE-3 权重 | 特征级自回归 | proposer 与 target 身份是否严格匹配 |
+| DFlash | target 特征与块扩散推测器 | 匹配的 DFlash 权重 | 块并行 | backend 是否支持并行 drafter 与相应资产 |
+| DSpark | 并行骨干、轻量顺序模块与置信度头 | 匹配的 DSpark 权重 | 半自回归 | 块内依赖与自适应验证是否真实启用 |
 
-沿用 Step1 的 workload、采样和质量门槛，先运行只包含 target 的 G0，建立后续对照所需的时间、吞吐、显存和质量基线。G0 不是可选结果；正式测量应在 warmup 后进行，并让 G0、G1、G2 使用相同的请求、重复次数和计时边界。
+候选身份至少包含 target snapshot、proposer family、proposer snapshot、backend method、候选预算和 workload。只写“speculative=True”不足以形成可复核实验。
 
-| 比较环节 | 运行对象或过程 | 固定条件 | 记录或目的 |
-|:---|:---|:---|:---|
-| G0 target-only | 仅 target 模型 | 复用 Step 1 的 workload、采样和质量门槛 | TTFT、TPOT、E2E、吞吐、P99、峰值显存、参考输出与质量结果 |
-| 测量过程 | warmup 后进行正式重复测量 | G0/G1/G2 使用相同请求和计时边界 | 保证延迟与吞吐可比较 |
-### Step 3：解释 acceptance 与收益来源
+![投机解码机制选型：从候选家族到部署交接](../public/02_PyTorch_Algorithms/68_speculative_benchmark_flow.svg)
 
+### Step 2：先做能力与资产门禁，再启动 GPU
 
-先比较每轮实际接受了多少 token，再结合 draft、verify 和 target 的调用成本，判断 speculative 带来的推进收益是否转化为端到端性能提升。G1 固定 workload 与采样参数对照 G0，G2 只改变 proposal length 或 draft model。下面的表格同时记录对照方式和收益指标。
+准入顺序固定为：backend 接口 → family method → target 原生结构或 proposer 资产 → tokenizer/模型兼容 → 显存容量 → 真实启动。`unsupported`、`asset_missing`、`incompatible`、`capacity_blocked` 和 `failed` 是不同事实，不能统一写成 `tune`。
 
-| 比较项 | 它说明什么 | 用于判断 |
+| 运行状态 | 含义 | 是否进入性能比较 |
+|:---|:---|:---:|
+| `runnable` | 静态门禁通过，可以启动 | 是 |
+| `unsupported` | 当前 backend/version 没有该路径 | 否 |
+| `asset_missing` | 缺少原生结构或匹配 proposer | 否 |
+| `incompatible` | target、tokenizer 或 proposer 身份不匹配 | 否 |
+| `capacity_blocked` | 预计显存超过设备预算 | 否 |
+| `failed` | 已尝试启动或请求，但真实执行失败 | 否 |
+
+### Step 3：分离运行状态、证据状态与采用决策
+
+`run_status` 回答“有没有运行”，`evidence_status` 回答“能不能归因和比较”，`decision` 才回答“是否采用”。高接受率只是诊断信号：drafter 很慢时，高接受率仍可能没有净收益；反之，极便宜的 proposer 可能在中等接受率下形成加速。
+
+| 证据 | 来源 | 决策作用 |
 |:---|:---|:---|
-| G1 / G2 对照 | G1 使用 draft + target；G2 只改变 proposal length 或 draft model | 控制变量，定位收益来源 |
-| acceptance rate | draft 候选被接受的比例 | draft 是否足够可靠 |
-| accepted tokens / round | 每轮实际推进量 | 是否减少生成轮数 |
-| target forward calls | target 实际调用次数 | 是否减少主要计算 |
-| draft / verify cost | 两个阶段新增的成本 | 收益是否被额外成本抵消 |
-| TPOT、吞吐、质量 | 端到端变化及输出约束 | 机制收益是否转化为可接受结果 |
-### Step 4：CPU 机制实现与项目决策
+| target/proposer resolved snapshot | 模型解析与启动配置 | 防止资产错配 |
+| execution path | backend 配置、日志或指标 | 防止静默回退 |
+| proposed / accepted tokens | backend 原生遥测 | 解释候选质量，不从时延反推 |
+| TTFT / TPOT / E2E P95 | 同 workload 配对结果 | 判断交互速度和尾延迟 |
+| output/request throughput | 同 workload 配对结果 | 判断净收益 |
+| peak memory | 设备采样 | 判断单卡容量 |
+| deterministic parity | `temperature=0` 的逐请求输出 | 性能结论的质量门禁 |
 
+### Step 4：实现候选分类、准入、证据与决策
 
-CPU 代码验证 proposal、verify、接受和回退；真实 backend 补充端到端延迟、吞吐和质量证据。相关字段和证据来源统一在下表核对。
+| TODO | 输入 | 输出 | 关键约束 |
+|:---|:---|:---|:---|
+| TODO 1：分类 proposer | family 名称 | 资产类型、依赖结构、遥测要求 | MTP 不得误当普通外置 draft model |
+| TODO 2：候选准入 | backend methods、资产、容量 | 明确运行状态与原因 | 静态准入不等于真实执行成功 |
+| TODO 3：建立配对证据 | G0 与 candidate | 可比性、缺证、加速和质量变化 | target/workload/sampling 必须一致 |
+| TODO 4：形成决策 | 证据与门槛 | `accept/tune/reject/not_evaluated` | 接受率只用于解释，不作单独采用门槛 |
 
-| 证据类别 | 复核指标 | 验收条件或决策 |
-|---|---|---|
-| 证据来源 | CPU 状态转移与成本模型；backend 真实调用和时间 | 区分机制验证与真实性能证据 |
-| 质量 | 输出一致性、任务指标 | 达到预设质量门槛 |
-| 机制 | acceptance rate、accepted tokens / round、draft / verify cost | 收益来源可以解释 |
-| 性能 | TTFT、TPOT、吞吐、P50、P99、峰值显存 | 相比 G0 有改善，尾延迟没有不可接受恶化；样本不足时仅作观察 |
-| 项目决策 | 三类证据综合判断 | 同时达标则 `accept`；证据不足则 `tune`；质量不达标或性能退化则 `reject` |
-| 交付记录 | baseline、candidate、对比结果和决策字段 | 保存 workload、指标、质量和证据等级，形成可复查的 benchmark 结果 |
 
 ```python
-from typing import Dict, List
+from collections import Counter
+from typing import Any, Dict, Iterable, Mapping
 
 ```
 
 
 ```python
-# 4 个核心 TODO：逐轮验证、workload 汇总、baseline 对比、项目判断
-# 目标：先在 CPU 上还原可检查的状态转移，再把结果整理成 benchmark 报告。
-# CPU 练习验证 proposal/verify 的计数和成本模型；真实 acceptance rate、TPOT 和 kernel 行为属于 GPU backend 扩展。
-def simulate_speculative_decode(rounds, draft_ms_per_token=1.0, verify_ms_per_round=4.0):
-    """模拟多轮 draft proposal / target verify，并返回可审计的状态与成本。
+PROPOSER_FAMILIES = {
+    'ngram': {'asset_kind': 'none', 'dependency': 'retrieval', 'telemetry': ('proposed_tokens', 'accepted_tokens')},
+    'mtp': {'asset_kind': 'target_native', 'dependency': 'model_native', 'telemetry': ('proposed_tokens', 'accepted_tokens')},
+    'eagle': {'asset_kind': 'paired_checkpoint', 'dependency': 'feature_autoregressive', 'telemetry': ('proposed_tokens', 'accepted_tokens')},
+    'dflash': {'asset_kind': 'paired_checkpoint', 'dependency': 'parallel_block', 'telemetry': ('proposed_tokens', 'accepted_tokens')},
+    'dspark': {'asset_kind': 'paired_checkpoint', 'dependency': 'semi_autoregressive', 'telemetry': ('proposed_tokens', 'accepted_tokens', 'verified_tokens')},
+}
 
-    参数：
-        rounds: 每轮包含 draft_tokens 与 target_tokens 的字典列表。
-        draft_ms_per_token: 教学用 draft 线性成本，不是实测时间。
-        verify_ms_per_round: 教学用每轮 verify 成本，不是 GPU kernel 时间。
 
-    返回：机制指标、成本模型指标和 round_trace；不实现概率性 rejection sampling。"""
-    if draft_ms_per_token < 0 or verify_ms_per_round < 0:
-        raise ValueError('draft 和 verify 成本不能为负数')
-    # ==========================================
-    # TODO 1：只补全逐轮验证的关键状态更新；输入校验、循环结构和返回字段保持现有骨架。
-    # 提示：每轮比较 draft_tokens / target_tokens 的最长相同前缀，先得到 accepted。
-    # proposed_tokens = ???
-    # accepted_tokens = ???
-    # corrected_tokens = ???
-    # round_trace = ???
-    # accepted_prefix_length、rejected_token、corrected 根据 accepted 和 target_tokens 派生，保留现有字段结构。
-    # 完成后再计算 acceptance_rate、effective_output_tokens、draft_cost_ms 和 verify_cost_ms；
-    # rounds 为空时返回零计数摘要，不能伪造一次成功验证。
-    # ==========================================
-    raise NotImplementedError("请先完成 TODO 代码！")
+def classify_speculative_strategy(family: str) -> Dict[str, Any]:
+    '''返回 proposer 家族的资产、依赖和遥测契约。'''
+    # TODO 1：规范化 family，拒绝未知家族，并返回一份不可修改原表的副本。
+    raise NotImplementedError('TODO 1：请分类 proposer 家族')
 
-def summarize_speculative_benchmark(runs: List[Dict[str, float]]) -> Dict[str, object]:
-    """汇总同一 workload 的多次运行结果，不把空输入伪装成性能结果。"""
-    # TODO 2：先处理空列表；非空时汇总运行次数、平均接受率、平均吞吐和最佳 run。
-    # 提示：遍历 runs，读取 name、acceptance_rate、throughput；缺失字段要明确处理。
-    # run_count = ???
-    # avg_acceptance_rate = ???
-    # avg_throughput = ???
-    # best_throughput_run = ???
-    #       返回 run_count、best_throughput_run、avg_acceptance_rate、avg_throughput。
-    #       缺失字段应报错或明确标记，不能当成 0 纳入均值。
-    raise NotImplementedError("请先完成 TODO 代码！")
 
-def compare_speculative_to_baseline(baseline: Dict[str, float], candidate: Dict[str, float]) -> Dict[str, float]:
-    """计算 candidate 相对 G0 的变化，不代表真实 backend 归因。"""
-    # TODO 3：补充 TTFT、吞吐、acceptance rate、verify cost 的差值，并计算 speedup。
-    # 提示：从 baseline / candidate 读取 ttft_ms、throughput、acceptance_rate、verify_cost_ms。
-    # ttft_delta_ms = ???
-    # throughput_gain = ???
-    # throughput_speedup = ???
-    # verify_cost_delta = ???
-    #       返回 ttft_delta_ms、throughput_gain、acceptance_rate、verify_cost_delta、throughput_speedup。
-    #       throughput_speedup = candidate / baseline；baseline 吞吐必须大于 0。
-    raise NotImplementedError("请先完成 TODO 代码！")
+def admit_speculative_candidate(candidate: Mapping[str, Any]) -> Dict[str, Any]:
+    '''按 enabled、backend、资产、兼容和容量顺序形成准入状态。'''
+    # TODO 2：状态只能来自 skipped / unsupported / asset_missing /
+    # incompatible / capacity_blocked / runnable，并保留具体 reason。
+    raise NotImplementedError('TODO 2：请形成候选准入状态')
 
-def recommend_speculative_run(baseline: Dict[str, float], candidate: Dict[str, float], min_acceptance_rate: float, quality_ok: bool = True, max_verify_cost_delta: float = 10.0) -> Dict[str, object]:
-    """按吞吐、接受率、质量和验证成本给出教学决策。
 
-    这是项目筛选模板，不是生产环境的自动调参器；门槛必须随 workload 重新校准。"""
-    # TODO 4：校验两个门槛，先处理质量失败，再根据吞吐、接受率和 verify cost 输出决策。
-    # 提示：使用 comparison、min_acceptance_rate、quality_ok、max_verify_cost_delta。
-    # acceptance_ok = ???
-    # throughput_ok = ???
-    # verify_cost_ok = ???
-    # decision = ???
-    # next_action = ???
-    #       quality_ok=False 时优先 reject；只有接受率、吞吐和 verify cost 同时过门槛才 accept。reason 随 decision 生成。
-    raise NotImplementedError("请先完成 TODO 代码！")
+def build_speculative_pair_evidence(
+    baseline: Mapping[str, Any], candidate: Mapping[str, Any]
+) -> Dict[str, Any]:
+    '''检查同 target 配对，并计算端到端变化。'''
+    # TODO 3：运行未完成、固定字段不一致、路径未生效和关键指标缺失要分开记录。
+    raise NotImplementedError('TODO 3：请建立投机配对证据')
+
+
+def decide_speculative_candidate(
+    evidence: Mapping[str, Any], thresholds: Mapping[str, float]
+) -> Dict[str, str]:
+    '''根据可比性、质量、收益、尾延迟和容量形成采用决策。'''
+    # TODO 4：未完成或不可比返回 not_evaluated；质量失败 reject；
+    # 净收益或门槛部分未过为 tune；全部通过才 accept。
+    raise NotImplementedError('TODO 4：请形成候选决策')
 
 ```
 
 
 ```python
-# 测试你的实现
-def test_speculative_benchmark_template():
-    rounds = [
-        {'draft_tokens': [1, 2, 3], 'target_tokens': [1, 2, 9]},
-        {'draft_tokens': [4, 5], 'target_tokens': [4, 5]},
-    ]
-    simulation = simulate_speculative_decode(rounds, draft_ms_per_token=1.0, verify_ms_per_round=4.0)
-    assert simulation['rounds'] == 2, "轮数统计不正确！"
-    assert simulation['proposed_tokens'] == 5, "proposal token 数统计不正确！"
-    assert simulation['accepted_tokens'] == 4, "accepted token 数统计不正确！"
-    assert simulation['corrected_tokens'] == 1, "分歧后的 correction token 统计不正确！"
-    assert simulation['effective_output_tokens'] == 5, "有效输出 token 数统计不正确！"
-    assert simulation['acceptance_rate'] == 0.8, "acceptance rate 计算不正确！"
-    assert simulation['accepted_tokens_per_round'] == 2.0, "每轮接受 token 数计算不正确！"
-    assert simulation['round_trace'] == [
-        {'round': 0, 'proposed': 3, 'accepted_prefix_length': 2, 'accepted': 2, 'rejected_token': 9, 'corrected': 1},
-        {'round': 1, 'proposed': 2, 'accepted_prefix_length': 2, 'accepted': 2, 'rejected_token': None, 'corrected': 0},
-    ], "逐轮状态轨迹不正确！"
-    assert simulation['mechanism_metrics']['accepted_tokens'] == 4
-    assert simulation['cost_model_metrics']['verify_cost_ms'] == 8.0
-    assert simulation['draft_cost_ms'] == 5.0 and simulation['verify_cost_ms'] == 8.0, "proposal / verify 成本计算不正确！"
-    empty = simulate_speculative_decode([])
-    assert empty['rounds'] == 0 and empty['acceptance_rate'] == 0.0, "空 rounds 应返回零计数摘要！"
-    first_reject = simulate_speculative_decode([{'draft_tokens': [1, 2], 'target_tokens': [9, 2]}])
-    assert first_reject['accepted_tokens'] == 0 and first_reject['corrected_tokens'] == 1, "首 token 拒绝时状态不正确！"
+def _candidate(**updates):
+    base = {
+        'enabled': True, 'family': 'ngram', 'backend_supported': True,
+        'asset_ready': True, 'compatible': True,
+        'estimated_memory_gb': 6.0, 'memory_limit_gb': 10.5,
+    }
+    return {**base, **updates}
+
+
+def _run(role, **updates):
+    base = {
+        'run_status': 'completed', 'role': role,
+        'target_snapshot': 'target-rev-a', 'workload_key': 'general-c1',
+        'sampling_key': 't0-max128', 'execution_path': 'target_only' if role == 'baseline' else 'speculative',
+        'throughput_tokens_per_s': 100.0, 'ttft_p95_ms': 50.0,
+        'e2e_p95_ms': 900.0, 'peak_memory_mb': 6000.0,
+        'quality_ok': True,
+        'mechanism_active': True if role == 'candidate' else None,
+    }
+    return {**base, **updates}
+
+
+def test_family_classification():
+    assert classify_speculative_strategy('N-Gram')['asset_kind'] == 'none'
+    assert classify_speculative_strategy('MTP')['asset_kind'] == 'target_native'
+    assert classify_speculative_strategy('DSpark')['dependency'] == 'semi_autoregressive'
     try:
-        simulate_speculative_decode(rounds, draft_ms_per_token=-1.0)
+        classify_speculative_strategy('unknown')
     except ValueError:
         pass
     else:
-        raise AssertionError('非法 speculative 成本应明确拒绝！')
-
-    baseline = {'name': 'baseline', 'ttft_ms': 120, 'throughput': 100, 'acceptance_rate': 0.0, 'verify_cost_ms': 40}
-    candidate = {'name': 'spec', 'ttft_ms': 110, 'throughput': 135, 'acceptance_rate': 0.72, 'verify_cost_ms': 48}
-    summary = summarize_speculative_benchmark([baseline, candidate])
-    assert summary['run_count'] == 2
-    assert summary['best_throughput_run'] == 'spec'
-    assert summary['avg_throughput'] == 117.5
-    try:
-        summarize_speculative_benchmark([{'name': 'invalid', 'throughput': 1.0}])
-    except KeyError:
-        pass
-    else:
-        raise AssertionError('缺少 acceptance_rate 时应明确报错！')
-    comparison = compare_speculative_to_baseline(baseline, candidate)
-    assert comparison['ttft_delta_ms'] == -10
-    assert comparison['throughput_gain'] == 35
-    assert comparison['verify_cost_delta'] == 8
-    assert comparison['throughput_speedup'] == 1.35
-    decision = recommend_speculative_run(baseline, candidate, min_acceptance_rate=0.6)
-    assert decision['decision'] == 'accept'
-    assert decision['next_action'] == 'promote_to_serving_eval'
-    rejected = recommend_speculative_run(baseline, candidate, min_acceptance_rate=0.6, quality_ok=False)
-    assert rejected['decision'] == 'reject'
-    try:
-        compare_speculative_to_baseline({**baseline, 'throughput': 0}, candidate)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError('baseline throughput 为 0 时应拒绝计算加速比！')
-    # GPU/backend 的输出质量和实验计划由后面的可选实验区单独验证；
-    # CPU TODO 1–4 测试不依赖后续 cell 才定义的 helper。
+        raise AssertionError('未知 proposer 家族必须被拒绝')
 
 
-test_speculative_benchmark_template()
-print('测试通过：投机解码基准模板可以工作。')
+def test_admission_states():
+    assert admit_speculative_candidate(_candidate())['run_status'] == 'runnable'
+    assert admit_speculative_candidate(_candidate(backend_supported=False))['run_status'] == 'unsupported'
+    assert admit_speculative_candidate(_candidate(asset_ready=False))['run_status'] == 'asset_missing'
+    assert admit_speculative_candidate(_candidate(compatible=False))['run_status'] == 'incompatible'
+    assert admit_speculative_candidate(_candidate(estimated_memory_gb=12.0))['run_status'] == 'capacity_blocked'
+
+
+def test_pair_evidence_and_decision():
+    baseline = _run('baseline')
+    candidate = _run(
+        'candidate', throughput_tokens_per_s=125.0, ttft_p95_ms=52.0,
+        e2e_p95_ms=850.0, peak_memory_mb=7000.0,
+    )
+    evidence = build_speculative_pair_evidence(baseline, candidate)
+    assert evidence['evidence_status'] == 'comparable'
+    assert round(evidence['throughput_speedup'], 2) == 1.25
+    thresholds = {
+        'min_throughput_speedup': 1.10,
+        'max_ttft_regression_ratio': 1.10,
+        'max_e2e_p95_regression_ratio': 1.05,
+        'max_peak_memory_mb': 10500.0,
+    }
+    assert decide_speculative_candidate(evidence, thresholds)['decision'] == 'accept'
+    failed_quality = build_speculative_pair_evidence(baseline, {**candidate, 'quality_ok': False})
+    assert decide_speculative_candidate(failed_quality, thresholds)['decision'] == 'reject'
+    unsupported = build_speculative_pair_evidence(baseline, {**candidate, 'run_status': 'unsupported'})
+    assert decide_speculative_candidate(unsupported, thresholds)['decision'] == 'not_evaluated'
+
+
+def test_speculative_selection_template():
+    test_family_classification()
+    test_admission_states()
+    test_pair_evidence_and_decision()
+    print('测试通过：proposer 分类、准入状态、配对证据和采用决策均符合契约。')
+
+
+try:
+    test_speculative_selection_template()
+except NotImplementedError:
+    print('请先完成 TODO 部分的代码！')
+    raise
 
 ```
-
----
-
-🛑 **STOP HERE** 🛑
-<br><br><br><br><br><br><br><br><br><br>
-> 请先尝试自己完成代码并跑通测试。<br>
-> 如果你正在 Colab 中运行，并且遇到困难没有思路，可以向下滚动查看参考答案。
-<br><br><br><br><br><br><br><br><br><br>
-
----
-#### CPU 机制验证与结果解析
-
-CPU 代码用于检查 proposal、verify、接受、分歧和回退的状态转移；`draft_cost_ms` 与 `verify_cost_ms` 是成本模型，不代表 GPU kernel 实测。运行后重点查看 `acceptance_rate`、`effective_output_tokens` 和最终决策字段。
 
 ## 参考代码与解析
 
-### 代码
 
 ```python
-def simulate_speculative_decode(rounds, draft_ms_per_token=1.0, verify_ms_per_round=4.0):
-    """按轮模拟 draft proposal、target verify 和分歧后的 correction。
+PROPOSER_FAMILIES = {
+    'ngram': {'asset_kind': 'none', 'dependency': 'retrieval', 'telemetry': ('proposed_tokens', 'accepted_tokens')},
+    'mtp': {'asset_kind': 'target_native', 'dependency': 'model_native', 'telemetry': ('proposed_tokens', 'accepted_tokens')},
+    'eagle': {'asset_kind': 'paired_checkpoint', 'dependency': 'feature_autoregressive', 'telemetry': ('proposed_tokens', 'accepted_tokens')},
+    'dflash': {'asset_kind': 'paired_checkpoint', 'dependency': 'parallel_block', 'telemetry': ('proposed_tokens', 'accepted_tokens')},
+    'dspark': {'asset_kind': 'paired_checkpoint', 'dependency': 'semi_autoregressive', 'telemetry': ('proposed_tokens', 'accepted_tokens', 'verified_tokens')},
+}
 
-    参数：
-        rounds: 已对齐的 draft / target token 列表；每个元素代表一轮。
-        draft_ms_per_token、verify_ms_per_round: 仅用于线性成本模型。
 
-    返回：机制计数、成本模型、逐轮 round_trace 和嵌套指标。
-    边界：这是确定性的 CPU 状态转移模拟，不是 target model 的真实采样，
-    也不能由此推出 vLLM / SGLang 的 kernel 延迟或线上吞吐。"""
-    if draft_ms_per_token < 0 or verify_ms_per_round < 0:
-        raise ValueError('draft 和 verify 成本不能为负数')
-    if not isinstance(rounds, list):
-        raise TypeError('rounds 必须是 list')
-    proposed_tokens = accepted_tokens = corrected_tokens = 0
-    accepted_rounds = 0
-    round_trace = []
-    for round_index, item in enumerate(rounds):
-        if not isinstance(item, dict) or 'draft_tokens' not in item or 'target_tokens' not in item:
-            raise ValueError(f'第 {round_index} 轮必须包含 draft_tokens 和 target_tokens')
-        draft = list(item['draft_tokens'])
-        target = list(item['target_tokens'])
-        if not draft or not target:
-            raise ValueError('每轮必须包含非空 draft_tokens 和 target_tokens')
-        accepted = 0
-        for draft_token, target_token in zip(draft, target):
-            if draft_token != target_token:
-                break
-            # TODO 1 对应变量 accepted：累计当前轮连续通过的候选数量。
-            accepted += 1
-        # TODO 1 对应变量 proposed_tokens / accepted_tokens：分别累计提议与接受 token。
-        proposed_tokens += len(draft)
-        accepted_tokens += accepted
-        if accepted == len(draft):
-            accepted_rounds += 1
-        else:
-            corrected_tokens += 1
-        rejected_token = target[accepted] if accepted < len(target) and accepted < len(draft) else None
-        # TODO 1 对应变量 corrected_tokens：记录分歧后的 correction 数量。
-        # TODO 1 对应结果 round_trace：保存接受前缀、拒绝位置和 correction 状态。
-        round_trace.append({
-            'round': round_index, 'proposed': len(draft),
-            'accepted_prefix_length': accepted, 'accepted': accepted,
-            'rejected_token': rejected_token,
-            'corrected': int(accepted < len(draft)),
-        })
-    round_count = len(rounds)
-    accepted_tokens_per_round = accepted_tokens / round_count if round_count else 0.0
-    return {
-        'rounds': round_count,
-        'proposed_tokens': proposed_tokens,
-        'accepted_tokens': accepted_tokens,
-        'corrected_tokens': corrected_tokens,
-        'effective_output_tokens': accepted_tokens + corrected_tokens,
-        'acceptance_rate': accepted_tokens / proposed_tokens if proposed_tokens else 0.0,
-        # 这是 CPU 机制模拟的每轮推进量，不是 backend 实测值
-        'accepted_tokens_per_round': accepted_tokens_per_round,
-        'draft_cost_ms': proposed_tokens * draft_ms_per_token,
-        'verify_cost_ms': round(round_count * verify_ms_per_round, 4),
-        'fully_accepted_rounds': accepted_rounds,
-        'round_trace': round_trace,
-        'mechanism_metrics': {
-            'proposed_tokens': proposed_tokens, 'accepted_tokens': accepted_tokens,
-            'corrected_tokens': corrected_tokens, 'acceptance_rate': accepted_tokens / proposed_tokens if proposed_tokens else 0.0,
-            'accepted_tokens_per_round': accepted_tokens_per_round,
-        },
-        'cost_model_metrics': {
-            'draft_cost_ms': proposed_tokens * draft_ms_per_token,
-            'verify_cost_ms': round(round_count * verify_ms_per_round, 4),
-        },
-    }
+def _normalize_family(family):
+    return str(family).strip().lower().replace('-', '').replace('_', '')
 
-# TODO 2: 汇总投机解码 workload。输入应是同一模型、同一 workload 的 run。
-def summarize_speculative_benchmark(runs: List[Dict[str, float]]) -> Dict[str, object]:
-    """汇总同一 workload 的多次运行。
 
-    要求输入至少提供 throughput；acceptance_rate 缺失时应显式处理，
-    不能把缺失字段静默解释为真实的 0。返回平均接受率、平均吞吐和最佳 run；
-    空列表只返回空摘要，不构成性能结论。"""
-    if not runs:
-        return {'run_count': 0, 'best_throughput_run': None, 'avg_acceptance_rate': 0.0, 'avg_throughput': 0.0}
-    required = {'name', 'acceptance_rate', 'throughput'}
-    missing = [sorted(required - set(item)) for item in runs if not required.issubset(item)]
+def classify_speculative_strategy(family: str) -> Dict[str, Any]:
+    aliases = {'ngram': 'ngram', 'mtp': 'mtp', 'eagle': 'eagle', 'eagle3': 'eagle',
+               'dflash': 'dflash', 'dspark': 'dspark'}
+    normalized = _normalize_family(family)
+    if normalized not in aliases:
+        raise ValueError(f'未知 speculative family：{family}')
+    canonical = aliases[normalized]
+    return {'family': canonical, **PROPOSER_FAMILIES[canonical]}
+
+
+def admit_speculative_candidate(candidate: Mapping[str, Any]) -> Dict[str, Any]:
+    if not candidate.get('enabled', False):
+        return {'run_status': 'skipped', 'reason': 'candidate_disabled'}
+    if not candidate.get('backend_supported', False):
+        return {'run_status': 'unsupported', 'reason': 'backend_method_unavailable'}
+    if not candidate.get('asset_ready', False):
+        return {'run_status': 'asset_missing', 'reason': 'required_model_asset_unavailable'}
+    if not candidate.get('compatible', False):
+        return {'run_status': 'incompatible', 'reason': 'target_proposer_contract_failed'}
+    estimated = candidate.get('estimated_memory_gb')
+    limit = candidate.get('memory_limit_gb')
+    if estimated is not None and limit is not None and estimated > limit:
+        return {'run_status': 'capacity_blocked', 'reason': 'estimated_memory_exceeds_limit'}
+    return {'run_status': 'runnable', 'reason': 'static_admission_passed'}
+
+
+def build_speculative_pair_evidence(
+    baseline: Mapping[str, Any], candidate: Mapping[str, Any]
+) -> Dict[str, Any]:
+    completed = baseline.get('run_status') == candidate.get('run_status') == 'completed'
+    if not completed:
+        return {
+            'evidence_status': 'not_evaluated',
+            'missing_evidence': ['completed_pair'],
+            'candidate_run_status': str(candidate.get('run_status', 'unknown')),
+        }
+    fixed_fields = ('target_snapshot', 'workload_key', 'sampling_key')
+    mismatches = [name for name in fixed_fields if baseline.get(name) != candidate.get(name)]
+    required = ('throughput_tokens_per_s', 'ttft_p95_ms', 'e2e_p95_ms', 'peak_memory_mb', 'quality_ok')
+    missing = [name for name in required if candidate.get(name) is None or baseline.get(name) is None]
+    path_ok = baseline.get('execution_path') == 'target_only' and candidate.get('execution_path') == 'speculative'
+    if not path_ok:
+        missing.append('speculative_execution_path')
+    if candidate.get('mechanism_active') is not True:
+        missing.append('observed_speculative_proposals')
+    if mismatches:
+        return {'evidence_status': 'incomparable', 'mismatches': mismatches, 'missing_evidence': missing}
     if missing:
-        raise KeyError(f'每条 run 必须包含 {sorted(required)}，缺失字段：{missing}')
-    # TODO 2 对应变量 run_count：统计 workload 运行次数。
-    # TODO 2 对应变量 avg_acceptance_rate / avg_throughput：计算两项均值。
-    # TODO 2 对应变量 best_throughput_run：定位吞吐最高的运行。
-    best = max(runs, key=lambda item: item['throughput'])
-    avg_acceptance_rate = sum(item['acceptance_rate'] for item in runs) / len(runs)
-    avg_throughput = sum(item['throughput'] for item in runs) / len(runs)
-    return {'run_count': len(runs), 'best_throughput_run': best.get('name', 'run'),
-            'avg_acceptance_rate': round(avg_acceptance_rate, 6),
-            'avg_throughput': round(avg_throughput, 6)}
-
-
-# TODO 3: 比较 baseline 和 speculative candidate；两者必须使用同一 workload。
-def compare_speculative_to_baseline(baseline: Dict[str, float], candidate: Dict[str, float]) -> Dict[str, float]:
-    """计算 candidate 相对 G0 baseline 的指标变化。
-
-    需要区分差值（gain / delta）与比值（speedup），并拒绝吞吐为 0 的 baseline。
-    结果只表示报告层比较，不能替代真实 backend 的 TTFT、TPOT、P99 和质量校验。"""
-    required = {'ttft_ms', 'throughput', 'acceptance_rate', 'verify_cost_ms'}
-    for label, record in [('baseline', baseline), ('candidate', candidate)]:
-        missing = sorted(required - set(record))
-        if missing:
-            raise KeyError(f'{label} 缺少比较字段：{missing}')
-    baseline_throughput = baseline['throughput']
-    if baseline_throughput <= 0:
-        raise ValueError('baseline throughput 必须大于 0')
-    # TODO 3 对应变量 ttft_delta_ms / throughput_gain：计算 candidate 相对 baseline 的差值。
-    # TODO 3 对应变量 throughput_speedup：计算 candidate / baseline 的吞吐比值。
-    # TODO 3 对应变量 acceptance_rate / verify_cost_delta：保留接受率并计算验证成本变化。
+        return {'evidence_status': 'incomplete', 'mismatches': [], 'missing_evidence': missing}
+    throughput_speedup = candidate['throughput_tokens_per_s'] / baseline['throughput_tokens_per_s']
     return {
-        'ttft_delta_ms': candidate['ttft_ms'] - baseline['ttft_ms'],
-        'throughput_gain': candidate['throughput'] - baseline['throughput'],
-        'acceptance_rate': candidate['acceptance_rate'],
-        'verify_cost_delta': candidate['verify_cost_ms'] - baseline['verify_cost_ms'],
-        'throughput_speedup': candidate['throughput'] / baseline_throughput,
+        'evidence_status': 'comparable', 'mismatches': [], 'missing_evidence': [],
+        'throughput_speedup': throughput_speedup,
+        'ttft_ratio': candidate['ttft_p95_ms'] / baseline['ttft_p95_ms'],
+        'e2e_p95_ratio': candidate['e2e_p95_ms'] / baseline['e2e_p95_ms'],
+        'candidate_peak_memory_mb': candidate['peak_memory_mb'],
+        'quality_ok': bool(candidate['quality_ok']),
+        'mechanism_active': True,
     }
 
 
-# TODO 4: 输出项目判断。阈值属于本次教学 workload 的配置，不是通用常数。
-def recommend_speculative_run(baseline: Dict[str, float], candidate: Dict[str, float], min_acceptance_rate: float, quality_ok: bool = True, max_verify_cost_delta: float = 10.0) -> Dict[str, object]:
-    """按吞吐、接受率、质量和验证成本给出教学决策。
-
-    先处理质量失败，再检查吞吐收益、接受率和 verify 成本；返回
-    decision / reason / next_action。该函数是可解释的筛选模板，
-    不是生产调参器，也不能单凭 CPU 模拟决定启用 speculative serving。"""
-    if not 0 <= min_acceptance_rate <= 1:
-        raise ValueError('min_acceptance_rate 必须位于 [0, 1]')
-    if max_verify_cost_delta < 0:
-        raise ValueError('max_verify_cost_delta 不能为负数')
-    # TODO 4 对应变量 comparison：先复用 TODO 3 的对照结果。
-    # TODO 4 对应判断：依次检查 quality_ok、acceptance_rate、throughput_gain 和 verify_cost_delta。
-    # TODO 4 对应分支：分别生成 decision、reason 和 next_action。
-    comparison = compare_speculative_to_baseline(baseline, candidate)
-    if not quality_ok:
-        return {'decision': 'reject', 'reason': '质量门槛未通过', 'next_action': 'fallback_to_baseline'}
-    if comparison['throughput_gain'] > 0 and comparison['acceptance_rate'] >= min_acceptance_rate and comparison['verify_cost_delta'] <= max_verify_cost_delta:
-        return {'decision': 'accept', 'reason': '吞吐收益、接受率和验证成本都达标', 'next_action': 'promote_to_serving_eval'}
-    if comparison['throughput_gain'] > 0 and comparison['acceptance_rate'] >= min_acceptance_rate:
-        return {'decision': 'tune', 'reason': '吞吐和接受率可用，但验证成本仍偏高', 'next_action': 'refine_draft_or_verify'}
-    return {'decision': 'reject', 'reason': '接受率不足或吞吐收益不明显', 'next_action': 'fallback_to_baseline'}
+def decide_speculative_candidate(
+    evidence: Mapping[str, Any], thresholds: Mapping[str, float]
+) -> Dict[str, str]:
+    status = evidence.get('evidence_status')
+    if status not in ('comparable', 'incomplete'):
+        return {'decision': 'not_evaluated', 'reason': f'evidence_{status}'}
+    if status == 'incomplete':
+        return {'decision': 'tune', 'reason': 'collect_missing_evidence'}
+    if not evidence.get('quality_ok', False):
+        return {'decision': 'reject', 'reason': 'quality_gate_failed'}
+    gates = {
+        'throughput': evidence['throughput_speedup'] >= thresholds['min_throughput_speedup'],
+        'ttft': evidence['ttft_ratio'] <= thresholds['max_ttft_regression_ratio'],
+        'e2e_p95': evidence['e2e_p95_ratio'] <= thresholds['max_e2e_p95_regression_ratio'],
+        'memory': evidence['candidate_peak_memory_mb'] <= thresholds['max_peak_memory_mb'],
+    }
+    if all(gates.values()):
+        return {'decision': 'accept', 'reason': 'quality_and_net_benefit_passed'}
+    return {'decision': 'tune', 'reason': 'one_or_more_performance_gates_failed'}
 
 ```
 
 ### 解析
 
-这一页保留 `4` 个核心 TODO：逐轮状态轨迹、workload 汇总、baseline 对比和项目判断。它不要求把真实 draft model 或 GPU kernel 重写一遍，而是要求先把接受/回退机制和 benchmark 收成清晰的项目决策。
+#### TODO 1：分类 proposer
 
-**1. TODO 1: 模拟 proposal / verify**
-- **实现方式**：逐轮比较 `draft_tokens` 与 `target_tokens` 的最长相同前缀；保存 `accepted_prefix_length`、`rejected_token` 和 `round_trace`，再把结果分为机制指标与成本模型指标。
-- **关键点**：`acceptance_rate = accepted_tokens / proposed_tokens`；`draft_cost_ms` 和 `verify_cost_ms` 是 CPU 成本模型，不是实测 kernel 时间；这里没有实现概率性 rejection sampling。
-- **项目意义**：CPU 可以验证接受、分歧和回退的状态转移；真实 draft / target 模型、GPU kernel、TPOT 和 serving 吞吐仍需 backend 实验。
-- **边界**：这里的 `effective_output_tokens` 是便于教学的“接受 token + correction token”简化计数，不等同于某个推理引擎的完整 token 生成协议。
+分类返回资产和依赖契约，而不是只返回显示名称。`eagle3` 归入 EAGLE 家族；MTP 明确标记为 target-native。
 
-**2. TODO 2: 汇总投机解码 workload**
-- **实现方式**：空 workload 返回空摘要；非空 workload 统计 run 数、平均 acceptance rate、平均吞吐和最高吞吐 run，避免缺失字段静默变成有效结果。
-- **关键点**：这一步先固定 workload 视角，后面的收益判断才不会退回成单条 run 的偶然结果。
-- **项目意义**：没有 run 级摘要，就无法说明当前 speculative 配置到底是在什么 workload 下表现更好。
+#### TODO 2：候选准入
 
-**3. TODO 3: 比较 baseline 和 speculative candidate**
-- **实现方式**：统一比较 TTFT、吞吐、acceptance rate 和 verify cost 的变化，并计算吞吐加速比。
-- **关键点**：这页现在显式补上了 `verify_cost`，不再只看吞吐和 acceptance rate。
-- **项目意义**：这一步把页面从“投机解码有没有提速”推进到“提速代价是否值得保留”。
+准入状态描述静态事实。`runnable` 只表示允许尝试启动，不能替代真实执行证据；`unsupported` 也不是性能上的 `reject`。
 
-**4. TODO 4: 输出项目判断**
-- **实现方式**：把 comparison 与 `quality_ok`、验证成本上限收成 `accept / tune / reject` 与下一轮动作。
-- **关键点**：吞吐和 acceptance rate 可用但 verify cost 偏高时，应该走 `tune`，而不是直接 `accept`。
-- **项目意义**：这一步让 `68` 真正回答“这条 speculative 链路值不值得继续采用”，而不是只给一组指标。 
-### Step 5（可选）：GPU/backend 实验——真实 speculative 对照
+#### TODO 3：建立配对证据
 
-#### 5.1 环境与固定条件
+只有 target snapshot、workload 和 sampling 一致，且 candidate 路径确实为 speculative，端到端比值才可解释。机制遥测缺失时可以评价端到端结果，但不能解释接受或拒绝原因。
 
-第一轮固定配置：target=`Qwen/Qwen2.5-1.5B-Instruct`，draft=`Qwen/Qwen2.5-0.5B-Instruct`，`proposal_length=5`，`concurrency=1`，`max_tokens=64`，`temperature=0`，正式请求 30–50 条、重复 3 次。显卡至少登记两档：H0 本地 12GB RTX 5070 Ti Laptop GPU，H1 24GB RTX 4090/同级 40 系算力平台；两档分别保存报告，不混合计算均值。若显存或 backend 不支持，先只运行 G0 baseline，并保留 `GPU baseline smoke` 证据等级。
+#### TODO 4：形成决策
 
-![GPU speculative benchmark：从环境到项目决策](../public/02_PyTorch_Algorithms/68_speculative_gpu_flow.svg)
+质量优先于性能；采用依赖吞吐、尾延迟和容量的共同结果。接受率不进入硬门槛，只用于后续调整候选长度、工作负载和 proposer。
 
-#### 5.2 实验条件与分组
+### Step 5（可选）：GPU 与 backend 实验——多 proposer 准入与配对
 
-**实验条件表**
-
-| 项目 | H0：12GB 本地卡 | H1：24GB 算力平台 |
-|---|---|---|
-| GPU | RTX 5070 Ti Laptop GPU | RTX 4090/同级 40 系 |
-| G0/G1/G2 | 三组均执行或标记 unsupported | 三组均执行或标记 unsupported |
-| 模型与 workload | 完全固定 | 完全固定 |
-| 比较原则 | 先在 H0 内比较 | 先在 H1 内比较；再观察硬件差异 |
-
-#### 5.3 配置与结果字段
-
-**统一项目证据字段**
-
-68、69、70 的每条结果都保留同一组公共字段；本节再增加 acceptance、proposal 和 verify 等投机解码专属字段。
-
-| 公共字段 | 记录内容 | 本节要求 |
+| CPU 已验证 | 真实环境补充 | 本页输出 |
 |:---|:---|:---|
-| `project` / `role` | 项目编号、`baseline` 或 `candidate` | G0 明确为 baseline，G1/G2 明确为 candidate 或单变量对照 |
-| `workload` / `config` | 模型、backend、dtype、输入输出长度、并发、seed、repeat | baseline 与 candidate 使用同一 workload，只改变声明的实验因素 |
-| `metrics` | TTFT、TPOT、throughput、P95/P99、peak memory、queue wait | 不支持的指标写 `not_available`，不能用代理值冒充实测 |
-| `strategy_metrics` | acceptance / hit rate、transfer / handoff cost 等机制字段 | 本节至少记录 acceptance、accepted tokens、draft / verify cost |
-| `quality` / `status` | 输出一致性、任务质量、运行状态 | 记录 `ok`、`unsupported`、`OOM` 或 `failed` 及原因 |
-| `evidence_level` / `decision` | 证据等级与 `accept / tune / reject` | 失败记录和复测路径必须保留 |
+| proposer 分类、状态机与配对规则 | backend method、模型资产、真实执行路径、端到端与资源指标 | G0–G5 状态 JSON、已执行 raw JSON、日志与 manifest |
 
-**结果表模板**
+实验分为两条轨道：同一 target 下可以直接比较绝对指标；若某个 proposer 只能配合另一 target，则必须另建 target-only 基线，只比较组内 speedup，不能横向比较原始延迟。
 
-| 实验组 / role | workload / config | target / draft | proposal length | acceptance rate | accepted tokens / round | target forward calls | draft / verify cost (ms) | TTFT / TPOT | throughput / P95 / P99 | peak memory / queue wait | transfer / handoff | quality / status | evidence level | decision |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|
-| G0 target baseline | 固定 workload / target-only | 待填写 / 不适用 | 不适用 | 不适用 | 不适用 | 待采集 | 不适用 | 待采集 | 待采集 / 待采集 / 待采集 | 待采集 / 待采集 | 不适用 | 参考输出 / ok | gpu_baseline_smoke | 待判断 |
-| G1 speculative | 固定 workload / proposal 配置 | 待填写 | 5 | 待采集 | 待采集 | 待采集 | 待采集 | 待采集 | 待采集 / 待采集 / 待采集 | 待采集 / 待采集 | 不适用 | 待采集 / ok | real_backend_smoke | 待判断 |
-| G2 单变量对照 | 固定 workload / 单变量变化 | 待填写 | 3 或 8 | 待采集 | 待采集 | 待采集 | 待采集 | 待采集 | 待采集 / 待采集 / 待采集 | 待采集 / 待采集 | 不适用 | 待采集 / ok | real_backend_smoke | 待判断 |
+#### 5.1 环境、候选与固定工作负载
 
-#### 5.4 执行与保存
+实验时只需要修改运行开关和标签；模型缓存、能力探针、工作负载、候选门禁和结果路径均自动解析。当前稳定基线环境保留 `INF-VLLM-011-CU128 / vLLM 0.11.0`；完整机制选型使用独立的 `INF-VLLM-SPEC025 / vLLM 0.25.1+cu129`。`INF-VLLM-MTP / vLLM 0.31.0+cu129` 只作为第 35 节原生 MTP 或后续复测环境，不是本页硬依赖。CUDA 12.9 Profile 要求至少 R575.57，当前 R570 主机先保留能力门禁结果，驱动升级作为独立维护任务。每份结果必须记录精确版本，不能只记录“latest”。
 
-先按 G0 → G1 → G2 的顺序执行，每组完成 warmup 后再进行正式重复测量。统一结果清单使用 `benchmarks/results/68_speculative_decoding.json`，分组结果使用 `68_speculative_decoding_<group>.json`；多次运行时，在文件名或报告字段中保留 seed / repeat。unsupported、OOM 或失败结果也要保存，并记录 `failure_reason` 与 `retest_path`。
+默认只运行安全且不需要额外权重的 G1 N-gram。G2–G5 保留为显式候选：缺资产或后端能力时生成状态记录，不启动服务。
 
-#### 5.5 实测记录与证据表
+![GPU speculative selection：能力门禁、顺序执行与证据交接](../public/02_PyTorch_Algorithms/68_speculative_gpu_flow.svg)
 
-CPU proposal / verify 模拟只能说明接受和回退逻辑；没有 draft model、verify 过程和真实 backend 指标时，证据等级只能记为模拟或 baseline smoke，不能宣称 speculative decoding 带来 GPU 加速。
-
-| 检查项 | 读取内容 | 判断作用 |
-|:---|:---|:---|
-| 配置一致性 | model、dtype、workload、proposal length | 确认结果可比较 |
-| G0/G1/G2 完整性 | 结果文件、重复记录和 unsupported 状态 | 判断实验是否完整 |
-| speculative 证据 | acceptance、accepted tokens、verify cost | 确认机制确实运行 |
-| 性能证据 | TTFT、TPOT、吞吐、P99、peak memory | 判断是否产生端到端收益 |
-| 质量与证据等级 | output consistency、task metric、status、evidence level | 记录结果可信度 |
-
-#### 5.6 解释结果与形成决策
-
-先比较 G0 与 G1 的端到端收益，再用 G2 判断 proposal length 或 draft model 是否是主要影响因素。只有真实 speculative 证据、性能收益和质量结果同时成立，才输出 `accept`；证据不足为 `tune`；质量或性能不达标为 `reject`。普通 vLLM 服务不等于 speculative decoding 已启用。
-
-如果 backend 不支持 draft model、verify 逻辑或对应启动参数，应保留 unsupported 状态，并把 strategy-specific 的 acceptance rate、verify cost 写入 `strategy_metrics`。
 
 ```python
-try:
-    from tools.inference_project_runtime import locate_repo_root
-    REPO_ROOT = locate_repo_root()
-    from tools.inference_project_runtime import (
-        shared_project_config, save_project_result, start_optional_vllm,
-        start_speculative_vllm, stop_optional_vllm, run_backend_benchmark,
-    )
-except ModuleNotFoundError:
-    def shared_project_config(**kwargs): return kwargs
-    def save_project_result(*args, **kwargs): raise RuntimeError('需要从仓库根目录运行真实 backend 入口')
+# 5.1：实验时只修改下面两个用户输入；其余字段是冻结的比较契约。
+RUN_REAL_EXPERIMENT = True  # False 只做预检；True 才允许 5.4 启动真实服务。
+RUN_LABEL = 'rtx5070ti_speculative_ngram_smoke_v3'  # 同一轮所有 G0–G5 必须共用标签。
 
-MODEL_ID = 'Qwen/Qwen2.5-1.5B-Instruct'  # G0/G1 的 target；第一轮正式候选。
-DRAFT_MODEL_ID = 'Qwen/Qwen2.5-0.5B-Instruct'  # 与 target 同系列的 draft。
-PROPOSAL_LENGTH = 5  # 每轮 draft 提议的 token 数；G2 再改为 3 / 8。
-MIN_ACCEPTANCE_RATE = 0.6  # 教学决策门槛，不是通用生产阈值。
-NUM_PROMPTS = 30  # 正式 benchmark 下限；链路 smoke 可临时使用更小值。
-WARMUP = 5  # 正式测量前的预热请求数。
-REPEATS = 3  # 同一配置的重复次数。
-MAX_TOKENS = 64  # G0/G1/G2 必须保持一致。
-TEMPERATURE = 0.0  # 确定性生成，便于比较输出质量。
-TOP_P = 1.0  # 与 temperature 一起固定采样口径。
-HARDWARE_PROFILE = 'auto'  # auto / H0_12GB_5070Ti_Laptop / H1_24GB_RTX4090。
-EXPECTED_GPU_MEMORY_GB = {'H0_12GB_5070Ti_Laptop': 12, 'H1_24GB_RTX4090': 24}
-RESULT_PATH = 'benchmarks/results/68_speculative_decoding.json'  # 统一结果文件。
-project_config = shared_project_config(
-    model=MODEL_ID, backend='vllm', dtype='auto', generated_tokens=MAX_TOKENS,
-    cache_policy='default', draft_model=DRAFT_MODEL_ID,
-    proposal_length=PROPOSAL_LENGTH, min_acceptance_rate=MIN_ACCEPTANCE_RATE,
-    num_prompts=NUM_PROMPTS, warmup=WARMUP, repeats=REPEATS,
-    temperature=TEMPERATURE, top_p=TOP_P, hardware_profile=HARDWARE_PROFILE,
+# 环境身份：保留当前复现环境；升级实验使用仓库已登记 Profile，不原地覆盖。
+VLLM_ENV = 'llm_vllm_cu128'
+PROFILE_ID = 'INF-VLLM-011-CU128'
+UPGRADE_ENV = 'llm_vllm_spec025_cu129'
+UPGRADE_PROFILE_ID = 'INF-VLLM-SPEC025'
+UPGRADE_VLLM_VERSION = '0.25.1+cu129'
+OPTIONAL_RETEST_PROFILE_ID = 'INF-VLLM-MTP'  # vLLM 0.31，仅用于后续复测。
+UPGRADE_MIN_DRIVER = '575.57'  # 当前 R570 主机不满足；先升级驱动，再创建该环境。
+HARDWARE_PROFILE = 'H0_12GB_5070Ti_Laptop'
+BACKEND = 'vllm'
+
+# 固定 target 与运行参数。
+TARGET_MODEL_ID = 'Qwen/Qwen2.5-1.5B-Instruct'
+MODEL_SOURCE = 'auto'  # auto / local / huggingface / modelscope。
+MODEL_CACHE = 'auto'  # 自动复用仓库缓存、HF_HUB_CACHE 或 ~/.cache/huggingface/hub。
+DTYPE = 'bfloat16'
+MAX_MODEL_LEN = 2048
+GPU_MEMORY_UTILIZATION = 0.80
+ENFORCE_EAGER = True
+
+# 两类 workload：general 检查通用生成，repetition 暴露 N-gram 的适用边界。
+WORKLOADS = {
+    'general': 'benchmarks/workloads/speculative_general.jsonl',
+    'repetition': 'benchmarks/workloads/speculative_repetition.jsonl',
+}
+CONCURRENCY_LEVELS = [1]  # 首轮 smoke 固定单并发；通过后再建立独立 full 标签。
+NUM_PROMPTS = 8  # 与每份冻结 workload 的 8 行一一对应，不循环 request_id。
+WARMUP = 2
+REPEATS = 1
+MAX_TOKENS = 64
+TEMPERATURE = 0.0
+REQUEST_TIMEOUT_S = 180.0
+COMMON_SPECULATIVE_TOKENS = 5
+
+# candidate 配置：asset=None 表示无外置权重或尚未提供；method=None 让新版 vLLM 按模型资产自动识别。
+STRATEGIES = {
+    'g0_target_only': {'enabled': True, 'family': 'baseline', 'method': None, 'asset': None},
+    'g1_ngram': {
+        'enabled': True, 'family': 'ngram', 'method': 'ngram', 'asset': None,
+        'options': {'prompt_lookup_min': 3, 'prompt_lookup_max': 5},
+    },
+    'g2_mtp': {'enabled': True, 'family': 'mtp', 'method': 'mtp', 'asset': None},
+    'g3_eagle': {'enabled': True, 'family': 'eagle', 'method': 'eagle3', 'asset': None},
+    'g4_dflash': {'enabled': True, 'family': 'dflash', 'method': None, 'asset': None, 'min_vllm': '0.25.1'},
+    'g5_dspark': {'enabled': True, 'family': 'dspark', 'method': None, 'asset': None, 'min_vllm': '0.25.1'},
+}
+
+# 采用门槛。接受率是诊断项，不是独立采用门槛。
+MIN_THROUGHPUT_SPEEDUP = 1.10
+MAX_TTFT_REGRESSION_RATIO = 1.10
+MAX_E2E_P95_REGRESSION_RATIO = 1.05
+MAX_PEAK_MEMORY_MB = 10500.0
+REQUIRE_EXACT_MATCH_AT_T0 = True
+
+# 派生路径：不要逐个硬编码结果文件名。
+RESULT_DIR = 'benchmarks/results'
+MANIFEST_PATH = f'{RESULT_DIR}/68_manifest_{RUN_LABEL}.json'
+
+```
+
+#### 5.2 环境与输入预检
+
+只读检查仓库、Kernel、CUDA、vLLM、workload 和缓存目录；不下载模型、不启动服务。这里同时显示当前实验环境和建议升级环境，实际结果以当前 Kernel 及解析到的 vLLM 可执行文件为准。
+
+
+```python
+import json
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+from tools.backend_runtime import probe_vllm_speculative_support, resolve_vllm_command
+from tools.model_runtime import find_cached_snapshot, model_cache_candidates
+from tools.inference_project_runtime import (
+    admit_speculative_candidate, build_speculative_pair_evidence,
+    decide_speculative_candidate, locate_repo_root, runtime_snapshot,
 )
-print(project_config)
-RUN_BACKEND_SMOKE = False  # 仅验证 baseline endpoint，不等于 speculative 已启用。
-RUN_REAL_SPECULATIVE = False  # 当前 helper 不会自动启用 speculative backend。
-def validate_speculative_config():
-    """在启动 backend 前检查 G0/G1 的必要配置。"""
-    if not MODEL_ID or not DRAFT_MODEL_ID:
-        return ['target 和 draft model 都必须填写']
-    if MODEL_ID == DRAFT_MODEL_ID:
-        return ['target 和 draft model 不能相同']
-    if PROPOSAL_LENGTH <= 0 or NUM_PROMPTS <= 0 or WARMUP < 0 or REPEATS <= 0:
-        return ['proposal_length、num_prompts、repeats 必须为正数，warmup 不能为负数']
-    if not 0 <= TEMPERATURE:
-        return ['temperature 不能为负数']
-    return []
 
-config_errors = validate_speculative_config()
-if config_errors:
-    raise ValueError('speculative 配置无效：' + '；'.join(config_errors))
-def build_experiment_plan():
-    """生成正式采集前可复核的 G0/G1/G2 计划，不启动 backend。"""
-    return [
-        {'group': 'G0', 'strategy': 'target_baseline', 'enabled': False,
-         'proposal_length': None, 'draft_model': None},
-        {'group': 'G1', 'strategy': 'speculative', 'enabled': False,
-         'proposal_length': PROPOSAL_LENGTH, 'draft_model': DRAFT_MODEL_ID},
-        *[{'group': f'G2_len_{length}', 'strategy': 'speculative', 'enabled': False,
-           'proposal_length': length, 'draft_model': DRAFT_MODEL_ID}
-          for length in (3, 8)],
-    ]
+repo_root = locate_repo_root()
+result_dir = repo_root / RESULT_DIR
+result_dir.mkdir(parents=True, exist_ok=True)
+workload_paths = {name: repo_root / path for name, path in WORKLOADS.items()}
+missing_workloads = [str(path) for path in workload_paths.values() if not path.is_file()]
+if missing_workloads:
+    raise FileNotFoundError(f'缺少 speculative workload：{missing_workloads}')
+if set(STRATEGIES) != {'g0_target_only', 'g1_ngram', 'g2_mtp', 'g3_eagle', 'g4_dflash', 'g5_dspark'}:
+    raise ValueError('68 必须保留 G0–G5 的固定候选身份')
+if TEMPERATURE != 0.0 and REQUIRE_EXACT_MATCH_AT_T0:
+    raise ValueError('逐请求精确输出核对仅适用于 TEMPERATURE=0')
 
-def summarize_output_quality(outputs, references=None):
-    """汇总请求成功率和可选的 exact-match；不替代任务评测。"""
-    outputs = list(outputs or [])
-    success = [item for item in outputs if isinstance(item, str) and item.strip()]
-    result = {'total': len(outputs), 'non_empty': len(success),
-              'success_rate': len(success) / len(outputs) if outputs else 0.0}
-    if references is not None:
-        references = list(references)
-        if len(references) != len(outputs):
-            raise ValueError('references 与 outputs 长度必须一致')
-        result['exact_match_rate'] = (
-            sum(output == reference for output, reference in zip(outputs, references)) / len(outputs)
-            if outputs else 0.0
-        )
-    return result
+vllm_command = resolve_vllm_command(environment=VLLM_ENV)
+capability = probe_vllm_speculative_support(environment=VLLM_ENV)
+try:
+    driver_version = subprocess.run(
+        ['nvidia-smi', '--query-gpu=driver_version', '--format=csv,noheader'],
+        capture_output=True, text=True, check=True, timeout=5,
+    ).stdout.strip().splitlines()[0]
+except (OSError, IndexError, subprocess.SubprocessError):
+    driver_version = None
+try:
+    import torch
+    gpu_available = torch.cuda.is_available()
+    gpu_name = torch.cuda.get_device_name(0) if gpu_available else None
+    gpu_total_gb = round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2) if gpu_available else 0.0
+except ImportError:
+    torch = None
+    gpu_available = False
+    gpu_name = None
+    gpu_total_gb = 0.0
 
-experiment_plan = build_experiment_plan()
-print({'experiment_plan': experiment_plan})
-if RUN_REAL_SPECULATIVE and not DRAFT_MODEL_ID:
-    raise ValueError('真实 speculative 实验必须先配置 DRAFT_MODEL_ID。')
-if RUN_REAL_SPECULATIVE:
-    # 先探测 CLI 能力；不支持时保存 unsupported 报告，不加载模型。
-    from tools.backend_runtime import probe_vllm_speculative_support
-    capability = probe_vllm_speculative_support()
-    if capability['status'] != 'supported':
-        save_project_result(
-            RESULT_PATH, project='68', strategy='speculative', config=project_config,
-            metrics={}, quality={'status': 'unsupported', 'speculative_enabled': False},
-            decision={'decision': 'tune', 'reason': '当前 vLLM CLI 未发现可识别的 speculative 参数'},
-            strategy_metrics={'evidence_level': 'backend_capability_probe',
-                              'capability': capability},
-        )
-        print({'speculative_capability': capability, 'status': 'unsupported'})
+target_snapshot_preflight = find_cached_snapshot(TARGET_MODEL_ID, MODEL_CACHE)
+result_collisions = sorted(path.name for path in result_dir.glob(f'68_*{RUN_LABEL}*'))
+audit_errors = []
+if not re.fullmatch(r'[A-Za-z0-9._-]+', RUN_LABEL):
+    audit_errors.append('RUN_LABEL 只能包含字母、数字、点、下划线和连字符')
+if not 0 < GPU_MEMORY_UTILIZATION < 1:
+    audit_errors.append('GPU_MEMORY_UTILIZATION 必须位于 (0, 1)')
+if any(value <= 0 for value in (*CONCURRENCY_LEVELS, NUM_PROMPTS, REPEATS, MAX_TOKENS, COMMON_SPECULATIVE_TOKENS)) or WARMUP < 0:
+    audit_errors.append('并发、请求数、重复次数、生成长度和 proposal length 必须为正；预热不能为负')
+ngram_options = STRATEGIES['g1_ngram'].get('options', {})
+if not 1 <= ngram_options.get('prompt_lookup_min', 0) <= ngram_options.get('prompt_lookup_max', 0):
+    audit_errors.append('N-gram prompt_lookup_min/max 配置无效')
+if RUN_REAL_EXPERIMENT and target_snapshot_preflight is None:
+    audit_errors.append(f'未在自动缓存路径中找到 target：{TARGET_MODEL_ID}')
+if RUN_REAL_EXPERIMENT and not gpu_available:
+    audit_errors.append('当前 Kernel 无法访问 CUDA GPU')
+if RUN_REAL_EXPERIMENT and capability.get('status') != 'supported':
+    audit_errors.append('当前 vLLM 未暴露可识别的 speculative 接口')
+if RUN_REAL_EXPERIMENT and result_collisions:
+    audit_errors.append(f'RUN_LABEL 已存在结果文件：{result_collisions}')
+
+preflight = {
+    'repo_root': str(repo_root), 'kernel_python': sys.executable,
+    'configured_env': VLLM_ENV, 'profile_id': PROFILE_ID,
+    'upgrade_env': UPGRADE_ENV, 'upgrade_profile_id': UPGRADE_PROFILE_ID,
+    'upgrade_vllm_version': UPGRADE_VLLM_VERSION,
+    'optional_retest_profile_id': OPTIONAL_RETEST_PROFILE_ID,
+    'upgrade_min_driver': UPGRADE_MIN_DRIVER, 'detected_driver': driver_version,
+    'vllm_command': vllm_command, 'vllm_version': capability.get('version'),
+    'speculative_interface': capability.get('mode'),
+    'declared_methods': capability.get('methods', []),
+    'gpu_available': gpu_available, 'gpu_name': gpu_name, 'gpu_total_gb': gpu_total_gb,
+    'model_cache_mode': MODEL_CACHE,
+    'model_cache_candidates': [str(path) for path in model_cache_candidates(MODEL_CACHE)],
+    'resolved_target_snapshot': str(target_snapshot_preflight) if target_snapshot_preflight else None,
+    'result_collisions': result_collisions, 'audit_errors': audit_errors,
+    'workloads': {name: str(path) for name, path in workload_paths.items()},
+    'runtime': runtime_snapshot(torch),
+}
+print(json.dumps(preflight, ensure_ascii=False, indent=2))
+if audit_errors:
+    raise RuntimeError('实验前配置审计未通过：' + '；'.join(audit_errors))
+
+```
+
+#### 5.3 候选能力、资产与容量门禁
+
+本单元读取本地缓存和 checkpoint 配置，不启动服务。`--speculative-config` 只证明存在通用接口；还必须检查当前版本声明的方法和具体资产。DFlash/DSpark 使用模型自动识别路径时，还需满足最低版本与匹配 checkpoint。
+
+
+```python
+def _version_tuple(value):
+    numbers = re.findall(r'\d+', str(value or '0'))
+    return tuple(int(item) for item in numbers[:3]) + (0,) * max(0, 3 - len(numbers[:3]))
+
+
+def _cached_snapshot(model_id):
+    candidate = Path(str(model_id)).expanduser()
+    if candidate.is_dir():
+        return candidate.resolve()
+    return find_cached_snapshot(str(model_id), MODEL_CACHE)
+
+
+def _read_hf_config(snapshot):
+    config_path = snapshot / 'config.json' if snapshot else None
+    if not config_path or not config_path.is_file():
+        return {}
+    return json.loads(config_path.read_text(encoding='utf-8'))
+
+
+target_snapshot = _cached_snapshot(TARGET_MODEL_ID)
+target_config = _read_hf_config(target_snapshot)
+target_model_type = str(target_config.get('model_type', '')).lower()
+native_mtp = any((
+    target_model_type.endswith('_mtp'),
+    bool(target_config.get('num_nextn_predict_layers')),
+    bool(target_config.get('num_mtp_modules')),
+))
+declared_methods = set(capability.get('methods') or ())
+backend_version = capability.get('version')
+memory_limit_gb = MAX_PEAK_MEMORY_MB / 1024
+
+admission = {}
+for group_name, strategy in STRATEGIES.items():
+    if group_name == 'g0_target_only':
+        admission[group_name] = {
+            'run_status': 'runnable' if target_snapshot and gpu_available else 'asset_missing',
+            'reason': 'baseline_ready' if target_snapshot and gpu_available else 'target_or_gpu_missing',
+            'resolved_asset': str(target_snapshot) if target_snapshot else None,
+        }
+        continue
+    family = strategy['family']
+    method = strategy.get('method')
+    min_version_ok = _version_tuple(backend_version) >= _version_tuple(strategy.get('min_vllm', '0'))
+    interface_ok = capability.get('status') == 'supported'
+    method_ok = method in declared_methods if method else min_version_ok
+    if family == 'ngram':
+        asset_ready = True
+        asset_path = None
+    elif family == 'mtp':
+        asset_ready = native_mtp
+        asset_path = str(target_snapshot) if native_mtp and target_snapshot else None
     else:
-        server, log_path, port, selected_dtype, target_path, capability = start_speculative_vllm(
-            target_model_id=MODEL_ID, draft_model_id=DRAFT_MODEL_ID,
-            dtype='auto', proposal_length=PROPOSAL_LENGTH,
-            served_model_name=MODEL_ID,
-        )
+        asset_path_obj = _cached_snapshot(strategy.get('asset')) if strategy.get('asset') else None
+        asset_ready = asset_path_obj is not None
+        asset_path = str(asset_path_obj) if asset_path_obj else None
+    candidate = {
+        **strategy,
+        'backend_supported': interface_ok and method_ok and min_version_ok,
+        'asset_ready': asset_ready,
+        'compatible': bool(target_snapshot),
+        'estimated_memory_gb': None,
+        'memory_limit_gb': memory_limit_gb,
+    }
+    admission[group_name] = {
+        **admit_speculative_candidate(candidate),
+        'family': family, 'backend_method': method,
+        'resolved_asset': asset_path, 'min_version_ok': min_version_ok,
+    }
+
+print(json.dumps({
+    'target_snapshot': str(target_snapshot) if target_snapshot else None,
+    'target_model_type': target_model_type, 'native_mtp_detected': native_mtp,
+    'backend_version': backend_version, 'declared_methods': sorted(declared_methods),
+    'admission': admission,
+}, ensure_ascii=False, indent=2))
+
+```
+
+#### 5.4 顺序执行 G0–G5 并保存 JSON
+
+只有 `runnable` 候选会启动。每个服务都按“启动 → ready → warmup → 正式测量 → 保存 → 停止 → 释放显存”执行；清理函数接收启动器返回的日志句柄，避免将 `TextIOWrapper` 错当路径。未运行候选也生成状态 JSON，因此 manifest 始终包含 G0–G5。
+
+
+```python
+import os
+import urllib.request
+
+# vLLM 0.11 以固定周期把 EngineCore 统计刷新到 Prometheus；缩短周期，避免短测得到假零值。
+os.environ.setdefault('VLLM_LOG_STATS_INTERVAL', '0.5')
+
+from tools.inference_project_runtime import (
+    run_backend_benchmark,
+    start_optional_vllm,
+    start_speculative_strategy_vllm,
+    stop_optional_vllm,
+)
+
+
+def _group_path(group_name, suffix='summary'):
+    return result_dir / f'68_{group_name}_{suffix}_{RUN_LABEL}.json'
+
+
+def _write_json(path, payload):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+
+def _scenario_key(workload_name, concurrency):
+    return f'{workload_name}-c{concurrency}'
+
+
+def _prometheus_sum(text, names):
+    values = []
+    for line in text.splitlines():
+        if not line or line.startswith('#'):
+            continue
+        metric_name = line.split('{', 1)[0].split(None, 1)[0]
+        if metric_name not in names:
+            continue
         try:
-            print({'speculative_capability': capability, 'port': port, 'dtype': selected_dtype})
-            save_project_result(
-                RESULT_PATH, project='68', strategy='speculative', config=project_config,
-                metrics={}, quality={'status': 'not_evaluated', 'speculative_enabled': True},
-                decision={'decision': 'tune', 'reason': 'backend 已启动，但尚未运行 G1/G2 benchmark'},
-                strategy_metrics={'evidence_level': 'backend_started_no_metrics',
-                                  'capability': capability},
-            )
-        finally:
-            stop_optional_vllm(server, log_path)
-if RUN_BACKEND_SMOKE:
-    server, log_path, port, selected_dtype, model_path = start_optional_vllm(
-        model_id=MODEL_ID, model_source='auto', dtype='auto',
-        served_model_name=MODEL_ID,
-    )
+            values.append(float(line.rsplit(None, 1)[-1]))
+        except ValueError:
+            continue
+    return sum(values) if values else None
+
+
+def _read_speculative_counters(base_url):
     try:
-        report = run_backend_benchmark(
-            project='68', base_url=f'http://127.0.0.1:{port}', model=MODEL_ID,
-            label='vllm-baseline-for-speculative',
-            output='benchmarks/results/68_backend_smoke.json',
-            dtype=selected_dtype,
-        )
-        normalized = report.get('normalized_result', {})
-        save_project_result(
-            'benchmarks/results/68_speculative_decoding_target_baseline.json',
-            project='68', strategy='target_baseline', config=project_config,
-            metrics=normalized.get('metrics', report.get('metrics', {})),
-            quality={'status': 'reference_only', 'speculative_enabled': False},
-            decision={'decision': 'measure', 'reason': 'G0 target baseline only'},
-            strategy_metrics={'speculative_enabled': False, 'evidence_level': 'gpu_baseline_smoke'},
-        )
+        with urllib.request.urlopen(base_url.rstrip('/') + '/metrics', timeout=5) as response:
+            text = response.read().decode('utf-8', errors='replace')
+    except Exception:
+        return {'drafts': None, 'proposed_tokens': None, 'accepted_tokens': None}
+    return {
+        'drafts': _prometheus_sum(text, {
+            'vllm:spec_decode_num_drafts', 'vllm:spec_decode_num_drafts_total',
+        }),
+        'proposed_tokens': _prometheus_sum(text, {
+            'vllm:spec_decode_num_draft_tokens', 'vllm:spec_decode_num_draft_tokens_total',
+        }),
+        'accepted_tokens': _prometheus_sum(text, {
+            'vllm:spec_decode_num_accepted_tokens', 'vllm:spec_decode_num_accepted_tokens_total',
+        }),
+    }
+
+
+def _counter_delta(before, after, name):
+    left, right = before.get(name), after.get(name)
+    return right - left if isinstance(left, (int, float)) and isinstance(right, (int, float)) else None
+
+
+def _measure_server(base_url, group_name, role, selected_dtype):
+    scenarios = {}
+    for workload_name, workload in WORKLOADS.items():
+        for concurrency in CONCURRENCY_LEVELS:
+            key = _scenario_key(workload_name, concurrency)
+            raw_path = result_dir / f'68_{group_name}_{key}_raw_{RUN_LABEL}.json'
+            counters_before = _read_speculative_counters(base_url)
+            report = run_backend_benchmark(
+                project='68', base_url=base_url, model=TARGET_MODEL_ID,
+                label=group_name, output=raw_path, workload=workload,
+                num_prompts=NUM_PROMPTS, max_tokens=MAX_TOKENS,
+                concurrency=concurrency, warmup=WARMUP, repeats=REPEATS,
+                temperature=TEMPERATURE, timeout_s=REQUEST_TIMEOUT_S,
+                backend=BACKEND, dtype=selected_dtype, role=role,
+                include_requests=True, measure_device_peak_memory=True,
+                quiet=True,
+            )
+            counters_after = _read_speculative_counters(base_url)
+            proposed = _counter_delta(counters_before, counters_after, 'proposed_tokens')
+            accepted = _counter_delta(counters_before, counters_after, 'accepted_tokens')
+            drafts = _counter_delta(counters_before, counters_after, 'drafts')
+            mechanism_metrics = {
+                'draft_rounds': drafts,
+                'proposed_tokens': proposed,
+                'accepted_tokens': accepted,
+                'acceptance_rate': accepted / proposed if proposed else None,
+                'mean_accepted_length': 1 + accepted / drafts if drafts else None,
+                'mechanism_active': proposed > 0 if proposed is not None else None,
+                'source': 'vllm_prometheus_counter_delta' if proposed is not None else 'not_exported',
+            }
+            report.setdefault('metrics', {}).update(mechanism_metrics)
+            report['mechanism_metrics'] = mechanism_metrics
+            _write_json(raw_path, report)
+            scenarios[key] = {'raw_path': str(raw_path.relative_to(repo_root)), 'report': report}
+    return scenarios
+
+
+def _compact_scenario(item):
+    report = item['report']
+    return {
+        'raw_path': item['raw_path'],
+        'workload': report.get('workload', {}),
+        'metrics': report.get('metrics', {}),
+        'resource_measurement': report.get('resource_measurement', {}),
+    }
+
+
+group_reports = {}
+baseline_scenarios = None
+for group_name, strategy in STRATEGIES.items():
+    gate = admission[group_name]
+    summary_path = _group_path(group_name)
+    base_record = {
+        'schema_version': 'speculative-selection/v1', 'project': '68',
+        'run_label': RUN_LABEL, 'group': group_name, 'strategy': strategy,
+        'admission': gate, 'environment': preflight,
+        'run_status': gate['run_status'], 'evidence_status': 'not_evaluated',
+        'decision': {'decision': 'not_evaluated', 'reason': 'not_executed'},
+    }
+    if not RUN_REAL_EXPERIMENT or gate['run_status'] != 'runnable':
+        if not RUN_REAL_EXPERIMENT and gate['run_status'] == 'runnable':
+            base_record['run_status'] = 'skipped'
+            base_record['admission'] = {**gate, 'reason': 'RUN_REAL_EXPERIMENT=False'}
+        _write_json(summary_path, base_record)
+        group_reports[group_name] = base_record
+        continue
+
+    server = log_handle = None
+    log_path = result_dir / f'68_{group_name}_backend_{RUN_LABEL}.log'
+    try:
+        if group_name == 'g0_target_only':
+            server, log_handle, port, selected_dtype, resolved_target = start_optional_vllm(
+                model_id=TARGET_MODEL_ID, model_source=MODEL_SOURCE, cache_dir=MODEL_CACHE,
+                dtype=DTYPE, vllm_environment=VLLM_ENV, max_model_len=MAX_MODEL_LEN,
+                gpu_memory_utilization=GPU_MEMORY_UTILIZATION, enforce_eager=ENFORCE_EAGER,
+                served_model_name=TARGET_MODEL_ID, generation_config='vllm', log_path=log_path,
+            )
+            capability_snapshot = {'resolved_target_snapshot': Path(resolved_target).name}
+            role = 'baseline'
+        else:
+            server, log_handle, port, selected_dtype, resolved_target, capability_snapshot = start_speculative_strategy_vllm(
+                target_model_id=TARGET_MODEL_ID, method=strategy.get('method'),
+                proposal_length=COMMON_SPECULATIVE_TOKENS,
+                proposer_model_id=strategy.get('asset'), method_options=strategy.get('options'),
+                model_source=MODEL_SOURCE, cache_dir=MODEL_CACHE, dtype=DTYPE,
+                vllm_environment=VLLM_ENV, max_model_len=MAX_MODEL_LEN,
+                gpu_memory_utilization=GPU_MEMORY_UTILIZATION, enforce_eager=ENFORCE_EAGER,
+                served_model_name=TARGET_MODEL_ID, generation_config='vllm', log_path=log_path,
+            )
+            role = 'candidate'
+        scenarios = _measure_server(f'http://127.0.0.1:{port}', group_name, role, selected_dtype)
+        record = {
+            **base_record, 'run_status': 'completed',
+            'execution_path': 'target_only' if role == 'baseline' else 'speculative',
+            'capability': capability_snapshot,
+            'backend_log': str(log_path.relative_to(repo_root)),
+            'scenarios': {key: _compact_scenario(value) for key, value in scenarios.items()},
+        }
+        if role == 'baseline':
+            baseline_scenarios = scenarios
+    except Exception as error:
+        record = {
+            **base_record, 'run_status': 'failed',
+            'failure': {'failure_reason': str(error), 'retest_path': 'inspect_backend_log_and_asset_contract'},
+            'backend_log': str(log_path.relative_to(repo_root)),
+        }
     finally:
-        stop_optional_vllm(server, log_path)
-# G1 接入真实 draft/target adapter 后，必须提供真实 metrics 再保存；strategy_metrics
-# 至少记录 acceptance_rate、accepted_tokens_per_round、target_forward_calls、
-# draft_cost_ms 和 verify_cost_ms，不能只保存 TTFT 或吞吐：
-# save_project_result(RESULT_PATH, project='68', strategy='speculative',
-#     config=project_config, metrics=metrics, quality=quality,
-#     strategy_metrics={'acceptance_rate': acceptance_rate,
-#                       'accepted_tokens_per_round': accepted_tokens_per_round,
-#                       'target_forward_calls': target_forward_calls,
-#                       'draft_cost_ms': draft_cost_ms,
-#                       'verify_cost_ms': verify_cost_ms},
-#     decision=decision)
+        if server is not None:
+            stop_optional_vllm(server, log_handle)
+    _write_json(summary_path, record)
+    group_reports[group_name] = record
+
+manifest = {
+    'schema_version': 'speculative-selection-manifest/v1', 'project': '68',
+    'run_label': RUN_LABEL, 'config': {
+        'target_model': TARGET_MODEL_ID, 'workloads': WORKLOADS,
+        'concurrency_levels': CONCURRENCY_LEVELS, 'num_prompts': NUM_PROMPTS,
+        'warmup': WARMUP, 'repeats': REPEATS, 'max_tokens': MAX_TOKENS,
+        'temperature': TEMPERATURE, 'common_speculative_tokens': COMMON_SPECULATIVE_TOKENS,
+    },
+    'groups': [
+        {'group': name, 'summary_path': str(_group_path(name).relative_to(repo_root)),
+         'run_status': report['run_status'], 'admission': report['admission']}
+        for name, report in group_reports.items()
+    ],
+}
+_write_json(repo_root / MANIFEST_PATH, manifest)
+print(json.dumps({'manifest': MANIFEST_PATH, 'groups': manifest['groups']}, ensure_ascii=False, indent=2))
+
+```
+
+#### 5.5 读取结果并核对证据
+
+本单元只展示有界摘要，不打印 raw requests。`temperature=0` 时按请求输出多重集合核对一致性；接受统计只读取 backend 原生字段，缺失时保持为空，不能从 TPOT 或 speedup 反推。
+
+
+```python
+from collections import Counter
+
+
+def _metric(report, section, key='p95'):
+    value = report.get('metrics', {}).get(section)
+    return value.get(key) if isinstance(value, dict) else value
+
+
+def _output_multiset(report):
+    return Counter(
+        (item.get('prompt'), item.get('output_text'))
+        for item in (report.get('results') or []) if item.get('ok')
+    )
+
+
+manifest_file = repo_root / MANIFEST_PATH
+if not manifest_file.is_file():
+    raise FileNotFoundError(f'请先运行 5.4：{manifest_file}')
+loaded_groups = {
+    item['group']: json.loads((repo_root / item['summary_path']).read_text(encoding='utf-8'))
+    for item in json.loads(manifest_file.read_text(encoding='utf-8'))['groups']
+}
+baseline_record = loaded_groups['g0_target_only']
+summary_rows = []
+for group_name, record in loaded_groups.items():
+    if record.get('run_status') != 'completed':
+        summary_rows.append({'group': group_name, 'run_status': record.get('run_status'),
+                             'scenario': None, 'evidence_status': 'not_evaluated',
+                             'reason': (record.get('failure') or record.get('admission') or {}).get('failure_reason')
+                                       or (record.get('admission') or {}).get('reason')})
+        continue
+    for scenario_key, scenario in record.get('scenarios', {}).items():
+        report = json.loads((repo_root / scenario['raw_path']).read_text(encoding='utf-8'))
+        baseline_scenario = baseline_record.get('scenarios', {}).get(scenario_key)
+        baseline_report = json.loads((repo_root / baseline_scenario['raw_path']).read_text(encoding='utf-8')) if baseline_scenario else None
+        quality_ok = True if group_name == 'g0_target_only' else (
+            _output_multiset(report) == _output_multiset(baseline_report)
+            if REQUIRE_EXACT_MATCH_AT_T0 and baseline_report else None
+        )
+        metrics = report.get('metrics', {})
+        summary_rows.append({
+            'group': group_name, 'run_status': 'completed', 'scenario': scenario_key,
+            'ttft_p95_ms': _metric(report, 'ttft_ms'),
+            'tpot_p95_ms': _metric(report, 'tpot_ms'),
+            'e2e_p95_ms': _metric(report, 'e2e_ms'),
+            'throughput_tokens_per_s': metrics.get('output_token_throughput_per_s'),
+            'peak_memory_mb': metrics.get('peak_memory_mb'),
+            'quality_ok': quality_ok,
+            'accepted_tokens': metrics.get('accepted_tokens'),
+            'proposed_tokens': metrics.get('proposed_tokens'),
+            'mechanism_active': metrics.get('mechanism_active'),
+        })
+
+for row in summary_rows:
+    print(json.dumps(row, ensure_ascii=False))
+
+```
+
+#### 5.6 形成候选决策与 72 节交接
+
+逐场景形成配对证据，再汇总为候选结论。候选必须在至少一个声明场景完成可比实验；通用与重复 workload 结果分开保留，避免用 N-gram 的专用优势外推到所有请求。
+
+
+```python
+thresholds = {
+    'min_throughput_speedup': MIN_THROUGHPUT_SPEEDUP,
+    'max_ttft_regression_ratio': MAX_TTFT_REGRESSION_RATIO,
+    'max_e2e_p95_regression_ratio': MAX_E2E_P95_REGRESSION_RATIO,
+    'max_peak_memory_mb': MAX_PEAK_MEMORY_MB,
+}
+rows_by_group = {}
+for row in summary_rows:
+    rows_by_group.setdefault(row['group'], {})[row.get('scenario')] = row
+
+decisions = {}
+for group_name in STRATEGIES:
+    if group_name == 'g0_target_only':
+        continue
+    candidate_record = loaded_groups[group_name]
+    scenario_decisions = {}
+    if candidate_record.get('run_status') == 'completed':
+        for scenario_key, candidate_row in rows_by_group.get(group_name, {}).items():
+            baseline_row = rows_by_group.get('g0_target_only', {}).get(scenario_key)
+            baseline_input = {
+                'run_status': 'completed', 'role': 'baseline',
+                'target_snapshot': baseline_record.get('capability', {}).get('resolved_target_snapshot'),
+                'workload_key': scenario_key, 'sampling_key': f't{TEMPERATURE}-max{MAX_TOKENS}',
+                'execution_path': 'target_only',
+                'throughput_tokens_per_s': baseline_row.get('throughput_tokens_per_s') if baseline_row else None,
+                'ttft_p95_ms': baseline_row.get('ttft_p95_ms') if baseline_row else None,
+                'e2e_p95_ms': baseline_row.get('e2e_p95_ms') if baseline_row else None,
+                'peak_memory_mb': baseline_row.get('peak_memory_mb') if baseline_row else None,
+                'quality_ok': True,
+            }
+            candidate_input = {
+                'run_status': 'completed', 'role': 'candidate',
+                'target_snapshot': candidate_record.get('capability', {}).get('resolved_target_snapshot'),
+                'workload_key': scenario_key, 'sampling_key': f't{TEMPERATURE}-max{MAX_TOKENS}',
+                'execution_path': candidate_record.get('execution_path'),
+                'throughput_tokens_per_s': candidate_row.get('throughput_tokens_per_s'),
+                'ttft_p95_ms': candidate_row.get('ttft_p95_ms'),
+                'e2e_p95_ms': candidate_row.get('e2e_p95_ms'),
+                'peak_memory_mb': candidate_row.get('peak_memory_mb'),
+                'quality_ok': candidate_row.get('quality_ok'),
+                'mechanism_active': candidate_row.get('mechanism_active'),
+            }
+            evidence = build_speculative_pair_evidence(baseline_input, candidate_input)
+            if candidate_row.get('mechanism_active') is not True:
+                evidence = {
+                    'evidence_status': 'incomplete', 'mismatches': [],
+                    'missing_evidence': ['observed_speculative_proposals'],
+                }
+            scenario_decisions[scenario_key] = {
+                'evidence': evidence,
+                'decision': decide_speculative_candidate(evidence, thresholds),
+            }
+    else:
+        evidence = build_speculative_pair_evidence(
+            {'run_status': baseline_record.get('run_status')},
+            {'run_status': candidate_record.get('run_status')},
+        )
+        scenario_decisions['not_run'] = {
+            'evidence': evidence,
+            'decision': decide_speculative_candidate(evidence, thresholds),
+        }
+    decisions[group_name] = scenario_decisions
+
+handoff = {
+    'schema_version': 'speculative-selection-handoff/v1', 'project': '68',
+    'run_label': RUN_LABEL, 'target_model': TARGET_MODEL_ID,
+    'decisions': decisions,
+    'next_project': '72',
+    'rule': '只交接 completed + comparable 的 candidate；跨 target 只能比较组内 speedup。',
+}
+handoff_path = result_dir / f'68_handoff_to_72_{RUN_LABEL}.json'
+_write_json(handoff_path, handoff)
+print(json.dumps({'handoff_path': str(handoff_path.relative_to(repo_root)), 'decisions': decisions}, ensure_ascii=False, indent=2))
+
 ```
 
 ## 相关阅读
 
-完成本节 benchmark 后，可以继续比较缓存复用和请求调度；跨项目比较时，沿用相同的 workload、延迟、吞吐和质量记录方式。下面的论文与开源文档用于对照接受规则、真实 backend 和工程实现。
+- [EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty](https://arxiv.org/abs/2401.15077)
+- [Better & Faster Large Language Models via Multi-token Prediction](https://arxiv.org/abs/2404.19737)
+- [DFlash: Block Diffusion for Flash Speculative Decoding](https://arxiv.org/abs/2602.06036)
+- [DSpark: Confidence-Scheduled Speculative Decoding with Semi-Autoregressive Generation](https://arxiv.org/abs/2607.05147)
+- [vLLM Speculative Decoding](https://docs.vllm.ai/en/latest/features/speculative_decoding/)
 - [69. Prefix Caching Benchmark | 前缀缓存基准](./69_Prefix_Caching_Benchmark.md)
-- [70. Serving Scheduler Benchmark | 推理服务调度基准](./70_Serving_Scheduler_Benchmark.md)
-- [Fast Inference from Transformers via Speculative Decoding（论文）](https://arxiv.org/abs/2211.17192)
-- [Accelerating Large Language Model Decoding with Speculative Sampling（论文）](https://arxiv.org/abs/2302.01318)
-- [vLLM Speculative Decoding（开源实现文档）](https://docs.vllm.ai/en/latest/examples/features/speculative_decoding/)
-- [SGLang Speculative Decoding（开源实现文档）](https://docs.sglang.ai/advanced_features/speculative_decoding.html)
+- [72. Single-GPU Deployment and Backend Comparison | 单卡部署与 Backend 对比](./72_Multi_Model_Deployment_Comparison.md)

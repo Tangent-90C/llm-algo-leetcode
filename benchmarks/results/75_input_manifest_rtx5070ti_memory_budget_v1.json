@@ -1,0 +1,14 @@
+{
+  "schema_version": "memory-budget-input-manifest/v1",
+  "semantic_id": "PERF-MEMORY-BUDGET",
+  "source": {
+    "path": "benchmarks/results/76_real_gpu_memory_rtx5070ti_activation_memory_v1.json",
+    "sha256": "2df4eb5375e1ad31b9bfa7c2d0194ace555b590b18cec7b90504212db8bb3832",
+    "schema_version": "training-performance-project/v1",
+    "semantic_id": "PERF-MEMORY-STRATEGY"
+  },
+  "approved_result": {
+    "path": "benchmarks/results/75_memory_budget_decision_rtx5070ti_memory_budget_v1.json",
+    "sha256": "edb3c2e70635df6bfff3bca5d231f3ad031219a98b823669e96053bc3d5bc574"
+  }
+}

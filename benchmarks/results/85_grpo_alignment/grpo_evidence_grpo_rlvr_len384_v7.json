@@ -1,0 +1,779 @@
+{
+  "schema_version": "model-evaluation/v1",
+  "semantic_id": "PT-GRPO-GROUPWISE",
+  "environment_profile": "PT-RL-CUDA",
+  "run_mode": "real_gpu",
+  "run_label": "grpo_rlvr_len384_v7",
+  "sft_manifest": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/62_sft_delivery/sft_delivery_manifest_sft_delivery_v2_1.json",
+  "policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+  "dataset": {
+    "id": "openai/gsm8k",
+    "config": "main",
+    "resolved_commit": "740312add88f781978c0658806c59bc2815b9866"
+  },
+  "verifier_version": "gsm8k-final-number-v1",
+  "rollout_contract": {
+    "admitted": true,
+    "failed_checks": []
+  },
+  "workload": {
+    "train_prompts": 24,
+    "evaluation_prompts": 12,
+    "group_size": 8,
+    "max_new_tokens": 384,
+    "seed": 42
+  },
+  "gates": {
+    "minimum_valid_group_ratio": 0.2,
+    "minimum_update_count": 1,
+    "minimum_effective_trajectories_per_second": 1.0,
+    "minimum_reward_gain": 0.0,
+    "minimum_pass_at_group_gain": 0.0,
+    "maximum_max_length_hit_ratio": 0.5,
+    "maximum_peak_allocated_bytes": 10737418240
+  },
+  "evidence": {
+    "baseline": {
+      "reward_mean": 0.2708333333333333,
+      "pass_at_group": 0.5833333333333334,
+      "response_count": 96,
+      "response_length_mean": 232.05208333333334,
+      "response_length_p95": 384,
+      "max_length_hit_ratio": 0.11458333333333333
+    },
+    "candidate": {
+      "reward_mean": 0.3229166666666667,
+      "pass_at_group": 0.6666666666666666,
+      "response_count": 96,
+      "response_length_mean": 233.22916666666666,
+      "response_length_p95": 384,
+      "max_length_hit_ratio": 0.1875
+    },
+    "comparison": {
+      "reward_mean_gain": 0.05208333333333337,
+      "pass_at_group_gain": 0.08333333333333326,
+      "paired_evaluation_seed_offset": 10000
+    },
+    "rollout": {
+      "group_size": 8,
+      "group_count": 24,
+      "valid_group_count": 18,
+      "valid_group_ratio": 0.75,
+      "trajectory_records": [
+        {
+          "prompt_id": "73429d562982300e6643d83a84428a22e0656773b67dad037d2de2f8bc0b45b9",
+          "trace_ids": [
+            "15055e4dc7596127fdf6fdc4f926bdfa8a2794d369eda8d1483c0b42aef7584d",
+            "95e2842eda2b65264fc8b97d1cc4365cadf7a524b6aea40ec3db7948f7419738",
+            "fa9ca0d65d773ae49ce326c10d33d01c51d50c2f95fbd1a8d09bc3ce38c3433a",
+            "e48ab0e8bfbcd5c64e6f9c55ec729f0068a86d209811334984710734fcc886a0",
+            "3eb8d5dbb541ceb0f190e4c70d0832ba57690bfbf96f91e36eb294e6106469fa",
+            "bf2beb51066d7cff6f54b3de9f94972da929699dd82677e5565162e69c4aea1e",
+            "f1b510555bf60f0a6ee30611ef226a20ad3836dd113afcc1d365992cbeb51b68",
+            "ebf0dd79e34e3631360ee703a7d5194f9f195aad8da5b3b6ad3b666bdf475632"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "reward_mean": 1.0,
+          "reward_std": 0.0,
+          "response_length_mean": 188.5,
+          "max_length_hit_ratio": 0.0
+        },
+        {
+          "prompt_id": "3f23a7d4df7cb484dc2414bb2632f29e51a580a202d5968f1dbca00ed0f210bc",
+          "trace_ids": [
+            "caeb210ec43033870e5eb4c0d1440c85964327b0b5446911d1a8abeaff1ce286",
+            "e8fcf4ffdf4663b21820e0302c9e67e628f16e15c3d68e083f2e1b22ab97a56f",
+            "cdbab2855af7cda001c2461eee87a5831bd25a1e3094cce9e53de7dbec3fdb58",
+            "9e66bd63d9a1e14eccd5bed33f9adcf5f59f22e121b877536c7e4044a5e371ab",
+            "c67b84dd42090b5e33fc98b18463b9943286b8b81391413a1b512564c33825c8",
+            "ded9c26e22d48ab1e1aa5a1b27a310c739576fa61524382e3fe14c4a32ad8b63",
+            "b95a88907d36ec21b4d7ef6d84df38773e13311720b674a79747b45b07f124e8",
+            "ede27448050ad0b27d8087aa4cf711869340aa7a470db9edfa5957711a3a5099"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.375,
+          "reward_std": 0.4841229182759271,
+          "response_length_mean": 207.75,
+          "max_length_hit_ratio": 0.0
+        },
+        {
+          "prompt_id": "9eea4e53dec08963ef76fdee76346277a0ae3356c2c1bb67223507ebd6340740",
+          "trace_ids": [
+            "2fff6ba0bc3469fde69f2f95c671608bc26fc707a4e1c62ad02d7e20d4ae833a",
+            "e5aefa0243308bab0f1afb3ace6cca487a2ff101fa9351e09e6669f234aeb0c2",
+            "a005dee8b45c58104fa73a0d6696ab9f1dc6870b34eda3adf61b2c3fdbd99456",
+            "9acbf528236611df17e27741cd915b64659cfdde527b06a662dfa3c5ea596b36",
+            "ce56906ab69e5522ea6542e694f3c49e767cbfe4d863f6c6a0c54aee7b97aad7",
+            "e0b0619ae5195c2befb7575b1c8ff161b0acb14f06475f2f79638dd125b881a1",
+            "10b97d5fe5f20b6493cb64349fdb217159747e1ef600ab84a5c911c2d72ab211",
+            "15fa91d8822c5dadb4f9f489d485e11980995a0351014b4411cc5fc373708410"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.25,
+          "reward_std": 0.4330127018922193,
+          "response_length_mean": 278.625,
+          "max_length_hit_ratio": 0.125
+        },
+        {
+          "prompt_id": "4ed90b091532ab4071ce410731d178b500525d6700568f1e94035e7694c22d23",
+          "trace_ids": [
+            "9f1ddffb73e8503dfd9810ec4e16fa8d164d6b8acd9ad6cdf50e32fa5592df7d",
+            "11f49f4f010e9ddc1a17731e4fef57d2966c5372681938a63af456aa0d5839d1",
+            "a3dbd05b470ed2b10921fdbc55197c072497a29bacaee83c9c87d2ae40298f4f",
+            "0526f7d6241fe83fbc27770f4927a855327bd19765debd42ab47d38e986e0864",
+            "74e50e2091431e4828ac760f0e2d56b1e81ae097bc4451ba70ea4496d88cf695",
+            "ff7d3945be10d815b655622e7c2e591c571d8fb0fa394754817f8cbd161c7e92",
+            "63df068d2c7fc597f9326d33fb3590a513c1e800833edfbd0e9963c1cd916fe1",
+            "e21ff2bd7b301c13a253d9a106556eeeca96ce94160856077a615424facdcec3"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            1.0,
+            1.0,
+            0.0,
+            1.0,
+            0.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "reward_mean": 0.75,
+          "reward_std": 0.4330127018922193,
+          "response_length_mean": 249.125,
+          "max_length_hit_ratio": 0.0
+        },
+        {
+          "prompt_id": "2e8fc28b2be60becb4712feab9ad7c96236d40cf8bebb94e5b2e6634d893450e",
+          "trace_ids": [
+            "2047abb1e8297d44f43a75385211abb572d7ab801827f694dfcb4ab2afd51048",
+            "a40c6c601c8f04b1c3db1a7d6fca95ac98fcccdc4c00f8a85470e9c12481c13f",
+            "b741fa17c3426ae138cd3dd860cbe74301b0120436780d876713215b3345be58",
+            "777c43cde980dff504756bff8a5b3f034f37ebe7f3e216f5c1359f63549bcc69",
+            "b6b609725c713ec1ce9e82e1f7fdd45443b18a249dfe2168a5078a22919a6400",
+            "8c984d1842882c5e70323033eeb77d9c0fc53b6c40c0d2f7f9f2921ec55723b7",
+            "e3e3adab5f7b7a9fd9fd664bd9bd0cca79a5e6dc98a6a8172920868ce16525ce",
+            "f87c0407fe770d20c76159069fef45071a485c17359ffcc85bd51f3ffb1ceca2"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.125,
+          "reward_std": 0.33071891388307384,
+          "response_length_mean": 153.625,
+          "max_length_hit_ratio": 0.0
+        },
+        {
+          "prompt_id": "16f83fb4320c9faf79cc5ef0cf235beb70b19a06e9e4dc4f03dd9d0ca78d5e75",
+          "trace_ids": [
+            "9bd64565beeba95a3ec52ec585610172da08f821fdaf803cf97f53a38f3eca52",
+            "2465ff95084b1ad9381a4bc7eaac4b3174b57f7c7a7a45fd55ca4d2bcf7e6567",
+            "e755e2da34d19f07f26cd2440dcad82f709c7a1af691246e591eebd15b0c45a5",
+            "b7ce6f28fbb0f0c21f6f05a7da8e65c13921a339ffaa256b40a1a9c6807e338e",
+            "5212914c6b153600362bbe3dea0e377256f20ba182b33714a759556c421f87eb",
+            "dcb3b578393b83bc87e9be87861c8100db937bed0f0e99e39d814075f451f170",
+            "0a3210a59b2d32142f4c5713085ef0a66917e03f7f9ead7d65e305975c4880e7",
+            "dd7e3157d1a319f6c1175ce6bd43eb2f551d3cb58f6d2244b4559ca6c42ddefa"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            1.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.375,
+          "reward_std": 0.4841229182759271,
+          "response_length_mean": 221.0,
+          "max_length_hit_ratio": 0.125
+        },
+        {
+          "prompt_id": "cf2595dad6a3ad5bbef4cb35fdf9d90cf2ea8ea8cfa675e9c0af771abd2dea12",
+          "trace_ids": [
+            "d5f5faf65bf3d19518875e037c27e553bbecc5825728d95b413e4b5fc6083dbc",
+            "f9b104bc4a142f20853f3356bd65160cc48023f02aeb1be9727434d1533cf70f",
+            "6473823e1b6bd992134e4f43d13c022390f2e12c9ee11345fe739553d66ebdf5",
+            "f587a318bbfed1dbdce0b44ca2d8ae201117d4fe261d9c3044a98dfe58b6d393",
+            "1eb22b84ef08eea86f4d874679cc1a1798d389ea1c2ae5e8415353b2190d82b4",
+            "730eda6f8f3ccf096dda6a1024a44a18bde12104f448a95573224b6b6e7794f7",
+            "118e9b71eb11109e5aa8ec8eac0674bbeb9b3c706463a0d8b1838be333f7a62a",
+            "0def54921f6f588c88f72e3606802e6ee9a46d0484454b41e7de9fffef873e53"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            1.0,
+            1.0,
+            0.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0,
+            1.0
+          ],
+          "reward_mean": 0.75,
+          "reward_std": 0.4330127018922193,
+          "response_length_mean": 241.25,
+          "max_length_hit_ratio": 0.0
+        },
+        {
+          "prompt_id": "760069360315adf652f0ff4d18d7a14d1ed2ade5fb78f47da82b3c10131777c0",
+          "trace_ids": [
+            "727caac78532d8016842707663902f495c5c2511f0632d4126ce97f5736c070f",
+            "50c4c6572ca77697d9e75376dd9f26a29709717c2b7afc02081c69fceaea7f65",
+            "2a63e0cf08a388cff12b5125e01e66f7bf7e9f316ba682e20880074e8159e9a3",
+            "12b4a7e18599a2db9bc582580fbc38800bbe9b0f76231f682982c0fb517821fa",
+            "a582735fae08cb3c50019f26201418c9bf7b88fe18bdc75ea26e54ad36f21997",
+            "c372b7354f348eec96680b6fad93ad798f1fb5235d0573eabd2d1c7865e2ca89",
+            "3d6c61625d639962ee16423bba5f2b8c36e6eae10fb1896104120b2603c4d4c7",
+            "d97d2bccd2c7b9fd9bac774ec04eb284d148cc6b42f9defb95dda79ab19c8550"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          "reward_mean": 0.125,
+          "reward_std": 0.33071891388307384,
+          "response_length_mean": 171.75,
+          "max_length_hit_ratio": 0.0
+        },
+        {
+          "prompt_id": "a13430e732d2c1e663238de0e34daf75abd640df18ff2ab97d0d55479204c2d1",
+          "trace_ids": [
+            "10b6df118c458881fa7fc1e1809963c4635a99fedf06988f9967d021c1d447e1",
+            "4053440cad0eaff091fc1969498328b390601cd6dfbea41278ea9713bef14b2d",
+            "d3e7c4397895ef46ac3af92e2ef7f3c81911c6789acf5cc95792314b45f8961a",
+            "0726fc62a93c53f37d4d231168597b388e4cd31c6f5dcd72b336672f5ae4a196",
+            "7dafe0fc66d88fe3b8485be1158746bb4300cd3dcb96b5ee121bcba3307eab14",
+            "b46248c62b84a0947612d29b649a88974d37a89a4021547a81c2c0fe84be6145",
+            "c989f672402806c6eb9595e6eaf05af7f914777f92b83db46bb7a36f2c5312ad",
+            "72440149ab47bf0e0117f0fb09350f0b96e1317e6d47f34d2375a9ec79961b94"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          "reward_mean": 0.125,
+          "reward_std": 0.33071891388307384,
+          "response_length_mean": 201.375,
+          "max_length_hit_ratio": 0.125
+        },
+        {
+          "prompt_id": "faa9ce7cf714c9c82ff9938645a279064fd36f7315368d09b1f827be49482100",
+          "trace_ids": [
+            "aa2d67a8e6fbf37fcb55dcfe4ca88e9e6181f25a6abefe39c36c8efd72be9f8e",
+            "ab9bd5e850c7a985b1106afd185fe4fe806afb0a6c02278570a972ddfc1bb75c",
+            "9afafd3db2235f02a9dba426721b49c7c918c2df6925c710157db662205c94ab",
+            "a0f0d51dbb6c48a6cf8fc0012a93a5532bb40301d3b281827d3db450aa841f31",
+            "49b94bffb1a0634c630782b97dcc58ddcd74b4752643a29ebbfe7c3021ef34c2",
+            "a5b236c5d3264f0983877f18bc6906766b2b844a4080b3854ab8f2488e2f583a",
+            "78219cfed02503a1b25b7b8010279fd1187d97d756d4f0a76ef598544611a762",
+            "bf521d604ec62f9fd592f9713cacf4b692cf581146c0aa0df49285c129f636a0"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.0,
+          "reward_std": 0.0,
+          "response_length_mean": 287.125,
+          "max_length_hit_ratio": 0.5
+        },
+        {
+          "prompt_id": "09296cd5e0fc1cb5a7c241379aa53704fca1c2d3cf3e106fdf539f2f88d050c1",
+          "trace_ids": [
+            "4d9e1afba96d7b43d00eab7062af28912244d341300c6a97a9239897c90ae37f",
+            "0ec7590ca3b211b86df19d880d989ed0a63f101b48c5fe17ee7b29747365841b",
+            "61f93841ad39b08b4a6b4b3e0f0a9f515afb9148dd9c73c16e029050abd06c5a",
+            "62973ba5a222ffb60fafa836fed728a171bf2c05e84a3d3871fd0d4f84c16efd",
+            "386c8f0fe200998f56d8ecaf1fc1cdeedcb82e07c1f3f61ef9338eb7d657288d",
+            "fcf37e22d7e145565e99169505034cca0caa03dcf0cd9f84b317ddda30af6a0e",
+            "848f8001bfc0867edca69b5d7176c33a8fed9c79d6ac82dde5c3b16e1aa12cef",
+            "8edb4fc073a9c850ace61be48ff5aaec2fede5cad5333cca66a16f172a79592f"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.0,
+          "reward_std": 0.0,
+          "response_length_mean": 346.5,
+          "max_length_hit_ratio": 0.75
+        },
+        {
+          "prompt_id": "3097703f5bcc130a683ad04b50f35470e76b8613faf2a78c10ce14fbf0421795",
+          "trace_ids": [
+            "39e8877d1cd9473e0df22536f0a82c5fba402ee7e456160b67ffe6c5074227a9",
+            "05d01edafb57bebaea90240adb04e126c4574febe8d6d183baab31b624a3573b",
+            "879aa0e8de65095287fa1c9f774fae9816e42888ad311cffb59fb67605ac6821",
+            "a2401bb41e10e64faffd87354397ac20b95e8668fb59e1e0e4720bc52d90004a",
+            "34ca644ea22f00169f24e40f6daf1afd2f85e0b3f3fec5b00e04028112c8e823",
+            "dbbe15dd3975e5dab43039102fb42d733497a00a3f4fde9aae02db4cb5cab960",
+            "16f3af7a7fe602f722c5e78e15d2b7ca1a85f62f1537d07c7d76ad2c5134cc2e",
+            "a7de6d36e916278ec402a611ad2595447196763f7b5a09bdc7eae111a0a52a26"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.0,
+          "reward_std": 0.0,
+          "response_length_mean": 319.125,
+          "max_length_hit_ratio": 0.5
+        },
+        {
+          "prompt_id": "922bb01991f9021652a70a10145417062f164211a83b40dcf1c61b6b67525daf",
+          "trace_ids": [
+            "89ed5c96f3262a3d300128b39763c9e6b0a9b14de8eafa9f0a0213e59a2ba8ef",
+            "70e9c299ae3174561361ac48153b89926f1e4403502633791bb7f40155aadd72",
+            "75247489b2ac779c1ae3d2d536b9f10c2c3ae8be60f2d79580c2eba0633fa5ca",
+            "fbf0ea7990f3dc72fbeb03b808e57c2f3589b5a22de6d26cd215f46f4d7f5a3e",
+            "343fe1f3742f4e504555568d849ee20c0f9f65d220d10a9e3d3444f8773f1924",
+            "52073622b9159189f6c3b020fb296c1ac853c319971c6f6d539e901d9b568bea",
+            "b1e71846818ee1e4bf5b64099652e34ff69726068b17a00315f3b3f0d4a25ab0",
+            "dfa8f4c5f4c14b985d95bac31980a9fde9ae82e592189d5286be3d3d31eaaa5c"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            1.0,
+            1.0,
+            0.0,
+            1.0,
+            0.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "reward_mean": 0.75,
+          "reward_std": 0.4330127018922193,
+          "response_length_mean": 143.0,
+          "max_length_hit_ratio": 0.0
+        },
+        {
+          "prompt_id": "da32de9a8fdf17faf139ce3943810fcbe34c0a96e5790b2553a1dde0d4ede5c3",
+          "trace_ids": [
+            "90ea56ef24776522a30c811a3f863bb550e8df2f5426b2a4f9262ccb801bedc8",
+            "2c3b9772d0d6c6b73f2a13207d8fdc018401f30bcf5fee17fac778a5f00af8a0",
+            "5bb2992be0a0553e3e3c3039903787043cd70a9e70e9cc62da2a62693d1bc901",
+            "628cd2df5d23d41e509683e08e1d8b3fb8858b7f25888329801bee6a9c346199",
+            "1914cae5b206c0050df172714e5b67ed844f87d9e0225254e069ae2568ef2304",
+            "1794d4dd9dae9d36d0847eb5d99dddc31a4a28bed3c6b18db0d85acd02037090",
+            "ddb7e0e584b29f1920a81e0ea6f8da45bb55362fbe96064b5041c24ced858f03",
+            "129f1d42bdfa357553e73b885022822eac77b81338693e6d6a9aacf7bda74234"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "reward_mean": 0.875,
+          "reward_std": 0.33071891388307384,
+          "response_length_mean": 260.75,
+          "max_length_hit_ratio": 0.0
+        },
+        {
+          "prompt_id": "9646c1dc9939f268f57613f37f2264d20720261283ad70383e5f14400edd9749",
+          "trace_ids": [
+            "25ba6471af343ca3a5730a1854cc7e23211bb47471ee3dc412c532ced4dc16f2",
+            "6329c814eb7707995fac9d2adaf417f01cb0d7b871202fd05652a5c2168fb15a",
+            "6e6b75aba5d3ccc1e8b8842729f5f87e27f8e5b0ab9b93aca65a9096daa5c4dc",
+            "4edf36f12f13bd8092e658c2f41600b69cfc28fffed4bfe84b990bc2c3ab1ac6",
+            "20beb5c87a0b956b0ff224d2d2248e9db4155771c8ec5b38bb4f07980830a0b4",
+            "35a598760d1378acd73d6364e0684c92abbc53c2efef43fe31c88744ed5b775b",
+            "3485a72dd42ccce0d2c27c792eb6ad95f4fab8af5d3b395529b7e7e479d36ff4",
+            "fa89a98a78ebd630f362bd1b7462e069afc76928a65aa60ab7218b7a7998ad88"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0,
+            0.0
+          ],
+          "reward_mean": 0.375,
+          "reward_std": 0.4841229182759271,
+          "response_length_mean": 245.625,
+          "max_length_hit_ratio": 0.125
+        },
+        {
+          "prompt_id": "3a7e6246f187067597dea5dc8fbbd26bcd10131425c66fb8e6ea20ceae9f033b",
+          "trace_ids": [
+            "f26523da2f3459d8a68b0c3085186d66a117bea8fcd19955dd5c6538f21bb636",
+            "c23f4351a768a9b07030c543bb709996be19bebc3176aba013031fbb9623bfa4",
+            "3f6d0fd66d3667eae5ae5df0a0ee7fb9dab63a66f760d2e300dfb562c874dd94",
+            "0e55b40c1a79a63a92e9781ac1ecf9f31a268fee0da9431cfa0a2dc73215b934",
+            "48687dceafd6e405e96c57857008e775ddd47fae11b736663554f5c8832fce69",
+            "4f559ca4f87d1fcc4735c35f739a29ff38c41d082f320c1a65a33bfcc26e7315",
+            "23d2196bb7eb8fa5055b5fbed1f7250872ba1e65ff8151aae8614f69e5ebfffa",
+            "092a00ec4f58ef48e0b50e78893706b2e965a79eca0c23837f58d2743e7f6c38"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.0,
+          "reward_std": 0.0,
+          "response_length_mean": 375.75,
+          "max_length_hit_ratio": 0.75
+        },
+        {
+          "prompt_id": "20967bb841486681f21fa9e8384ce8d14e06242428d56c120977d293dfb28842",
+          "trace_ids": [
+            "1a837d17d8b946b8f4268ee2fb3e932b52169753aa9e5bde4bac2a3e73cab542",
+            "3c7f5d3b9761c37abdd4ff16b55c8acc9a0fc8135aa80395f116d938e1f8dbb1",
+            "b8322d82f8e28ce6d0edeb6dfad88e23fbfa7b2e924129eee1d816b8993f0dcf",
+            "8d8e3e3f67ea2b42d5f2f827efbafba8304e5211c5401a0c22a9b5ac57e9ac86",
+            "a4305407c2f92d2d8b333318bff04cdbc220ada57a7e6d634bdca01793b82ee4",
+            "8b3875ee513b5385f3eff97d15faba31f038ffefae1fb309521759143a54ca30",
+            "f70df82d8899b2d8d70cba7d02825f4b52a1f500fd2a4cc8c5ec82d2658a14ae",
+            "c542e7f1725d4329664e5f38353f7fc4c16010792f60d3b96d25b3c098f48aa5"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.125,
+          "reward_std": 0.33071891388307384,
+          "response_length_mean": 273.75,
+          "max_length_hit_ratio": 0.25
+        },
+        {
+          "prompt_id": "a159a60723217a942e9c92efff2f0dae1a4f854e21d95c0f2e5411269d521550",
+          "trace_ids": [
+            "3997cdb5f220605ca80fcfd5455057d853a5368cd36042799610487d7e8c31bb",
+            "684bc0edb96a387fdc262d2a235093cb86770953f0b86fb58a24e72c1065de4b",
+            "199a29e4e67e0e896e702aba61a67351b6ceffde72744a88080ade9d9f6da082",
+            "2a14e2e7340d9ef4cc58d05337c02baae69bfafad01f263e3f106d342b4d0b72",
+            "284fadfdcf2abff443af446e384e98eca20f58fa7e0d3dfb9c814f94b3d32d64",
+            "a7d528a35c0fc79a4abd55e3be17df6ff9f09942b9d4ee470daba59846bc8920",
+            "192a9acd3198b51f87fba1263ab0b6530bfdcd94ddaef3a49b859bd8ad1446eb",
+            "778fca6567e937f166c74271e91b49167415f6db7861a20b7fcd3502f9700e53"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.125,
+          "reward_std": 0.33071891388307384,
+          "response_length_mean": 287.5,
+          "max_length_hit_ratio": 0.125
+        },
+        {
+          "prompt_id": "bf00934879c39105ff9c6c672231e0f35cb507a7a38b0612d114ab36064a2655",
+          "trace_ids": [
+            "265b09770bae5ada1430446ee0610594ae08d1bfe891e6a6c6094a1f510b8d09",
+            "e1c9516b78c4c44782cb2156cc0590d6d18e56c3ee390d24f58a8e7c26e0ae2b",
+            "e58f7157e915f7f83aff4dc81476daf7fbbd8b9421f35412851235c033b0ed18",
+            "dd8754e4e4973fdb96cccefd463d8f1549a16773196c3baa623c8a208c08306e",
+            "6a5a1ebcd9b533efbd92045557667356e7d4931aaf4220b1aaf3510eb9b6b567",
+            "2a704addf0f73c45568fc99a773fc56886d6919c8376c28dff05b2876d86e7f7",
+            "be18968810987755702698a35c5c8e0d77c64f7eb069de20a12ce6ea225a961b",
+            "28b938fcd51fb44535f9cd9ab98accbc766990fd90dda7b8f711bcfc886cfb78"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ],
+          "reward_mean": 0.125,
+          "reward_std": 0.33071891388307384,
+          "response_length_mean": 160.375,
+          "max_length_hit_ratio": 0.0
+        },
+        {
+          "prompt_id": "3ab5b746b4bb6fe23e49f2bf3408183b39777ee53062974f23817557d360234d",
+          "trace_ids": [
+            "a5f3e32a0aac6b0fae8876e04ec56a056b30dc633e9e0a4391a857dd56a06972",
+            "2c3d1389ea415c38017d75fd9f57b042552d7ab5a504667739c6c148361822bc",
+            "f714aa946f478074b76373ebc0dac3675670452ab82ad5d15c303c6e5d32c754",
+            "0875f1b70756188644842feb3d7e712e63c2a8abe77217ac425939c80ae6884f",
+            "ae0d68da13125f722b42e3b7d726ea10f023c47d4986548c5111f1e7ff4376ad",
+            "847f511b13d5a3970bbe087844396cf9645ffab570cac1806c0dd6446c98ab24",
+            "b3a90cd81815617eb562e7b237aed923b0df858f1d9cb05a4653739f1ebb0150",
+            "f92d3c228e579af89b0629a8f8ff0ad97252ab101188155e5ad56b07b0f675fe"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.0,
+          "reward_std": 0.0,
+          "response_length_mean": 176.875,
+          "max_length_hit_ratio": 0.125
+        },
+        {
+          "prompt_id": "e04a6ba1b453a05d7c06fdbe4bca8fe555b80ae46a5a1cbf2000a512cee86887",
+          "trace_ids": [
+            "bf26dc75ad82459b6d6d948f79374b2a91f455aefb3ab8c03fa7ed3845cc4ec1",
+            "b4dc459a4b4d93e06dc91ad02fa5ca5824de55d4a9abd1c6b9a6847c841b5f3d",
+            "d1f5bb41e4a1040bb1c45745ce309876db51046e3e4c0bb16b9c1d7be34cc4ba",
+            "62e79dd09e9a62f25b8adedfe55104cbc9c39bb7fe71054268d4451330641deb",
+            "96b56c3a464c924b60b0e92ed82b60cf5f3ea59777cf7c53a39ced68281e4082",
+            "4f121dab4056098217bf5b8695bf5ea8a97e9099b890f2d6a962cabf3ec6bb86",
+            "a32196669fb16dd9390135050168a75d3b84cbf61e10ab4393f4f1cec67ce1ee",
+            "44ca750b7b2562fb2b6abfb3488c68322477e1237e7670f9b26e08738f30bd45"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            0.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "reward_mean": 0.875,
+          "reward_std": 0.33071891388307384,
+          "response_length_mean": 183.375,
+          "max_length_hit_ratio": 0.0
+        },
+        {
+          "prompt_id": "9c7d7104e70d1658738b2173be75fe5ebaa86035b540c0a47667d9b3cc8d11d2",
+          "trace_ids": [
+            "ad6e9c86062fcad0084906305fe6f3308fc6986e866d8680f0bed72bf3e971ff",
+            "3108092e215b8eab1c3876f1c9241b2a00cce82349128ae604ec91a20a5c21ab",
+            "d7412a22e6eb584510a1c005f26459d2efc26f0f673a7764f879231c03c98f9e",
+            "b78265256bec027df4cb9d61f3caa7d193b987ebcc21799b0d5830f6d586ffd6",
+            "9b3104e27b73125f659e6f0ee3059bfcb225613e71d89312a221acb73a8f2f3c",
+            "62fca3530023364b307ab0eea4f696888ddea7cee8e78a9d0146550dd687aba3",
+            "4056c1b7f74c6ea8aa347a24a0be251edd3579639ae0026e91e52598e52b9675",
+            "80a6d57621a5de2521467b694ed32a9c94a94facf08371e513d2af49b8d9b8f7"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.25,
+          "reward_std": 0.4330127018922193,
+          "response_length_mean": 264.75,
+          "max_length_hit_ratio": 0.375
+        },
+        {
+          "prompt_id": "54d62a9d0b66c95541832bd1e4ea787860e885c0af445f69a6f8cdc5cab0cf76",
+          "trace_ids": [
+            "94693f628da737686c3d66799f9012950e1a610cccd558ab9b6cc2bb5b4f594e",
+            "f5a715ff0c307a056227018479a10e303d364ddfc86a036c6614382f6dbefe35",
+            "a891f66d3d3481f9709e96954b5b5f046c58c9bc1a8999931d89e7a9ae204659",
+            "77b82b4abac847c129b0654d7f86a192a91c711c07f90e96da78418863b9fc97",
+            "c3cdf094bab23bfbfd4c61f5736216bec1e836cce77c649ad331b8c891baf0f4",
+            "43fb97e1f2a7d0ae146ba8d25f42610434d80d67481b3dd5f30d084cfba8f36f",
+            "5fc6cc95686104f8858964063d5b4e3b78b19dc622144f6e5df1a208fc997474",
+            "4562095fba74e2a55d2b331c78ecba83500694536016e9dd4b86d8f0ac1a1eb5"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_mean": 0.125,
+          "reward_std": 0.33071891388307384,
+          "response_length_mean": 279.5,
+          "max_length_hit_ratio": 0.25
+        },
+        {
+          "prompt_id": "1e399e6f599e18023c6806a7321a4319868ee0d90cce9dc1700ebfd1c865c284",
+          "trace_ids": [
+            "f1e6baac66a3c0a6b3135752bfb5689215afce39e1d5e8a9812e598996f1f3f6",
+            "4ca1480de60eb6a45dde483f524f088edb44671d0306abb535ea706b44cbe618",
+            "c60c4d75db74c586c0b2901787a52578d2b47aed74be86fc6ef1fa0156e71279",
+            "4dd36a2e60f8e52aa55e179d06c9acf10f0480b59fa988270265997acc3d343a",
+            "e78ace622c29979a34464840eb6ac55debd8116c237e3da323bb442269ad7648",
+            "b01ae29d8115e6f37da6fe45f026e4ee59b554836f469e43bb4a82049fde46da",
+            "b611b0578f8d4a395159f9da925468cf9541575a41063f60d3b3dc40eed6f975",
+            "8492e7a57cc53e4fef1c2bf7c9d0a56a0a8f7fecbc530d2fb8f40ec3a5442ce2"
+          ],
+          "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+          "verifier_version": "gsm8k-final-number-v1",
+          "rewards": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "reward_mean": 0.375,
+          "reward_std": 0.4841229182759271,
+          "response_length_mean": 196.375,
+          "max_length_hit_ratio": 0.125
+        }
+      ],
+      "rollout_seconds": 84.75740307499655
+    },
+    "update": {
+      "update_count": 18,
+      "initial_loss": 2.9802322387695312e-08,
+      "final_loss": 1.9371509552001953e-07,
+      "update_seconds": 7.3624235088936985,
+      "effective_trajectories_per_second": 1.5631814055670668
+    },
+    "resources": {
+      "peak_allocated_bytes": 7517363712,
+      "peak_reserved_bytes": 10198450176
+    },
+    "artifact": {
+      "path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/85_grpo_alignment/adapter_grpo_rlvr_len384_v7",
+      "sha256": "efbfa85c17c8f301839005499866b1d9f2ff046a4a0c722c3992ba80f708764d"
+    },
+    "status": "ok"
+  }
+}

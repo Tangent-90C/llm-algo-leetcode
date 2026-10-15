@@ -1,0 +1,324 @@
+{
+  "schema_version": "profiling-optimization-benchmark/v1",
+  "semantic_id": "PERF-PROFILING-CLOSURE",
+  "run_label": "rtx5070ti_profiling_dual_scope_v7",
+  "project": "74",
+  "stage": "profiling_driven_optimization",
+  "config": {
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "backend": "torch",
+    "dtype": "float32",
+    "optimizer": "AdamW",
+    "batch_size": 1,
+    "seq_len": 768,
+    "warmup": 2,
+    "iters": 5,
+    "seed": 42,
+    "device": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+    "torch": "2.8.0+cu128",
+    "cuda": "12.8",
+    "workload": "pressure"
+  },
+  "candidates": [
+    {
+      "name": "checkpoint",
+      "decision": "tune",
+      "hard_failures": [],
+      "missing_evidence": [],
+      "failed_gates": [
+        "memory_saving"
+      ],
+      "metrics": {
+        "memory_saving_mb": 16.43,
+        "throughput_ratio": 0.847209,
+        "loss_delta": 0.0,
+        "profile_step_time_ratio": 1.200065
+      },
+      "bottleneck_assessment": {
+        "status": "supported",
+        "reason": "checkpoint_recomputation_increases_work_with_negligible_allocated_memory_saving",
+        "bottleneck_before": "matmul_dominated_training_step",
+        "bottleneck_after": "checkpoint_recomputation_overhead",
+        "evidence_path": "benchmarks/results/74_real_gpu_profile_rtx5070ti_profiling_closure_v4.json",
+        "observations": {
+          "profile_step_time_ratio": 1.200065,
+          "profile_allocated_memory_saving_mb": 6.25,
+          "checkpoint_event_visible": true,
+          "phase_memory_collected": true
+        },
+        "phase_memory": {
+          "status": "collected",
+          "evidence_path": "benchmarks/results/74_phase_memory_rtx5070ti_profiling_closure_v5.json",
+          "baseline_global_peak_phase": "optimizer",
+          "checkpoint_global_peak_phase": "optimizer",
+          "allocated_memory_saving_mb": {
+            "forward": 2011.8,
+            "backward": 491.84,
+            "optimizer": 14.43
+          }
+        }
+      }
+    },
+    {
+      "name": "offload",
+      "decision": "reject",
+      "hard_failures": [
+        "budget_rejected"
+      ],
+      "missing_evidence": [],
+      "failed_gates": [
+        "memory_saving",
+        "throughput"
+      ],
+      "metrics": {
+        "memory_saving_mb": 24.25,
+        "throughput_ratio": 0.170293,
+        "loss_delta": 0.0,
+        "profile_step_time_ratio": null
+      },
+      "bottleneck_assessment": {
+        "status": "not_profiled",
+        "reason": "rejected_by_budget_throughput_gate"
+      }
+    },
+    {
+      "name": "hybrid",
+      "decision": "reject",
+      "hard_failures": [
+        "budget_rejected"
+      ],
+      "missing_evidence": [],
+      "failed_gates": [
+        "memory_saving",
+        "throughput"
+      ],
+      "metrics": {
+        "memory_saving_mb": 22.62,
+        "throughput_ratio": 0.28193,
+        "loss_delta": 0.0,
+        "profile_step_time_ratio": null
+      },
+      "bottleneck_assessment": {
+        "status": "not_profiled",
+        "reason": "rejected_by_budget_throughput_gate"
+      }
+    }
+  ],
+  "profile": {
+    "status": "collected",
+    "tool": "torch.profiler",
+    "trace_dir": "benchmarks/results/74_profile/trace_rtx5070ti_profiling_closure_v4",
+    "trace_files": [
+      "benchmarks/results/74_profile/trace_rtx5070ti_profiling_closure_v4/baseline/5070ti_32241.1791996685510923819.pt.trace.json",
+      "benchmarks/results/74_profile/trace_rtx5070ti_profiling_closure_v4/checkpoint/5070ti_32241.1791996697051215978.pt.trace.json"
+    ],
+    "expected_strategies": [
+      "baseline",
+      "checkpoint"
+    ],
+    "missing_strategies": [],
+    "trace_files_by_strategy": {
+      "baseline": [
+        "benchmarks/results/74_profile/trace_rtx5070ti_profiling_closure_v4/baseline/5070ti_32241.1791996685510923819.pt.trace.json"
+      ],
+      "checkpoint": [
+        "benchmarks/results/74_profile/trace_rtx5070ti_profiling_closure_v4/checkpoint/5070ti_32241.1791996697051215978.pt.trace.json"
+      ]
+    },
+    "measurement_role": "bottleneck_attribution_only",
+    "timing_for_adoption": false,
+    "report": {
+      "path": "benchmarks/results/74_real_gpu_profile_rtx5070ti_profiling_closure_v4.json",
+      "sha256": "896777105ac553cd03468315a664027e0482f014330bd2228225862dd604305f"
+    },
+    "top_operators": {
+      "baseline": "-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  \n                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg       CPU Mem  Self CPU Mem      CUDA Mem  Self CUDA Mem    # of Calls  \n-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  \n                                          ProfilerStep*         0.10%       3.008ms        63.77%        1.835s     458.738ms       0.000us         0.00%        6.042s        1.510s           0 B           0 B       9.10 MB      -2.00 KB             4  \n                                        phase.optimizer         0.01%     173.152us         1.62%      46.561ms      11.640ms       0.000us         0.00%        5.534s        1.383s           0 B           0 B           0 B           0 B             4  \n                              Optimizer.step#AdamW.step         0.22%       6.352ms         1.61%      46.388ms      11.597ms       0.000us         0.00%        5.534s        1.383s           0 B         -16 B           0 B      -7.38 GB             4  \n                                    Command Buffer Full        34.55%     994.105ms        34.55%     994.105ms     316.392us        5.121s       286.08%        5.121s       1.630ms           0 B           0 B           0 B           0 B          3142  \n                                       cudaLaunchKernel        24.92%     717.018ms        26.61%     765.599ms      62.857us       0.000us         0.00%        5.117s     420.143us           0 B           0 B           0 B           0 B         12180  \n                                aten::_foreach_addcdiv_         0.02%     520.278us         0.39%      11.221ms       2.805ms      83.111ms         4.64%        1.745s     436.333ms           0 B           0 B           0 B           0 B             4  \n                                aten::_foreach_addcmul_         0.02%     517.083us         0.15%       4.431ms       1.108ms      61.482ms         3.43%        1.260s     314.995ms           0 B           0 B           0 B           0 B             4  \n                                               aten::mm         0.34%       9.651ms         5.97%     171.786ms      98.727us     957.961ms        53.51%     962.584ms     553.209us           0 B           0 B      15.12 GB      15.12 GB          1740  \n                                    aten::_foreach_add_         0.03%     969.829us         0.26%       7.441ms     930.108us      43.140ms         2.41%     949.232ms     118.654ms           0 B           0 B           0 B           0 B             8  \n                                    aten::_foreach_sqrt         0.03%     728.773us         0.15%       4.332ms       1.083ms      41.659ms         2.33%     874.832ms     218.708ms           0 B           0 B       7.38 GB           0 B             4  \n-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  \nSelf CPU time total: 2.877s\nSelf CUDA time total: 1.790s\n",
+      "checkpoint": "-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  \n                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg       CPU Mem  Self CPU Mem      CUDA Mem  Self CUDA Mem    # of Calls  \n-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  \n                                          ProfilerStep*         0.05%       1.812ms        60.80%        2.276s     569.046ms       0.000us         0.00%        6.811s        1.703s     118.88 KB    -356.62 KB       8.53 MB      -2.07 MB             4  \n                                        phase.optimizer         0.00%     182.091us         1.68%      62.827ms      15.707ms       0.000us         0.00%        6.345s        1.586s           0 B           0 B           0 B           0 B             4  \n                              Optimizer.step#AdamW.step         0.24%       8.818ms         1.67%      62.645ms      15.661ms       0.000us         0.00%        6.345s        1.586s           0 B         -16 B           0 B      -7.39 GB             4  \n                                       cudaLaunchKernel        29.09%        1.089s        30.24%        1.132s      70.259us       0.000us         0.00%        5.920s     367.307us           0 B           0 B           0 B           0 B         16116  \n                                    Command Buffer Full        35.18%        1.317s        35.18%        1.317s     347.079us        5.920s       267.65%        5.920s       1.560ms           0 B           0 B           0 B           0 B          3795  \n                                aten::_foreach_addcdiv_         0.01%     545.715us         0.21%       7.901ms       1.975ms      82.777ms         3.74%        1.424s     356.088ms           0 B           0 B           0 B           0 B             4  \n                                   aten::_foreach_lerp_         0.01%     191.556us         0.19%       7.085ms       1.771ms      65.487ms         2.96%        1.287s     321.739ms           0 B           0 B           0 B           0 B             4  \n                                               aten::mm         0.38%      14.387ms         3.34%     124.989ms      58.846us        1.262s        57.06%        1.262s     594.197us           0 B           0 B      18.32 GB      18.32 GB          2124  \n                                aten::_foreach_addcmul_         0.01%     533.290us         0.06%       2.068ms     516.890us      62.763ms         2.84%        1.223s     305.820ms           0 B           0 B           0 B           0 B             4  \nautograd::engine::evaluate_function: CheckpointFunct...         0.01%     380.397us        39.07%        1.463s      15.236ms       0.000us         0.00%        1.089s      11.343ms           0 B           0 B       5.10 GB    -508.75 MB            96  \n-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  \nSelf CPU time total: 3.744s\nSelf CUDA time total: 2.212s\n"
+    },
+    "phase_memory": {
+      "status": "collected",
+      "report": {
+        "path": "benchmarks/results/74_phase_memory_rtx5070ti_profiling_closure_v5.json",
+        "sha256": "bd186fbfbb16bbe46e319e290155a7209519d74aef3f513f0027ddd5d890d956"
+      },
+      "timing_for_adoption": false
+    }
+  },
+  "bottleneck": {
+    "checkpoint": {
+      "status": "supported",
+      "reason": "checkpoint_recomputation_increases_work_with_negligible_allocated_memory_saving",
+      "bottleneck_before": "matmul_dominated_training_step",
+      "bottleneck_after": "checkpoint_recomputation_overhead",
+      "evidence_path": "benchmarks/results/74_real_gpu_profile_rtx5070ti_profiling_closure_v4.json",
+      "observations": {
+        "profile_step_time_ratio": 1.200065,
+        "profile_allocated_memory_saving_mb": 6.25,
+        "checkpoint_event_visible": true,
+        "phase_memory_collected": true
+      },
+      "phase_memory": {
+        "status": "collected",
+        "evidence_path": "benchmarks/results/74_phase_memory_rtx5070ti_profiling_closure_v5.json",
+        "baseline_global_peak_phase": "optimizer",
+        "checkpoint_global_peak_phase": "optimizer",
+        "allocated_memory_saving_mb": {
+          "forward": 2011.8,
+          "backward": 491.84,
+          "optimizer": 14.43
+        }
+      }
+    },
+    "offload": {
+      "status": "not_profiled",
+      "reason": "rejected_by_budget_throughput_gate"
+    },
+    "hybrid": {
+      "status": "not_profiled",
+      "reason": "rejected_by_budget_throughput_gate"
+    }
+  },
+  "validation": {
+    "workload_identity": {
+      "family": "training",
+      "workload_id": "pressure-b1-s768",
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "input": {
+        "batch_size": 1,
+        "seq_len": 768
+      },
+      "hardware": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "runtime": {
+        "torch": "2.8.0+cu128",
+        "cuda": "12.8",
+        "dtype": "float32"
+      },
+      "seed": 42
+    },
+    "pressure_validation": {
+      "status": "not_collected",
+      "reason": "optional_pressure_validation_path_not_set"
+    },
+    "source_artifacts": {
+      "baseline": {
+        "path": "benchmarks/results/73_real_gpu_training_rtx5070ti_training_baseline_v1.json",
+        "sha256": "e43020e6daf3e4fe242184728a624cfecbe2ddb55b1dfdbc552eee2c0831ec70"
+      },
+      "strategy": {
+        "path": "benchmarks/results/76_real_gpu_memory_rtx5070ti_activation_memory_v1.json",
+        "sha256": "2df4eb5375e1ad31b9bfa7c2d0194ace555b590b18cec7b90504212db8bb3832"
+      },
+      "budget": {
+        "path": "benchmarks/results/75_memory_budget_decision_rtx5070ti_memory_budget_v1.json",
+        "sha256": "edb3c2e70635df6bfff3bca5d231f3ad031219a98b823669e96053bc3d5bc574"
+      },
+      "activation_memory_scope": {
+        "path": "benchmarks/results/76_real_gpu_memory_boundary_rtx5070ti_activation_memory_v1.json",
+        "sha256": "69faf3c885c76c13d7ee5dc7e9e40a6e700e79cf0e8f987beccc972eeb21f204"
+      },
+      "phase_memory": {
+        "path": "benchmarks/results/74_phase_memory_rtx5070ti_profiling_closure_v5.json",
+        "sha256": "bd186fbfbb16bbe46e319e290155a7209519d74aef3f513f0027ddd5d890d956"
+      }
+    },
+    "evidence_roles": {
+      "adoption_metrics": "unprofiled_repeated_measurements",
+      "profiler_metrics": "bottleneck_attribution_only",
+      "activation_scope_metrics": "scope_limited_unprofiled_repeated_measurements"
+    },
+    "scope_boundary": {
+      "top_level_decision_scope": "full_training_adoption",
+      "activation_scope_promotable_to_full_training": false
+    }
+  },
+  "decision": {
+    "decision": "tune",
+    "reason": "global_peak_memory_saving_below_threshold",
+    "next_action": "retain_phase_evidence_and_do_not_adopt_at_fixed_workload"
+  },
+  "decision_scopes": {
+    "full_training_adoption": {
+      "scope": "full_training_adoption",
+      "decision": "tune",
+      "reason": "global_peak_memory_saving_below_threshold",
+      "next_action": "retain_phase_evidence_and_do_not_adopt_at_fixed_workload",
+      "optimizer": "AdamW",
+      "seq_len": 768
+    },
+    "activation_memory_mechanism": {
+      "scope": "activation_memory_isolation",
+      "decision": "accept_for_activation_memory_scope",
+      "reason": "checkpoint_passed_activation_memory_and_throughput_gates",
+      "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+      "optimizer": "SGD",
+      "optimizer_momentum": 0.0,
+      "comparison_seq_len": 1280,
+      "metrics": {
+        "memory_saving_mb": 2820.34,
+        "throughput_ratio": 0.831477,
+        "loss_delta": 0.0,
+        "baseline_peak_memory_mb": 7663.69,
+        "checkpoint_peak_memory_mb": 4843.35
+      },
+      "gates": {
+        "minimum_memory_saving_mb": 512.0,
+        "minimum_throughput_ratio": 0.7,
+        "maximum_loss_delta": 0.01
+      },
+      "evidence": {
+        "path": "benchmarks/results/76_real_gpu_memory_boundary_rtx5070ti_activation_memory_v1.json",
+        "sha256": "69faf3c885c76c13d7ee5dc7e9e40a6e700e79cf0e8f987beccc972eeb21f204"
+      },
+      "evidence_status": "blocked",
+      "tested_seq_lens": [
+        768,
+        1024,
+        1280
+      ],
+      "promotable_to_full_training": false,
+      "limitations": [
+        "optimizer_state_is_intentionally_removed_with_zero_momentum_sgd",
+        "result_does_not_establish_adamw_full_training_adoption",
+        "length_ladder_stopped_at_the_safety_boundary"
+      ]
+    }
+  },
+  "standard_metrics": {
+    "baseline": {
+      "step_time_ms": 473.096,
+      "throughput_samples_per_s": 2.114,
+      "peak_memory_mb": 9470.08,
+      "peak_reserved_mb": 9856.0,
+      "loss": 11.512,
+      "eval_loss": 12.298,
+      "status": "ok"
+    },
+    "checkpoint": {
+      "step_time_ms": 558.405,
+      "throughput_samples_per_s": 1.791,
+      "peak_memory_mb": 9453.65,
+      "peak_reserved_mb": 9950.0,
+      "loss": 11.512,
+      "eval_loss": 12.298,
+      "status": "ok"
+    },
+    "offload": {
+      "step_time_ms": 3262.047,
+      "throughput_samples_per_s": 0.36,
+      "peak_memory_mb": 9445.83,
+      "peak_reserved_mb": 9842.0,
+      "loss": 11.512,
+      "eval_loss": 12.298,
+      "status": "ok"
+    },
+    "hybrid": {
+      "step_time_ms": 1678.307,
+      "throughput_samples_per_s": 0.596,
+      "peak_memory_mb": 9447.46,
+      "peak_reserved_mb": 9824.0,
+      "loss": 11.512,
+      "eval_loss": 12.298,
+      "status": "ok"
+    }
+  }
+}

@@ -1,0 +1,2569 @@
+{
+  "label": "g0_vllm_baseline",
+  "base_url": "http://127.0.0.1:60407",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "workload": {
+    "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/fixed.jsonl",
+    "requests": 30,
+    "max_tokens": 64,
+    "concurrency": 1,
+    "warmup": 5,
+    "repeats": 3,
+    "workload_priority_sent": false
+  },
+  "metrics": {
+    "successful_requests": 30,
+    "failed_requests": 0,
+    "request_throughput_per_s": 3.0004,
+    "output_token_throughput_per_s": 175.2218,
+    "ttft_ms": {
+      "mean": 40.778,
+      "p50": 39.9992,
+      "p95": 46.1171,
+      "p99": 49.1951
+    },
+    "tpot_ms": {
+      "mean": 5.0907,
+      "p50": 5.0633,
+      "p95": 5.4064,
+      "p99": 5.4398
+    },
+    "e2e_ms": {
+      "mean": 333.396,
+      "p50": 357.4075,
+      "p95": 380.2124,
+      "p99": 389.0595
+    },
+    "output_tokens": 1752,
+    "prompt_tokens_mean": 38.4,
+    "duration_s": 10.0078,
+    "priority_order_score": null,
+    "peak_memory_mb": 10451.0
+  },
+  "results": [
+    {
+      "ok": true,
+      "prompt": "Explain KV cache in one sentence.",
+      "request_id": "request-0",
+      "priority": 0,
+      "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+      "ttft_ms": 38.603,
+      "tpot_ms": 4.825,
+      "e2e_ms": 207.464,
+      "output_tokens": 36,
+      "estimated_output_tokens": false,
+      "stream_chunks": 35,
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 73,
+        "completion_tokens": 36
+      },
+      "completion_rank": 1
+    },
+    {
+      "ok": true,
+      "prompt": "What is the difference between prefill and decode?",
+      "request_id": "request-1",
+      "priority": 0,
+      "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+      "ttft_ms": 42.11,
+      "tpot_ms": 4.827,
+      "e2e_ms": 346.239,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 39,
+        "total_tokens": 103,
+        "completion_tokens": 64
+      },
+      "completion_rank": 2
+    },
+    {
+      "ok": true,
+      "prompt": "Why can prefix caching reduce TTFT?",
+      "request_id": "request-2",
+      "priority": 0,
+      "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+      "ttft_ms": 39.726,
+      "tpot_ms": 5.302,
+      "e2e_ms": 373.779,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 101,
+        "completion_tokens": 64
+      },
+      "completion_rank": 3
+    },
+    {
+      "ok": true,
+      "prompt": "Give two metrics for evaluating an inference backend.",
+      "request_id": "request-3",
+      "priority": 0,
+      "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+      "ttft_ms": 40.941,
+      "tpot_ms": 5.004,
+      "e2e_ms": 356.199,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 38,
+        "total_tokens": 102,
+        "completion_tokens": 64
+      },
+      "completion_rank": 4
+    },
+    {
+      "ok": true,
+      "prompt": "When can a throughput improvement be unsuitable for online serving?",
+      "request_id": "request-4",
+      "priority": 0,
+      "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+      "ttft_ms": 39.14,
+      "tpot_ms": 4.902,
+      "e2e_ms": 347.968,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 41,
+        "total_tokens": 105,
+        "completion_tokens": 64
+      },
+      "completion_rank": 5
+    },
+    {
+      "ok": true,
+      "prompt": "Explain KV cache in one sentence.",
+      "request_id": "request-0",
+      "priority": 0,
+      "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+      "ttft_ms": 38.108,
+      "tpot_ms": 5.069,
+      "e2e_ms": 215.516,
+      "output_tokens": 36,
+      "estimated_output_tokens": false,
+      "stream_chunks": 35,
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 73,
+        "completion_tokens": 36
+      },
+      "completion_rank": 6
+    },
+    {
+      "ok": true,
+      "prompt": "What is the difference between prefill and decode?",
+      "request_id": "request-1",
+      "priority": 0,
+      "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+      "ttft_ms": 40.0,
+      "tpot_ms": 5.192,
+      "e2e_ms": 367.1,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 39,
+        "total_tokens": 103,
+        "completion_tokens": 64
+      },
+      "completion_rank": 7
+    },
+    {
+      "ok": true,
+      "prompt": "Why can prefix caching reduce TTFT?",
+      "request_id": "request-2",
+      "priority": 0,
+      "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+      "ttft_ms": 38.757,
+      "tpot_ms": 4.996,
+      "e2e_ms": 353.514,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 101,
+        "completion_tokens": 64
+      },
+      "completion_rank": 8
+    },
+    {
+      "ok": true,
+      "prompt": "Give two metrics for evaluating an inference backend.",
+      "request_id": "request-3",
+      "priority": 0,
+      "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+      "ttft_ms": 45.068,
+      "tpot_ms": 5.616,
+      "e2e_ms": 398.858,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 38,
+        "total_tokens": 102,
+        "completion_tokens": 64
+      },
+      "completion_rank": 9
+    },
+    {
+      "ok": true,
+      "prompt": "When can a throughput improvement be unsuitable for online serving?",
+      "request_id": "request-4",
+      "priority": 0,
+      "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+      "ttft_ms": 48.052,
+      "tpot_ms": 5.116,
+      "e2e_ms": 370.373,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 41,
+        "total_tokens": 105,
+        "completion_tokens": 64
+      },
+      "completion_rank": 10
+    },
+    {
+      "ok": true,
+      "prompt": "Explain KV cache in one sentence.",
+      "request_id": "request-0",
+      "priority": 0,
+      "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+      "ttft_ms": 42.853,
+      "tpot_ms": 5.099,
+      "e2e_ms": 221.311,
+      "output_tokens": 36,
+      "estimated_output_tokens": false,
+      "stream_chunks": 35,
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 73,
+        "completion_tokens": 36
+      },
+      "completion_rank": 11
+    },
+    {
+      "ok": true,
+      "prompt": "What is the difference between prefill and decode?",
+      "request_id": "request-1",
+      "priority": 0,
+      "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+      "ttft_ms": 42.419,
+      "tpot_ms": 5.372,
+      "e2e_ms": 380.864,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 39,
+        "total_tokens": 103,
+        "completion_tokens": 64
+      },
+      "completion_rank": 12
+    },
+    {
+      "ok": true,
+      "prompt": "Why can prefix caching reduce TTFT?",
+      "request_id": "request-2",
+      "priority": 0,
+      "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+      "ttft_ms": 40.741,
+      "tpot_ms": 5.214,
+      "e2e_ms": 369.254,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 101,
+        "completion_tokens": 64
+      },
+      "completion_rank": 13
+    },
+    {
+      "ok": true,
+      "prompt": "Give two metrics for evaluating an inference backend.",
+      "request_id": "request-3",
+      "priority": 0,
+      "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+      "ttft_ms": 40.643,
+      "tpot_ms": 5.569,
+      "e2e_ms": 391.478,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 38,
+        "total_tokens": 102,
+        "completion_tokens": 64
+      },
+      "completion_rank": 14
+    },
+    {
+      "ok": true,
+      "prompt": "When can a throughput improvement be unsuitable for online serving?",
+      "request_id": "request-4",
+      "priority": 0,
+      "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+      "ttft_ms": 41.531,
+      "tpot_ms": 5.256,
+      "e2e_ms": 372.688,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 41,
+        "total_tokens": 105,
+        "completion_tokens": 64
+      },
+      "completion_rank": 15
+    },
+    {
+      "ok": true,
+      "prompt": "Explain KV cache in one sentence.",
+      "request_id": "request-0",
+      "priority": 0,
+      "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+      "ttft_ms": 41.028,
+      "tpot_ms": 5.55,
+      "e2e_ms": 235.261,
+      "output_tokens": 36,
+      "estimated_output_tokens": false,
+      "stream_chunks": 35,
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 73,
+        "completion_tokens": 36
+      },
+      "completion_rank": 16
+    },
+    {
+      "ok": true,
+      "prompt": "What is the difference between prefill and decode?",
+      "request_id": "request-1",
+      "priority": 0,
+      "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+      "ttft_ms": 46.914,
+      "tpot_ms": 5.304,
+      "e2e_ms": 381.057,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 39,
+        "total_tokens": 103,
+        "completion_tokens": 64
+      },
+      "completion_rank": 17
+    },
+    {
+      "ok": true,
+      "prompt": "Why can prefix caching reduce TTFT?",
+      "request_id": "request-2",
+      "priority": 0,
+      "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+      "ttft_ms": 41.677,
+      "tpot_ms": 5.281,
+      "e2e_ms": 374.389,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 101,
+        "completion_tokens": 64
+      },
+      "completion_rank": 18
+    },
+    {
+      "ok": true,
+      "prompt": "Give two metrics for evaluating an inference backend.",
+      "request_id": "request-3",
+      "priority": 0,
+      "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+      "ttft_ms": 41.145,
+      "tpot_ms": 5.386,
+      "e2e_ms": 380.475,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 38,
+        "total_tokens": 102,
+        "completion_tokens": 64
+      },
+      "completion_rank": 19
+    },
+    {
+      "ok": true,
+      "prompt": "When can a throughput improvement be unsuitable for online serving?",
+      "request_id": "request-4",
+      "priority": 0,
+      "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+      "ttft_ms": 41.282,
+      "tpot_ms": 5.098,
+      "e2e_ms": 362.432,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 41,
+        "total_tokens": 105,
+        "completion_tokens": 64
+      },
+      "completion_rank": 20
+    },
+    {
+      "ok": true,
+      "prompt": "Explain KV cache in one sentence.",
+      "request_id": "request-0",
+      "priority": 0,
+      "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+      "ttft_ms": 39.959,
+      "tpot_ms": 5.384,
+      "e2e_ms": 228.383,
+      "output_tokens": 36,
+      "estimated_output_tokens": false,
+      "stream_chunks": 35,
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 73,
+        "completion_tokens": 36
+      },
+      "completion_rank": 21
+    },
+    {
+      "ok": true,
+      "prompt": "What is the difference between prefill and decode?",
+      "request_id": "request-1",
+      "priority": 0,
+      "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+      "ttft_ms": 44.281,
+      "tpot_ms": 5.321,
+      "e2e_ms": 379.522,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 39,
+        "total_tokens": 103,
+        "completion_tokens": 64
+      },
+      "completion_rank": 22
+    },
+    {
+      "ok": true,
+      "prompt": "Why can prefix caching reduce TTFT?",
+      "request_id": "request-2",
+      "priority": 0,
+      "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+      "ttft_ms": 39.556,
+      "tpot_ms": 5.285,
+      "e2e_ms": 372.499,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 101,
+        "completion_tokens": 64
+      },
+      "completion_rank": 23
+    },
+    {
+      "ok": true,
+      "prompt": "Give two metrics for evaluating an inference backend.",
+      "request_id": "request-3",
+      "priority": 0,
+      "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+      "ttft_ms": 38.115,
+      "tpot_ms": 5.313,
+      "e2e_ms": 372.857,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 38,
+        "total_tokens": 102,
+        "completion_tokens": 64
+      },
+      "completion_rank": 24
+    },
+    {
+      "ok": true,
+      "prompt": "When can a throughput improvement be unsuitable for online serving?",
+      "request_id": "request-4",
+      "priority": 0,
+      "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+      "ttft_ms": 39.036,
+      "tpot_ms": 5.262,
+      "e2e_ms": 370.548,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 41,
+        "total_tokens": 105,
+        "completion_tokens": 64
+      },
+      "completion_rank": 25
+    },
+    {
+      "ok": true,
+      "prompt": "Explain KV cache in one sentence.",
+      "request_id": "request-0",
+      "priority": 0,
+      "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+      "ttft_ms": 42.016,
+      "tpot_ms": 5.025,
+      "e2e_ms": 217.908,
+      "output_tokens": 36,
+      "estimated_output_tokens": false,
+      "stream_chunks": 35,
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 73,
+        "completion_tokens": 36
+      },
+      "completion_rank": 26
+    },
+    {
+      "ok": true,
+      "prompt": "What is the difference between prefill and decode?",
+      "request_id": "request-1",
+      "priority": 0,
+      "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+      "ttft_ms": 39.997,
+      "tpot_ms": 5.173,
+      "e2e_ms": 365.908,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 39,
+        "total_tokens": 103,
+        "completion_tokens": 64
+      },
+      "completion_rank": 27
+    },
+    {
+      "ok": true,
+      "prompt": "Why can prefix caching reduce TTFT?",
+      "request_id": "request-2",
+      "priority": 0,
+      "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+      "ttft_ms": 40.807,
+      "tpot_ms": 5.264,
+      "e2e_ms": 372.448,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 37,
+        "total_tokens": 101,
+        "completion_tokens": 64
+      },
+      "completion_rank": 28
+    },
+    {
+      "ok": true,
+      "prompt": "Give two metrics for evaluating an inference backend.",
+      "request_id": "request-3",
+      "priority": 0,
+      "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+      "ttft_ms": 38.483,
+      "tpot_ms": 5.154,
+      "e2e_ms": 363.196,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 38,
+        "total_tokens": 102,
+        "completion_tokens": 64
+      },
+      "completion_rank": 29
+    },
+    {
+      "ok": true,
+      "prompt": "When can a throughput improvement be unsuitable for online serving?",
+      "request_id": "request-4",
+      "priority": 0,
+      "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+      "ttft_ms": 40.198,
+      "tpot_ms": 5.395,
+      "e2e_ms": 380.056,
+      "output_tokens": 64,
+      "estimated_output_tokens": false,
+      "stream_chunks": 64,
+      "usage": {
+        "prompt_tokens": 41,
+        "total_tokens": 105,
+        "completion_tokens": 64
+      },
+      "completion_rank": 30
+    }
+  ],
+  "runs": [
+    {
+      "label": "g0_vllm_baseline",
+      "base_url": "http://127.0.0.1:60407",
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "workload": {
+        "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/fixed.jsonl",
+        "requests": 30,
+        "max_tokens": 64,
+        "concurrency": 1,
+        "warmup": 5,
+        "repeats": 1,
+        "workload_priority_sent": false
+      },
+      "metrics": {
+        "successful_requests": 30,
+        "failed_requests": 0,
+        "request_throughput_per_s": 2.9308,
+        "output_token_throughput_per_s": 171.1613,
+        "ttft_ms": {
+          "mean": 41.106,
+          "p50": 40.774,
+          "p95": 46.0833,
+          "p99": 47.72198
+        },
+        "tpot_ms": {
+          "mean": 5.218,
+          "p50": 5.259,
+          "p95": 5.5604499999999994,
+          "p99": 5.60237
+        },
+        "e2e_ms": {
+          "mean": 340.985,
+          "p50": 369.8135,
+          "p95": 386.78855,
+          "p99": 396.7178
+        },
+        "output_tokens": 1752,
+        "prompt_tokens_mean": 38.4,
+        "duration_s": 10.236,
+        "priority_order_score": null
+      },
+      "results": [
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 38.603,
+          "tpot_ms": 4.825,
+          "e2e_ms": 207.464,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 1
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 42.11,
+          "tpot_ms": 4.827,
+          "e2e_ms": 346.239,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 2
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 39.726,
+          "tpot_ms": 5.302,
+          "e2e_ms": 373.779,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 3
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 40.941,
+          "tpot_ms": 5.004,
+          "e2e_ms": 356.199,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 4
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 39.14,
+          "tpot_ms": 4.902,
+          "e2e_ms": 347.968,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 5
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 38.108,
+          "tpot_ms": 5.069,
+          "e2e_ms": 215.516,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 6
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 40.0,
+          "tpot_ms": 5.192,
+          "e2e_ms": 367.1,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 7
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 38.757,
+          "tpot_ms": 4.996,
+          "e2e_ms": 353.514,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 8
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 45.068,
+          "tpot_ms": 5.616,
+          "e2e_ms": 398.858,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 9
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 48.052,
+          "tpot_ms": 5.116,
+          "e2e_ms": 370.373,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 10
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 42.853,
+          "tpot_ms": 5.099,
+          "e2e_ms": 221.311,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 11
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 42.419,
+          "tpot_ms": 5.372,
+          "e2e_ms": 380.864,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 12
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 40.741,
+          "tpot_ms": 5.214,
+          "e2e_ms": 369.254,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 13
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 40.643,
+          "tpot_ms": 5.569,
+          "e2e_ms": 391.478,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 14
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 41.531,
+          "tpot_ms": 5.256,
+          "e2e_ms": 372.688,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 15
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 41.028,
+          "tpot_ms": 5.55,
+          "e2e_ms": 235.261,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 16
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 46.914,
+          "tpot_ms": 5.304,
+          "e2e_ms": 381.057,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 17
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 41.677,
+          "tpot_ms": 5.281,
+          "e2e_ms": 374.389,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 18
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 41.145,
+          "tpot_ms": 5.386,
+          "e2e_ms": 380.475,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 19
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 41.282,
+          "tpot_ms": 5.098,
+          "e2e_ms": 362.432,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 20
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 39.959,
+          "tpot_ms": 5.384,
+          "e2e_ms": 228.383,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 21
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 44.281,
+          "tpot_ms": 5.321,
+          "e2e_ms": 379.522,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 22
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 39.556,
+          "tpot_ms": 5.285,
+          "e2e_ms": 372.499,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 23
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 38.115,
+          "tpot_ms": 5.313,
+          "e2e_ms": 372.857,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 24
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 39.036,
+          "tpot_ms": 5.262,
+          "e2e_ms": 370.548,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 25
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 42.016,
+          "tpot_ms": 5.025,
+          "e2e_ms": 217.908,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 26
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 39.997,
+          "tpot_ms": 5.173,
+          "e2e_ms": 365.908,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 27
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 40.807,
+          "tpot_ms": 5.264,
+          "e2e_ms": 372.448,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 28
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 38.483,
+          "tpot_ms": 5.154,
+          "e2e_ms": 363.196,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 29
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 40.198,
+          "tpot_ms": 5.395,
+          "e2e_ms": 380.056,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 30
+        }
+      ]
+    },
+    {
+      "label": "g0_vllm_baseline",
+      "base_url": "http://127.0.0.1:60407",
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "workload": {
+        "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/fixed.jsonl",
+        "requests": 30,
+        "max_tokens": 64,
+        "concurrency": 1,
+        "warmup": 5,
+        "repeats": 1,
+        "workload_priority_sent": false
+      },
+      "metrics": {
+        "successful_requests": 30,
+        "failed_requests": 0,
+        "request_throughput_per_s": 2.941,
+        "output_token_throughput_per_s": 171.7544,
+        "ttft_ms": {
+          "mean": 41.836,
+          "p50": 40.192499999999995,
+          "p95": 50.984500000000004,
+          "p99": 58.23555000000001
+        },
+        "tpot_ms": {
+          "mean": 5.186,
+          "p50": 5.1625,
+          "p95": 5.535950000000001,
+          "p99": 5.58546
+        },
+        "e2e_ms": {
+          "mean": 339.813,
+          "p50": 363.2615,
+          "p95": 390.78485,
+          "p99": 406.75709
+        },
+        "output_tokens": 1752,
+        "prompt_tokens_mean": 38.4,
+        "duration_s": 10.2006,
+        "priority_order_score": null
+      },
+      "results": [
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 43.993,
+          "tpot_ms": 4.913,
+          "e2e_ms": 215.931,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 1
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 42.578,
+          "tpot_ms": 5.11,
+          "e2e_ms": 364.521,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 2
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 38.421,
+          "tpot_ms": 5.302,
+          "e2e_ms": 372.445,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 3
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 39.236,
+          "tpot_ms": 5.0,
+          "e2e_ms": 354.217,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 4
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 38.001,
+          "tpot_ms": 5.146,
+          "e2e_ms": 362.175,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 5
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 38.395,
+          "tpot_ms": 4.962,
+          "e2e_ms": 212.05,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 6
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 38.144,
+          "tpot_ms": 4.978,
+          "e2e_ms": 351.735,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 7
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 37.732,
+          "tpot_ms": 5.567,
+          "e2e_ms": 388.427,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 8
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 39.995,
+          "tpot_ms": 4.991,
+          "e2e_ms": 354.417,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 9
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 40.828,
+          "tpot_ms": 5.188,
+          "e2e_ms": 367.69,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 10
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 41.848,
+          "tpot_ms": 5.495,
+          "e2e_ms": 234.181,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 11
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 60.122,
+          "tpot_ms": 5.593,
+          "e2e_ms": 412.493,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 12
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 53.617,
+          "tpot_ms": 5.382,
+          "e2e_ms": 392.714,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 13
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 40.113,
+          "tpot_ms": 5.086,
+          "e2e_ms": 360.521,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 14
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 39.075,
+          "tpot_ms": 5.054,
+          "e2e_ms": 357.485,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 15
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 39.638,
+          "tpot_ms": 4.853,
+          "e2e_ms": 209.508,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 16
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 41.711,
+          "tpot_ms": 5.149,
+          "e2e_ms": 366.122,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 17
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 41.146,
+          "tpot_ms": 5.079,
+          "e2e_ms": 361.146,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 18
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 39.367,
+          "tpot_ms": 5.183,
+          "e2e_ms": 365.867,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 19
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 38.886,
+          "tpot_ms": 5.087,
+          "e2e_ms": 359.364,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 20
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 47.767,
+          "tpot_ms": 5.375,
+          "e2e_ms": 235.882,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 21
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 40.754,
+          "tpot_ms": 5.141,
+          "e2e_ms": 364.658,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 22
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 46.865,
+          "tpot_ms": 5.283,
+          "e2e_ms": 379.663,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 23
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 44.235,
+          "tpot_ms": 5.266,
+          "e2e_ms": 376.017,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 24
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 37.891,
+          "tpot_ms": 5.498,
+          "e2e_ms": 384.243,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 25
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 39.602,
+          "tpot_ms": 5.221,
+          "e2e_ms": 222.348,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 26
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 41.821,
+          "tpot_ms": 5.236,
+          "e2e_ms": 371.709,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 27
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 44.774,
+          "tpot_ms": 5.226,
+          "e2e_ms": 374.04,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 28
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 38.258,
+          "tpot_ms": 5.176,
+          "e2e_ms": 364.348,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 29
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 40.272,
+          "tpot_ms": 5.051,
+          "e2e_ms": 358.473,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 30
+        }
+      ]
+    },
+    {
+      "label": "g0_vllm_baseline",
+      "base_url": "http://127.0.0.1:60407",
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "workload": {
+        "source": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/fixed.jsonl",
+        "requests": 30,
+        "max_tokens": 64,
+        "concurrency": 1,
+        "warmup": 5,
+        "repeats": 1,
+        "workload_priority_sent": false
+      },
+      "metrics": {
+        "successful_requests": 30,
+        "failed_requests": 0,
+        "request_throughput_per_s": 3.1293,
+        "output_token_throughput_per_s": 182.7498,
+        "ttft_ms": {
+          "mean": 39.392,
+          "p50": 39.031,
+          "p95": 41.2834,
+          "p99": 41.62771
+        },
+        "tpot_ms": {
+          "mean": 4.868,
+          "p50": 4.7684999999999995,
+          "p95": 5.12285,
+          "p99": 5.13168
+        },
+        "e2e_ms": {
+          "mean": 319.39,
+          "p50": 339.14750000000004,
+          "p95": 363.06365,
+          "p99": 363.70356000000004
+        },
+        "output_tokens": 1752,
+        "prompt_tokens_mean": 38.4,
+        "duration_s": 9.5869,
+        "priority_order_score": null
+      },
+      "results": [
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 39.05,
+          "tpot_ms": 5.067,
+          "e2e_ms": 216.39,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 1
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 38.296,
+          "tpot_ms": 5.118,
+          "e2e_ms": 360.752,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 2
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 41.686,
+          "tpot_ms": 4.899,
+          "e2e_ms": 350.353,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 3
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 40.144,
+          "tpot_ms": 5.099,
+          "e2e_ms": 361.372,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 4
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 40.629,
+          "tpot_ms": 5.119,
+          "e2e_ms": 363.11,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 5
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 37.949,
+          "tpot_ms": 4.75,
+          "e2e_ms": 204.213,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 6
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 39.678,
+          "tpot_ms": 4.69,
+          "e2e_ms": 335.165,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 7
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 38.875,
+          "tpot_ms": 4.769,
+          "e2e_ms": 339.292,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 8
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 39.866,
+          "tpot_ms": 4.756,
+          "e2e_ms": 339.474,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 9
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 41.037,
+          "tpot_ms": 4.71,
+          "e2e_ms": 337.761,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 10
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 38.743,
+          "tpot_ms": 4.604,
+          "e2e_ms": 199.892,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 11
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 38.121,
+          "tpot_ms": 4.745,
+          "e2e_ms": 337.039,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 12
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 40.638,
+          "tpot_ms": 4.728,
+          "e2e_ms": 338.525,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 13
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 39.419,
+          "tpot_ms": 4.757,
+          "e2e_ms": 339.082,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 14
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 38.435,
+          "tpot_ms": 4.768,
+          "e2e_ms": 338.79,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 15
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 37.914,
+          "tpot_ms": 4.569,
+          "e2e_ms": 197.817,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 16
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 38.526,
+          "tpot_ms": 4.703,
+          "e2e_ms": 334.823,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 17
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 39.012,
+          "tpot_ms": 4.984,
+          "e2e_ms": 352.991,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 18
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 41.019,
+          "tpot_ms": 5.111,
+          "e2e_ms": 363.007,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 19
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 37.379,
+          "tpot_ms": 5.028,
+          "e2e_ms": 354.117,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 20
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 38.627,
+          "tpot_ms": 4.999,
+          "e2e_ms": 213.597,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 21
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 38.944,
+          "tpot_ms": 5.134,
+          "e2e_ms": 362.413,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 22
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 40.207,
+          "tpot_ms": 4.961,
+          "e2e_ms": 352.757,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 23
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 38.882,
+          "tpot_ms": 4.738,
+          "e2e_ms": 337.361,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 24
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 38.858,
+          "tpot_ms": 4.768,
+          "e2e_ms": 339.213,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 25
+        },
+        {
+          "ok": true,
+          "prompt": "Explain KV cache in one sentence.",
+          "request_id": "request-0",
+          "priority": 0,
+          "output_text": "A key-value store is a data structure that stores and retrieves data using hash-based keys and values, allowing for fast access to specific pieces of information based on their associated keys.",
+          "ttft_ms": 41.485,
+          "tpot_ms": 4.58,
+          "e2e_ms": 201.78,
+          "output_tokens": 36,
+          "estimated_output_tokens": false,
+          "stream_chunks": 35,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 73,
+            "completion_tokens": 36
+          },
+          "completion_rank": 26
+        },
+        {
+          "ok": true,
+          "prompt": "What is the difference between prefill and decode?",
+          "request_id": "request-1",
+          "priority": 0,
+          "output_text": "In the context of AI systems like those used in virtual assistants or chatbots, \"prefill\" and \"decode\" refer to different processes that occur during the interaction with the system.\n\n1. **Prefill**:\n   - **Definition**: Prefilling involves setting up initial information about the user's preferences, needs",
+          "ttft_ms": 40.615,
+          "tpot_ms": 4.71,
+          "e2e_ms": 337.368,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 39,
+            "total_tokens": 103,
+            "completion_tokens": 64
+          },
+          "completion_rank": 27
+        },
+        {
+          "ok": true,
+          "prompt": "Why can prefix caching reduce TTFT?",
+          "request_id": "request-2",
+          "priority": 0,
+          "output_text": "Prefix Caching (also known as Prefix-Free Cache) is an optimization technique used in computer networks to improve the performance of data retrieval operations. In the context of TCP (Transmission Control Protocol), which is commonly used for internet communication, prefix caching helps to reduce the time it takes to retrieve packets from the network.\n\nThe key",
+          "ttft_ms": 39.271,
+          "tpot_ms": 5.068,
+          "e2e_ms": 358.524,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 37,
+            "total_tokens": 101,
+            "completion_tokens": 64
+          },
+          "completion_rank": 28
+        },
+        {
+          "ok": true,
+          "prompt": "Give two metrics for evaluating an inference backend.",
+          "request_id": "request-3",
+          "priority": 0,
+          "output_text": "When evaluating the performance of an inference backend, there are several key metrics that can be used to assess its effectiveness and efficiency. Here are two common metrics:\n\n1. **Latency**: Latency is a measure of how long it takes for data to travel from the source to the destination. In the context of machine learning",
+          "ttft_ms": 40.979,
+          "tpot_ms": 5.126,
+          "e2e_ms": 363.946,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 38,
+            "total_tokens": 102,
+            "completion_tokens": 64
+          },
+          "completion_rank": 29
+        },
+        {
+          "ok": true,
+          "prompt": "When can a throughput improvement be unsuitable for online serving?",
+          "request_id": "request-4",
+          "priority": 0,
+          "output_text": "A throughput improvement in online serving is generally considered suitable when it leads to significant improvements in the performance and efficiency of the service, such as faster response times, reduced latency, improved data transfer rates, or increased capacity utilization. However, there are some scenarios where a throughput improvement might not be appropriate:\n\n1. **High Lat",
+          "ttft_ms": 37.472,
+          "tpot_ms": 4.973,
+          "e2e_ms": 350.79,
+          "output_tokens": 64,
+          "estimated_output_tokens": false,
+          "stream_chunks": 64,
+          "usage": {
+            "prompt_tokens": 41,
+            "total_tokens": 105,
+            "completion_tokens": 64
+          },
+          "completion_rank": 30
+        }
+      ]
+    }
+  ],
+  "schema_version": "inference-benchmark/v1",
+  "normalized_result": {
+    "schema_version": "inference-benchmark/v1",
+    "project": "66",
+    "strategy": "g0_vllm_baseline",
+    "role": "baseline",
+    "config": {
+      "model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "backend": "vllm",
+      "dtype": "bfloat16",
+      "prompt_tokens": 38.4,
+      "generated_tokens": 64,
+      "batch": 1,
+      "concurrency": 1,
+      "cache_policy": "default",
+      "role": "baseline",
+      "workload": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/workloads/fixed.jsonl"
+    },
+    "metrics": {
+      "ttft_ms": {
+        "mean": 40.778,
+        "p50": 39.9992,
+        "p95": 46.1171,
+        "p99": 49.1951
+      },
+      "tpot_ms": {
+        "mean": 5.0907,
+        "p50": 5.0633,
+        "p95": 5.4064,
+        "p99": 5.4398
+      },
+      "throughput_tokens_per_s": 175.2218,
+      "throughput_requests_per_s": 3.0004,
+      "p95_ms": null,
+      "p99_ms": 389.0595,
+      "peak_memory_mb": 10451.0,
+      "queue_wait_ms": null,
+      "input_transfer_bytes": null,
+      "input_transfer_ms": null,
+      "transfer_bytes": null,
+      "handoff_ms": null,
+      "recompute_ms": null,
+      "network_wait_ms": null,
+      "communication_ms": null,
+      "exposed_comm_ms": null,
+      "overlap_ratio": null,
+      "idle_gap_ms": null,
+      "model_load_ms": null,
+      "stream_output_ms": null,
+      "e2e_latency_ms": {
+        "mean": 333.396,
+        "p50": 357.4075,
+        "p95": 380.2124,
+        "p99": 389.0595
+      },
+      "successful_requests": 30,
+      "failed_requests": 0,
+      "duration_s": 10.0078
+    },
+    "quality": {},
+    "status": "not_recorded",
+    "evidence_level": "not_recorded",
+    "failure": {
+      "failure_reason": null,
+      "retest_path": null
+    },
+    "decision": {
+      "decision": "not_evaluated"
+    },
+    "source": "http://127.0.0.1:60407"
+  },
+  "resource_measurement": {
+    "metric": "device_memory_used_peak_mb",
+    "scope": "visible_gpu_0_total_device_usage",
+    "sample_count": 156,
+    "includes_non_service_processes": true
+  },
+  "baseline_contract": {
+    "schema_version": "inference-baseline/v2",
+    "project": "66",
+    "group": "G0",
+    "role": "baseline",
+    "profile_id": "INF-VLLM-011-CU128",
+    "backend": "vllm",
+    "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "dtype": "bfloat16",
+    "workload_path": "benchmarks/workloads/fixed.jsonl",
+    "num_prompts": 30,
+    "max_tokens": 64,
+    "batch": 1,
+    "concurrency": 1,
+    "warmup": 5,
+    "repeats": 3,
+    "strategies": [],
+    "result_path": "benchmarks/results/66_g0_vllm_rtx5070ti_vllm_g0_v4.json"
+  },
+  "model_identity": {
+    "requested_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "resolved_snapshot": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "selected_dtype": "bfloat16"
+  },
+  "quality": {
+    "status": "passed",
+    "check": "all_requests_succeeded_and_output_nonempty"
+  },
+  "baseline_pointer": {
+    "schema_version": "inference-baseline-pointer/v1",
+    "source_result": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/66_g0_vllm_rtx5070ti_vllm_g0_v4.json",
+    "status": "ready"
+  }
+}

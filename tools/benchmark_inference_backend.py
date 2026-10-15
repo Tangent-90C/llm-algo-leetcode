@@ -13,6 +13,7 @@ import concurrent.futures
 import json
 import math
 import statistics
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -56,7 +57,41 @@ def _read_workload(path: str | None, prompt: str, num_prompts: int) -> list[str]
             raise ValueError("Each workload JSONL row needs prompt or messages")
     if not prompts:
         raise ValueError(f"Workload is empty: {path}")
-    return prompts[:num_prompts] if num_prompts > 0 else prompts
+    if num_prompts <= 0:
+        return prompts
+    # 固定顺序循环保留请求内容与到达顺序，允许小型冻结 workload 形成指定规模；
+    # 结果中的 requests 是实际请求数，不表示存在同样数量的不同样本。
+    return [prompts[index % len(prompts)] for index in range(num_prompts)]
+
+
+def _read_request_specs(path: str | None, prompt: str, num_prompts: int) -> list[dict[str, Any]]:
+    """Read prompts plus optional request ids and priorities from JSONL."""
+    if not path:
+        rows = [{"prompt": prompt, "request_id": "request-0", "priority": 0}]
+    else:
+        rows = []
+        for index, line in enumerate(Path(path).read_text(encoding="utf-8").splitlines()):
+            if not line.strip():
+                continue
+            item = json.loads(line)
+            if isinstance(item, str):
+                item = {"prompt": item}
+            if "prompt" in item:
+                prompt_text = str(item["prompt"])
+            elif "messages" in item:
+                prompt_text = json.dumps(item["messages"], ensure_ascii=False)
+            else:
+                raise ValueError("Each workload JSONL row needs prompt or messages")
+            rows.append({
+                "prompt": prompt_text,
+                "request_id": str(item.get("request_id", f"request-{index}")),
+                "priority": int(item.get("priority", 0)),
+            })
+    if not rows:
+        raise ValueError(f"Workload is empty: {path}")
+    if num_prompts <= 0:
+        return rows
+    return [dict(rows[index % len(rows)], cycle=index // len(rows)) for index in range(num_prompts)]
 
 
 def _parse_sse_line(line: bytes) -> dict[str, Any] | None:
@@ -69,8 +104,11 @@ def _parse_sse_line(line: bytes) -> dict[str, Any] | None:
         return None
 
 
-def _run_request(base_url: str, model: str, prompt: str, max_tokens: int,
-                 temperature: float, timeout_s: float) -> dict[str, Any]:
+def _run_request(base_url: str, model: str, request_spec: dict[str, Any], max_tokens: int,
+                 temperature: float, timeout_s: float, send_priority: bool = False,
+                 start_barrier: threading.Barrier | None = None,
+                 clock_origin_s: float | None = None) -> dict[str, Any]:
+    prompt = request_spec["prompt"]
     url = base_url.rstrip("/") + "/v1/chat/completions"
     body = {
         "model": model,
@@ -80,13 +118,18 @@ def _run_request(base_url: str, model: str, prompt: str, max_tokens: int,
         "stream": True,
         "stream_options": {"include_usage": True},
     }
+    if send_priority:
+        body["priority"] = int(request_spec.get("priority", 0))
     request = urllib.request.Request(
         url,
         data=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
+    if start_barrier is not None:
+        start_barrier.wait(timeout=timeout_s)
     started = time.perf_counter()
+    clock_origin_s = started if clock_origin_s is None else clock_origin_s
     first_token_s: float | None = None
     chunks = 0
     output_text: list[str] = []
@@ -108,7 +151,12 @@ def _run_request(base_url: str, model: str, prompt: str, max_tokens: int,
                     chunks += 1
                     output_text.append(content)
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        return {"ok": False, "error": str(exc), "prompt": prompt}
+        return {
+            "ok": False, "error": str(exc), "prompt": prompt,
+            "request_id": request_spec.get("request_id"),
+            "priority": request_spec.get("priority", 0),
+            "submit_offset_ms": round((started - clock_origin_s) * 1000, 3),
+        }
 
     finished = time.perf_counter()
     ttft_ms = ((first_token_s or finished) - started) * 1000
@@ -121,9 +169,15 @@ def _run_request(base_url: str, model: str, prompt: str, max_tokens: int,
     return {
         "ok": True,
         "prompt": prompt,
+        "request_id": request_spec.get("request_id"),
+        "priority": request_spec.get("priority", 0),
+        "output_text": "".join(output_text),
         "ttft_ms": round(ttft_ms, 3),
         "tpot_ms": round(tpot_ms, 3),
         "e2e_ms": round(e2e_ms, 3),
+        "submit_offset_ms": round((started - clock_origin_s) * 1000, 3),
+        "first_token_offset_ms": round(((first_token_s or finished) - clock_origin_s) * 1000, 3),
+        "completion_offset_ms": round((finished - clock_origin_s) * 1000, 3),
         "output_tokens": output_tokens,
         "estimated_output_tokens": estimated_tokens,
         "stream_chunks": chunks,
@@ -131,23 +185,60 @@ def _run_request(base_url: str, model: str, prompt: str, max_tokens: int,
     }
 
 
+def _priority_pair_score(results: list[dict[str, Any]], rank_key: str) -> float | None:
+    """Return the share of cross-priority pairs ordered high priority first."""
+
+    ranked = [
+        item for item in results
+        if isinstance(item.get("priority"), int)
+        and isinstance(item.get(rank_key), (int, float))
+    ]
+    ranked.sort(key=lambda item: (item[rank_key], str(item.get("request_id", ""))))
+    comparable_pairs = preferred_pairs = 0
+    for left_index, left in enumerate(ranked):
+        for right in ranked[left_index + 1:]:
+            if left["priority"] == right["priority"]:
+                continue
+            comparable_pairs += 1
+            preferred_pairs += int(left["priority"] < right["priority"])
+    return preferred_pairs / comparable_pairs if comparable_pairs else None
+
+
 def benchmark(args: argparse.Namespace) -> dict[str, Any]:
-    prompts = _read_workload(args.workload, args.prompt, args.num_prompts)
+    request_specs = _read_request_specs(args.workload, args.prompt, args.num_prompts)
+    if args.synchronize_start and args.concurrency < len(request_specs):
+        raise ValueError("--synchronize-start 要求 concurrency 不小于实际请求数")
     for _ in range(args.warmup):
-        result = _run_request(args.base_url, args.model, prompts[0], args.max_tokens,
-                              args.temperature, args.timeout)
+        warmup_spec = dict(request_specs[0], priority=0)
+        result = _run_request(args.base_url, args.model, warmup_spec, args.max_tokens,
+                              args.temperature, args.timeout, False)
         if not result["ok"]:
             raise RuntimeError(f"Warm-up request failed: {result['error']}")
 
     started = time.perf_counter()
+    start_barrier = threading.Barrier(len(request_specs)) if args.synchronize_start else None
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as pool:
-        futures = [pool.submit(_run_request, args.base_url, args.model, prompt,
-                               args.max_tokens, args.temperature, args.timeout)
-                   for prompt in prompts]
-        results = [future.result() for future in futures]
+        futures = [pool.submit(
+            _run_request, args.base_url, args.model, request_spec,
+            args.max_tokens, args.temperature, args.timeout,
+            args.send_workload_priority,
+            start_barrier, started,
+        ) for request_spec in request_specs]
+        results = []
+        for completion_rank, future in enumerate(concurrent.futures.as_completed(futures), start=1):
+            result = future.result()
+            result["completion_rank"] = completion_rank
+            results.append(result)
     duration_s = time.perf_counter() - started
 
     successful = [item for item in results if item["ok"]]
+    for first_token_rank, item in enumerate(
+        sorted(successful, key=lambda row: (
+            row["first_token_offset_ms"], str(row.get("request_id", ""))
+        )),
+        start=1,
+    ):
+        item["first_token_rank"] = first_token_rank
     ttft = [item["ttft_ms"] for item in successful]
     tpot = [item["tpot_ms"] for item in successful]
     e2e = [item["e2e_ms"] for item in successful]
@@ -158,17 +249,21 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
         if isinstance(item.get("usage"), dict)
         and isinstance(item["usage"].get("prompt_tokens"), (int, float))
     ]
+    priority_order_score = _priority_pair_score(successful, "completion_rank")
+    priority_first_token_order_score = _priority_pair_score(successful, "first_token_rank")
     return {
         "label": args.label,
         "base_url": args.base_url,
         "model": args.model,
         "workload": {
             "source": args.workload or "inline_prompt",
-            "requests": len(prompts),
+            "requests": len(request_specs),
             "max_tokens": args.max_tokens,
             "concurrency": args.concurrency,
             "warmup": args.warmup,
             "repeats": 1,
+            "workload_priority_sent": args.send_workload_priority,
+            "synchronized_start": args.synchronize_start,
         },
         "metrics": {
             "successful_requests": len(successful),
@@ -188,6 +283,10 @@ def benchmark(args: argparse.Namespace) -> dict[str, Any]:
             "prompt_tokens_mean": round(statistics.mean(prompt_token_values), 3)
             if prompt_token_values else None,
             "duration_s": round(duration_s, 4),
+            "priority_order_score": round(priority_order_score, 4)
+            if priority_order_score is not None else None,
+            "priority_first_token_order_score": round(priority_first_token_order_score, 4)
+            if priority_first_token_order_score is not None else None,
         },
         "results": results if args.include_requests else None,
     }
@@ -202,6 +301,8 @@ def aggregate_repeated_reports(reports: list[dict[str, Any]]) -> dict[str, Any]:
     aggregate = json.loads(json.dumps(reports[0]))
     aggregate["runs"] = reports
     aggregate["workload"] = dict(aggregate.get("workload", {}), repeats=len(reports))
+    aggregate["metrics_aggregation"] = "mean_of_run_metrics"
+    aggregate["results_scope"] = "first_run; use runs[*].results for repeated request-level metrics"
     metrics = dict(aggregate.get("metrics", {}))
     for key, value in list(metrics.items()):
         if isinstance(value, (int, float)):
@@ -243,6 +344,14 @@ def main() -> None:
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--include-requests", action="store_true")
+    parser.add_argument(
+        "--send-workload-priority", action="store_true",
+        help="Send each JSONL row's priority field to a priority-enabled backend",
+    )
+    parser.add_argument(
+        "--synchronize-start", action="store_true",
+        help="Release one full-concurrency request burst together; requires concurrency >= requests",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if args.repeats <= 0:

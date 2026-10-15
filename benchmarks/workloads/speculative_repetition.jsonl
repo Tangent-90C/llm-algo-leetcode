@@ -1,0 +1,8 @@
+{"request_id":"repeat-0","prompt":"Continue the exact comma-separated pattern for four more items: red, blue, green, red, blue, green, red, blue,"}
+{"request_id":"repeat-1","prompt":"Complete the next four JSON objects using the same format: {\"id\":1,\"ok\":true},{\"id\":2,\"ok\":true},{\"id\":3,\"ok\":true},"}
+{"request_id":"repeat-2","prompt":"Continue this Python list with the same repeating cycle for twelve values: values = [1, 2, 3, 1, 2, 3, 1, 2, 3,"}
+{"request_id":"repeat-3","prompt":"Continue the log sequence for four lines: INFO request accepted\nINFO request verified\nINFO request accepted\nINFO request verified\n"}
+{"request_id":"repeat-4","prompt":"Repeat the established table-row pattern for rows D through F: A | ready | 1\nB | ready | 2\nC | ready | 3\n"}
+{"request_id":"repeat-5","prompt":"Continue the alternating tokens for ten tokens: cache hit cache miss cache hit cache miss cache hit"}
+{"request_id":"repeat-6","prompt":"Complete the next three assignments following the pattern: shard_0 = gpu_0\nshard_1 = gpu_1\nshard_2 = gpu_0\nshard_3 = gpu_1\n"}
+{"request_id":"repeat-7","prompt":"Continue the sequence with eight more terms and no explanation: alpha beta alpha beta alpha beta"}

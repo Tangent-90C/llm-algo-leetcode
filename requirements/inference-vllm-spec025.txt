@@ -1,0 +1,9 @@
+# Dedicated vLLM speculative-selection profile for CUDA 12.9.
+# Install only after the driver gate passes, and keep it isolated from the
+# historical vLLM 0.11 CUDA 12.8 baseline environment.
+-c inference-vllm-spec025-constraints.txt
+-r base.txt
+--extra-index-url https://download.pytorch.org/whl/cu129
+
+vllm @ https://github.com/vllm-project/vllm/releases/download/v0.25.1/vllm-0.25.1%2Bcu129-cp38-abi3-manylinux_2_28_x86_64.whl
+httpx[socks]

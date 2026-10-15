@@ -1,0 +1,67 @@
+{
+  "schema_version": "model-evaluation/v1",
+  "semantic_id": "PT-GRPO-GROUPWISE",
+  "run_label": "grpo_rlvr_len384_v7",
+  "decision": "accept",
+  "decision_details": {
+    "decision": "accept",
+    "failed_checks": []
+  },
+  "source_evidence": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/85_grpo_alignment/grpo_evidence_grpo_rlvr_len384_v7.json",
+  "sft_manifest": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/62_sft_delivery/sft_delivery_manifest_sft_delivery_v2_1.json",
+  "evidence_window_index": 1,
+  "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+  "evaluation_version": "740312add88f781978c0658806c59bc2815b9866",
+  "policy_version": "efbfa85c17c8f301839005499866b1d9f2ff046a4a0c722c3992ba80f708764d",
+  "quality": {
+    "baseline": {
+      "reward_mean": 0.2708333333333333,
+      "pass_at_group": 0.5833333333333334,
+      "response_count": 96,
+      "response_length_mean": 232.05208333333334,
+      "response_length_p95": 384,
+      "max_length_hit_ratio": 0.11458333333333333
+    },
+    "candidate": {
+      "reward_mean": 0.3229166666666667,
+      "pass_at_group": 0.6666666666666666,
+      "response_count": 96,
+      "response_length_mean": 233.22916666666666,
+      "response_length_p95": 384,
+      "max_length_hit_ratio": 0.1875
+    },
+    "comparison": {
+      "reward_mean_gain": 0.05208333333333337,
+      "pass_at_group_gain": 0.08333333333333326,
+      "paired_evaluation_seed_offset": 10000
+    }
+  },
+  "rollout": {
+    "group_size": 8,
+    "group_count": 24,
+    "valid_group_count": 18,
+    "valid_group_ratio": 0.75,
+    "rollout_seconds": 84.75740307499655
+  },
+  "rollout_contract": {
+    "admitted": true,
+    "failed_checks": []
+  },
+  "trajectory_identity": {
+    "group_count": 24,
+    "trace_count": 192,
+    "trace_ids_hash": "2acb183c4bc136d53d1af477e83bc953bba2fc5a844f009d0c6082775ee72d3b",
+    "verifier_version": "gsm8k-final-number-v1"
+  },
+  "resources": {
+    "peak_allocated_bytes": 7517363712,
+    "peak_reserved_bytes": 10198450176
+  },
+  "artifacts": {
+    "adapter": {
+      "path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/85_grpo_alignment/adapter_grpo_rlvr_len384_v7",
+      "sha256": "efbfa85c17c8f301839005499866b1d9f2ff046a4a0c722c3992ba80f708764d"
+    }
+  },
+  "next_consumer": "PT-POST-TRAINING-LIFECYCLE"
+}

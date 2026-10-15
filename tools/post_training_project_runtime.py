@@ -390,10 +390,16 @@ def run_lora_delivery(
         (parameter for parameter in model.parameters() if parameter.requires_grad),
         lr=learning_rate,
     )
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda _: 1.0)
+    probe_parameter = next(parameter for parameter in model.parameters() if parameter.requires_grad)
     initial_eval_loss = evaluate(model)
     torch.cuda.reset_peak_memory_stats()
     losses: list[float] = []
     times_ms: list[float] = []
+    gradient_norms: list[float] = []
+    parameter_delta_norms: list[float] = []
+    learning_rates: list[float] = []
+    finite_flags: list[bool] = []
 
     def train_range(start: int, stop: int) -> None:
         model.train()
@@ -404,22 +410,48 @@ def run_lora_delivery(
             optimizer.zero_grad(set_to_none=True)
             output = model(**batch)
             output.loss.backward()
+            gradient_norm = 0.0
+            for parameter in model.parameters():
+                if parameter.grad is not None:
+                    gradient_norm += float(parameter.grad.detach().float().pow(2).sum().item())
+            gradient_norm = gradient_norm**0.5
+            probe_before = probe_parameter.detach().float().reshape(-1)[:4096].cpu().clone()
+            learning_rates.append(float(optimizer.param_groups[0]["lr"]))
             optimizer.step()
+            scheduler.step()
             torch.cuda.synchronize()
             times_ms.append((time.perf_counter() - started) * 1000.0)
             losses.append(float(output.loss.detach().float().item()))
+            gradient_norms.append(gradient_norm)
+            parameter_delta_norms.append(
+                float(
+                    (probe_parameter.detach().float().reshape(-1)[:4096].cpu() - probe_before)
+                    .pow(2)
+                    .sum()
+                    .sqrt()
+                    .item()
+                )
+            )
+            finite_flags.append(
+                bool(torch.isfinite(output.loss).item()) and torch.isfinite(torch.tensor(gradient_norm)).item()
+            )
 
     train_range(0, checkpoint_step)
     checkpoint_adapter = checkpoint_root / "adapter"
     model.save_pretrained(checkpoint_adapter)
     torch.save(optimizer.state_dict(), checkpoint_root / "optimizer.pt")
+    torch.save(scheduler.state_dict(), checkpoint_root / "scheduler.pt")
+    torch.save(
+        {"cpu": torch.get_rng_state(), "cuda": torch.cuda.get_rng_state(device)},
+        checkpoint_root / "rng.pt",
+    )
     (checkpoint_root / "progress.json").write_text(
         json.dumps({"global_step": checkpoint_step, "total_steps": total_steps}, indent=2) + "\n",
         encoding="utf-8",
     )
     checkpoint_hash = hash_directory(checkpoint_root)
 
-    del optimizer, model, base
+    del scheduler, optimizer, model, base
     gc.collect()
     torch.cuda.empty_cache()
 
@@ -429,9 +461,15 @@ def run_lora_delivery(
         (parameter for parameter in model.parameters() if parameter.requires_grad),
         lr=learning_rate,
     )
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda _: 1.0)
     optimizer.load_state_dict(
         torch.load(checkpoint_root / "optimizer.pt", map_location=device, weights_only=True)
     )
+    scheduler.load_state_dict(torch.load(checkpoint_root / "scheduler.pt", weights_only=True))
+    rng_state = torch.load(checkpoint_root / "rng.pt", map_location="cpu", weights_only=True)
+    torch.set_rng_state(rng_state["cpu"])
+    torch.cuda.set_rng_state(rng_state["cuda"], device)
+    probe_parameter = next(parameter for parameter in model.parameters() if parameter.requires_grad)
     resumed_from_step = json.loads(
         (checkpoint_root / "progress.json").read_text(encoding="utf-8")
     )["global_step"]
@@ -443,7 +481,7 @@ def run_lora_delivery(
     peak_allocated_bytes = int(torch.cuda.max_memory_allocated())
     peak_reserved_bytes = int(torch.cuda.max_memory_reserved())
 
-    del optimizer, model, base
+    del scheduler, optimizer, model, base
     gc.collect()
     torch.cuda.empty_cache()
     reloaded_base = load_base()
@@ -458,6 +496,13 @@ def run_lora_delivery(
         "initial_train_loss": losses[0],
         "final_train_loss": losses[-1],
         "median_step_time_ms": statistics.median(times_ms),
+        "update_dynamics": {
+            "finite_all": all(finite_flags),
+            "gradient_norm_median": statistics.median(gradient_norms),
+            "parameter_delta_norm_median": statistics.median(parameter_delta_norms),
+            "learning_rate_start": learning_rates[0],
+            "learning_rate_end": learning_rates[-1],
+        },
         "peak_allocated_bytes": peak_allocated_bytes,
         "peak_reserved_bytes": peak_reserved_bytes,
         "checkpoint": {
@@ -468,6 +513,8 @@ def run_lora_delivery(
             "completed_step": total_steps,
             "training_update_count": len(losses),
             "optimizer_state_present": True,
+            "scheduler_state_present": True,
+            "rng_state_present": True,
         },
         "artifact": {"path": str(artifact_root), "sha256": artifact_hash},
         "status": "ok",

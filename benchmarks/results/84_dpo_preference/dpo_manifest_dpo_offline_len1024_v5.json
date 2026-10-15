@@ -1,0 +1,44 @@
+{
+  "schema_version": "model-evaluation/v1",
+  "semantic_id": "PT-DPO-OFFLINE",
+  "run_label": "dpo_offline_len1024_v5",
+  "decision": "accept",
+  "decision_details": {
+    "decision": "accept",
+    "failed_checks": []
+  },
+  "source_evidence": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/84_dpo_preference/dpo_evidence_dpo_offline_len1024_v5.json",
+  "sft_manifest": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/62_sft_delivery/sft_delivery_manifest_sft_delivery_v2_1.json",
+  "evidence_window_index": 0,
+  "source_policy_version": "53204548f1477e81778f68d3716cca1317ac104ade5f9901a154a49681027021",
+  "evaluation_version": "47124cb5778f5d50de1c7676a412828f3ea7c555",
+  "policy_version": "132c6001efa1229aae14ea19a23e4bdcd5ab398a36f865d16d5a7fd7215db39b",
+  "quality": {
+    "baseline": {
+      "preference_accuracy": 0.5625,
+      "margin_mean": 0.28141821175813675,
+      "margin_min": -0.7857153415679932
+    },
+    "candidate": {
+      "preference_accuracy": 0.5625,
+      "margin_mean": 0.283590130507946,
+      "margin_min": -0.7893154621124268
+    },
+    "comparison": {
+      "preference_accuracy_gain": 0.0,
+      "margin_mean_gain": 0.002171918749809265,
+      "margin_floor_gain": -0.0036001205444335938
+    }
+  },
+  "resources": {
+    "peak_allocated_bytes": 6970438656,
+    "peak_reserved_bytes": 10877927424
+  },
+  "artifacts": {
+    "adapter": {
+      "path": "/data/llm-algo-leetcode-datawhale/llm-algo-leetcode/benchmarks/results/84_dpo_preference/adapter_dpo_offline_len1024_v5",
+      "sha256": "132c6001efa1229aae14ea19a23e4bdcd5ab398a36f865d16d5a7fd7215db39b"
+    }
+  },
+  "next_consumer": "PT-POST-TRAINING-LIFECYCLE"
+}
